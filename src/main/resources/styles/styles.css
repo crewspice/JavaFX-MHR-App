@@ -1,0 +1,26 @@
+/* General button styles */
+.button {
+    -fx-border-color: orange;
+    -fx-border-width: 2px;
+}
+
+.button:hover {
+    -fx-background-color: orange;
+    -fx-text-fill: white;
+}
+
+/* ListView item highlight */
+.list-cell:focused {
+    -fx-background-color: orange;
+    -fx-text-fill: white;
+}
+
+/* TextField highlight */
+.text-field {
+    -fx-border-color: orange;
+    -fx-border-width: 2px;
+}
+
+.text-field:focused {
+    -fx-border-color: orange;
+}

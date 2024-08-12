@@ -1,0 +1,31 @@
+plugins {
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.0.13'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.openjfx:javafx-controls:21'
+    implementation 'org.openjfx:javafx-fxml:21'
+}
+
+javafx {
+    version = "21"
+    modules = [ 'javafx.controls', 'javafx.fxml' ]
+}
+
+application {
+    mainClassName = 'com.yourcompany.MainApp'
+}
+
+tasks.withType(JavaExec) {
+    doFirst {
+        jvmArgs = [
+            '--module-path', 'C:/Program Files/JavaFX/javafx-sdk-21.0.4/lib',
+            '--add-modules', 'javafx.controls,javafx.fxml'
+        ]
+    }
+}

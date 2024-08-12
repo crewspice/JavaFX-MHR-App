@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.Pane?>
+
+<AnchorPane fx:id="anchorPane" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.LoginController">
+    <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+    <Pane fx:id="scissorLiftPane" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0"/>
+    <TextField fx:id="nameField" layoutX="14.0" layoutY="14.0" promptText="Enter your name" AnchorPane.leftAnchor="14.0" AnchorPane.topAnchor="14.0"/>
+    <ListView fx:id="suggestionsList" layoutX="14.0" layoutY="44.0" AnchorPane.leftAnchor="14.0" AnchorPane.topAnchor="44.0" visible="false"/>
+    <Button fx:id="loginButton" text="Login" layoutX="200.0" layoutY="14.0" onAction="#handleLogin" AnchorPane.leftAnchor="200.0" AnchorPane.topAnchor="14.0"/>
+</AnchorPane>
