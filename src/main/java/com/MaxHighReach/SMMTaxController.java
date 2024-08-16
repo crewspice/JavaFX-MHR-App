@@ -3,8 +3,10 @@ package com.MaxHighReach;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.*;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
@@ -19,9 +21,16 @@ import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.xml.sax.SAXException;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
@@ -39,17 +48,47 @@ public class SMMTaxController extends BaseController {
     @FXML
     private VBox loadingIndicator;
 
-    private static final String TEMPLATE_PATH_HOME = "C:\\Users\\jacks\\OneDrive\\Desktop\\Professional\\Max High Reach\\SMM\\example.xlsx";
-    private static final String TEMPLATE_PATH_WORK = ""; // Add your work machine path when ready
+    @FXML
+    private TextField dateRangeTextField; // Added for user input
+
+    @FXML
+    private Label dateRangeLabel;
+
+    @FXML
+    private HBox confirmationPrompt; // Reference to the confirmation prompt VBox
+
+    private static final String OUTPUT_DIRECTORY;
+    private static final String TEMPLATE_PATH;
+    private static final String SCRIPT_PATH;
+    private static final String INVOICE_QUERY;
+    private static final String SDK_OUTPUT;
+    private static final String PREFIX;
+    private static final String SRCDIR;
+
+    private static boolean atWork = true; // Set this based on your environment
+
+    static {
+        if (atWork) {
+            PREFIX = "C:\\Users\\maxhi\\OneDrive\\Documents\\Max High Reach\\MONTH END\\";
+            SRCDIR = "..\\..\\Quickbooks\\QBProgram Development\\SMM Filing\\";
+        } else {
+            PREFIX = "C:\\Users\\jacks\\OneDrive\\Desktop\\Professional\\Max High Reach\\SMM\\";
+            SRCDIR = "";
+        }
+        OUTPUT_DIRECTORY = PREFIX;
+        TEMPLATE_PATH = PREFIX + "SMM template 2020.xlsx";
+        SCRIPT_PATH = PREFIX + SRCDIR + "scripts\\orchestrate_process.py";
+        INVOICE_QUERY = PREFIX + SRCDIR + "scripts\\qbxml_invoice_query.xml";
+        SDK_OUTPUT = PREFIX + SRCDIR + "outputs\\QBResponse.xml";
+    }
 
     @Override
     public double getTotalHeight() {
         boolean hardCode = true;
         if (hardCode) {
-            return 400;
+            return 400; // Hardcoded height
         } else {
             double totalHeight = 0;
-
             for (Node node : anchorPane.getChildren()) {
                 if (node instanceof Region) {
                     totalHeight += ((Region) node).getHeight();
@@ -63,7 +102,7 @@ public class SMMTaxController extends BaseController {
     public void handleBack(ActionEvent event) {
         System.out.println("Back button clicked on SMMTaxController");
         try {
-            MaxReachPro.loadScene("/fxml/home.fxml"); // Hardcoded parent FXML
+            MaxReachPro.goBack("/fxml/smm_tax.fxml"); // Adjusted method call to goBack
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -79,25 +118,16 @@ public class SMMTaxController extends BaseController {
             statusLabel.setText("Cloning template file...");
         });
 
-        // Replace template file with a blank template
-        replaceTemplateFile(TEMPLATE_PATH_HOME);
-
-        // Show loading indicator and reset status label
-        Platform.runLater(() -> {
-            statusLabel.setText("");
-        });
-
-        // Solicit date range from the user
-        Optional<String> dateRangeOpt = solicitDateRange();
-        if (!dateRangeOpt.isPresent()) {
+        // Get date range from the input field
+        String dateRange = dateRangeTextField.getText();
+        if (dateRange.isEmpty()) {
             Platform.runLater(() -> {
-                statusLabel.setText("Date range input cancelled.");
+                statusLabel.setText("Date range field is empty.");
                 loadingIndicator.setVisible(false); // Hide loading indicator
             });
             return; // Exit if date range is not provided
         }
 
-        String dateRange = dateRangeOpt.get();
         String normalizedDateRange = normalizeDateRange(dateRange);
 
         if (normalizedDateRange == null) {
@@ -108,15 +138,21 @@ public class SMMTaxController extends BaseController {
             return; // Exit if the date range format is invalid
         }
 
-        // Personal machine paths
-        String pythonScript = "C:\\Users\\jacks\\OneDrive\\Desktop\\Professional\\Max High Reach\\SMM\\Max-High-Reach\\scripts\\orchestrate_process2.py";
-        String xmlFile = "C:\\Users\\jacks\\OneDrive\\Desktop\\Professional\\Max High Reach\\SMM\\Max-High-Reach\\scripts\\qbxml_invoice_query.xml";
-        String sdkOutputFile = "C:\\Users\\jacks\\OneDrive\\Desktop\\Professional\\Max High Reach\\SMM\\Max-High-Reach\\outputs\\Filtered_QBResponse2.xml";
+        // Create a new file with the format SMM_MM-YY.xlsx
+        String newFileName = "SMM_" + normalizedDateRange + ".xlsx";
+        String newFilePath = OUTPUT_DIRECTORY + newFileName;
 
-        // Commented out SDK path for work machine
-        // String sdkExecutable = "C:\\Program Files\\Intuit\\IDN\\QBSDK16.0\\tools\\SDKTest\\SDKTestPlus3.exe";
+        boolean copySuccess = copyTemplateFile(TEMPLATE_PATH, newFilePath);
+        if (!copySuccess) {
+            Platform.runLater(() -> {
+                statusLabel.setText("Failed to copy template file.");
+                loadingIndicator.setVisible(false); // Hide loading indicator
+            });
+            return; // Exit if the template copy fails
+        }
 
         // Update XML file with normalized date range
+        String xmlFile = INVOICE_QUERY;
         boolean updateSuccess = updateXmlWithDateRange(normalizedDateRange, xmlFile);
         if (!updateSuccess) {
             Platform.runLater(() -> {
@@ -126,39 +162,45 @@ public class SMMTaxController extends BaseController {
             return; // Exit if XML file update fails
         }
 
-        // Check if the XML file exists before proceeding
-        File xmlFileObj = new File(xmlFile);
-        if (!xmlFileObj.exists()) {
-            Platform.runLater(() -> {
-                statusLabel.setText("XML file not found: " + xmlFile);
-                loadingIndicator.setVisible(false); // Hide loading indicator
-            });
-            return; // Stop the execution if the file doesn't exist
-        }
-
-        // Ensure the SDK output file exists
-        File sdkOutputFileObj = new File(sdkOutputFile);
+        // Check if the SDK output file exists before proceeding
+        File sdkOutputFileObj = new File(SDK_OUTPUT);
         if (!sdkOutputFileObj.exists()) {
             Platform.runLater(() -> {
-                statusLabel.setText("SDK output file not found: " + sdkOutputFile);
+                statusLabel.setText("SDK output file not found: " + SDK_OUTPUT);
                 loadingIndicator.setVisible(false); // Hide loading indicator
             });
             return; // Stop the execution if the SDK output file doesn't exist
         }
 
-        // Show confirmation dialog for the user
-        boolean fileReady = showConfirmationDialog("Is the output file ready?");
-        if (!fileReady) {
-            Platform.runLater(() -> {
-                statusLabel.setText("Output file not ready.");
-                loadingIndicator.setVisible(false); // Hide loading indicator
-            });
-            return; // Exit if the user does not confirm
-        }
+        // Show confirmation prompt for the user
+        Platform.runLater(() -> {
+            confirmationPrompt.setVisible(true);
+            statusLabel.setText("Please use the Quickbooks SDK to save the invoices");
+        });
+    }
 
+    @FXML
+    private void handleConfirmationYes(ActionEvent event) {
+        // Hide confirmation prompt and proceed with running the Python script
+        Platform.runLater(() -> {
+            confirmationPrompt.setVisible(false);
+            runPythonScript();
+        });
+    }
+
+    @FXML
+    private void handleConfirmationNo(ActionEvent event) {
+        // Hide confirmation prompt and update status
+        Platform.runLater(() -> {
+            confirmationPrompt.setVisible(false);
+            statusLabel.setText("Please prepare the invoices file and try again.");
+        });
+    }
+
+    private void runPythonScript() {
         new Thread(() -> {
             try {
-                ProcessBuilder processBuilder = new ProcessBuilder("python", pythonScript, xmlFile);
+                ProcessBuilder processBuilder = new ProcessBuilder("python", SCRIPT_PATH, SDK_OUTPUT);
                 processBuilder.redirectErrorStream(true);
                 Process process = processBuilder.start();
 
@@ -172,29 +214,58 @@ public class SMMTaxController extends BaseController {
                 int exitCode = process.waitFor();
                 Platform.runLater(() -> {
                     if (exitCode == 0) {
+                        renameGeneratedFile();
                         statusLabel.setText("SMM Task completed successfully.");
                     } else {
                         statusLabel.setText("SMM Task failed with exit code: " + exitCode);
                     }
-                    loadingIndicator.setVisible(false); // Hide loading indicator
+                    loadingIndicator.setVisible(false);
                 });
 
             } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
                 Platform.runLater(() -> {
                     statusLabel.setText("SMM Task encountered an error.");
-                    loadingIndicator.setVisible(false); // Hide loading indicator
+                    loadingIndicator.setVisible(false);
                 });
             }
         }).start();
     }
+
+    private void renameGeneratedFile() {
+        String dateRange = normalizeDateRange(dateRangeTextField.getText());
+        if (dateRange == null) {
+            statusLabel.setText("Date range is not valid.");
+            return;
+        }
+
+        String tempFilePath = OUTPUT_DIRECTORY + "Filled_SMM_Temp.xlsx";
+        String newFileName = "SMM_" + dateRange + ".xlsx";
+        File tempFile = new File(tempFilePath);
+        File renamedFile = new File(OUTPUT_DIRECTORY, newFileName);
+
+        if (tempFile.exists()) {
+            if (tempFile.renameTo(renamedFile)) {
+                System.out.println("File renamed successfully to " + newFileName);
+                statusLabel.setText("File renamed successfully.");
+            } else {
+                System.out.println("File renaming failed.");
+                statusLabel.setText("File renaming failed.");
+            }
+        } else {
+            System.out.println("Temporary file does not exist: " + tempFilePath);
+            statusLabel.setText("Temporary file does not exist.");
+        }
+    }
+
 
     private String normalizeDateRange(String dateRange) {
         // Define patterns for MM-YY, MM/YY, MM/YYYY
         Pattern[] patterns = {
                 Pattern.compile("(\\d{2})-(\\d{2})"),  // MM-YY
                 Pattern.compile("(\\d{2})/(\\d{2})"),  // MM/YY
-                Pattern.compile("(\\d{2})/(\\d{4})")   // MM/YYYY
+                Pattern.compile("(\\d{2})/(\\d{4})"),   // MM/YYYY
+                Pattern.compile("(\\d{2})-(\\d{4})")   // MM-YYYY
         };
 
         // Try to match the date range with each pattern
@@ -226,17 +297,42 @@ public class SMMTaxController extends BaseController {
 
             // Extract month and year from dateRange
             String[] parts = dateRange.split("-");
-            String fromDate = parts[1] + "-" + parts[0] + "-01";
-            String toDate = parts[1] + "-" + parts[0] + "-31"; // Modify as needed
+            if (parts.length != 2) {
+                throw new IllegalArgumentException("Invalid date range format.");
+            }
+            String month = parts[0];
+            String year = parts[1];
+
+            // Construct LocalDate for the first day of the month
+            LocalDate startDate = LocalDate.of(Integer.parseInt(year), Integer.parseInt(month), 1);
+
+            // Determine the last day of the month
+            LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
+
+            // Format dates as needed (e.g., YYYY-MM-DD)
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            String fromDate = startDate.format(formatter);
+            String toDate = endDate.format(formatter);
 
             fromDateElement.setTextContent(fromDate);
             toDateElement.setTextContent(toDate);
 
             Transformer transformer = TransformerFactory.newInstance().newTransformer();
-            transformer.transform(new DOMSource(doc), new StreamResult(Paths.get(xmlFilePath).toFile()));
+            transformer.transform(new DOMSource(doc), new StreamResult(new File(xmlFilePath)));
 
             return true;
-        } catch (Exception e) {
+
+        } catch (DateTimeParseException | IOException | SAXException | ParserConfigurationException | TransformerException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private boolean copyTemplateFile(String sourcePath, String destinationPath) {
+        try {
+            Files.copy(Paths.get(sourcePath), Paths.get(destinationPath), StandardCopyOption.REPLACE_EXISTING);
+            return true;
+        } catch (IOException e) {
             e.printStackTrace();
             return false;
         }
@@ -255,56 +351,4 @@ public class SMMTaxController extends BaseController {
         Optional<ButtonType> result = alert.showAndWait();
         return result.isPresent() && result.get() == yesButton;
     }
-
-    private void replaceTemplateFile(String templatePath) {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Select Template File");
-        File selectedFile = fileChooser.showOpenDialog(runSMMButton.getScene().getWindow());
-
-        if (selectedFile != null) {
-            try {
-                Files.copy(selectedFile.toPath(), Paths.get(templatePath), StandardCopyOption.REPLACE_EXISTING);
-                Platform.runLater(() -> statusLabel.setText("Template file replaced successfully."));
-            } catch (IOException e) {
-                e.printStackTrace();
-                Platform.runLater(() -> statusLabel.setText("Failed to replace template file."));
-            }
-        }
-    }
-
-    private Optional<String> solicitDateRange() {
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("Date Range Input");
-        dialog.setHeaderText("Please enter the date range (MM-YY, MM/YY, MM/YYYY):");
-        dialog.setContentText("Date Range:");
-
-        Optional<String> result = dialog.showAndWait();
-        return result;
-    }
-
-    private boolean replaceTemplateFile(String newTemplatePath) {
-        try {
-            // Destination path for the template file
-            String destinationPath = "C:\\Users\\jacks\\OneDrive\\Desktop\\Professional\\Max High Reach\\SMM\\smm_example.xlsx";
-
-            // Show the file path in the status label
-            Platform.runLater(() -> statusLabel.setText("Cloning " + newTemplatePath));
-
-            // Copy the new template file to the destination
-            Files.copy(Paths.get(newTemplatePath), Paths.get(destinationPath), StandardCopyOption.REPLACE_EXISTING);
-
-            // Optionally, update status after successful file replacement
-            Platform.runLater(() -> statusLabel.setText("Template file cloned successfully."));
-
-            return true;
-        } catch (IOException e) {
-            e.printStackTrace();
-
-            // Optionally, update status after failure
-            Platform.runLater(() -> statusLabel.setText("Failed to clone template file."));
-
-            return false;
-        }
-    }
 }
-

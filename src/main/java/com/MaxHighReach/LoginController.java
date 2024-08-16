@@ -29,11 +29,11 @@ public class LoginController extends BaseController {
 
     private static final List<String> EMPLOYEE_NAMES = Arrays.asList(
         "Ken Mulberry", "Sandy Mulberry", "Byron Chilton", "Jackson Cline",
-        "John Wright", "Isaiah Sabala", "Kaleb Strait", "Adrian Barraza"
+        "John Wright", "Isaiah Sabala", "Kaleb Streit", "Adrian Barraza"
     );
 
     @FXML
-    private void initialize() {
+    public void initialize() {
         nameField.textProperty().addListener((observable, oldValue, newValue) -> {
             updateSuggestions(newValue);
         });
@@ -62,7 +62,6 @@ public class LoginController extends BaseController {
     @Override
     public double getTotalHeight() {
         return MaxReachPro.getScissorInitialHeight();
-        //return 300; // Hardcoded height for the login scene
     }
 
     private void handleTabKey(KeyEvent event) {
@@ -79,7 +78,6 @@ public class LoginController extends BaseController {
         }
     }
 
-    // Update suggestions and visibility
     private void updateSuggestions(String query) {
         suggestionsList.getItems().clear();
 
@@ -92,8 +90,8 @@ public class LoginController extends BaseController {
             if (!filteredNames.isEmpty()) {
                 suggestionsList.getItems().addAll(filteredNames);
                 suggestionsList.setVisible(true);
-                suggestionsList.setPrefHeight(Math.min(filteredNames.size() * 24, 240)); // Adjust height based on number of suggestions
-                nameField.requestFocus();  // Ensures focus remains on the text field
+                suggestionsList.setPrefHeight(Math.min(filteredNames.size() * 24, 240));
+                nameField.requestFocus();
             } else {
                 suggestionsList.setVisible(false);
             }
@@ -112,7 +110,6 @@ public class LoginController extends BaseController {
 
     @FXML
     private void handleLogin(ActionEvent event) {
-        // Add your login logic here
         try {
             MaxReachPro.loadScene("/fxml/home.fxml");
         } catch (Exception e) {
@@ -121,7 +118,8 @@ public class LoginController extends BaseController {
     }
 
     @FXML
-    public void handleBack(ActionEvent event) {
+    @Override
+    protected void handleBack(ActionEvent event) {
         // Do nothing for LoginController
     }
 }

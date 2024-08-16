@@ -6,4 +6,6 @@ public class AppConstants {
     public static final double SCISSOR_LIFT_WIDTH = WINDOW_WIDTH; // Example usage
     public static final double SCISSOR_LIFT_HEIGHT = 100; // Example usage
     public static final double PADDING = 10;
+    public static final double BACK_BUTTON_X = 250;
+    public static final double BACK_BUTTON_Y = 10;
 }

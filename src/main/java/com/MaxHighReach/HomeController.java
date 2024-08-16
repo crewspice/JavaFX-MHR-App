@@ -50,9 +50,10 @@ public class HomeController extends BaseController {
     public void handleBack(ActionEvent event) {
         System.out.println("Back button clicked on HomeController");
         try {
-            MaxReachPro.loadScene("/fxml/login.fxml"); // Hardcoded parent FXML
+            MaxReachPro.goBack("/fxml/home.fxml"); // Use the goBack method for back navigation
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            e.printStackTrace(); // Make sure to handle exceptions properly
         }
     }
+
 }

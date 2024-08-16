@@ -10,16 +10,15 @@ import javafx.stage.Stage;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Stack;
 
 public class MaxReachPro extends Application {
 
     private static StackPane mainLayout;
     private static ScissorLift scissorLift;
     private static boolean isFirstScene = true;
-    private static Stack<String> sceneStack = new Stack<>();
     private static Map<String, String> sceneHierarchy = new HashMap<>();
     private static Stage primaryStage;
+
     private static double SCISSOR_DRAW_HEIGHT = 50;
     private static double SCISSOR_INITIAL_HEIGHT = 350;
 
@@ -60,6 +59,7 @@ public class MaxReachPro extends Application {
         System.out.println("Loading scene: " + fxmlPath);
         double currentHeight = 0;
 
+        // Check if the mainLayout has a previous root node
         if (mainLayout.getChildren().size() > 1) {
             Parent currentRoot = (Parent) mainLayout.getChildren().get(1);
             BaseController currentController = (BaseController) currentRoot.getProperties().get("controller");
@@ -92,14 +92,19 @@ public class MaxReachPro extends Application {
             mainLayout.getChildren().add(newRoot);
         }
 
- //       if (!fxmlPath.equals(sceneStack.peek())) {
- //           sceneStack.push(fxmlPath);
- //       }
-
         System.out.println("Scene loaded: " + fxmlPath + " | New scene height: " + newHeight);
+    }
+
+    public static void goBack(String previousScene) throws Exception {
+        if (sceneHierarchy.containsKey(previousScene)) {
+            String parentScene = sceneHierarchy.get(previousScene);
+            loadScene(parentScene);
+        } else {
+            System.out.println("No parent scene found for " + previousScene);
+        }
     }
 
     public static double getScissorInitialHeight() {
         return SCISSOR_INITIAL_HEIGHT;
     }
- }
+}

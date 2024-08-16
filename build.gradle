@@ -1,6 +1,8 @@
 plugins {
     id 'application'
     id 'org.openjfx.javafxplugin' version '0.0.13'
+    id 'org.jetbrains.gradle.plugin.idea-ext' version '1.1.8' // For IDEA support (optional)
+    id 'java'
 }
 
 repositories {
@@ -18,7 +20,7 @@ javafx {
 }
 
 application {
-    mainClassName = 'com.yourcompany.MainApp'
+    mainClass.set('com.MaxHighReach.Main')
 }
 
 tasks.withType(JavaExec) {
@@ -29,3 +31,52 @@ tasks.withType(JavaExec) {
         ]
     }
 }
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+    manifest {
+        attributes(
+            'Main-Class': 'com.MaxHighReach.Main' // Set your main class here
+        )
+    }
+    archiveFileName.set('MaxReachPro.jar') // Name of the JAR file
+    destinationDirectory.set(file('build/libs')) // Directory where the JAR will be created
+}
+
+
+task customDist(type: Zip) {
+    from sourceSets.main.output
+    archiveFileName.set('MaxReachPro-distribution.zip') // Name of the ZIP file
+    destinationDirectory.set(file('build')) // Directory where the ZIP will be created
+}
+
+
+task jpackage(type: Exec) {
+    dependsOn build
+
+    doFirst {
+        def jpackageCmd = "jpackage" // Ensure this command is in your PATH
+
+        // JAR file name in the build/libs directory
+        def mainJarName = "MaxReachPro.jar" // Name of your JAR file
+        def mainClass = 'com.MaxHighReach.Main'
+        def outputDir = "C:/Users/maxhi/OneDrive/Documents/Quickbooks/ QBProgram Development/IdeaProjects/JavaFX-MHR-App/build/installer" // Output directory for installer
+
+        def jarInputDir = "$buildDir/libs" // Directory where the JAR file is located
+
+        commandLine jpackageCmd,
+            '--type', 'exe', // Or 'app-image' for a distributable folder
+            '--name', 'MaxReachPro',
+            '--input', jarInputDir,
+            '--main-class', mainClass,
+            '--main-jar', mainJarName, // Use the JAR file name
+            '--dest', outputDir, // Specify the output directory
+            '--java-options', '--module-path=C:/Program Files/JavaFX/javafx-sdk-21.0.4/lib --add-modules=javafx.controls,javafx.fxml'
+    }
+}
+
+
