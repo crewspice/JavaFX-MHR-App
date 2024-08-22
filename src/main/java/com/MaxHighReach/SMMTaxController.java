@@ -65,7 +65,7 @@ public class SMMTaxController extends BaseController {
     private static final String PREFIX;
     private static final String SRCDIR;
 
-    private static boolean atWork = true; // Set this based on your environment
+    private static boolean atWork = false; // Set this based on your environment
 
     static {
         if (atWork) {
@@ -73,7 +73,7 @@ public class SMMTaxController extends BaseController {
             SRCDIR = "..\\..\\Quickbooks\\QBProgram Development\\SMM Filing\\";
         } else {
             PREFIX = "C:\\Users\\jacks\\OneDrive\\Desktop\\Professional\\Max High Reach\\SMM\\";
-            SRCDIR = "";
+            SRCDIR = "Max-High-Reach\\";
         }
         OUTPUT_DIRECTORY = PREFIX;
         TEMPLATE_PATH = PREFIX + "SMM template 2020.xlsx";
@@ -86,7 +86,7 @@ public class SMMTaxController extends BaseController {
     public double getTotalHeight() {
         boolean hardCode = true;
         if (hardCode) {
-            return 400; // Hardcoded height
+            return 380; // Hardcoded height
         } else {
             double totalHeight = 0;
             for (Node node : anchorPane.getChildren()) {
@@ -235,7 +235,7 @@ public class SMMTaxController extends BaseController {
     private void renameGeneratedFile() {
         String dateRange = normalizeDateRange(dateRangeTextField.getText());
         if (dateRange == null) {
-            statusLabel.setText("Date range is not valid.");
+            Platform.runLater(() -> statusLabel.setText("Date range is not valid."));
             return;
         }
 
@@ -244,20 +244,31 @@ public class SMMTaxController extends BaseController {
         File tempFile = new File(tempFilePath);
         File renamedFile = new File(OUTPUT_DIRECTORY, newFileName);
 
+        // Check if file already exists and adjust name
+        int count = 1;
+        while (renamedFile.exists()) {
+            newFileName = "SMM_" + dateRange + "(" + count + ").xlsx";
+            renamedFile = new File(OUTPUT_DIRECTORY, newFileName);
+            count++;
+        }
+
+        // Debug output
+        System.out.println("Temp file path: " + tempFilePath);
+        System.out.println("New file path: " + renamedFile.getAbsolutePath());
+
         if (tempFile.exists()) {
             if (tempFile.renameTo(renamedFile)) {
                 System.out.println("File renamed successfully to " + newFileName);
-                statusLabel.setText("File renamed successfully.");
+                Platform.runLater(() -> statusLabel.setText("File renamed successfully."));
             } else {
                 System.out.println("File renaming failed.");
-                statusLabel.setText("File renaming failed.");
+                Platform.runLater(() -> statusLabel.setText("File renaming failed."));
             }
         } else {
             System.out.println("Temporary file does not exist: " + tempFilePath);
-            statusLabel.setText("Temporary file does not exist.");
+            Platform.runLater(() -> statusLabel.setText("Temporary file does not exist."));
         }
     }
-
 
     private String normalizeDateRange(String dateRange) {
         // Define patterns for MM-YY, MM/YY, MM/YYYY
