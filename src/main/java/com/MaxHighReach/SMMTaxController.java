@@ -18,6 +18,7 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.time.YearMonth;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -29,11 +30,8 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
 import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.transform.*;
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
@@ -49,13 +47,13 @@ public class SMMTaxController extends BaseController {
     private VBox loadingIndicator;
 
     @FXML
-    private TextField dateRangeTextField; // Added for user input
+    private TextField dateRangeTextField;
 
     @FXML
     private Label dateRangeLabel;
 
     @FXML
-    private HBox confirmationPrompt; // Reference to the confirmation prompt VBox
+    private HBox confirmationPrompt;
 
     private static final String OUTPUT_DIRECTORY;
     private static final String TEMPLATE_PATH;
@@ -65,7 +63,7 @@ public class SMMTaxController extends BaseController {
     private static final String PREFIX;
     private static final String SRCDIR;
 
-    private static boolean atWork = false; // Set this based on your environment
+    private static boolean atWork = true;
 
     static {
         if (atWork) {
@@ -86,7 +84,7 @@ public class SMMTaxController extends BaseController {
     public double getTotalHeight() {
         boolean hardCode = true;
         if (hardCode) {
-            return 380; // Hardcoded height
+            return 380;
         } else {
             double totalHeight = 0;
             for (Node node : anchorPane.getChildren()) {
@@ -102,7 +100,7 @@ public class SMMTaxController extends BaseController {
     public void handleBack(ActionEvent event) {
         System.out.println("Back button clicked on SMMTaxController");
         try {
-            MaxReachPro.goBack("/fxml/smm_tax.fxml"); // Adjusted method call to goBack
+            MaxReachPro.goBack("/fxml/smm_tax.fxml");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -112,20 +110,18 @@ public class SMMTaxController extends BaseController {
     private void handleRunSMM(ActionEvent event) {
         System.out.println("Run SMM Task button clicked");
 
-        // Show loading indicator and reset status label
         Platform.runLater(() -> {
             loadingIndicator.setVisible(true);
             statusLabel.setText("Cloning template file...");
         });
 
-        // Get date range from the input field
         String dateRange = dateRangeTextField.getText();
         if (dateRange.isEmpty()) {
             Platform.runLater(() -> {
                 statusLabel.setText("Date range field is empty.");
-                loadingIndicator.setVisible(false); // Hide loading indicator
+                loadingIndicator.setVisible(false);
             });
-            return; // Exit if date range is not provided
+            return;
         }
 
         String normalizedDateRange = normalizeDateRange(dateRange);
@@ -133,12 +129,11 @@ public class SMMTaxController extends BaseController {
         if (normalizedDateRange == null) {
             Platform.runLater(() -> {
                 statusLabel.setText("Invalid date range format.");
-                loadingIndicator.setVisible(false); // Hide loading indicator
+                loadingIndicator.setVisible(false);
             });
-            return; // Exit if the date range format is invalid
+            return;
         }
 
-        // Create a new file with the format SMM_MM-YY.xlsx
         String newFileName = "SMM_" + normalizedDateRange + ".xlsx";
         String newFilePath = OUTPUT_DIRECTORY + newFileName;
 
@@ -146,34 +141,33 @@ public class SMMTaxController extends BaseController {
         if (!copySuccess) {
             Platform.runLater(() -> {
                 statusLabel.setText("Failed to copy template file.");
-                loadingIndicator.setVisible(false); // Hide loading indicator
+                loadingIndicator.setVisible(false);
             });
-            return; // Exit if the template copy fails
+            return;
         }
 
-        // Update XML file with normalized date range
-        String xmlFile = INVOICE_QUERY;
-        boolean updateSuccess = updateXmlWithDateRange(normalizedDateRange, xmlFile);
+        boolean updateSuccess = updateXmlWithDateRange(normalizedDateRange, INVOICE_QUERY);
         if (!updateSuccess) {
             Platform.runLater(() -> {
                 statusLabel.setText("Failed to update XML file.");
-                loadingIndicator.setVisible(false); // Hide loading indicator
+                loadingIndicator.setVisible(false);
             });
-            return; // Exit if XML file update fails
+            return;
         }
 
-        // Check if the SDK output file exists before proceeding
         File sdkOutputFileObj = new File(SDK_OUTPUT);
         if (!sdkOutputFileObj.exists()) {
             Platform.runLater(() -> {
                 statusLabel.setText("SDK output file not found: " + SDK_OUTPUT);
-                loadingIndicator.setVisible(false); // Hide loading indicator
+                loadingIndicator.setVisible(false);
             });
-            return; // Stop the execution if the SDK output file doesn't exist
+            return;
         }
 
-        // Show confirmation prompt for the user
         Platform.runLater(() -> {
+            // Hide "Running" tag
+            loadingIndicator.setVisible(false);
+            // Show confirmation prompt
             confirmationPrompt.setVisible(true);
             statusLabel.setText("Please use the Quickbooks SDK to save the invoices");
         });
@@ -181,16 +175,16 @@ public class SMMTaxController extends BaseController {
 
     @FXML
     private void handleConfirmationYes(ActionEvent event) {
-        // Hide confirmation prompt and proceed with running the Python script
         Platform.runLater(() -> {
+            // Hide confirmation prompt and "Please use the Quickbooks SDK..." message
             confirmationPrompt.setVisible(false);
+            statusLabel.setText("Processing...");
             runPythonScript();
         });
     }
 
     @FXML
     private void handleConfirmationNo(ActionEvent event) {
-        // Hide confirmation prompt and update status
         Platform.runLater(() -> {
             confirmationPrompt.setVisible(false);
             statusLabel.setText("Please prepare the invoices file and try again.");
@@ -207,7 +201,7 @@ public class SMMTaxController extends BaseController {
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
-                        System.out.println(line); // Print the output of the script
+                        System.out.println(line);
                     }
                 }
 
@@ -215,7 +209,7 @@ public class SMMTaxController extends BaseController {
                 Platform.runLater(() -> {
                     if (exitCode == 0) {
                         renameGeneratedFile();
-                        statusLabel.setText("SMM Task completed successfully.");
+                        statusLabel.setText("SMM file completed.");
                     } else {
                         statusLabel.setText("SMM Task failed with exit code: " + exitCode);
                     }
@@ -244,7 +238,6 @@ public class SMMTaxController extends BaseController {
         File tempFile = new File(tempFilePath);
         File renamedFile = new File(OUTPUT_DIRECTORY, newFileName);
 
-        // Check if file already exists and adjust name
         int count = 1;
         while (renamedFile.exists()) {
             newFileName = "SMM_" + dateRange + "(" + count + ").xlsx";
@@ -252,26 +245,18 @@ public class SMMTaxController extends BaseController {
             count++;
         }
 
-        // Debug output
-        System.out.println("Temp file path: " + tempFilePath);
-        System.out.println("New file path: " + renamedFile.getAbsolutePath());
-
         if (tempFile.exists()) {
             if (tempFile.renameTo(renamedFile)) {
-                System.out.println("File renamed successfully to " + newFileName);
-                Platform.runLater(() -> statusLabel.setText("File renamed successfully."));
+                Platform.runLater(() -> statusLabel.setText("SMM file completed."));
             } else {
-                System.out.println("File renaming failed.");
                 Platform.runLater(() -> statusLabel.setText("File renaming failed."));
             }
         } else {
-            System.out.println("Temporary file does not exist: " + tempFilePath);
             Platform.runLater(() -> statusLabel.setText("Temporary file does not exist."));
         }
     }
 
     private String normalizeDateRange(String dateRange) {
-        // Define patterns for MM-YY, MM/YY, MM/YYYY
         Pattern[] patterns = {
                 Pattern.compile("(\\d{2})-(\\d{2})"),  // MM-YY
                 Pattern.compile("(\\d{2})/(\\d{2})"),  // MM/YY
@@ -279,23 +264,20 @@ public class SMMTaxController extends BaseController {
                 Pattern.compile("(\\d{2})-(\\d{4})")   // MM-YYYY
         };
 
-        // Try to match the date range with each pattern
         for (Pattern pattern : patterns) {
             Matcher matcher = pattern.matcher(dateRange);
             if (matcher.matches()) {
                 String month = matcher.group(1);
                 String year = matcher.group(2);
 
-                // Convert YY to YYYY if needed
                 if (year.length() == 2) {
                     year = "20" + year;
                 }
 
-                return month + "-" + year;  // Return in MM-YYYY format
+                return month + "-" + year;
             }
         }
 
-        // Return null or handle the invalid date format case
         return null;
     }
 
@@ -306,60 +288,45 @@ public class SMMTaxController extends BaseController {
             Element fromDateElement = (Element) doc.getElementsByTagName("FromTxnDate").item(0);
             Element toDateElement = (Element) doc.getElementsByTagName("ToTxnDate").item(0);
 
-            // Extract month and year from dateRange
             String[] parts = dateRange.split("-");
             if (parts.length != 2) {
                 throw new IllegalArgumentException("Invalid date range format.");
             }
+
             String month = parts[0];
             String year = parts[1];
 
-            // Construct LocalDate for the first day of the month
-            LocalDate startDate = LocalDate.of(Integer.parseInt(year), Integer.parseInt(month), 1);
+            LocalDate firstDate = YearMonth.of(Integer.parseInt(year), Integer.parseInt(month)).atDay(1);
+            LocalDate lastDate = firstDate.withDayOfMonth(firstDate.lengthOfMonth());
 
-            // Determine the last day of the month
-            LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
-
-            // Format dates as needed (e.g., YYYY-MM-DD)
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-            String fromDate = startDate.format(formatter);
-            String toDate = endDate.format(formatter);
-
-            fromDateElement.setTextContent(fromDate);
-            toDateElement.setTextContent(toDate);
+            fromDateElement.setTextContent(firstDate.toString());
+            toDateElement.setTextContent(lastDate.toString());
 
             Transformer transformer = TransformerFactory.newInstance().newTransformer();
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
             transformer.transform(new DOMSource(doc), new StreamResult(new File(xmlFilePath)));
 
             return true;
-
-        } catch (DateTimeParseException | IOException | SAXException | ParserConfigurationException | TransformerException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             return false;
         }
     }
 
-    private boolean copyTemplateFile(String sourcePath, String destinationPath) {
+    private boolean copyTemplateFile(String src, String dest) {
         try {
-            Files.copy(Paths.get(sourcePath), Paths.get(destinationPath), StandardCopyOption.REPLACE_EXISTING);
+            File sourceFile = new File(src);
+            File destFile = new File(dest);
+
+            if (destFile.exists()) {
+                destFile.delete();
+            }
+
+            Files.copy(sourceFile.toPath(), destFile.toPath());
             return true;
         } catch (IOException e) {
             e.printStackTrace();
             return false;
         }
-    }
-
-    private boolean showConfirmationDialog(String message) {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Confirmation");
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-
-        ButtonType yesButton = new ButtonType("Yes");
-        ButtonType noButton = new ButtonType("No");
-        alert.getButtonTypes().setAll(yesButton, noButton);
-
-        Optional<ButtonType> result = alert.showAndWait();
-        return result.isPresent() && result.get() == yesButton;
     }
 }
