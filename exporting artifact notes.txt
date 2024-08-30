@@ -1,0 +1,7 @@
+how things have been working on 8/29:
+- i found all the manifest files with this command:
+C:\Users\maxhi\OneDrive\Documents\Quickbooks\QBProgram Development\IdeaProjects\JavaFX-MHR-App>dir /s /b "C:\Users\maxhi\OneDrive\Documents\Quickbooks\QBProgram Development\IdeaProjects\JavaFX-MHR-App\MANIFEST.MF"
+- then i deleted them all except the one that lives in src\resources
+- then i gradlew clean build in the project directory
+- then my original .bat to load the project reflected the newest app
+- i had run into issues when i made a new .bat and the cd command pointed to a subdir within the general dir

@@ -3,7 +3,10 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.layout.AnchorPane?>
 
+<?import javafx.scene.control.Label?>
 <AnchorPane fx:id="anchorPane" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.HomeController">
     <Button fx:id="smmTaxButton" text="SMM Tax" layoutX="50" layoutY="50" onAction="#handleSMMTax"/>
-    <Button fx:id="backButton" text="Back" layoutX="270" layoutY="0" onAction="#handleBack"/>
+    <Label fx:id="sourceCodeLabel" text="Source Code" layoutX="200" layoutY="597" onMouseClicked="#handleSourceCodeClick"
+       styleClass="source-code-label"/>
+    <Button fx:id="backButton" text="Back" layoutX="270" layoutY="5" onAction="#handleBack"/>
 </AnchorPane>

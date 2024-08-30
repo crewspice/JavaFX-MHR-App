@@ -38,10 +38,16 @@ import javax.xml.transform.stream.StreamResult;
 public class SMMTaxController extends BaseController {
 
     @FXML
-    private Button runSMMButton;
+    private Button openSDKButton;
 
     @FXML
     private Label statusLabel;
+
+    @FXML
+    private Label progressLabel;
+
+    @FXML
+    private Label outputLabel;
 
     @FXML
     private VBox loadingIndicator;
@@ -62,6 +68,7 @@ public class SMMTaxController extends BaseController {
     private static final String SDK_OUTPUT;
     private static final String PREFIX;
     private static final String SRCDIR;
+    private static final String SDK_PATH;
 
     private static boolean atWork = true;
 
@@ -76,15 +83,24 @@ public class SMMTaxController extends BaseController {
         OUTPUT_DIRECTORY = PREFIX;
         TEMPLATE_PATH = PREFIX + "SMM template 2020.xlsx";
         SCRIPT_PATH = PREFIX + SRCDIR + "scripts\\orchestrate_process.py";
-        INVOICE_QUERY = PREFIX + SRCDIR + "scripts\\qbxml_invoice_query.xml";
+        INVOICE_QUERY = PREFIX + SRCDIR + "scripts\\invoice_query.xml";
         SDK_OUTPUT = PREFIX + SRCDIR + "outputs\\QBResponse.xml";
+        SDK_PATH = PREFIX + "..\\..\\Quickbooks\\QBProgram Development\\Intuit Applications\\IDN\\QBSDK16.0\\tools\\SDKTest\\SDKTestPlus3.exe";
+    }
+
+    private void updateProgressLabel(String message) {
+        Platform.runLater(() -> progressLabel.setText(message));
+    }
+
+    private void updateStatusLabel(String message) {
+        Platform.runLater(() -> statusLabel.setText(message));
     }
 
     @Override
     public double getTotalHeight() {
         boolean hardCode = true;
         if (hardCode) {
-            return 380;
+            return 265;
         } else {
             double totalHeight = 0;
             for (Node node : anchorPane.getChildren()) {
@@ -107,11 +123,14 @@ public class SMMTaxController extends BaseController {
     }
 
     @FXML
-    private void handleRunSMM(ActionEvent event) {
-        System.out.println("Run SMM Task button clicked");
+    private void handleOpenSDK(ActionEvent event) {
+        statusLabel.setText("Processing. . . ");
+        System.out.println("Open SDK Task button clicked");
 
+        // Show the loading indicator and initialize the progressLabel
         Platform.runLater(() -> {
             loadingIndicator.setVisible(true);
+            progressLabel.setText("Initializing...");
             statusLabel.setText("Cloning template file...");
         });
 
@@ -119,6 +138,7 @@ public class SMMTaxController extends BaseController {
         if (dateRange.isEmpty()) {
             Platform.runLater(() -> {
                 statusLabel.setText("Date range field is empty.");
+                progressLabel.setText("");
                 loadingIndicator.setVisible(false);
             });
             return;
@@ -129,12 +149,13 @@ public class SMMTaxController extends BaseController {
         if (normalizedDateRange == null) {
             Platform.runLater(() -> {
                 statusLabel.setText("Invalid date range format.");
+                progressLabel.setText("");
                 loadingIndicator.setVisible(false);
             });
             return;
         }
 
-        String newFileName = "SMM_" + normalizedDateRange + ".xlsx";
+      /*  String newFileName = "SMM_" + normalizedDateRange + ".xlsx";
         String newFilePath = OUTPUT_DIRECTORY + newFileName;
 
         boolean copySuccess = copyTemplateFile(TEMPLATE_PATH, newFilePath);
@@ -144,34 +165,47 @@ public class SMMTaxController extends BaseController {
                 loadingIndicator.setVisible(false);
             });
             return;
-        }
+        } */
 
         boolean updateSuccess = updateXmlWithDateRange(normalizedDateRange, INVOICE_QUERY);
         if (!updateSuccess) {
             Platform.runLater(() -> {
                 statusLabel.setText("Failed to update XML file.");
+                progressLabel.setText("");
                 loadingIndicator.setVisible(false);
             });
             return;
         }
 
-        File sdkOutputFileObj = new File(SDK_OUTPUT);
+        /* File sdkOutputFileObj = new File(SDK_OUTPUT);
         if (!sdkOutputFileObj.exists()) {
             Platform.runLater(() -> {
                 statusLabel.setText("SDK output file not found: " + SDK_OUTPUT);
+                progressLabel.setText("");
                 loadingIndicator.setVisible(false);
             });
             return;
-        }
+        } */
+
 
         Platform.runLater(() -> {
-            // Hide "Running" tag
+            runSDKTool();
+        });
+
+        // Indicate the next step in progressLabel
+        Platform.runLater(() -> {
+            progressLabel.setText("Waiting for user confirmation...");
+        });
+
+        Platform.runLater(() -> {
+            // Hide the loading indicator and update status label
             loadingIndicator.setVisible(false);
-            // Show confirmation prompt
             confirmationPrompt.setVisible(true);
             statusLabel.setText("Please use the Quickbooks SDK to save the invoices");
+            progressLabel.setText("");
         });
     }
+
 
     @FXML
     private void handleConfirmationYes(ActionEvent event) {
@@ -191,17 +225,30 @@ public class SMMTaxController extends BaseController {
         });
     }
 
-    private void runPythonScript() {
+   private void runPythonScript() {
+        // Hide the status label when the script starts running
+        Platform.runLater(() -> statusLabel.setVisible(false));
+
+        System.out.println("SDK Path: " + SDK_PATH);
+
         new Thread(() -> {
             try {
                 ProcessBuilder processBuilder = new ProcessBuilder("python", SCRIPT_PATH, SDK_OUTPUT);
                 processBuilder.redirectErrorStream(true);
                 Process process = processBuilder.start();
 
+                Platform.runLater(() -> progressLabel.setText("Running Python script..."));
+
+                StringBuilder outputBuilder = new StringBuilder();
+
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
-                        System.out.println(line);
+                        // Accumulate the output lines in the StringBuilder
+                        outputBuilder.append(line).append("\n");
+
+                        // Update the progressLabel with the latest output
+                        Platform.runLater(() -> progressLabel.setText(outputBuilder.toString()));
                     }
                 }
 
@@ -210,8 +257,12 @@ public class SMMTaxController extends BaseController {
                     if (exitCode == 0) {
                         renameGeneratedFile();
                         statusLabel.setText("SMM file completed.");
+                        statusLabel.setVisible(false);  // Show the status label again
+                        progressLabel.setText("Script finished successfully.");
                     } else {
                         statusLabel.setText("SMM Task failed with exit code: " + exitCode);
+                        statusLabel.setVisible(true);  // Show the status label again
+                        progressLabel.setText("Script encountered an error.");
                     }
                     loadingIndicator.setVisible(false);
                 });
@@ -220,11 +271,14 @@ public class SMMTaxController extends BaseController {
                 e.printStackTrace();
                 Platform.runLater(() -> {
                     statusLabel.setText("SMM Task encountered an error.");
+                    statusLabel.setVisible(true);  // Show the status label again
+                    progressLabel.setText("Error during script execution.");
                     loadingIndicator.setVisible(false);
                 });
             }
         }).start();
     }
+
 
     private void renameGeneratedFile() {
         String dateRange = normalizeDateRange(dateRangeTextField.getText());
@@ -239,21 +293,105 @@ public class SMMTaxController extends BaseController {
         File renamedFile = new File(OUTPUT_DIRECTORY, newFileName);
 
         int count = 1;
+      //  File renamedFile = new File(OUTPUT_DIRECTORY, "SMM_" + dateRange + "(" + count + ").xlsx");
+
+        // Print the initial state of the renamedFile
+        System.out.println("Initial renamedFile path: " + renamedFile.getAbsolutePath());
+
         while (renamedFile.exists()) {
             newFileName = "SMM_" + dateRange + "(" + count + ").xlsx";
             renamedFile = new File(OUTPUT_DIRECTORY, newFileName);
             count++;
+
+            // Print the new state of the renamedFile each iteration
+            System.out.println("Checking if renamedFile exists: " + renamedFile.getAbsolutePath());
         }
 
         if (tempFile.exists()) {
+            System.out.println("Temporary file exists: " + tempFile.getAbsolutePath());
+
             if (tempFile.renameTo(renamedFile)) {
                 Platform.runLater(() -> statusLabel.setText("SMM file completed."));
             } else {
                 Platform.runLater(() -> statusLabel.setText("File renaming failed."));
+                System.out.println("Failed to rename file. Temp file: " + tempFile.getAbsolutePath() + ", Renamed file: " + renamedFile.getAbsolutePath());
             }
         } else {
             Platform.runLater(() -> statusLabel.setText("Temporary file does not exist."));
+            System.out.println("Temporary file does not exist: " + tempFile.getAbsolutePath());
         }
+    }
+
+    private void runSDKTool() {
+        // Debug output path
+        System.out.println("SDK Path: " + SDK_PATH);
+
+        File sdkToolFile = new File(SDK_PATH);
+        if (!sdkToolFile.exists()) {
+            Platform.runLater(() -> {
+                statusLabel.setText("File does not exist: " + SDK_PATH);
+                loadingIndicator.setVisible(false);
+            });
+            return;
+        }
+
+        Platform.runLater(() -> {
+            statusLabel.setVisible(false);
+            progressLabel.setText(
+                "Instructions:\n" +
+                "1. Fill in the request file\n" +
+                "   i. Click \"Browse\" by \"Request File\"\n" +
+                "   ii. Select \"invoice_query.xml\"\n" +
+                "2. Open QuickBooks\n" +
+                "3. Click \"Open Connection\"\n" +
+                "4. Click \"Begin Session\"\n" +
+                "5. Click \"Send XML to Request Processor\"\n" +
+                "6. Wait for invoices to be received\n" +
+                "7. Click \"View Output\"\n" +
+                "8. Save that file\n" +
+                "   i. Use shortcut Ctrl + S\n" +
+                "   ii. Overwrite \"QBResponse.xml\"\n" +
+                "Finished!   -    Click Yes below"
+            );
+            progressLabel.setVisible(true);
+        });
+
+        new Thread(() -> {
+            try {
+                ProcessBuilder processBuilder = new ProcessBuilder(SDK_PATH);
+                processBuilder.redirectErrorStream(true);
+                Process process = processBuilder.start();
+
+                // Read and output the process's standard output and error streams
+                BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                StringBuilder outputBuilder = new StringBuilder();
+                String line;
+
+                while ((line = reader.readLine()) != null) {
+                    outputBuilder.append(line).append("\n");
+                    Platform.runLater(() -> progressLabel.setText(outputBuilder.toString()));
+                }
+
+                int exitCode = process.waitFor();
+                Platform.runLater(() -> {
+                    if (exitCode == 0) {
+                        statusLabel.setText("SDK Tool executed successfully.");
+                    } else {
+                        statusLabel.setText("SDK Tool failed with exit code: " + exitCode);
+                    }
+                    progressLabel.setText("");
+                    loadingIndicator.setVisible(false);
+                });
+
+            } catch (IOException | InterruptedException e) {
+                e.printStackTrace();
+                Platform.runLater(() -> {
+                    statusLabel.setText("Error running SDK Tool.");
+                    progressLabel.setText("");
+                    loadingIndicator.setVisible(false);
+                });
+            }
+        }).start();
     }
 
     private String normalizeDateRange(String dateRange) {
@@ -329,4 +467,5 @@ public class SMMTaxController extends BaseController {
             return false;
         }
     }
+
 }

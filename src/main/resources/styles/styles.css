@@ -24,3 +24,16 @@
 .text-field:focused {
     -fx-border-color: orange;
 }
+
+/* Source code label styles */
+.source-code-label {
+    -fx-text-fill: gray; /* Use gray color for text */
+    -fx-cursor: hand; /* Changes cursor to a hand pointer on hover */
+    -fx-font-size: 10px; /* Smaller font size */
+    -fx-underline: true; /* Adds underline to text */
+    -fx-padding: 3px; /* Adjust padding if needed */
+    -fx-font-weight: bold;
+    -fx-text-alignment: center;
+    -fx-background-color: transparent;
+}
+

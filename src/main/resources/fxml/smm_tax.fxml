@@ -6,22 +6,27 @@
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.control.TextArea?>
 <?import javafx.geometry.Pos?>
 
 <AnchorPane fx:id="anchorPane" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.SMMTaxController">
-    <VBox spacing="20" alignment="TOP_CENTER" AnchorPane.leftAnchor="20" AnchorPane.rightAnchor="20" AnchorPane.topAnchor="20" AnchorPane.bottomAnchor="20">
-        <Label text="Enter Date Range (MM-YYYY):" />
-        <TextField fx:id="dateRangeTextField" promptText="MM-YYYY"/>
-        <Button text="Run SMM Tax" fx:id="runSMMButton" onAction="#handleRunSMM"/>
+    <VBox spacing="10" alignment="TOP_CENTER" AnchorPane.leftAnchor="20" AnchorPane.rightAnchor="20" AnchorPane.topAnchor="20" AnchorPane.bottomAnchor="20">
+        <Label text="Enter Date Range (MM-YYYY):" alignment="TOP_LEFT" translateX="-60.0"/>
+        <HBox alignment="CENTER_LEFT" spacing="20.0" >
+            <TextField fx:id="dateRangeTextField" promptText="MM-YYYY" prefWidth="100.0"/>
+            <Button text="Open SDK" fx:id="openSDKButton" onAction="#handleOpenSDK" />
+        </HBox>
+        <Label fx:id="progressLabel" text="Progress updates will appear here..." visible="false"/>
+        <Label fx:id="outputLabel" prefHeight="200" prefWidth="400" wrapText="true" />
         <Label fx:id="statusLabel" text=""/>
         <VBox fx:id="loadingIndicator" visible="false" alignment="CENTER">
             <Label text="Running..."/>
         </VBox>
-        <HBox fx:id="confirmationPrompt" spacing="30" alignment="CENTER" visible="false">
+        <HBox fx:id="confirmationPrompt" spacing="30" alignment="CENTER" visible="false" translateY="-260.0">
             <Label text="Is the invoices file ready?" />
             <Button text="Yes" onAction="#handleConfirmationYes"/>
             <Button text="No" onAction="#handleConfirmationNo"/>
         </HBox>
     </VBox>
-    <Button fx:id="backButton" text="Back" layoutX="250" layoutY="10" onAction="#handleBack"/>
+    <Button fx:id="backButton" text="Back" layoutX="270" layoutY="5" onAction="#handleBack"/>
 </AnchorPane>
