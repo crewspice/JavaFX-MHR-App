@@ -40,6 +40,8 @@ public class MaxReachPro extends Application {
         // Define scene hierarchy
         sceneHierarchy.put("/fxml/home.fxml", "/fxml/login.fxml");
         sceneHierarchy.put("/fxml/smm_tax.fxml", "/fxml/home.fxml");
+        sceneHierarchy.put("/fxml/db.fxml", "/fxml/home.fxml");
+        sceneHierarchy.put("/fxml/schedule_delivery.fxml", "/fxml/home.fxml");
 
         loadScene("/fxml/login.fxml");
 

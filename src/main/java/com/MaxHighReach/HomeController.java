@@ -85,6 +85,25 @@ public class HomeController extends BaseController {
     }
 
     @FXML
+    private void handleDBScene(ActionEvent event) {
+        System.out.println("Database button clicked");
+        try {
+            MaxReachPro.loadScene("/fxml/db.fxml");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    public void handleScheduleDelivery() {
+        try {
+            MaxReachPro.loadScene("/fxml/schedule_delivery.fxml");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
     private void handleSourceCodeClick(MouseEvent event) {
         try {
             URI uri = new URI("https://github.com/crewspice/Max-High-Reach/tree/main");

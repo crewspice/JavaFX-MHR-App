@@ -12,6 +12,8 @@ repositories {
 dependencies {
     implementation 'org.openjfx:javafx-controls:21'
     implementation 'org.openjfx:javafx-fxml:21'
+    implementation 'mysql:mysql-connector-java:8.0.31'
+    implementation files("C:/Program Files/MySQL/mysql-connector-j-9.0.0/mysql-connector-java-9.0.0.jar")
 }
 
 javafx {

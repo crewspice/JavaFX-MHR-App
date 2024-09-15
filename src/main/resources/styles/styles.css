@@ -37,3 +37,48 @@
     -fx-background-color: transparent;
 }
 
+/* TableView and TableColumn styles */
+.table-view {
+    -fx-border-color: orange;
+    -fx-border-width: 2px;
+    -fx-padding: 5px;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: orange;
+    -fx-text-fill: white;
+}
+
+.table-view .column-header {
+    -fx-background-color: orange;
+    -fx-text-fill: white;
+}
+
+.table-view .table-cell {
+    -fx-border-color: #FFDEAD; /* Light Salmon color as an example */
+    -fx-border-width: 0.5px;
+    -fx-border-insets: 0;
+}
+
+#editDriverButton {
+    -fx-pref-width: 30px;
+    -fx-pref-height: 30px;
+}
+
+.edit-driver-button {
+    -fx-background-color: transparent; /* Remove button background */
+    -fx-border-color: transparent; /* Remove border */
+    -fx-padding: 5px; /* Adjust padding */
+}
+
+/* Set hover effect with tooltip */
+.edit-driver-button:hover {
+    -fx-background-color: lightgrey; /* Optional hover background */
+}
+
+/* Optional: Tooltip styling */
+.tooltip {
+    -fx-background-color: #333333;
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+}
