@@ -18,6 +18,9 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
+import javafx.scene.control.Tooltip;
+
+import javafx.util.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import javafx.util.StringConverter;
@@ -27,66 +30,59 @@ import java.sql.*;
 public class DBController extends BaseController {
 
     @FXML
-    private Button backButton;
-
+    private Button backButton, editDriverButton, droppingOffButton, pickingUpButton, updateDriversButton, updateStatusButton, createInvoicesButton, refreshButton;
     @FXML
     private AnchorPane anchorPane;
-
-    @FXML
-    private Button editDriverButton;
-
-    @FXML
-    private Button droppingOffButton;
-
-    @FXML
-    private Button pickingUpButton;
-
-    @FXML
-    private Button updateStatusButton;
-
-    @FXML
-    private Button refreshButton;
-
     @FXML
     private TableView<CustomerOrder> dbTableView;
-
     @FXML
     private TableColumn<CustomerOrder, Boolean> selectColumn;
-
     @FXML
     private TableColumn<CustomerOrder, Integer> idColumn;
-
     @FXML
     private TableColumn<CustomerOrder, String> nameColumn;
-
     @FXML
     private TableColumn<CustomerOrder, String> orderDateColumn;
-
-    @FXML
-    private TableColumn<CustomerOrder, Double> amountColumn;
-
     @FXML
     private TableColumn<CustomerOrder, String> driverColumn;
-
     @FXML
-    private TableColumn<CustomerOrder, Node> statusColumn;
-
+    private TableColumn<CustomerOrder, String> statusColumn;
     @FXML
     private Label loadingLabel;
-
     @FXML
     private ComboBox<String> filterComboBox;
 
     private ObservableList<CustomerOrder> ordersList = FXCollections.observableArrayList();
     private ObservableList<String> driverInitials = FXCollections.observableArrayList("JD", "AB", "MG", "CN");
-
     private boolean isDriverEditMode = false;
+    private String lastActionType;
+    private boolean isDroppingOff = false;
+    private boolean isPickingUp = false;
 
     @FXML
     public void initialize() {
         super.initialize();
 
         dbTableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+
+        selectColumn.setCellValueFactory(param -> new SimpleBooleanProperty(param.getValue().isSelected()));
+        selectColumn.setCellFactory(column -> new TableCell<CustomerOrder, Boolean>() {
+            private final CheckBox checkBox = new CheckBox();
+            @Override
+            protected void updateItem(Boolean item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    checkBox.setSelected(item != null && item);
+                    setGraphic(checkBox);
+
+                    checkBox.setOnAction(e -> {
+                        getTableView().getItems().get(getIndex()).setSelected(checkBox.isSelected());
+                    });
+                }
+            }
+        });
 
         // Initialize table columns
         idColumn.setCellValueFactory(new PropertyValueFactory<>("customerId"));
@@ -117,36 +113,26 @@ public class DBController extends BaseController {
             return d1.compareTo(d2);  // Ascending order (earlier dates first)
         });
 
-        amountColumn.setCellValueFactory(new PropertyValueFactory<>("amount"));
         driverColumn.setCellValueFactory(new PropertyValueFactory<>("driver"));
-
-
-        statusColumn.setCellFactory(column -> new TableCell<CustomerOrder, Node>() {
-            @Override
-            protected void updateItem(Node item, boolean empty) {
-                super.updateItem(item, empty);
-                setGraphic(empty ? null : item);
-            }
-        });
+        statusColumn.setCellValueFactory(cellData -> cellData.getValue().statusProperty());
 
         // Disable resizing
+        selectColumn.setResizable(false);
         idColumn.setResizable(false);
         nameColumn.setResizable(false);
         orderDateColumn.setResizable(false);
-        amountColumn.setResizable(false);
         driverColumn.setResizable(false);
         statusColumn.setResizable(false);
 
         // Initialize filter combo box
         filterComboBox.setItems(FXCollections.observableArrayList(
-                "All Deliveries",
-                "Today's Deliveries",
-                "Yesterday's Deliveries",
-                "Custom Date Range"
+                "All Rentals",
+                "Today's Rentals",
+                "Yesterday's Rentals",
+                "Custom Date Range",
+                "Ended Rentals"
         ));
-        filterComboBox.setValue("All Deliveries"); // Default selection
-
-        dbTableView.setPrefWidth(265);
+        filterComboBox.setValue("All Rentals"); // Default selection
 
         // Set the initial cell factory to default mode for the driver column
         driverColumn.setCellFactory(column -> new TableCell<CustomerOrder, String>() {
@@ -168,7 +154,7 @@ public class DBController extends BaseController {
 
         // Load data initially
         showLoadingMessage(true);
-        loadDataAsync("All Deliveries");
+        loadDataAsync("All Rentals");
 
         // Handle filter changes
         filterComboBox.setOnAction(event -> handleFilterSelection());
@@ -178,11 +164,39 @@ public class DBController extends BaseController {
         } else {
             System.err.println("updateStatusButton is not injected!");
         }
+        hideCheckboxes(); // Call the method to hide checkboxes initially
+
+        // Set tooltip for Edit Driver Button
+        Tooltip editDriverTooltip = new Tooltip("Edit Driver");
+        editDriverTooltip.setShowDelay(Duration.ZERO); // Instant tooltip
+        Tooltip.install(editDriverButton, editDriverTooltip);
+        editDriverTooltip.setAnchorX(8);
+
+        // Set tooltip for Dropping Off Button
+        Tooltip droppingOffTooltip = new Tooltip("Dropping Off");
+        droppingOffTooltip.setShowDelay(Duration.ZERO); // Instant tooltip
+        Tooltip.install(droppingOffButton, droppingOffTooltip);
+        droppingOffTooltip.setAnchorX(38);
+
+        // Set tooltip for Picking Up Button
+        Tooltip pickingUpTooltip = new Tooltip("Picking Up");
+        pickingUpTooltip.setShowDelay(Duration.ZERO); // Instant tooltip
+        Tooltip.install(pickingUpButton, pickingUpTooltip);
+        pickingUpTooltip.setAnchorX(38);
+
+        // Set tooltip for Create Invoices Button
+        Tooltip createInvoicesTooltip = new Tooltip("Create Invoices");
+        createInvoicesTooltip.setShowDelay(Duration.ZERO); // Instant tooltip
+        Tooltip.install(createInvoicesButton, createInvoicesTooltip);
+        createInvoicesTooltip.setAnchorX(8);
 
         // Add the new selection column with circles
-        TableColumn<CustomerOrder, Boolean> selectionColumn = new TableColumn<>("Select");
-        selectionColumn.setCellValueFactory(param -> new SimpleBooleanProperty(param.getValue().isSelected()));
+       // TableColumn<CustomerOrder, Boolean> selectionColumn = new TableColumn<>("Select");
+       // selectionColumn.setCellValueFactory(param -> new SimpleBooleanProperty(param.getValue().isSelected()));
+       // selectionColumn.setPrefWidth(30);
 
+
+        /*
         // Custom cell factory to display circles in the selection column
         selectionColumn.setCellFactory(column -> new TableCell<CustomerOrder, Boolean>() {
             @Override
@@ -200,10 +214,10 @@ public class DBController extends BaseController {
                     setGraphic(circle); // Set the circle as the graphic of the cell
                 }
             }
-        });
+        }); delete if works */
 
         // Add the selection column to the table
-        dbTableView.getColumns().add(selectionColumn);
+       // dbTableView.getColumns().add(0, selectionColumn);
     }
 
     // Method to load data asynchronously from the database
@@ -240,21 +254,24 @@ public class DBController extends BaseController {
     // Method to load data from the database
     private void loadData(String filter) {
         ordersList.clear();
-        String query = "SELECT customers.customer_id, customers.name, orders.order_date, orders.amount, orders.driver " +
-                "FROM customers JOIN orders ON customers.customer_id = orders.customer_id";
+        String query = "SELECT customers.customer_id, customers.name, orders.order_date, orders.driver, orders.status " +
+                   "FROM customers JOIN orders ON customers.customer_id = orders.customer_id";
 
         // Modify query based on filter
         switch (filter) {
-            case "Today's Deliveries":
+            case "Today's Rentals":
                 query += " WHERE DATE(orders.order_date) = CURDATE()";
                 break;
-            case "Yesterday's Deliveries":
+            case "Yesterday's Rentals":
                 query += " WHERE DATE(orders.order_date) = CURDATE() - INTERVAL 1 DAY";
                 break;
             case "Custom Date Range":
                 // Implement custom date range logic here if needed
                 break;
-            case "All Deliveries":
+            case "Ended Rentals":
+                query += " WHERE orders.status = 'Ended'";
+                break;
+            case "All Rentals":
                 // No additional filtering
                 break;
         }
@@ -267,10 +284,10 @@ public class DBController extends BaseController {
                 int id = resultSet.getInt("customer_id");
                 String name = resultSet.getString("name");
                 String orderDate = resultSet.getString("order_date");
-                double amount = resultSet.getDouble("amount");
                 String driver = resultSet.getString("driver");
+                String status = resultSet.getString("status");
 
-                ordersList.add(new CustomerOrder(id, name, orderDate, amount, driver != null ? driver : ""));
+                ordersList.add(new CustomerOrder(id, name, orderDate, driver != null ? driver : "", status != null ? status : "Unknown"));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -285,60 +302,30 @@ public class DBController extends BaseController {
         loadDataAsync(selectedFilter);
     }
 
-    // Handle driver edit in the database
-    @FXML
-    private void handleEditDriver(CustomerOrder order) {
-        String driver = order.getDriver();
-        int orderId = order.getCustomerId();
-
-        String updateQuery = "UPDATE orders SET driver = ? WHERE customer_id = ?";
-
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
-             PreparedStatement statement = connection.prepareStatement(updateQuery)) {
-
-            statement.setString(1, driver);
-            statement.setInt(2, orderId);
-
-            int rowsUpdated = statement.executeUpdate();
-            if (rowsUpdated > 0) {
-                System.out.println("Driver updated successfully for order ID " + orderId);
-            } else {
-                System.out.println("No update made for order ID " + orderId);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
     @FXML
     private void handleAssignDrivers() {
-        if (isDriverEditMode) {
-            // Return to default mode
-            driverColumn.setCellFactory(column -> new TableCell<CustomerOrder, String>() {
-                @Override
-                protected void updateItem(String item, boolean empty) {
-                    super.updateItem(item, empty);
-                    if (empty || item == null) {
-                        setText(null);
-                        setGraphic(null);
-                    } else {
-                        setText(item);
-                        setGraphic(null);
-                    }
-                }
-            });
-            isDriverEditMode = false;
-            System.out.println("Driver assignment mode deactivated.");
-        } else {
-            // Switch to edit mode
+        System.out.println("assigndriverclicked");
+        if (isDroppingOff) {
+            isDroppingOff = false;
+            hideCheckboxes();
+            updateStatusButton.setVisible(false);
+        }
+
+        if (isPickingUp) {
+            isPickingUp = false;
+            hideCheckboxes();
+            updateStatusButton.setVisible(false);
+        }
+
+        if (!isDriverEditMode) {
+            // Switch to driver edit mode
             driverColumn.setCellFactory(column -> new TableCell<CustomerOrder, String>() {
                 private final ComboBox<String> comboBox = new ComboBox<>(driverInitials);
 
                 {
                     comboBox.setEditable(true);
                     comboBox.setOnAction(e -> commitEdit(comboBox.getValue()));
-                    comboBox.setVisible(false);
-                    comboBox.setManaged(false);
                 }
 
                 @Override
@@ -348,31 +335,9 @@ public class DBController extends BaseController {
                         setText(null);
                         setGraphic(null);
                     } else {
-                        if (isEditing()) {
-                            setText(null);
-                            setGraphic(comboBox);
-                            comboBox.getSelectionModel().select(item);
-                        } else {
-                            setText(item);
-                            setGraphic(null);
-                        }
+                        setGraphic(comboBox);
+                        comboBox.getSelectionModel().select(item);
                     }
-                }
-
-                @Override
-                public void startEdit() {
-                    super.startEdit();
-                    if (isEmpty()) return;
-                    setGraphic(comboBox);
-                    setText(null);
-                    comboBox.requestFocus();
-                }
-
-                @Override
-                public void cancelEdit() {
-                    super.cancelEdit();
-                    setText(getItem());
-                    setGraphic(null);
                 }
 
                 @Override
@@ -381,27 +346,76 @@ public class DBController extends BaseController {
                     if (getTableRow() != null) {
                         CustomerOrder order = getTableRow().getItem();
                         if (order != null) {
-                            handleEditDriver(order);
+                            order.setDriver(newValue); // Update the order with the new driver
                         }
                     }
                 }
             });
+
             isDriverEditMode = true;
+            updateDriversButton.setVisible(true); // Show the Update Drivers button
             System.out.println("Driver assignment mode activated.");
         }
     }
 
     @FXML
-    private void handleDroppingOff(ActionEvent event) {
-        showSelectableCircles(true, "dropping-off");
+    private void handleUpdateDrivers() {
+        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a")) {
+
+            // Prepare the SQL update statement once
+            String updateQuery = "UPDATE orders SET driver = ? WHERE customer_id = ?";
+            try (PreparedStatement statement = connection.prepareStatement(updateQuery)) {
+
+                // Loop through all the items in the table
+                for (CustomerOrder order : dbTableView.getItems()) {
+                    String updatedDriver = order.getDriver();
+                    int orderId = order.getCustomerId();  // or getId() based on how you identify the orders
+
+                    // Set the driver and customer ID for the current order
+                    statement.setString(1, updatedDriver);
+                    statement.setInt(2, orderId);
+
+                    // Execute the update
+                    int rowsUpdated = statement.executeUpdate();
+                    if (rowsUpdated > 0) {
+                        System.out.println("Driver updated successfully for order ID " + orderId);
+                    } else {
+                        System.out.println("No update made for order ID " + orderId);
+                    }
+                }
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        // Exit driver edit mode (same as before)
+        driverColumn.setCellFactory(column -> new TableCell<CustomerOrder, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    setText(item);
+                    setGraphic(null);
+                }
+            }
+        });
+
+        isDriverEditMode = false;
+        updateDriversButton.setVisible(false); // Hide the Update Drivers button
+        System.out.println("Driver assignment mode deactivated.");
     }
 
-    @FXML
-    private void handlePickingUp(ActionEvent event) {
-        showSelectableCircles(true, "picking-up");
-    }
 
-    private void showSelectableCircles(boolean visible, String actionType) {
+
+    private void hideCheckboxes() {
+        // Set the checkboxes to not be visible
         selectColumn.setCellFactory(tc -> new TableCell<CustomerOrder, Boolean>() {
             private final CheckBox checkBox = new CheckBox();
 
@@ -409,7 +423,72 @@ public class DBController extends BaseController {
             protected void updateItem(Boolean item, boolean empty) {
                 super.updateItem(item, empty);
                 if (!empty) {
-                    checkBox.setVisible(visible);
+                    checkBox.setVisible(false);
+                    checkBox.setSelected(getTableView().getItems().get(getIndex()).isSelected());
+                    setGraphic(checkBox);
+                } else {
+                    setGraphic(null);
+                }
+            }
+        });
+        dbTableView.refresh();
+    }
+
+   @FXML
+    private void handleDroppingOff(ActionEvent event) {
+        if (lastActionType == "dropping-off") {
+            lastActionType = null;
+            hideCheckboxes();
+  //          System.out.println("Picking Up button pressed again. Resetting action type.");
+            updateStatusButton.setVisible(false); // Call this method to hide checkboxes
+        } else {
+            lastActionType = "dropping-off";
+            resetCheckboxes();
+            showSelectableCheckboxes(true, lastActionType);
+  //          System.out.println("Picking Up button pressed.");
+            return; // Exit if no action type is set
+        }
+    }
+
+    @FXML
+    private void handlePickingUp(ActionEvent event) {
+        if (lastActionType == "picking-up") {
+            lastActionType = null; // Reset the action type if the button is pressed again
+            hideCheckboxes();
+            showSelectableCheckboxes(false, lastActionType);
+   //         System.out.println("Picking Up button pressed again. Resetting action type.");
+            updateStatusButton.setVisible(false);
+        } else {
+            lastActionType = "picking-up";
+            resetCheckboxes();
+            showSelectableCheckboxes(true, lastActionType);
+       //     System.out.println("Picking Up button pressed.");
+            return; // Exit if no action type is set
+        }
+
+    }
+
+    private void resetCheckboxes() {
+        // Deselect all checkboxes in the table
+        for (CustomerOrder order : dbTableView.getItems()) {
+            order.setSelected(false);
+        }
+        dbTableView.refresh(); // Refresh the table view to update the checkbox states
+    }
+
+
+    private void showSelectableCheckboxes(boolean visible, String actionType) {
+        boolean shouldShowCheckboxes = "dropping-off".equals(actionType) || "picking-up".equals(actionType);
+
+        // You might also want to update the table's cell factory to reflect visibility
+        selectColumn.setCellFactory(tc -> new TableCell<CustomerOrder, Boolean>() {
+            private final CheckBox checkBox = new CheckBox();
+
+            @Override
+            protected void updateItem(Boolean item, boolean empty) {
+                super.updateItem(item, empty);
+                if (!empty) {
+                    checkBox.setVisible(shouldShowCheckboxes && visible);
                     checkBox.setSelected(getTableView().getItems().get(getIndex()).isSelected());
                     setGraphic(checkBox);
 
@@ -424,6 +503,7 @@ public class DBController extends BaseController {
         });
     }
 
+
     private void handleSelection(boolean isSelected, int index, String actionType) {
         dbTableView.getItems().get(index).setSelected(isSelected);
 
@@ -435,61 +515,100 @@ public class DBController extends BaseController {
 
     @FXML
     private void handleUpdateStatus(ActionEvent event) {
+        // Get the selected orders
         ObservableList<CustomerOrder> selectedOrders = dbTableView.getItems().filtered(CustomerOrder::isSelected);
 
-        for (CustomerOrder order : selectedOrders) {
-            Node newStatus = determineNewStatus(order);  // Determine based on current status
-            updateOrderStatusInDB(order.getCustomerId(), newStatus);
-            order.setStatus(newStatus);  // Update the status in the table
+        // Use the last action type
+        String actionType = lastActionType;
+
+        // Check if an action type is set
+        if (actionType == null) {
+       //     System.out.println("No action type set! Please select a button first.");
+            return; // Exit if no action type is set
         }
 
-        // Refresh the table view to reflect changes
+    //    System.out.println("Action Type: " + actionType);
+        boolean statusUpdated = false; // Track if any status was updated
+
+        for (CustomerOrder order : selectedOrders) {
+            String newStatus = determineNewStatus(order, actionType);
+   //         System.out.println("Selected Order ID: " + order.getCustomerId() + ", Current Status: " + order.getStatus());
+   //         System.out.println("Determining new status for Order ID " + order.getCustomerId() + ": Current Status = " + order.getStatus() + ", Action Type = " + actionType);
+
+            if (!newStatus.equals(order.getStatus())) {
+                updateOrderStatusInDB(order.getCustomerId(), newStatus);
+                order.setStatus(newStatus);
+   //             System.out.println("Updated Order ID: " + order.getCustomerId() + " to status: " + newStatus);
+                statusUpdated = true; // Mark that at least one status was updated
+            } else {
+     //           System.out.println("No status change applied for Order ID " + order.getCustomerId());
+            }
+        }
+
+        // Refresh the table and hide the update button
         dbTableView.refresh();
-        updateStatusButton.setVisible(false);  // Hide the button after the update
+
+
+        // Reset lastActionType after a successful update
+        if (statusUpdated) {
+            lastActionType = null; // Resetting to null means the user must click a button again
+            hideCheckboxes();
+            updateStatusButton.setVisible(false); // Call this method to hide checkboxes
+ //           System.out.println("lastActionType reset to null after successful update.");
+        }
     }
 
 
-    private void updateOrderStatusInDB(int customerId, Node newStatus) {
-        String statusText = ((Circle) newStatus).getFill().equals(Color.GREEN) ? "Delivered" : "Not Delivered";
-
+    private void updateOrderStatusInDB(int customerId, String newStatus) {
         String updateQuery = "UPDATE orders SET status = ? WHERE customer_id = ?";
+ //       System.out.println("Updating Order ID " + customerId + " to status: " + newStatus);
 
         try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
              PreparedStatement statement = connection.prepareStatement(updateQuery)) {
 
-            statement.setString(1, statusText);
+            statement.setString(1, newStatus);
             statement.setInt(2, customerId);
 
             int rowsUpdated = statement.executeUpdate();
             if (rowsUpdated > 0) {
-                System.out.println("Order status updated successfully for customer ID " + customerId);
+    //            System.out.println("Order status updated successfully for customer ID " + customerId);
             } else {
-                System.out.println("No update made for customer ID " + customerId);
+   //             System.out.println("No update made for customer ID " + customerId);
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
+
     private void highlightRow(CustomerOrder order, String color) {
         TableRow<CustomerOrder> row = new TableRow<>();
         row.setStyle("-fx-background-color: " + color + ";");
     }
 
-    private Node determineNewStatus(CustomerOrder order) {
-        // Example: Toggle between two states based on current status
-        if (order.getStatus() instanceof Circle) {
-            Circle currentStatusCircle = (Circle) order.getStatus();
-            if (currentStatusCircle.getFill().equals(Color.GREEN)) {
-                return StatusNodeFactory.createStatusNode(Color.RED, "Not Delivered");
-            } else {
-                return StatusNodeFactory.createStatusNode(Color.GREEN, "Delivered");
+    private String determineNewStatus(CustomerOrder order, String actionType) {
+        String currentStatus = order.getStatus();
+ //       System.out.println("Determining new status for Order ID " + order.getCustomerId() + ": Current Status = " + currentStatus + ", Action Type = " + actionType);
+
+        if (actionType.equals("dropping-off")) {
+            if (currentStatus.equals("Upcoming")) {
+                return "Active"; // This should work if currentStatus is "Upcoming"
             }
-        } else {
-            return StatusNodeFactory.createStatusNode(Color.GREEN, "Delivered");
+        } else if (actionType.equals("picking-up")) {
+            if (currentStatus.equals("Active")) {
+                return "Ended"; // This should work if currentStatus is "Active"
+            }
         }
+
+        // If no status change applies
+ //       System.out.println("No status change applied for Order ID " + order.getCustomerId() + ". Returning current status: " + currentStatus);
+        return currentStatus;
     }
 
+    @FXML
+    private void handleCreateInvoices() {
+        // Logic for creating invoices
+    }
 
     // Refresh the table view data
     @FXML

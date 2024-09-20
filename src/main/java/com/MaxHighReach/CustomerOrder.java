@@ -1,41 +1,29 @@
 package com.MaxHighReach;
 
-import com.MaxHighReach.utils.StatusNodeFactory;
-
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import javafx.scene.Node;
 
 public class CustomerOrder {
     private int customerId;
     private final StringProperty name;
     private final StringProperty orderDate;
-    private double amount;
     private final StringProperty driver;
-    private final ObjectProperty<Node> status; // Updated to ObjectProperty<Node>
+    private final StringProperty status; // Keep status as StringProperty
     private boolean selected;
 
-    // Constructor with all fields
-    public CustomerOrder(int customerId, String name, String orderDate, double amount, String driver, Node status) {
+    // Constructor with all relevant fields
+    public CustomerOrder(int customerId, String name, String orderDate, String driver, String status) {
         this.customerId = customerId;
         this.name = new SimpleStringProperty(name);
         this.orderDate = new SimpleStringProperty(orderDate);
-        this.amount = amount;
         this.driver = new SimpleStringProperty(driver);
-        this.status = new SimpleObjectProperty<>(status); // Initialize with Node
+        this.status = new SimpleStringProperty(status); // Initialize as StringProperty
         this.selected = false; // default value
     }
 
-    // Constructor without driver and status
-    public CustomerOrder(int customerId, String name, String orderDate, double amount) {
-        this(customerId, name, orderDate, amount, "", StatusNodeFactory.createStatusNode("Unknown")); // Default status Node
-    }
-
-    // Constructor without status (for compatibility)
-    public CustomerOrder(int customerId, String name, String orderDate, double amount, String driver) {
-        this(customerId, name, orderDate, amount, driver, StatusNodeFactory.createStatusNode("Unknown")); // Default status Node
+    // Constructor without driver and status (if needed, can be removed)
+    public CustomerOrder(int customerId, String name, String orderDate) {
+        this(customerId, name, orderDate, "", "Unknown"); // Default driver and status
     }
 
     // Getters and setters
@@ -71,14 +59,6 @@ public class CustomerOrder {
         return orderDate;
     }
 
-    public double getAmount() {
-        return amount;
-    }
-
-    public void setAmount(double amount) {
-        this.amount = amount;
-    }
-
     public String getDriver() {
         return driver.get();
     }
@@ -91,17 +71,17 @@ public class CustomerOrder {
         return driver;
     }
 
-    // Updated status field methods
-    public Node getStatus() {
+    // Status field methods
+    public String getStatus() { // Return the status as String
         return status.get();
     }
 
-    public void setStatus(Node status) {
+    public void setStatus(String status) { // Set status with a String
         this.status.set(status);
     }
 
-    public ObjectProperty<Node> statusProperty() {
-        return status;
+    public StringProperty statusProperty() {
+        return status; // Return the StringProperty
     }
 
     // Selected field methods

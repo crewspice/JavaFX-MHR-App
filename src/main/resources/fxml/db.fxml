@@ -13,6 +13,7 @@
 <?import javafx.collections.FXCollections?>
 <?import java.lang.String?>
 
+<?import javafx.scene.control.Tooltip?>
 <AnchorPane fx:id="anchorPane" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.DBController">
 
     <!-- Main Layout: HBox with TableView on the left and VBox with buttons on the right -->
@@ -34,50 +35,75 @@
             <Label fx:id="loadingLabel" text="Loading..." alignment="TOP_LEFT" visible="false"/> <!-- Loading label -->
 
             <AnchorPane>
-                <TableView fx:id="dbTableView" prefHeight="486" prefWidth="190" translateY="-25" translateX="-8">
+                <TableView fx:id="dbTableView" prefHeight="486" prefWidth="253" translateY="-25" translateX="-8">
                     <columns>
+                        <TableColumn fx:id="selectColumn" text="" prefWidth="23"/>
                         <TableColumn fx:id="idColumn" text="ID" prefWidth="13"/>
                         <TableColumn fx:id="nameColumn" text="Name" prefWidth="33"/>
                         <TableColumn fx:id="orderDateColumn" text="Date" prefWidth="36"/>
-                        <TableColumn fx:id="amountColumn" text="Amt." prefWidth="39"/>
                         <TableColumn fx:id="driverColumn" text="Driver" prefWidth="43"/>
-                        <TableColumn fx:id="statusColumn" text="Status" prefWidth="25"/>
+                        <TableColumn fx:id="statusColumn" text="Status" prefWidth="65"/>
                     </columns>
                 </TableView>
             </AnchorPane>
 
             <!-- Refresh Button below the table -->
-            <Button fx:id="refreshButton" text="Refresh Data" onAction="#handleRefresh" translateY="-25"/>
+            <HBox spacing="10">
+                <Button fx:id="refreshButton" text="Refresh Data" onAction="#handleRefresh" translateY="-25"/>
+                <Button fx:id="updateDriversButton" text="Update Drivers" onAction="#handleUpdateDrivers" visible="false" />
+                <Button fx:id="updateStatusButton" text="Update Status" onAction="#handleUpdateStatus" />
+            </HBox>
         </VBox>
 
         <!-- Buttons (on the right in VBox) -->
         <VBox spacing="5" alignment="TOP_LEFT" prefWidth="50">
 
-            <!-- Edit Driver Button with Icon -->
-            <Button fx:id="editDriverButton" onAction="#handleAssignDrivers" styleClass="edit-driver-button">
+            <!-- Edit Driver Button with Tooltip -->
+            <Button fx:id="editDriverButton" onAction="#handleAssignDrivers" styleClass="edit-driver-button" translateY="40" translateX="-12">
                 <graphic>
                     <ImageView fitWidth="26" fitHeight="26">
                         <Image url="@/images/driver-icon.png"/>
                     </ImageView>
                 </graphic>
+                <tooltip>
+                    <Tooltip text="Assign Driver" />
+                </tooltip>
             </Button>
 
-            <!-- Dropping Off Button with Icon -->
-            <Button fx:id="droppingOffButton" onAction="#handleDroppingOff">
+            <!-- Dropping Off Button with Tooltip -->
+            <Button fx:id="droppingOffButton" onAction="#handleDroppingOff" translateY="40" translateX="-12">
                 <graphic>
-                    <ImageView fitWidth="46" fitHeight="26">
+                    <ImageView fitWidth="28" fitHeight="28">
                         <Image url="@/images/dropping-off.png"/>
                     </ImageView>
                 </graphic>
+                <tooltip>
+                    <Tooltip text="Record Drop Off" />
+                </tooltip>
             </Button>
 
-            <!-- Picking Up Button with Icon -->
-            <Button fx:id="pickingUpButton" onAction="#handlePickingUp">
+            <!-- Picking Up Button with Tooltip -->
+            <Button fx:id="pickingUpButton" onAction="#handlePickingUp" translateY="40" translateX="-12">
                 <graphic>
-                    <ImageView fitWidth="46" fitHeight="26">
+                    <ImageView fitWidth="27" fitHeight="30">
                         <Image url="@/images/picking-up.png"/>
                     </ImageView>
                 </graphic>
+                <tooltip>
+                    <Tooltip text="Record Pick Up" />
+                </tooltip>
+            </Button>
+
+            <!-- Create Invoices Button with Tooltip -->
+            <Button fx:id="createInvoicesButton" onAction="#handleCreateInvoices" translateY="40" translateX="-12">
+                <graphic>
+                    <ImageView fitWidth="29" fitHeight="29">
+                        <Image url="@/images/create-invoices.png"/>
+                    </ImageView>
+                </graphic>
+                <tooltip>
+                    <Tooltip text="Create Invoices" />
+                </tooltip>
             </Button>
 
         </VBox>

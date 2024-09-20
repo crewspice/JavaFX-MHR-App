@@ -76,6 +76,39 @@
     -fx-background-color: lightgrey; /* Optional hover background */
 }
 
+#createInvoicesButton {
+    -fx-background-color: transparent; /* Remove button background */
+    -fx-border-color: transparent; /* Remove border */
+    -fx-padding: 5px; /* Adjust padding */
+}
+
+/* Set hover effect with tooltip */
+#createInvoicesButton:hover {
+    -fx-background-color: lightgrey; /* Optional hover background */
+}
+
+#droppingOffButton {
+    -fx-background-color: transparent; /* Remove button background */
+    -fx-border-color: transparent; /* Remove border */
+    -fx-padding: 5px; /* Adjust padding */
+}
+
+/* Set hover effect with tooltip */
+#droppingOffButton:hover {
+    -fx-background-color: lightgrey; /* Optional hover background */
+}
+
+#pickingUpButton {
+    -fx-background-color: transparent; /* Remove button background */
+    -fx-border-color: transparent; /* Remove border */
+    -fx-padding: 5px; /* Adjust padding */
+}
+
+/* Set hover effect with tooltip */
+#pickingUpButton:hover {
+    -fx-background-color: lightgrey; /* Optional hover background */
+}
+
 /* Optional: Tooltip styling */
 .tooltip {
     -fx-background-color: #333333;
