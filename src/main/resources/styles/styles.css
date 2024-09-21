@@ -73,7 +73,7 @@
 
 /* Set hover effect with tooltip */
 .edit-driver-button:hover {
-    -fx-background-color: lightgrey; /* Optional hover background */
+    -fx-background-color: orange; /* Optional hover background */
 }
 
 #createInvoicesButton {
@@ -84,7 +84,7 @@
 
 /* Set hover effect with tooltip */
 #createInvoicesButton:hover {
-    -fx-background-color: lightgrey; /* Optional hover background */
+    -fx-background-color: orange; /* Optional hover background */
 }
 
 #droppingOffButton {
@@ -95,7 +95,7 @@
 
 /* Set hover effect with tooltip */
 #droppingOffButton:hover {
-    -fx-background-color: lightgrey; /* Optional hover background */
+    -fx-background-color: orange; /* Optional hover background */
 }
 
 #pickingUpButton {
@@ -106,12 +106,27 @@
 
 /* Set hover effect with tooltip */
 #pickingUpButton:hover {
-    -fx-background-color: lightgrey; /* Optional hover background */
+    -fx-background-color: orange; /* Optional hover background */
 }
 
-/* Optional: Tooltip styling */
+/* Tooltip styling */
 .tooltip {
-    -fx-background-color: #333333;
-    -fx-text-fill: white;
+    -fx-background-color: #FFDEAD; /* Semi-transparent background */
+    -fx-text-fill: black; /* White text */
     -fx-font-size: 12px;
+    -fx-padding: 3; /* Adds some space around the text */
+    -fx-background-radius: 4; /* Rounded corners */
+    -fx-border-radius: 4; /* Rounded borders */
+}
+
+.flourish-pane {
+    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #FFA500, #FFFFFF); /* Orange to white gradient */
+    -fx-border-color: #FFA500;
+    -fx-border-width: 5px;
+    -fx-border-radius: 10px;
+    -fx-background-radius: 10px;
+    -fx-padding: 10px; /* Space around the content */
+
+    /* Optional: Add a shadow for depth */
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 10, 0, 0, 5);
 }

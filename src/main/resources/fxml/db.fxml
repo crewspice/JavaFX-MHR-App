@@ -49,9 +49,8 @@
 
             <!-- Refresh Button below the table -->
             <HBox spacing="10">
-                <Button fx:id="refreshButton" text="Refresh Data" onAction="#handleRefresh" translateY="-25"/>
-                <Button fx:id="updateDriversButton" text="Update Drivers" onAction="#handleUpdateDrivers" visible="false" />
-                <Button fx:id="updateStatusButton" text="Update Status" onAction="#handleUpdateStatus" />
+                <Button fx:id="refreshButton" text="Refresh Data" onAction="#handleRefresh" translateY="-25" prefWidth="149" translateX="-8"/>
+                <Button fx:id="updateRentalButton" text="Update Rental" onAction="#handleUpdateRental" prefWidth="149" translateY="-25" translateX="-12"/>
             </HBox>
         </VBox>
 
@@ -65,9 +64,7 @@
                         <Image url="@/images/driver-icon.png"/>
                     </ImageView>
                 </graphic>
-                <tooltip>
-                    <Tooltip text="Assign Driver" />
-                </tooltip>
+
             </Button>
 
             <!-- Dropping Off Button with Tooltip -->
@@ -77,9 +74,7 @@
                         <Image url="@/images/dropping-off.png"/>
                     </ImageView>
                 </graphic>
-                <tooltip>
-                    <Tooltip text="Record Drop Off" />
-                </tooltip>
+
             </Button>
 
             <!-- Picking Up Button with Tooltip -->
@@ -89,9 +84,7 @@
                         <Image url="@/images/picking-up.png"/>
                     </ImageView>
                 </graphic>
-                <tooltip>
-                    <Tooltip text="Record Pick Up" />
-                </tooltip>
+
             </Button>
 
             <!-- Create Invoices Button with Tooltip -->
@@ -101,9 +94,7 @@
                         <Image url="@/images/create-invoices.png"/>
                     </ImageView>
                 </graphic>
-                <tooltip>
-                    <Tooltip text="Create Invoices" />
-                </tooltip>
+
             </Button>
 
         </VBox>

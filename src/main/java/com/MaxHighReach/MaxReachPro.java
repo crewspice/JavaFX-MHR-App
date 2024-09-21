@@ -6,6 +6,8 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Polygon;
 import javafx.stage.Stage;
 
 import java.util.HashMap;
@@ -34,6 +36,11 @@ public class MaxReachPro extends Application {
         AnchorPane.setLeftAnchor(scissorLift, 0.0);
         AnchorPane.setRightAnchor(scissorLift, 0.0);
 
+      //  Polygon flourish = createPolygonFlourish();
+       // mainLayout.getChildren().add(flourish); // Add to the layout
+      //  flourish.setTranslateX(50); // Position it with an X offset
+      //  flourish.setTranslateY(50);
+
         scissorLiftPane.getChildren().add(scissorLift);
         mainLayout.getChildren().add(scissorLiftPane);
 
@@ -55,6 +62,19 @@ public class MaxReachPro extends Application {
         System.out.println("Application started with primary stage size: " + stage.getWidth() + "x" + stage.getHeight());
 
         scissorLift.animateTransition(SCISSOR_DRAW_HEIGHT, SCISSOR_INITIAL_HEIGHT);
+    }
+
+    private Polygon createPolygonFlourish() {
+        Polygon polygon = new Polygon();
+        polygon.getPoints().addAll(
+                0.0, 0.0,
+                200.0, 50.0,
+                100.0, 150.0,
+                0.0, 100.0
+        );
+        polygon.setFill(Color.ORANGE); // Set the color of the polygon
+        polygon.setOpacity(0.8); // Slight transparency for a more subtle effect
+        return polygon;
     }
 
     public static void loadScene(String fxmlPath) throws Exception {
