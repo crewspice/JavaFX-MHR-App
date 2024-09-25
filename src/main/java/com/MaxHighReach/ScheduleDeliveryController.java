@@ -16,7 +16,7 @@ public class ScheduleDeliveryController extends BaseController {
     private TextField customerIdField;
 
     @FXML
-    private TextField orderDateField;
+    private TextField rentalDateField;
 
     @FXML
     private TextField amountField;
@@ -26,13 +26,13 @@ public class ScheduleDeliveryController extends BaseController {
     public void handleScheduleDelivery() {
         try {
             int customerId = Integer.parseInt(customerIdField.getText());
-            String orderDate = orderDateField.getText();
+            String rentalDate = rentalDateField.getText();
             double amount = Double.parseDouble(amountField.getText());
 
-            if (insertOrder(customerId, orderDate, amount)) {
-                showAlert(AlertType.INFORMATION, "Order Scheduled", "The order has been successfully scheduled!");
+            if (insertRental(customerId, rentalDate, amount)) {
+                showAlert(AlertType.INFORMATION, "Rental Scheduled", "The rental has been successfully scheduled!");
             } else {
-                showAlert(AlertType.ERROR, "Order Failed", "Failed to schedule the order. Please try again.");
+                showAlert(AlertType.ERROR, "Rental Failed", "Failed to schedule the rental. Please try again.");
             }
 
         } catch (Exception e) {
@@ -40,14 +40,14 @@ public class ScheduleDeliveryController extends BaseController {
         }
     }
 
-    // Method to insert a new order into the database
-    private boolean insertOrder(int customerId, String orderDate, double amount) {
-        String query = "INSERT INTO orders (customer_id, order_date, amount) VALUES (?, ?, ?)";
+    // Method to insert a new rental into the database
+    private boolean insertRental(int customerId, String rentalDate, double amount) {
+        String query = "INSERT INTO rentals (customer_id, rental_date, amount) VALUES (?, ?, ?)";
         try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
              PreparedStatement preparedStatement = connection.prepareStatement(query)) {
 
             preparedStatement.setInt(1, customerId);
-            preparedStatement.setString(2, orderDate);
+            preparedStatement.setString(2, rentalDate);
             preparedStatement.setDouble(3, amount);
 
             preparedStatement.executeUpdate();

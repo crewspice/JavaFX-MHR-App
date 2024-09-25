@@ -9,6 +9,12 @@
     -fx-text-fill: white;
 }
 
+/* Remove focus outline from ComboBox */
+.combo-box {
+    -fx-focus-color: transparent; /* Remove focus color */
+    -fx-faint-focus-color: transparent; /* Remove faint focus color */
+}
+
 /* ListView item highlight */
 .list-cell:focused {
     -fx-background-color: orange;
@@ -27,11 +33,11 @@
 
 /* Source code label styles */
 .source-code-label {
-    -fx-text-fill: gray; /* Use gray color for text */
-    -fx-cursor: hand; /* Changes cursor to a hand pointer on hover */
-    -fx-font-size: 10px; /* Smaller font size */
-    -fx-underline: true; /* Adds underline to text */
-    -fx-padding: 3px; /* Adjust padding if needed */
+    -fx-text-fill: gray;
+    -fx-cursor: hand;
+    -fx-font-size: 10px;
+    -fx-underline: true;
+    -fx-padding: 3px;
     -fx-font-weight: bold;
     -fx-text-alignment: center;
     -fx-background-color: transparent;
@@ -55,11 +61,39 @@
 }
 
 .table-view .table-cell {
-    -fx-border-color: #FFDEAD; /* Light Salmon color as an example */
+    -fx-border-color: #FFDEAD; /* Light Salmon color */
     -fx-border-width: 0.5px;
     -fx-border-insets: 0;
 }
 
+/* Ensure the selected row text remains black */
+.table-view .table-row-cell:selected {
+    -fx-background-color: #FFDEAD; /* Change this to your desired background color */
+    -fx-text-fill: black !important; /* Ensure text color stays black when selected */
+}
+
+/* Add this to target the text specifically in selected row */
+.table-view .table-row-cell:selected .text {
+    -fx-fill: black !important; /* Ensures the text fill is black */
+}
+
+/* Optional: Style for TableView rows when hovered */
+.table-view .table-row-cell:hover {
+    -fx-background-color: #FFDEAD; /* Change this to your desired hover color */
+    -fx-text-fill: black !important; /* Ensure text remains black when hovered */
+}
+
+/* Keep the text color black in all states */
+.table-view .table-row-cell .text {
+    -fx-fill: black; /* Normal state text color */
+}
+
+/* Default text color for table rows */
+.table-view .table-row-cell .text {
+    -fx-text-fill: black; /* Default black text */
+}
+
+/* Styling for edit driver button */
 #editDriverButton {
     -fx-pref-width: 30px;
     -fx-pref-height: 30px;
@@ -71,40 +105,23 @@
     -fx-padding: 5px; /* Adjust padding */
 }
 
-/* Set hover effect with tooltip */
 .edit-driver-button:hover {
     -fx-background-color: orange; /* Optional hover background */
 }
 
-#createInvoicesButton {
-    -fx-background-color: transparent; /* Remove button background */
-    -fx-border-color: transparent; /* Remove border */
-    -fx-padding: 5px; /* Adjust padding */
-}
-
-/* Set hover effect with tooltip */
-#createInvoicesButton:hover {
-    -fx-background-color: orange; /* Optional hover background */
-}
-
-#droppingOffButton {
-    -fx-background-color: transparent; /* Remove button background */
-    -fx-border-color: transparent; /* Remove border */
-    -fx-padding: 5px; /* Adjust padding */
-}
-
-/* Set hover effect with tooltip */
-#droppingOffButton:hover {
-    -fx-background-color: orange; /* Optional hover background */
-}
-
+/* Styling for various buttons with hover effects */
+#createInvoicesButton,
+#createContractsButton,
+#droppingOffButton,
 #pickingUpButton {
-    -fx-background-color: transparent; /* Remove button background */
-    -fx-border-color: transparent; /* Remove border */
-    -fx-padding: 5px; /* Adjust padding */
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 5px;
 }
 
-/* Set hover effect with tooltip */
+#createInvoicesButton:hover,
+#createContractsButton:hover,
+#droppingOffButton:hover,
 #pickingUpButton:hover {
     -fx-background-color: orange; /* Optional hover background */
 }
@@ -112,21 +129,25 @@
 /* Tooltip styling */
 .tooltip {
     -fx-background-color: #FFDEAD; /* Semi-transparent background */
-    -fx-text-fill: black; /* White text */
+    -fx-text-fill: black;
     -fx-font-size: 12px;
-    -fx-padding: 3; /* Adds some space around the text */
-    -fx-background-radius: 4; /* Rounded corners */
-    -fx-border-radius: 4; /* Rounded borders */
+    -fx-padding: 3;
+    -fx-background-radius: 4;
+    -fx-border-radius: 4;
 }
 
+/* Flourish pane styling */
 .flourish-pane {
     -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #FFA500, #FFFFFF); /* Orange to white gradient */
     -fx-border-color: #FFA500;
     -fx-border-width: 5px;
     -fx-border-radius: 10px;
     -fx-background-radius: 10px;
-    -fx-padding: 10px; /* Space around the content */
-
-    /* Optional: Add a shadow for depth */
+    -fx-padding: 10px;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 10, 0, 0, 5);
+}
+
+/* Checkbox styling when selected */
+.check-box:selected > .box {
+    -fx-background-color: orange;
 }

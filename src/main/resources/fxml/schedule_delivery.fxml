@@ -9,16 +9,16 @@
 <?import javafx.scene.text.Text?>
 <?import javafx.scene.layout.VBox?>
 <AnchorPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.ScheduleDeliveryController">
-    <Label text="Schedule New Order" layoutX="100" layoutY="20"/>
+    <Label text="Schedule New Rental" layoutX="100" layoutY="20"/>
 
     <Label text="Customer ID:" layoutX="25" layoutY="80"/>
     <TextField fx:id="customerIdField" layoutX="125" layoutY="80"/>
 
     <VBox layoutX="25" layoutY="130" spacing="2">
-        <Label text="Order Date"/>
+        <Label text="Rental Date"/>
         <Label text="(YYYY-MM-DD):"/>
     </VBox>
-    <TextField fx:id="orderDateField" layoutX="125" layoutY="130"/>
+    <TextField fx:id="rentalDateField" layoutX="125" layoutY="130"/>
 
     <Label text="Amount:" layoutX="25" layoutY="180"/>
     <TextField fx:id="amountField" layoutX="125" layoutY="180"/>

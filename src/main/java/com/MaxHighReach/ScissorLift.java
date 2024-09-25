@@ -71,33 +71,37 @@ public class ScissorLift extends Pane {
                                        lastArm - armSpacing);
             arm1Borders[i].setStroke(Color.GREY);
             arm1Borders[i].setStrokeWidth(borderWidth);
-            getChildren().add(arm1Borders[i]);
 
             // Create arm2 border (grey)
             arm2Borders[i] = new Line(AppConstants.PADDING + 15, lastArm - armSpacing,
                                        width - AppConstants.PADDING - 15, lastArm);
             arm2Borders[i].setStroke(Color.GREY);
             arm2Borders[i].setStrokeWidth(borderWidth);
-            getChildren().add(arm2Borders[i]);
-        }
+
+         }
 
             // Create arm1 (actual line with color)
             arm1[i] = new Line(AppConstants.PADDING + 15, lastArm,
                                width - AppConstants.PADDING - 15, lastArm - armSpacing);
             arm1[i].setStroke(Color.web("#FFDEAD"));
             arm1[i].setStrokeWidth(armWidth);
-            getChildren().add(arm1[i]);
+
 
             // Create arm2 (actual line with color)
             arm2[i] = new Line(AppConstants.PADDING + 15, lastArm - armSpacing,
                                width - AppConstants.PADDING - 15, lastArm);
             arm2[i].setStroke(Color.web("#FFDEAD"));
             arm2[i].setStrokeWidth(armWidth);
-            getChildren().add(arm2[i]);
+
 
             // Update the max arm height
             lastArm += armSpacing;
         }
+
+        getChildren().addAll(arm1Borders);
+        getChildren().addAll(arm1);
+        getChildren().addAll(arm2Borders);
+        getChildren().addAll(arm2);
 
         lastArm = lastArm - armSpacing - (armWidth * 2);
         getChildren().remove(arm1[0]);

@@ -10,6 +10,8 @@ public class CustomerOrder {
     private final StringProperty driver;
     private final StringProperty status; // Keep status as StringProperty
     private boolean selected;
+    private boolean isFlagged;
+    private boolean isContractWritten;// (for invoicing)
 
     // Constructor with all relevant fields
     public CustomerOrder(int customerId, String name, String orderDate, String driver, String status) {
@@ -18,7 +20,9 @@ public class CustomerOrder {
         this.orderDate = new SimpleStringProperty(orderDate);
         this.driver = new SimpleStringProperty(driver);
         this.status = new SimpleStringProperty(status); // Initialize as StringProperty
-        this.selected = false; // default value
+        this.selected = false;
+        this.isFlagged = isFlagged;
+        this.isContractWritten = isContractWritten;// default value
     }
 
     // Constructor without driver and status (if needed, can be removed)
@@ -92,4 +96,21 @@ public class CustomerOrder {
     public void setSelected(boolean selected) {
         this.selected = selected;
     }
+
+    public boolean isFlagged() {
+        return isFlagged;
+    }
+
+    public void setFlagged(boolean flagged) {
+        isFlagged = flagged;
+    }
+
+    public boolean isContractWritten(boolean isContractWritten) {
+        return isContractWritten;
+    }
+
+    public void setContractWritten(boolean isContractWritten) {
+        this.isContractWritten = isContractWritten;
+    }
+
 }

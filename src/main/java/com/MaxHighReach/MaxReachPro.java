@@ -49,6 +49,7 @@ public class MaxReachPro extends Application {
         sceneHierarchy.put("/fxml/smm_tax.fxml", "/fxml/home.fxml");
         sceneHierarchy.put("/fxml/db.fxml", "/fxml/home.fxml");
         sceneHierarchy.put("/fxml/schedule_delivery.fxml", "/fxml/home.fxml");
+        sceneHierarchy.put("/fxml/create_invoices.fxml", "/fxml/db.fxml");
 
         loadScene("/fxml/login.fxml");
 

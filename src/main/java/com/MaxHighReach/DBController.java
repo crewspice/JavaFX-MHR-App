@@ -27,10 +27,22 @@ import javafx.util.StringConverter;
 
 import java.sql.*;
 
+import com.itextpdf.kernel.colors.ColorConstants;
+import com.itextpdf.kernel.font.PdfFontFactory;
+import com.itextpdf.kernel.font.PdfFont;
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.element.Text;
+import com.itextpdf.layout.element.LineSeparator;
+
+import java.io.FileNotFoundException;
+
 public class DBController extends BaseController {
 
     @FXML
-    private Button backButton, editDriverButton, droppingOffButton, pickingUpButton, updateRentalButton, createInvoicesButton, refreshButton;
+    private Button backButton, editDriverButton, droppingOffButton, pickingUpButton, updateRentalButton, createInvoicesButton, refreshButton, createContractsButton;
     @FXML
     private AnchorPane anchorPane;
     @FXML
@@ -184,36 +196,15 @@ public class DBController extends BaseController {
             } else {
                 System.err.println("createInvoicesButton is not injected!");
             }
+        Tooltip createContractsTooltip = createCustomTooltip("Create Contracts", createContractsButton, 8, 10);
 
-
-        // Add the new selection column with circles
-       // TableColumn<CustomerOrder, Boolean> selectionColumn = new TableColumn<>("Select");
-       // selectionColumn.setCellValueFactory(param -> new SimpleBooleanProperty(param.getValue().isSelected()));
-       // selectionColumn.setPrefWidth(30);
-
-
-        /*
-        // Custom cell factory to display circles in the selection column
-        selectionColumn.setCellFactory(column -> new TableCell<CustomerOrder, Boolean>() {
-            @Override
-            protected void updateItem(Boolean item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
-                } else {
-                    Circle circle = new Circle(8); // Create a circle with radius 8
-                    if (item) {
-                        circle.setFill(Color.GREEN); // Fill with green if selected
+                if (createContractsButton != null) {
+                        // Start with the button hidden
+                        createContractsButton.setOnAction(this::handleCreateContracts);
                     } else {
-                        circle.setFill(Color.RED); // Fill with red if not selected
+                        System.err.println("createContractsButton is not injected!");
                     }
-                    setGraphic(circle); // Set the circle as the graphic of the cell
-                }
-            }
-        }); delete if works */
 
-        // Add the selection column to the table
-       // dbTableView.getColumns().add(0, selectionColumn);
     }
 
     // Method to load data asynchronously from the database
@@ -493,7 +484,8 @@ public class DBController extends BaseController {
     private void handleCreateInvoices(ActionEvent event) {
         System.out.println("Create Invoices Button pressed. Current lastActionType: " + lastActionType);
 
-        if ("creating-invoices" == lastActionType) {
+        // Check for the current action type
+        if ("creating-invoices".equals(lastActionType)) {
             lastActionType = null; // Reset the action type
             hideCheckboxes(); // Hide the checkboxes
             System.out.println("Resetting action type. Checkboxes hidden.");
@@ -505,27 +497,25 @@ public class DBController extends BaseController {
             System.out.println("Action type set to 'creating-invoices'. Checkboxes shown.");
         }
 
-        // Now, get the selected orders
-        ObservableList<CustomerOrder> selectedOrders = dbTableView.getItems().filtered(CustomerOrder::isSelected);
-
-        if (selectedOrders.isEmpty()) {
-            System.out.println("No orders selected for invoicing.");
-            return; // Exit if no orders are selected
-        }
-
-        for (CustomerOrder order : selectedOrders) {
-            if (order.getStatus().equals("Ended")) {
-                updateInvoiceFlagInDB(order.getCustomerId(), true); // Flag the order for invoicing
-                System.out.println("Order for " + order.getName() + " flagged for invoicing.");
-            } else {
-                System.out.println("Order for " + order.getName() + " cannot be flagged; status is not 'Ended'.");
-            }
-        }
-
-        dbTableView.refresh(); // Refresh the table view if necessary
     }
 
 
+    @FXML
+    private void handleCreateContracts(ActionEvent event) {
+        System.out.println("Create Contracts Button pressed. Current lastActionType: " + lastActionType);
+
+        if ("creating-contracts" == lastActionType) {
+            lastActionType = null; // Reset the action type
+            hideCheckboxes(); // Hide the checkboxes
+            System.out.println("Resetting action type. Checkboxes hidden.");
+            return; // Exit the method
+        } else {
+            lastActionType = "creating-contracts"; // Set the action type
+            resetCheckboxes(); // Deselect all checkboxes first
+            showSelectableCheckboxes(true, lastActionType); // Show the checkboxes
+            System.out.println("Action type set to 'creating-contracts'. Checkboxes shown.");
+        }
+    }
 
 
     private void updateInvoiceFlagInDB(int customerId, boolean isFlagged) {
@@ -538,14 +528,18 @@ public class DBController extends BaseController {
             statement.setInt(2, customerId);
 
             int rowsUpdated = statement.executeUpdate();
+            System.out.println("Rows updated: " + rowsUpdated);  // Debugging line
             if (rowsUpdated > 0) {
-                // Update success logic
                 System.out.println("Invoice flag updated successfully for customer ID " + customerId);
+            } else {
+                System.out.println("Failed to update invoice flag for customer ID " + customerId);
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
+
 
     private void resetCheckboxes() {
         // Deselect all checkboxes in the table
@@ -598,21 +592,50 @@ public class DBController extends BaseController {
         ObservableList<CustomerOrder> selectedRentals = dbTableView.getItems().filtered(CustomerOrder::isSelected);
         boolean statusUpdated = false;
 
-        if (lastActionType.equals("assigning-drivers")) {
+        // Handle the 'creating-invoices' action type
+        if (lastActionType.equals("creating-invoices")) {
+            for (CustomerOrder order : selectedRentals) {
+                if (order.getStatus().equals("Ended")) {
+                    order.setFlagged(true);
+                    updateInvoiceFlagInDB(order.getCustomerId(), true); // Flag the order for invoicing
+                    System.out.println("Order for " + order.getName() + " flagged for invoicing.");
+                    statusUpdated = true;
+                    checkAndSwitchScene(statusUpdated);
+                } else {
+                    System.out.println("Order for " + order.getName() + " cannot be flagged; status is not 'Ended'.");
+                }
+            }
+        } else if (lastActionType.equals("creating-contracts")) {
+            // Handle the driver assignment status updates
+            for (CustomerOrder order : selectedRentals) {
+
+            }
+        } else if (lastActionType.equals("assigning-drivers")) {
             // Handle the driver assignment status updates
             for (CustomerOrder order : selectedRentals) {
                 String newStatus = "Driver Assigned"; // Set the appropriate new status
                 order.setStatus(newStatus);
                 statusUpdated = true;
+                System.out.println("Order for " + order.getName() + " status updated to 'Driver Assigned'.");
+            }
+        } else if (lastActionType.equals("picking-up")) {
+            // Handle the 'picking-up' action type
+            for (CustomerOrder order : selectedRentals) {
+                String newStatus = "Ended";  // Set the status for picking-up
+                order.setStatus(newStatus);
+                updateRentalStatusInDB(order.getCustomerId(), newStatus);  // Sync with DB
+                statusUpdated = true;
+                System.out.println("Order for " + order.getName() + " status updated to 'Ended'.");
             }
         } else {
             // Existing logic for other action types
             for (CustomerOrder order : selectedRentals) {
                 String newStatus = determineNewStatus(order, lastActionType);
                 if (!newStatus.equals(order.getStatus())) {
-                    updateRentalStatusInDB(order.getCustomerId(), newStatus); // Update method name
                     order.setStatus(newStatus);
+                    updateRentalStatusInDB(order.getCustomerId(), newStatus);  // Sync with DB
                     statusUpdated = true;
+                    System.out.println("Order for " + order.getName() + " status updated to '" + newStatus + "'.");
                 }
             }
         }
@@ -620,8 +643,10 @@ public class DBController extends BaseController {
         dbTableView.refresh();
 
         if (statusUpdated) {
+            lastActionType = null;
             hideCheckboxes(); // If needed, based on logic
             updateRentalButton.setVisible(false);
+
         }
     }
 
@@ -644,6 +669,16 @@ public class DBController extends BaseController {
         }
     }
 
+
+    private void checkAndSwitchScene(boolean statusUpdated) {
+        if (statusUpdated) {
+            try {
+                MaxReachPro.loadScene("/fxml/create_invoices.fxml"); // Replace with your scene path
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
 
     private void highlightRow(CustomerOrder order, String color) {
@@ -670,6 +705,54 @@ public class DBController extends BaseController {
         return currentStatus;
     }
 
+    private void createContractPDF(CustomerOrder rental, String contractPath) {
+        try {
+            // Create a PdfWriter instance
+            PdfWriter writer = new PdfWriter(contractPath);
+            // Create a PdfDocument instance
+            PdfDocument pdf = new PdfDocument(writer);
+            // Create a Document instance
+            Document document = new Document(pdf);
+
+            // Load a font
+            PdfFont font = PdfFontFactory.createFont();
+
+            // Add content to the PDF at specified coordinates
+            // Create a Paragraph with text
+            Paragraph paragraph = new Paragraph()
+                .add(new Text("Rental Agreement").setFont(font).setFontSize(18).setBold())
+                .setFixedPosition(50, 750, 500) // Set x, y, and width
+                .setFontColor(ColorConstants.BLACK);
+
+            // Add the paragraph to the document
+            document.add(paragraph);
+
+            // Add rental details
+            String rentalDetails = "Customer Name: " + rental.getName() + "\n" +
+                                   "Rental ID: " + rental.getRentalId() + "\n" +
+                                   "Status: " + rental.getStatus() + "\n" +
+                                   "Start Date: " + rental.getStartDate() + "\n" +
+                                   "End Date: " + rental.getEndDate();
+
+            Paragraph detailsParagraph = new Paragraph(rentalDetails)
+                .setFixedPosition(50, 700, 500) // Adjust the position as needed
+                .setFontColor(ColorConstants.BLACK);
+
+            document.add(detailsParagraph);
+
+            // Add a line separator
+            document.add(new LineSeparator());
+
+            // Close the document
+            document.close();
+            System.out.println("Contract PDF created at: " + contractPath);
+        } catch (FileNotFoundException e) {
+            System.err.println("Error creating PDF: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Error while generating contract PDF: " + e.getMessage());
+        }
+    }
+
 
     // Refresh the table view data
     @FXML
@@ -677,6 +760,8 @@ public class DBController extends BaseController {
         showLoadingMessage(true);
         loadDataAsync(filterComboBox.getValue());
     }
+
+
 
     // Handle the back button action
     @FXML

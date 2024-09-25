@@ -20,7 +20,7 @@
     <HBox AnchorPane.leftAnchor="20" AnchorPane.rightAnchor="20" AnchorPane.topAnchor="20" AnchorPane.bottomAnchor="50" spacing="10">
 
         <!-- Table View (on the left) -->
-        <VBox spacing="5" alignment="TOP_CENTER" HBox.hgrow="ALWAYS">
+        <VBox spacing="15" alignment="TOP_CENTER" HBox.hgrow="ALWAYS" translateY="-10">
             <ComboBox fx:id="filterComboBox" onAction="#handleFilterSelection">
                 <items>
                     <FXCollections fx:factory="observableArrayList">
@@ -54,9 +54,18 @@
             </HBox>
         </VBox>
 
+
         <!-- Buttons (on the right in VBox) -->
         <VBox spacing="5" alignment="TOP_LEFT" prefWidth="50">
 
+            <Button fx:id="createContractsButton" onAction="#handleCreateContracts" translateY="40" translateX="-12">
+                <graphic>
+                    <ImageView fitWidth="29" fitHeight="29">
+                        <Image url="@/images/create-contracts.png"/>
+                    </ImageView>
+                </graphic>
+
+            </Button>
             <!-- Edit Driver Button with Tooltip -->
             <Button fx:id="editDriverButton" onAction="#handleAssignDrivers" styleClass="edit-driver-button" translateY="40" translateX="-12">
                 <graphic>
@@ -96,6 +105,8 @@
                 </graphic>
 
             </Button>
+
+
 
         </VBox>
     </HBox>
