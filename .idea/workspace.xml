@@ -10,19 +10,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0b9ac3d8-f6e5-4a5c-b803-ea8558abb9f2" name="Changes" comment="newest commit">
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/CreateInvoicesController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/resources/fxml/create_invoices.fxml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/resources/images/create-contracts.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/CreateInvoicesController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/CreateInvoicesController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/CustomerOrder.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/CustomerOrder.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/DBController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/DBController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/MaxReachPro.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/MaxReachPro.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/ScheduleDeliveryController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/ScheduleDeliveryController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/ScissorLift.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/ScissorLift.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/fxml/db.fxml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/fxml/db.fxml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/resources/fxml/schedule_delivery.fxml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/fxml/schedule_delivery.fxml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/styles/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/styles/styles.css" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -165,7 +158,8 @@
       <workItem from="1726779197266" duration="510000" />
       <workItem from="1726779727757" duration="316000" />
       <workItem from="1726780072501" duration="104000" />
-      <workItem from="1726780201025" duration="74890000" />
+      <workItem from="1726780201025" duration="79029000" />
+      <workItem from="1727400560226" duration="6419000" />
     </task>
     <task id="LOCAL-00001" summary="intial commit">
       <option name="closed" value="true" />
@@ -239,7 +233,15 @@
       <option name="project" value="LOCAL" />
       <updated>1726894662905</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="newest commit">
+      <option name="closed" value="true" />
+      <created>1727227249107</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1727227249110</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

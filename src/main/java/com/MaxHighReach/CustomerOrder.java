@@ -8,26 +8,30 @@ public class CustomerOrder {
     private final StringProperty name;
     private final StringProperty orderDate;
     private final StringProperty driver;
-    private final StringProperty status; // Keep status as StringProperty
+    private final StringProperty status;
+    private int refNumber;
     private boolean selected;
     private boolean isFlagged;
-    private boolean isContractWritten;// (for invoicing)
+    private boolean isContractWritten;
+    private int rentalId; // New field for rental ID
 
     // Constructor with all relevant fields
-    public CustomerOrder(int customerId, String name, String orderDate, String driver, String status) {
+    public CustomerOrder(int customerId, String name, String orderDate, String driver, String status, int refNumber, int rentalId) {
         this.customerId = customerId;
         this.name = new SimpleStringProperty(name);
         this.orderDate = new SimpleStringProperty(orderDate);
         this.driver = new SimpleStringProperty(driver);
-        this.status = new SimpleStringProperty(status); // Initialize as StringProperty
+        this.status = new SimpleStringProperty(status);
+        this.refNumber = refNumber;
         this.selected = false;
         this.isFlagged = isFlagged;
-        this.isContractWritten = isContractWritten;// default value
+        this.isContractWritten = isContractWritten;
+        this.rentalId = rentalId; // Initialize rentalId
     }
 
-    // Constructor without driver and status (if needed, can be removed)
+    // Constructor without driver and status
     public CustomerOrder(int customerId, String name, String orderDate) {
-        this(customerId, name, orderDate, "", "Unknown"); // Default driver and status
+        this(customerId, name, orderDate, "", "Unknown", 99999, 0); // Default values
     }
 
     // Getters and setters
@@ -75,20 +79,18 @@ public class CustomerOrder {
         return driver;
     }
 
-    // Status field methods
-    public String getStatus() { // Return the status as String
+    public String getStatus() {
         return status.get();
     }
 
-    public void setStatus(String status) { // Set status with a String
+    public void setStatus(String status) {
         this.status.set(status);
     }
 
     public StringProperty statusProperty() {
-        return status; // Return the StringProperty
+        return status;
     }
 
-    // Selected field methods
     public boolean isSelected() {
         return selected;
     }
@@ -105,12 +107,20 @@ public class CustomerOrder {
         isFlagged = flagged;
     }
 
-    public boolean isContractWritten(boolean isContractWritten) {
+    public boolean isContractWritten() {
         return isContractWritten;
     }
 
-    public void setContractWritten(boolean isContractWritten) {
-        this.isContractWritten = isContractWritten;
+    public void setContractWritten(boolean contractWritten) {
+        isContractWritten = contractWritten;
     }
 
+    // Getter and Setter for rentalId
+    public int getRentalId() {
+        return rentalId;
+    }
+
+    public void setRentalId(int rentalId) {
+        this.rentalId = rentalId;
+    }
 }

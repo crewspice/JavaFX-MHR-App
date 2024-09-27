@@ -2,6 +2,7 @@ package com.MaxHighReach;
 
 import com.MaxHighReach.utils.StatusNodeFactory;
 
+import com.itextpdf.kernel.pdf.canvas.draw.SolidLine;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
@@ -26,6 +27,7 @@ import java.time.format.DateTimeFormatter;
 import javafx.util.StringConverter;
 
 import java.sql.*;
+
 
 import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.font.PdfFontFactory;
@@ -240,7 +242,7 @@ public class DBController extends BaseController {
 
     private void loadData(String filter) {
         ordersList.clear();
-        String query = "SELECT customers.customer_id, customers.name, rentals.rental_date, rentals.driver, rentals.status " +
+        String query = "SELECT customers.customer_id, customers.name, rentals.rental_date, rentals.driver, rentals.status, rentals.RefNumber, rentals.rental_id " +
                    "FROM customers JOIN rentals ON customers.customer_id = rentals.customer_id";
 
         // Modify query based on filter
@@ -272,8 +274,10 @@ public class DBController extends BaseController {
                 String rentalDate = resultSet.getString("rental_date");
                 String driver = resultSet.getString("driver");
                 String status = resultSet.getString("status");
+                int refNumber = resultSet.getInt("RefNumber");
+                int rental_id = resultSet.getInt("rental_id");
 
-                ordersList.add(new CustomerOrder(id, name, rentalDate, driver != null ? driver : "", status != null ? status : "Unknown"));
+                ordersList.add(new CustomerOrder(id, name, rentalDate, driver != null ? driver : "", status != null ? status : "Unknown", refNumber, rental_id));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -709,16 +713,17 @@ public class DBController extends BaseController {
         try {
             // Create a PdfWriter instance
             PdfWriter writer = new PdfWriter(contractPath);
+
             // Create a PdfDocument instance
             PdfDocument pdf = new PdfDocument(writer);
+
             // Create a Document instance
             Document document = new Document(pdf);
 
             // Load a font
             PdfFont font = PdfFontFactory.createFont();
 
-            // Add content to the PDF at specified coordinates
-            // Create a Paragraph with text
+            // Add title as a Paragraph with text
             Paragraph paragraph = new Paragraph()
                 .add(new Text("Rental Agreement").setFont(font).setFontSize(18).setBold())
                 .setFixedPosition(50, 750, 500) // Set x, y, and width
@@ -730,18 +735,18 @@ public class DBController extends BaseController {
             // Add rental details
             String rentalDetails = "Customer Name: " + rental.getName() + "\n" +
                                    "Rental ID: " + rental.getRentalId() + "\n" +
-                                   "Status: " + rental.getStatus() + "\n" +
-                                   "Start Date: " + rental.getStartDate() + "\n" +
-                                   "End Date: " + rental.getEndDate();
+                                   "Status: " + rental.getStatus() + "\n";
 
             Paragraph detailsParagraph = new Paragraph(rentalDetails)
                 .setFixedPosition(50, 700, 500) // Adjust the position as needed
                 .setFontColor(ColorConstants.BLACK);
 
+            // Add the details paragraph to the document
             document.add(detailsParagraph);
 
-            // Add a line separator
-            document.add(new LineSeparator());
+            // Add a line separator (correct usage of LineSeparator)
+            LineSeparator lineSeparator = new LineSeparator(new SolidLine());
+            document.add(lineSeparator);
 
             // Close the document
             document.close();

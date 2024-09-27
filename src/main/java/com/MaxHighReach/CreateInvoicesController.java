@@ -297,8 +297,10 @@ public class CreateInvoicesController extends BaseController {
                 String rentalDate = resultSet.getString("rental_date");
                 String driver = resultSet.getString("driver");
                 String status = resultSet.getString("status");
+                int refNumber = resultSet.getInt("RefNumber");
+                int rental_id = resultSet.getInt("rental_id");
 
-                ordersList.add(new CustomerOrder(id, name, rentalDate, driver != null ? driver : "", status != null ? status : "Unknown"));
+                ordersList.add(new CustomerOrder(id, name, rentalDate, driver != null ? driver : "", status != null ? status : "Unknown", refNumber, rental_id));
             }
         } catch (SQLException e) {
             e.printStackTrace();

@@ -1,7 +1,9 @@
 package com.MaxHighReach;
 
+import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
@@ -21,6 +23,15 @@ public class ScheduleDeliveryController extends BaseController {
     @FXML
     private TextField amountField;
 
+    @FXML
+    private ComboBox<String> liftTypeComboBox;
+
+    // Initialize method to set up ComboBox items
+    @FXML
+    public void initialize() {
+        liftTypeComboBox.setItems(FXCollections.observableArrayList("Scissor Lift", "Boom Lift", "Forklift"));
+    }
+
     // Handle "Schedule" button click
     @FXML
     public void handleScheduleDelivery() {
@@ -28,8 +39,14 @@ public class ScheduleDeliveryController extends BaseController {
             int customerId = Integer.parseInt(customerIdField.getText());
             String rentalDate = rentalDateField.getText();
             double amount = Double.parseDouble(amountField.getText());
+            String liftType = liftTypeComboBox.getValue(); // Get the selected lift type
 
-            if (insertRental(customerId, rentalDate, amount)) {
+            if (liftType == null || liftType.isEmpty()) {
+                showAlert(AlertType.ERROR, "Input Error", "Please select a lift type.");
+                return;
+            }
+
+            if (insertRental(customerId, rentalDate, amount, liftType)) {
                 showAlert(AlertType.INFORMATION, "Rental Scheduled", "The rental has been successfully scheduled!");
             } else {
                 showAlert(AlertType.ERROR, "Rental Failed", "Failed to schedule the rental. Please try again.");
@@ -41,14 +58,15 @@ public class ScheduleDeliveryController extends BaseController {
     }
 
     // Method to insert a new rental into the database
-    private boolean insertRental(int customerId, String rentalDate, double amount) {
-        String query = "INSERT INTO rentals (customer_id, rental_date, amount) VALUES (?, ?, ?)";
+    private boolean insertRental(int customerId, String rentalDate, double amount, String liftType) {
+        String query = "INSERT INTO rentals (customer_id, rental_date, amount, lift_type) VALUES (?, ?, ?, ?)";
         try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
              PreparedStatement preparedStatement = connection.prepareStatement(query)) {
 
             preparedStatement.setInt(1, customerId);
             preparedStatement.setString(2, rentalDate);
             preparedStatement.setDouble(3, amount);
+            preparedStatement.setString(4, liftType); // Insert the lift type
 
             preparedStatement.executeUpdate();
             return true;
