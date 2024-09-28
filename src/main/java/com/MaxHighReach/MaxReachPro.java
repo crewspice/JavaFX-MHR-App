@@ -65,22 +65,15 @@ public class MaxReachPro extends Application {
         scissorLift.animateTransition(SCISSOR_DRAW_HEIGHT, SCISSOR_INITIAL_HEIGHT);
     }
 
-    private Polygon createPolygonFlourish() {
-        Polygon polygon = new Polygon();
-        polygon.getPoints().addAll(
-                0.0, 0.0,
-                200.0, 50.0,
-                100.0, 150.0,
-                0.0, 100.0
-        );
-        polygon.setFill(Color.ORANGE); // Set the color of the polygon
-        polygon.setOpacity(0.8); // Slight transparency for a more subtle effect
-        return polygon;
-    }
-
     public static void loadScene(String fxmlPath) throws Exception {
         System.out.println("Loading scene: " + fxmlPath);
         double currentHeight = 0;
+
+        // Reset the scissor lift height if we're returning to the home scene
+        if ("/fxml/home.fxml".equals(fxmlPath)) {
+            currentHeight = SCISSOR_INITIAL_HEIGHT; // Reset height to initial value
+            scissorLift.animateTransition(currentHeight, currentHeight); // Ensure the lift is at initial height
+        }
 
         // Check if the mainLayout has a previous root node
         if (mainLayout.getChildren().size() > 1) {
@@ -117,6 +110,12 @@ public class MaxReachPro extends Application {
 
         System.out.println("Scene loaded: " + fxmlPath + " | New scene height: " + newHeight);
     }
+
+
+    public static ScissorLift getScissorLift() {
+        return scissorLift;
+    }
+
 
     public static void goBack(String previousScene) throws Exception {
         if (sceneHierarchy.containsKey(previousScene)) {

@@ -276,8 +276,10 @@ public class DBController extends BaseController {
                 String status = resultSet.getString("status");
                 int refNumber = resultSet.getInt("RefNumber");
                 int rental_id = resultSet.getInt("rental_id");
+                String deliveryTime = resultSet.getString("deliveryTime");
 
-                ordersList.add(new CustomerOrder(id, name, rentalDate, driver != null ? driver : "", status != null ? status : "Unknown", refNumber, rental_id));
+
+                ordersList.add(new CustomerOrder(id, name, rentalDate, deliveryTime, driver != null ? driver : "", status != null ? status : "Unknown", refNumber, rental_id));
             }
         } catch (SQLException e) {
             e.printStackTrace();

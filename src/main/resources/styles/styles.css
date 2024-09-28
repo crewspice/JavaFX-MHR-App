@@ -15,6 +15,10 @@
     -fx-faint-focus-color: transparent; /* Remove faint focus color */
 }
 
+.combo-box .list-cell:hover {
+    -fx-background-color: #FFDEAD;
+}
+
 /* ListView item highlight */
 .list-cell:focused {
     -fx-background-color: orange;
@@ -150,4 +154,84 @@
 /* Checkbox styling when selected */
 .check-box:selected > .box {
     -fx-background-color: orange;
+}
+/* Styles for ToggleButtons in the lift type TilePane */
+.lift-type-button {
+    -fx-background-color: transparent; /* Default background */
+    -fx-text-fill: black; /* Text color */
+    -fx-font-size: 12px; /* Adjust font size */
+    -fx-padding: 1 0; /* Adjust top and bottom padding */
+    -fx-alignment: center; /* Center the text within the button */
+}
+
+/* Selected state for Lift Type ToggleButtons */
+.lift-type-button:selected {
+    -fx-background-color: #FFDEAD; /* Background color when selected */
+    -fx-text-fill: black; /* Text color when selected */
+}
+
+/* Hover state for Lift Type ToggleButtons */
+.lift-type-button:hover {
+    -fx-background-color: orange; /* Background color when hovered */
+}
+
+/* Styles for ToggleButtons in the delivery time TilePane */
+.delivery-time-button {
+    -fx-background-color: transparent; /* Default background */
+    -fx-text-fill: black; /* Text color */
+    -fx-font-size: 12px; /* Adjust font size */
+    -fx-padding: 1 0; /* Adjust top and bottom padding */
+    -fx-alignment: center; /* Center the text within the button */
+}
+
+/* Selected state for Delivery Time ToggleButtons */
+.delivery-time-button:selected {
+    -fx-background-color: orange; /* Background color when selected */
+    -fx-text-fill: black; /* Text color when selected */
+}
+
+/* Hover state for Delivery Time ToggleButtons */
+.delivery-time-button:hover {
+    -fx-background-color: orange; /* Background color when hovered */
+}
+
+/* TilePane Styles */
+.tile-pane {
+    -fx-border-color: orange;
+    -fx-border-width: 4; /* Border width */
+    -fx-padding: 5;
+}
+
+
+/* Custom styles for Schedule Delivery TableView */
+.schedule-delivery-table {
+    -fx-background-color: transparent; /* Transparent background */
+    -fx-border-color: transparent; /* No border */
+}
+
+.schedule-delivery-table .scroll-bar:vertical {
+    -fx-pref-width: 0; /* Make the vertical scroll bar width 0 */
+    -fx-opacity: 0; /* Hide the scroll bar */
+}
+
+.schedule-delivery-table .column-header {
+    -fx-background-color: transparent; /* No header background */
+    -fx-text-fill: transparent; /* No text in header */
+}
+
+.schedule-delivery-table .table-row-cell {
+    -fx-background-color: transparent; /* No row background */
+}
+
+.schedule-delivery-table .table-row-cell:selected {
+    -fx-background-color: transparent; /* Keep selected row background transparent */
+    -fx-text-fill: black; /* Keep text visible */
+}
+
+.schedule-delivery-table .column-header-background {
+    -fx-opacity: 0; /* Hides the header background */
+}
+
+.schedule-delivery-table .column-header {
+    -fx-opacity: 0; /* Hides the header text */
 }

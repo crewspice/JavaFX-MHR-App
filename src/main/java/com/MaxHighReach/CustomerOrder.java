@@ -1,46 +1,53 @@
 package com.MaxHighReach;
 
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
 public class CustomerOrder {
-    private int customerId;
+    private final SimpleIntegerProperty customerId;  // Changed to SimpleIntegerProperty
     private final StringProperty name;
     private final StringProperty orderDate;
+    private final StringProperty deliveryTime; // New property for delivery time
     private final StringProperty driver;
     private final StringProperty status;
-    private int refNumber;
+    private final SimpleIntegerProperty refNumber;  // Changed to SimpleIntegerProperty
     private boolean selected;
     private boolean isFlagged;
     private boolean isContractWritten;
-    private int rentalId; // New field for rental ID
+    private final SimpleIntegerProperty rentalId; // Changed to SimpleIntegerProperty
 
     // Constructor with all relevant fields
-    public CustomerOrder(int customerId, String name, String orderDate, String driver, String status, int refNumber, int rentalId) {
-        this.customerId = customerId;
+    public CustomerOrder(int customerId, String name, String orderDate, String deliveryTime, String driver, String status, int refNumber, int rentalId) {
+        this.customerId = new SimpleIntegerProperty(customerId); // Initialize SimpleIntegerProperty
         this.name = new SimpleStringProperty(name);
         this.orderDate = new SimpleStringProperty(orderDate);
+        this.deliveryTime = new SimpleStringProperty(deliveryTime); // Initialize delivery time
         this.driver = new SimpleStringProperty(driver);
         this.status = new SimpleStringProperty(status);
-        this.refNumber = refNumber;
+        this.refNumber = new SimpleIntegerProperty(refNumber); // Initialize SimpleIntegerProperty
         this.selected = false;
         this.isFlagged = isFlagged;
         this.isContractWritten = isContractWritten;
-        this.rentalId = rentalId; // Initialize rentalId
+        this.rentalId = new SimpleIntegerProperty(rentalId); // Initialize SimpleIntegerProperty
     }
 
     // Constructor without driver and status
-    public CustomerOrder(int customerId, String name, String orderDate) {
-        this(customerId, name, orderDate, "", "Unknown", 99999, 0); // Default values
+    public CustomerOrder(int customerId, String name, String orderDate, String deliveryTime) {
+        this(customerId, name, orderDate, deliveryTime, "", "Unknown", 99999, 0); // Default values
     }
 
     // Getters and setters
     public int getCustomerId() {
-        return customerId;
+        return customerId.get();
     }
 
     public void setCustomerId(int customerId) {
-        this.customerId = customerId;
+        this.customerId.set(customerId); // Use set method for SimpleIntegerProperty
+    }
+
+    public SimpleIntegerProperty customerIdProperty() {
+        return customerId; // Return the property for binding
     }
 
     public String getName() {
@@ -65,6 +72,18 @@ public class CustomerOrder {
 
     public StringProperty orderDateProperty() {
         return orderDate;
+    }
+
+    public String getDeliveryTime() {
+        return deliveryTime.get(); // Getter for delivery time
+    }
+
+    public void setDeliveryTime(String deliveryTime) {
+        this.deliveryTime.set(deliveryTime); // Setter for delivery time
+    }
+
+    public StringProperty deliveryTimeProperty() {
+        return deliveryTime; // Return the property for binding
     }
 
     public String getDriver() {
@@ -117,10 +136,14 @@ public class CustomerOrder {
 
     // Getter and Setter for rentalId
     public int getRentalId() {
-        return rentalId;
+        return rentalId.get();
     }
 
     public void setRentalId(int rentalId) {
-        this.rentalId = rentalId;
+        this.rentalId.set(rentalId); // Use set method for SimpleIntegerProperty
+    }
+
+    public SimpleIntegerProperty rentalIdProperty() {
+        return rentalId; // Return the property for binding
     }
 }

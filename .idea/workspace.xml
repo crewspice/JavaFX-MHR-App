@@ -14,8 +14,10 @@
       <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/CreateInvoicesController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/CreateInvoicesController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/CustomerOrder.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/CustomerOrder.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/DBController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/DBController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/MaxReachPro.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/MaxReachPro.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/ScheduleDeliveryController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/ScheduleDeliveryController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/resources/fxml/schedule_delivery.fxml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/fxml/schedule_delivery.fxml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/styles/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/styles/styles.css" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -160,6 +162,7 @@
       <workItem from="1726780072501" duration="104000" />
       <workItem from="1726780201025" duration="79029000" />
       <workItem from="1727400560226" duration="6419000" />
+      <workItem from="1727479505730" duration="21534000" />
     </task>
     <task id="LOCAL-00001" summary="intial commit">
       <option name="closed" value="true" />
