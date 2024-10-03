@@ -1,11 +1,16 @@
 package com.MaxHighReach;
 
+import com.itextpdf.layout.element.Link;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
+import javafx.scene.control.Hyperlink;
 import javafx.scene.control.*;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
@@ -59,6 +64,12 @@ public class SMMTaxController extends BaseController {
     private Label dateRangeLabel;
 
     @FXML
+    private Hyperlink linkOne;
+
+    @FXML
+    private Hyperlink linkTwo;
+
+    @FXML
     private HBox confirmationPrompt;
 
     private static final String OUTPUT_DIRECTORY;
@@ -69,6 +80,12 @@ public class SMMTaxController extends BaseController {
     private static final String PREFIX;
     private static final String SRCDIR;
     private static final String SDK_PATH;
+
+    public void initialize(){
+        super.initialize();
+        linkOne.setVisible(false);
+        linkTwo.setVisible(false);
+    }
 
     private static boolean atWork = true;
 
@@ -100,7 +117,7 @@ public class SMMTaxController extends BaseController {
     public double getTotalHeight() {
         boolean hardCode = true;
         if (hardCode) {
-            return 265;
+            return 235;
         } else {
             double totalHeight = 0;
             for (Node node : anchorPane.getChildren()) {
@@ -164,6 +181,7 @@ public class SMMTaxController extends BaseController {
                 statusLabel.setText("Failed to copy template file.");
                 loadingIndicator.setVisible(false);
             });
+
             return;
         } */
 
@@ -225,7 +243,7 @@ public class SMMTaxController extends BaseController {
         });
     }
 
-   private void runPythonScript() {
+    private void runPythonScript() {
         // Hide the status label when the script starts running
         Platform.runLater(() -> statusLabel.setVisible(false));
 
@@ -293,7 +311,7 @@ public class SMMTaxController extends BaseController {
         File renamedFile = new File(OUTPUT_DIRECTORY, newFileName);
 
         int count = 1;
-      //  File renamedFile = new File(OUTPUT_DIRECTORY, "SMM_" + dateRange + "(" + count + ").xlsx");
+        //  File renamedFile = new File(OUTPUT_DIRECTORY, "SMM_" + dateRange + "(" + count + ").xlsx");
 
         // Print the initial state of the renamedFile
         System.out.println("Initial renamedFile path: " + renamedFile.getAbsolutePath());
@@ -338,22 +356,27 @@ public class SMMTaxController extends BaseController {
         Platform.runLater(() -> {
             statusLabel.setVisible(false);
             progressLabel.setText(
-                "Instructions:\n" +
-                "1. Fill in the request file\n" +
-                "   i. Click \"Browse\" by \"Request File\"\n" +
-                "   ii. Select \"invoice_query.xml\"\n" +
-                "2. Open QuickBooks\n" +
-                "3. Click \"Open Connection\"\n" +
-                "4. Click \"Begin Session\"\n" +
-                "5. Click \"Send XML to Request Processor\"\n" +
-                "6. Wait for invoices to be received\n" +
-                "7. Click \"View Output\"\n" +
-                "8. Save that file\n" +
-                "   i. Use shortcut Ctrl + S\n" +
-                "   ii. Overwrite \"QBResponse.xml\"\n" +
-                "Finished!   -    Click Yes below"
+                    "Instructions:\n" +
+                            "1. Fill in the request file\n" +
+                            "\n" +
+                            "   b. Paste the address in the \"Request File\" field\n" +
+                            "   c. Click on the field and use the shortcut Ctrl + V\n" +
+                            "2. Open QuickBooks if not already running\n" +
+                            "3. Click \"Open Connection\"\n" +
+                            "4. Click \"Begin Session\"\n" +
+                            "5. Click \"Send XML to Request Processor\"\n" +
+                            "6. Wait for invoices to be received\n" +
+                            "7. Click \"View Output\"\n" +
+                            "8. Save that file \n" +
+                            "   \n" +
+                            "   b. Click on the output file and press Ctrl + S\n" +
+                            "   c. Press Ctrl + V to paste in the save address\n" +
+                            "   d. Double click on QBResponse.xml to overwrite\n" +
+                            "Finished!   -    Click Yes below"
             );
             progressLabel.setVisible(true);
+            linkOne.setVisible(true);
+            linkTwo.setVisible(true);
         });
 
         new Thread(() -> {
@@ -380,6 +403,8 @@ public class SMMTaxController extends BaseController {
                         statusLabel.setText("SDK Tool failed with exit code: " + exitCode);
                     }
                     progressLabel.setText("");
+                    linkOne.setVisible(false);
+                    linkTwo.setVisible(false);
                     loadingIndicator.setVisible(false);
                 });
 
@@ -388,10 +413,45 @@ public class SMMTaxController extends BaseController {
                 Platform.runLater(() -> {
                     statusLabel.setText("Error running SDK Tool.");
                     progressLabel.setText("");
+                    linkOne.setVisible(false);
+                    linkTwo.setVisible(false);
                     loadingIndicator.setVisible(false);
                 });
             }
         }).start();
+    }
+
+    @FXML
+    private void handleCopyLink1(MouseEvent event) {
+        String pathToCopy = "C:\\Users\\maxhi\\OneDrive\\Documents\\Quickbooks\\QBProgram Development\\SMM Filing\\scripts\\invoice_query.xml";
+
+        // Get the system clipboard
+        Clipboard clipboard = Clipboard.getSystemClipboard();
+        ClipboardContent content = new ClipboardContent();
+        content.putString(pathToCopy);
+
+        // Set the clipboard content
+        clipboard.setContent(content);
+
+        // Optionally, you can provide feedback to the user
+        statusLabel.setText("File path copied to clipboard: " + pathToCopy);
+    }
+
+    @FXML
+    private void handleCopyLink2(MouseEvent event) {
+        // Path for QuickBooks response file
+        String qbResponsePath = "C:\\Users\\maxhi\\OneDrive\\Documents\\Quickbooks\\QBProgram Development\\SMM Filing\\outputs";
+
+        // Get the system clipboard
+        Clipboard clipboard = Clipboard.getSystemClipboard();
+        ClipboardContent content = new ClipboardContent();
+        content.putString(qbResponsePath);
+
+        // Set the clipboard content
+        clipboard.setContent(content);
+
+        // Provide feedback to the user
+        updateStatusLabel("QBResponse file path copied to clipboard: " + qbResponsePath);
     }
 
     private String normalizeDateRange(String dateRange) {

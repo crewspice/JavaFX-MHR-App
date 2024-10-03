@@ -7,38 +7,28 @@ import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.stage.FileChooser;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.sql.*;
 import java.time.YearMonth;
-import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 
-import com.google.gson.Gson;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.xml.sax.SAXException;
-import javax.xml.parsers.ParserConfigurationException;
+
 import javax.xml.transform.*;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.dom.DOMSource;
@@ -71,25 +61,25 @@ public class CreateInvoicesController extends BaseController {
     private Button refreshButton, composeInvoicesButton;
 
     @FXML
-    private TableView<CustomerOrder> dbTableView;
+    private TableView<CustomerRental> dbTableView;
     @FXML
-    private TableColumn<CustomerOrder, Boolean> selectColumn;
+    private TableColumn<CustomerRental, Boolean> selectColumn;
     @FXML
-    private TableColumn<CustomerOrder, Integer> idColumn;
+    private TableColumn<CustomerRental, Integer> idColumn;
     @FXML
-    private TableColumn<CustomerOrder, String> nameColumn;
+    private TableColumn<CustomerRental, String> nameColumn;
     @FXML
-    private TableColumn<CustomerOrder, String> orderDateColumn;
+    private TableColumn<CustomerRental, String> orderDateColumn;
     @FXML
-    private TableColumn<CustomerOrder, String> driverColumn;
+    private TableColumn<CustomerRental, String> driverColumn;
     @FXML
-    private TableColumn<CustomerOrder, String> statusColumn;
+    private TableColumn<CustomerRental, String> statusColumn;
     @FXML
     private Label loadingLabel;
     @FXML
     private ComboBox<String> filterComboBox;
 
-    private ObservableList<CustomerOrder> ordersList = FXCollections.observableArrayList();
+    private ObservableList<CustomerRental> ordersList = FXCollections.observableArrayList();
     private ObservableList<String> driverInitials = FXCollections.observableArrayList("JD", "AB", "MG", "CN");
 
     private static final String OUTPUT_DIRECTORY;
@@ -136,7 +126,7 @@ public class CreateInvoicesController extends BaseController {
         dbTableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 
         selectColumn.setCellValueFactory(param -> new SimpleBooleanProperty(param.getValue().isSelected()));
-        selectColumn.setCellFactory(column -> new TableCell<CustomerOrder, Boolean>() {
+        selectColumn.setCellFactory(column -> new TableCell<CustomerRental, Boolean>() {
             private final CheckBox checkBox = new CheckBox();
             @Override
             protected void updateItem(Boolean item, boolean empty) {
@@ -163,7 +153,7 @@ public class CreateInvoicesController extends BaseController {
 
         // Customize orderDateColumn to show date in M/d format
         orderDateColumn.setCellValueFactory(new PropertyValueFactory<>("orderDate"));
-        orderDateColumn.setCellFactory(column -> new TableCell<CustomerOrder, String>() {
+        orderDateColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -205,7 +195,7 @@ public class CreateInvoicesController extends BaseController {
         filterComboBox.setValue("All Rentals"); // Default selection
 
         // Set the initial cell factory to default mode for the driver column
-        driverColumn.setCellFactory(column -> new TableCell<CustomerOrder, String>() {
+        driverColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -292,7 +282,7 @@ public class CreateInvoicesController extends BaseController {
              ResultSet resultSet = statement.executeQuery(query)) {
 
             while (resultSet.next()) {
-                int id = resultSet.getInt("customer_id");
+                String id = resultSet.getString("customer_id");
                 String name = resultSet.getString("name");
                 String rentalDate = resultSet.getString("rental_date");
                 String deliveryTime = resultSet.getString("deliveryTime");
@@ -301,7 +291,7 @@ public class CreateInvoicesController extends BaseController {
                 int refNumber = resultSet.getInt("RefNumber");
                 int rental_id = resultSet.getInt("rental_id");
 
-                ordersList.add(new CustomerOrder(id, name, rentalDate, deliveryTime, driver != null ? driver : "", status != null ? status : "Unknown", refNumber, rental_id));
+                ordersList.add(new CustomerRental(id, name, rentalDate, deliveryTime, driver != null ? driver : "", status != null ? status : "Unknown", refNumber, rental_id));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -331,18 +321,18 @@ public class CreateInvoicesController extends BaseController {
     }
 
     private boolean isAnySelected() {
-        return dbTableView.getItems().stream().anyMatch(CustomerOrder::isSelected);
+        return dbTableView.getItems().stream().anyMatch(CustomerRental::isSelected);
     }
 
     private void showSelectableCheckboxes(boolean visible) {
-        selectColumn.setCellFactory(tc -> new TableCell<CustomerOrder, Boolean>() {
+        selectColumn.setCellFactory(tc -> new TableCell<CustomerRental, Boolean>() {
             private final CheckBox checkBox = new CheckBox();
 
             @Override
             protected void updateItem(Boolean item, boolean empty) {
                 super.updateItem(item, empty);
                 if (!empty) {
-                    CustomerOrder order = getTableView().getItems().get(getIndex());
+                    CustomerRental order = getTableView().getItems().get(getIndex());
                     checkBox.setVisible(visible);
                     checkBox.setSelected(order.isSelected() || order.isFlagged()); // Default checked if flagged
                     setGraphic(checkBox);

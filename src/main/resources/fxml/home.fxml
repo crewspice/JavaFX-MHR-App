@@ -6,6 +6,7 @@
 
 <AnchorPane fx:id="anchorPane" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.HomeController">
     <Button fx:id="smmTaxButton" text="SMM Tax" layoutX="50" layoutY="50" onAction="#handleSMMTax"/>
+    <Button fx:id="syncWithQBButton" text="Sync with QB" layoutX="160" layoutY="50" onAction="#handleSyncWithQB"/>
     <Button fx:id="dbButton" text="Database" layoutX="50" layoutY="100" onAction="#handleDBScene"/>
     <Button fx:id="scheduleDelivery" text="Schedule Delivery" onAction="#handleScheduleDelivery" layoutX="160" layoutY="100"/>
     <Label fx:id="sourceCodeLabel" text="Source Code" layoutX="200" layoutY="597" onMouseClicked="#handleSourceCodeClick"

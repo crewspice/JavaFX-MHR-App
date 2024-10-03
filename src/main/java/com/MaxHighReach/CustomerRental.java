@@ -4,8 +4,8 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
-public class CustomerOrder {
-    private final SimpleIntegerProperty customerId;  // Changed to SimpleIntegerProperty
+public class CustomerRental {
+    private final StringProperty customerId;  // Changed to SimpleIntegerProperty
     private final StringProperty name;
     private final StringProperty orderDate;
     private final StringProperty deliveryTime; // New property for delivery time
@@ -18,8 +18,8 @@ public class CustomerOrder {
     private final SimpleIntegerProperty rentalId; // Changed to SimpleIntegerProperty
 
     // Constructor with all relevant fields
-    public CustomerOrder(int customerId, String name, String orderDate, String deliveryTime, String driver, String status, int refNumber, int rentalId) {
-        this.customerId = new SimpleIntegerProperty(customerId); // Initialize SimpleIntegerProperty
+    public CustomerRental(String customerId, String name, String orderDate, String deliveryTime, String driver, String status, int refNumber, int rentalId) {
+        this.customerId = new SimpleStringProperty(customerId); // Initialize SimpleIntegerProperty
         this.name = new SimpleStringProperty(name);
         this.orderDate = new SimpleStringProperty(orderDate);
         this.deliveryTime = new SimpleStringProperty(deliveryTime); // Initialize delivery time
@@ -33,20 +33,20 @@ public class CustomerOrder {
     }
 
     // Constructor without driver and status
-    public CustomerOrder(int customerId, String name, String orderDate, String deliveryTime) {
+    public CustomerRental(String customerId, String name, String orderDate, String deliveryTime) {
         this(customerId, name, orderDate, deliveryTime, "", "Unknown", 99999, 0); // Default values
     }
 
     // Getters and setters
-    public int getCustomerId() {
+    public String getCustomerId() {
         return customerId.get();
     }
 
-    public void setCustomerId(int customerId) {
+    public void setCustomerId(String customerId) {
         this.customerId.set(customerId); // Use set method for SimpleIntegerProperty
     }
 
-    public SimpleIntegerProperty customerIdProperty() {
+    public StringProperty customerIdProperty() {
         return customerId; // Return the property for binding
     }
 

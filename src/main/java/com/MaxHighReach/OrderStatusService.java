@@ -24,7 +24,7 @@ public class OrderStatusService {
         }
     }
 
-    public String determineNewStatus(CustomerOrder order) {
+    public String determineNewStatus(CustomerRental order) {
         // Example logic to determine new status based on order's current status
         String currentStatus = order.getStatus();
         if ("Upcoming".equals(currentStatus)) {

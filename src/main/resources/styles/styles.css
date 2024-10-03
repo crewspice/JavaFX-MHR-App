@@ -1,6 +1,7 @@
 /* General button styles */
 .button {
     -fx-border-color: orange;
+    -fx-faint-focus-color: transparent;
     -fx-border-width: 2px;
 }
 
@@ -9,21 +10,82 @@
     -fx-text-fill: white;
 }
 
-/* Remove focus outline from ComboBox */
-.combo-box {
+/* Make the DatePicker TextField invisible */
+.date-picker .text-field {
+    -fx-background-color: transparent; /* Make background transparent */
+    -fx-border-color: transparent; /* Make border transparent */
+    -fx-text-fill: black; /* Make text color black */
+    -fx-opacity: 1; /* Ensure text field is visible */
+    -fx-focus-color: transparent; /* Remove focus color */
+    -fx-faint-focus-color: transparent; /* Remove faint focus */
+    -fx-highlight-fill: transparent; /* Remove highlight when selecting */
+    -fx-highlight-text-fill: black; /* Ensure text remains black when selecting */
+}
+
+/* DatePicker button styles */
+.date-picker .button {
+    -fx-background-color: transparent; /* Make button background transparent */
+    -fx-border-color: transparent; /* Remove border */
+}
+
+/* Ensure button remains clickable */
+.date-picker .button:hover {
+    -fx-background-color: transparent; /* Ensure no background on hover */
+}
+
+/* Remove blue focus border and background color */
+.date-picker:focused .text-field {
+    -fx-background-color: transparent; /* Ensure background remains transparent */
+    -fx-border-color: transparent; /* Ensure no border on focus */
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent; /* Remove the blue focus highlight */
+}
+
+/* Arrows for Month and Year */
+.date-picker .arrow {
+    -fx-background-color: transparent; /* Show the drop-down arrow */
+}
+
+
+/* Custom styles for ComboBox */
+.small-combo-box {
     -fx-focus-color: transparent; /* Remove focus color */
     -fx-faint-focus-color: transparent; /* Remove faint focus color */
+    -fx-font-size: 12px; /* Smaller font size */
+    -fx-text-fill: black; /* Default text color for the ComboBox */
 }
 
-.combo-box .list-cell:hover {
-    -fx-background-color: #FFDEAD;
+/* Ensure text color is black when the ComboBox is closed */
+.small-combo-box .text {
+    -fx-text-fill: black; /* Ensure text is black when ComboBox is closed */
 }
 
-/* ListView item highlight */
+/* List view items */
+.small-combo-box .list-view .list-cell {
+    -fx-text-fill: black; /* Default text color for items */
+}
+
+.small-combo-box .list-view .list-cell:hover {
+    -fx-background-color: orange; /* Change background color on hover */
+    -fx-text-fill: black; /* Ensure text remains black when hovered */
+}
+
+.small-combo-box .list-view .list-cell:selected {
+    -fx-background-color: #FFDEAD; /* Background color when selected */
+    -fx-text-fill: black; /* Ensure text is black when selected */
+}
+
+.small-combo-box .list-view .list-cell:focused {
+    -fx-background-color: orange; /* Background color for focused item */
+    -fx-text-fill: black; /* Ensure text is black for focused item */
+}
+
+/* Other styles */
 .list-cell:focused {
     -fx-background-color: orange;
-    -fx-text-fill: white;
+    -fx-text-fill: black;
 }
+
 
 /* TextField highlight */
 .text-field {
@@ -98,6 +160,22 @@
 }
 
 /* Styling for edit driver button */
+#calendarButton {
+    -fx-pref-width: 30px;
+    -fx-pref-height: 30px;
+}
+
+.calendar-button {
+    -fx-background-color: transparent; /* Remove button background */
+    -fx-border-color: transparent; /* Remove border */
+    -fx-padding: 0px; /* Adjust padding */
+}
+
+.calendar-button:hover {
+    -fx-background-color: orange; /* Optional hover background */
+}
+
+/* Styling for edit driver button */
 #editDriverButton {
     -fx-pref-width: 30px;
     -fx-pref-height: 30px;
@@ -156,7 +234,7 @@
     -fx-background-color: orange;
 }
 /* Styles for ToggleButtons in the lift type TilePane */
-.lift-type-button {
+.lift-type-button-rotating {
     -fx-background-color: transparent; /* Default background */
     -fx-text-fill: black; /* Text color */
     -fx-font-size: 12px; /* Adjust font size */
@@ -165,13 +243,32 @@
 }
 
 /* Selected state for Lift Type ToggleButtons */
-.lift-type-button:selected {
+.lift-type-button-rotating:selected {
     -fx-background-color: #FFDEAD; /* Background color when selected */
     -fx-text-fill: black; /* Text color when selected */
 }
 
 /* Hover state for Lift Type ToggleButtons */
-.lift-type-button:hover {
+.lift-type-button-rotating:hover {
+    -fx-background-color: orange; /* Background color when hovered */
+}
+
+.lift-type-button-stopped {
+    -fx-background-color: transparent; /* Default background */
+    -fx-text-fill: black; /* Text color */
+    -fx-font-size: 12px; /* Adjust font size */
+    -fx-padding: 1 0; /* Adjust top and bottom padding */
+    -fx-alignment: center; /* Center the text within the button */
+}
+
+/* Selected state for Lift Type ToggleButtons */
+.lift-type-button-stopped:selected {
+    -fx-background-color: orange; /* Background color when selected */
+    -fx-text-fill: black; /* Text color when selected */
+}
+
+/* Hover state for Lift Type ToggleButtons */
+.lift-type-button-stopped:hover {
     -fx-background-color: orange; /* Background color when hovered */
 }
 

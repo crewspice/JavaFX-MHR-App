@@ -1,7 +1,5 @@
 package com.MaxHighReach;
 
-import com.MaxHighReach.utils.StatusNodeFactory;
-
 import com.itextpdf.kernel.pdf.canvas.draw.SolidLine;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -12,19 +10,14 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.ComboBoxTableCell;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Region;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
 import javafx.scene.control.Tooltip;
 
 import javafx.util.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import javafx.util.StringConverter;
 
 import java.sql.*;
 
@@ -48,25 +41,25 @@ public class DBController extends BaseController {
     @FXML
     private AnchorPane anchorPane;
     @FXML
-    private TableView<CustomerOrder> dbTableView;
+    private TableView<CustomerRental> dbTableView;
     @FXML
-    private TableColumn<CustomerOrder, Boolean> selectColumn;
+    private TableColumn<CustomerRental, Boolean> selectColumn;
     @FXML
-    private TableColumn<CustomerOrder, Integer> idColumn;
+    private TableColumn<CustomerRental, String> idColumn;
     @FXML
-    private TableColumn<CustomerOrder, String> nameColumn;
+    private TableColumn<CustomerRental, String> nameColumn;
     @FXML
-    private TableColumn<CustomerOrder, String> orderDateColumn;
+    private TableColumn<CustomerRental, String> orderDateColumn;
     @FXML
-    private TableColumn<CustomerOrder, String> driverColumn;
+    private TableColumn<CustomerRental, String> driverColumn;
     @FXML
-    private TableColumn<CustomerOrder, String> statusColumn;
+    private TableColumn<CustomerRental, String> statusColumn;
     @FXML
     private Label loadingLabel;
     @FXML
     private ComboBox<String> filterComboBox;
 
-    private ObservableList<CustomerOrder> ordersList = FXCollections.observableArrayList();
+    private ObservableList<CustomerRental> ordersList = FXCollections.observableArrayList();
     private ObservableList<String> driverInitials = FXCollections.observableArrayList("JD", "AB", "MG", "CN");
     private boolean isDriverEditMode = false;
     private String lastActionType;
@@ -80,7 +73,7 @@ public class DBController extends BaseController {
         dbTableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 
         selectColumn.setCellValueFactory(param -> new SimpleBooleanProperty(param.getValue().isSelected()));
-        selectColumn.setCellFactory(column -> new TableCell<CustomerOrder, Boolean>() {
+        selectColumn.setCellFactory(column -> new TableCell<CustomerRental, Boolean>() {
             private final CheckBox checkBox = new CheckBox();
             @Override
             protected void updateItem(Boolean item, boolean empty) {
@@ -107,7 +100,7 @@ public class DBController extends BaseController {
 
         // Customize orderDateColumn to show date in M/d format
         orderDateColumn.setCellValueFactory(new PropertyValueFactory<>("orderDate"));
-        orderDateColumn.setCellFactory(column -> new TableCell<CustomerOrder, String>() {
+        orderDateColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -149,7 +142,7 @@ public class DBController extends BaseController {
         filterComboBox.setValue("All Rentals"); // Default selection
 
         // Set the initial cell factory to default mode for the driver column
-        driverColumn.setCellFactory(column -> new TableCell<CustomerOrder, String>() {
+        driverColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -269,17 +262,17 @@ public class DBController extends BaseController {
              ResultSet resultSet = statement.executeQuery(query)) {
 
             while (resultSet.next()) {
-                int id = resultSet.getInt("customer_id");
+                String id = resultSet.getString("customer_id");
                 String name = resultSet.getString("name");
                 String rentalDate = resultSet.getString("rental_date");
                 String driver = resultSet.getString("driver");
                 String status = resultSet.getString("status");
                 int refNumber = resultSet.getInt("RefNumber");
                 int rental_id = resultSet.getInt("rental_id");
-                String deliveryTime = resultSet.getString("deliveryTime");
+                String deliveryTime = resultSet.getString("delivery_time");
 
 
-                ordersList.add(new CustomerOrder(id, name, rentalDate, deliveryTime, driver != null ? driver : "", status != null ? status : "Unknown", refNumber, rental_id));
+                ordersList.add(new CustomerRental(id, name, rentalDate, deliveryTime, driver != null ? driver : "", status != null ? status : "Unknown", refNumber, rental_id));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -326,7 +319,7 @@ public class DBController extends BaseController {
             lastActionType = null; // Reset the action type
 
             // Switch back to displaying driver names as strings
-            driverColumn.setCellFactory(column -> new TableCell<CustomerOrder, String>() {
+            driverColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
                 @Override
                 protected void updateItem(String item, boolean empty) {
                     super.updateItem(item, empty);
@@ -345,7 +338,7 @@ public class DBController extends BaseController {
             System.out.println("Driver assignment mode deactivated.");
         } else {
             // Switch to driver edit mode with combo boxes
-            driverColumn.setCellFactory(column -> new TableCell<CustomerOrder, String>() {
+            driverColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
                 private final ComboBox<String> comboBox = new ComboBox<>(driverInitials);
 
                 {
@@ -369,7 +362,7 @@ public class DBController extends BaseController {
                 public void commitEdit(String newValue) {
                     super.commitEdit(newValue);
                     if (getTableRow() != null) {
-                        CustomerOrder order = getTableRow().getItem();
+                        CustomerRental order = getTableRow().getItem();
                         if (order != null) {
                             order.setDriver(newValue); // Update the order with the new driver
                         }
@@ -390,12 +383,12 @@ public class DBController extends BaseController {
         try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a")) {
             String updateQuery = "UPDATE rentals SET driver = ? WHERE customer_id = ?";
             try (PreparedStatement statement = connection.prepareStatement(updateQuery)) {
-                for (CustomerOrder order : dbTableView.getItems()) {
+                for (CustomerRental order : dbTableView.getItems()) {
                     String updatedDriver = order.getDriver();
-                    int rentalId = order.getCustomerId();  // Update this if necessary
+                    String rentalId = order.getCustomerId();  // Update this if necessary
 
                     statement.setString(1, updatedDriver);
-                    statement.setInt(2, rentalId);
+                    statement.setString(2, rentalId);
 
                     int rowsUpdated = statement.executeUpdate();
                     if (rowsUpdated > 0) {
@@ -412,7 +405,7 @@ public class DBController extends BaseController {
         }
 
         // Exit driver edit mode (same as before)
-        driverColumn.setCellFactory(column -> new TableCell<CustomerOrder, String>() {
+        driverColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -434,7 +427,7 @@ public class DBController extends BaseController {
 
     private void hideCheckboxes() {
         // Set the checkboxes to not be visible
-        selectColumn.setCellFactory(tc -> new TableCell<CustomerOrder, Boolean>() {
+        selectColumn.setCellFactory(tc -> new TableCell<CustomerRental, Boolean>() {
             private final CheckBox checkBox = new CheckBox();
 
             @Override
@@ -524,14 +517,14 @@ public class DBController extends BaseController {
     }
 
 
-    private void updateInvoiceFlagInDB(int customerId, boolean isFlagged) {
+    private void updateInvoiceFlagInDB(String customerId, boolean isFlagged) {
         String updateQuery = "UPDATE rentals SET is_flagged = ? WHERE customer_id = ?";
 
         try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
              PreparedStatement statement = connection.prepareStatement(updateQuery)) {
 
-            statement.setInt(1, isFlagged ? 1 : 0); // Convert boolean to int (1 or 0)
-            statement.setInt(2, customerId);
+            statement.setBoolean(1, isFlagged); // Convert boolean to int (1 or 0)
+            statement.setString(2, customerId);
 
             int rowsUpdated = statement.executeUpdate();
             System.out.println("Rows updated: " + rowsUpdated);  // Debugging line
@@ -549,7 +542,7 @@ public class DBController extends BaseController {
 
     private void resetCheckboxes() {
         // Deselect all checkboxes in the table
-        for (CustomerOrder order : dbTableView.getItems()) {
+        for (CustomerRental order : dbTableView.getItems()) {
             order.setSelected(false);
         }
         dbTableView.refresh(); // Refresh the table view to update the checkbox states
@@ -559,7 +552,7 @@ public class DBController extends BaseController {
     private void showSelectableCheckboxes(boolean visible, String actionType) {
         boolean shouldShowCheckboxes = "dropping-off".equals(actionType) || "picking-up".equals(actionType) || "creating-invoices".equals(actionType);
 
-        selectColumn.setCellFactory(tc -> new TableCell<CustomerOrder, Boolean>() {
+        selectColumn.setCellFactory(tc -> new TableCell<CustomerRental, Boolean>() {
             private final CheckBox checkBox = new CheckBox();
 
             @Override
@@ -587,7 +580,7 @@ public class DBController extends BaseController {
         dbTableView.getItems().get(index).setSelected(isSelected);
 
         // Show the update button only if at least one row is selected
-        boolean anySelected = dbTableView.getItems().stream().anyMatch(CustomerOrder::isSelected);
+        boolean anySelected = dbTableView.getItems().stream().anyMatch(CustomerRental::isSelected);
         updateRentalButton.setVisible(anySelected);
 
     }
@@ -595,12 +588,12 @@ public class DBController extends BaseController {
 
     @FXML
     private void handleUpdateRental(ActionEvent event) {
-        ObservableList<CustomerOrder> selectedRentals = dbTableView.getItems().filtered(CustomerOrder::isSelected);
+        ObservableList<CustomerRental> selectedRentals = dbTableView.getItems().filtered(CustomerRental::isSelected);
         boolean statusUpdated = false;
 
         // Handle the 'creating-invoices' action type
         if (lastActionType.equals("creating-invoices")) {
-            for (CustomerOrder order : selectedRentals) {
+            for (CustomerRental order : selectedRentals) {
                 if (order.getStatus().equals("Ended")) {
                     order.setFlagged(true);
                     updateInvoiceFlagInDB(order.getCustomerId(), true); // Flag the order for invoicing
@@ -613,12 +606,12 @@ public class DBController extends BaseController {
             }
         } else if (lastActionType.equals("creating-contracts")) {
             // Handle the driver assignment status updates
-            for (CustomerOrder order : selectedRentals) {
+            for (CustomerRental order : selectedRentals) {
 
             }
         } else if (lastActionType.equals("assigning-drivers")) {
             // Handle the driver assignment status updates
-            for (CustomerOrder order : selectedRentals) {
+            for (CustomerRental order : selectedRentals) {
                 String newStatus = "Driver Assigned"; // Set the appropriate new status
                 order.setStatus(newStatus);
                 statusUpdated = true;
@@ -626,7 +619,7 @@ public class DBController extends BaseController {
             }
         } else if (lastActionType.equals("picking-up")) {
             // Handle the 'picking-up' action type
-            for (CustomerOrder order : selectedRentals) {
+            for (CustomerRental order : selectedRentals) {
                 String newStatus = "Ended";  // Set the status for picking-up
                 order.setStatus(newStatus);
                 updateRentalStatusInDB(order.getCustomerId(), newStatus);  // Sync with DB
@@ -635,7 +628,7 @@ public class DBController extends BaseController {
             }
         } else {
             // Existing logic for other action types
-            for (CustomerOrder order : selectedRentals) {
+            for (CustomerRental order : selectedRentals) {
                 String newStatus = determineNewStatus(order, lastActionType);
                 if (!newStatus.equals(order.getStatus())) {
                     order.setStatus(newStatus);
@@ -657,14 +650,14 @@ public class DBController extends BaseController {
     }
 
 
-    private void updateRentalStatusInDB(int customerId, String newStatus) {
+    private void updateRentalStatusInDB(String customerId, String newStatus) {
         String updateQuery = "UPDATE rentals SET status = ? WHERE customer_id = ?"; // Update table name
 
         try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
              PreparedStatement statement = connection.prepareStatement(updateQuery)) {
 
             statement.setString(1, newStatus);
-            statement.setInt(2, customerId);
+            statement.setString(2, customerId);
 
             int rowsUpdated = statement.executeUpdate();
             if (rowsUpdated > 0) {
@@ -687,12 +680,12 @@ public class DBController extends BaseController {
     }
 
 
-    private void highlightRow(CustomerOrder order, String color) {
-        TableRow<CustomerOrder> row = new TableRow<>();
+    private void highlightRow(CustomerRental order, String color) {
+        TableRow<CustomerRental> row = new TableRow<>();
         row.setStyle("-fx-background-color: " + color + ";");
     }
 
-    private String determineNewStatus(CustomerOrder order, String actionType) {
+    private String determineNewStatus(CustomerRental order, String actionType) {
         String currentStatus = order.getStatus();
  //       System.out.println("Determining new status for Order ID " + order.getCustomerId() + ": Current Status = " + currentStatus + ", Action Type = " + actionType);
 
@@ -711,7 +704,7 @@ public class DBController extends BaseController {
         return currentStatus;
     }
 
-    private void createContractPDF(CustomerOrder rental, String contractPath) {
+    private void createContractPDF(CustomerRental rental, String contractPath) {
         try {
             // Create a PdfWriter instance
             PdfWriter writer = new PdfWriter(contractPath);

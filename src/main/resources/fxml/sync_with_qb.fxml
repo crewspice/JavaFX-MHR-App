@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+
+<AnchorPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.SyncWithQBController">
+    <Label text="Sync with QuickBooks" layoutX="20" layoutY="20"/>
+    <Label fx:id="statusLabel" layoutX="20" layoutY="50" style="-fx-text-fill: red;"/>
+    <Label fx:id="progressLabel" layoutX="20" layoutY="80"/>
+
+    <Button text="Open SDK" layoutX="20" layoutY="120" onAction="#handleOpenSDK"/>
+
+    <HBox fx:id="confirmationPrompt" layoutX="20" layoutY="160" visible="false">
+        <Label text="Did the SDK run successfully?"/>
+        <Button text="Yes" onAction="#handleConfirmationYes"/>
+        <Button text="No" onAction="#handleConfirmationNo"/>
+    </HBox>
+
+    <Button fx:id="backButton" text="Back" layoutX="270" layoutY="5" onAction="#handleBack"/>
+
+</AnchorPane>

@@ -23,6 +23,9 @@ public class HomeController extends BaseController {
     private Button smmButton;
 
     @FXML
+    private Button syncWithQBButton;
+
+    @FXML
     private Button sourceCodeButton;
 
     @FXML
@@ -79,6 +82,16 @@ public class HomeController extends BaseController {
         System.out.println("SMM Task button clicked");
         try {
             MaxReachPro.loadScene("/fxml/smm_tax.fxml");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    public void handleSyncWithQB() {
+        System.out.println("Sync with QB button clicked");
+        try {
+            MaxReachPro.loadScene("/fxml/sync_with_qb.fxml");
         } catch (Exception e) {
             e.printStackTrace();
         }
