@@ -231,6 +231,8 @@ public class SMMTaxController extends BaseController {
             // Hide confirmation prompt and "Please use the Quickbooks SDK..." message
             confirmationPrompt.setVisible(false);
             statusLabel.setText("Processing...");
+            linkOne.setVisible(false);
+            linkTwo.setVisible(false);
             runPythonScript();
         });
     }

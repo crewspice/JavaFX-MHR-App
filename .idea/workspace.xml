@@ -10,27 +10,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0b9ac3d8-f6e5-4a5c-b803-ea8558abb9f2" name="Changes" comment="newest commit">
-      <change afterPath="$PROJECT_DIR$/.idea/sqldialects.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/uiDesigner.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/Customer.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/SyncWithQBController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/resources/fxml/sync_with_qb.fxml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/resources/images/AdobeStock_861376630.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/resources/images/calendar.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/QBResponse.xml" beforeDir="false" afterPath="$PROJECT_DIR$/QBResponse.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/CreateInvoicesController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/CreateInvoicesController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/CustomerOrder.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/CustomerRental.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/DBController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/DBController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/HomeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/HomeController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/MaxReachPro.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/MaxReachPro.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/OrderStatusService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/OrderStatusService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/SMMTaxController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/SMMTaxController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/ScheduleDeliveryController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/ScheduleDeliveryController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/fxml/home.fxml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/fxml/home.fxml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/fxml/schedule_delivery.fxml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/fxml/schedule_delivery.fxml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/fxml/smm_tax.fxml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/fxml/smm_tax.fxml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/styles/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/styles/styles.css" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -82,7 +62,7 @@
   <component name="GithubPullRequestsUISettings">{
   &quot;selectedUrlAndAccountId&quot;: {
     &quot;url&quot;: &quot;https://github.com/crewspice/JavaFX-MHR-App.git&quot;,
-    &quot;accountId&quot;: &quot;65058753-29b7-4887-bbde-a890037e7619&quot;
+    &quot;accountId&quot;: &quot;cfc60035-9d85-439f-b133-9a7896d1e898&quot;
   }
 }</component>
   <component name="ProblemsViewState">
@@ -180,7 +160,7 @@
       <workItem from="1727400560226" duration="6419000" />
       <workItem from="1727479505730" duration="56198000" />
       <workItem from="1727661240677" duration="3936000" />
-      <workItem from="1727906112610" duration="11928000" />
+      <workItem from="1727906112610" duration="13380000" />
     </task>
     <task id="LOCAL-00001" summary="intial commit">
       <option name="closed" value="true" />
@@ -270,7 +250,15 @@
       <option name="project" value="LOCAL" />
       <updated>1727504344265</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="newest commit">
+      <option name="closed" value="true" />
+      <created>1727924850472</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1727924850472</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

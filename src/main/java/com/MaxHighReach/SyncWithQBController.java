@@ -35,7 +35,6 @@ public class SyncWithQBController extends BaseController {
     private static final String SDK_OUTPUT = OUTPUT_DIRECTORY + "QBResponse.xml";
     private static final String SDK_PATH = "C:\\Users\\maxhi\\OneDrive\\Documents\\Quickbooks\\QBProgram Development\\Intuit Applications\\IDN\\QBSDK16.0\\tools\\SDKTest\\SDKTestPlus3.exe";
 
-
     @FXML
     public void initialize() {
         // Initialization logic here if necessary
@@ -119,7 +118,6 @@ public class SyncWithQBController extends BaseController {
         }).start();
     }
 
-
     @FXML
     public void handleConfirmationYes() {
         System.out.println("Confirmation Yes button clicked");
@@ -152,7 +150,7 @@ public class SyncWithQBController extends BaseController {
             // Connect to the database
             String connectionUrl = "jdbc:mysql://localhost:3306/practice_db"; // Update with your DB connection details
             try (Connection connection = DriverManager.getConnection(connectionUrl, "root", "SQL3225422!a")) {
-                String query = "INSERT INTO customers (customer_id, name, email) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=?, email=?";
+                String query = "INSERT INTO customers (customer_id, customer_name, email, price_schedule, contact_method) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE customer_name=?, email=?, price_schedule=?, contact_method=?";
                 try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
                     for (int i = 0; i < customerNodes.getLength(); i++) {
                         Element customerElement = (Element) customerNodes.item(i);
@@ -162,13 +160,22 @@ public class SyncWithQBController extends BaseController {
                         String name = getElementTextContent(customerElement, "FullName");
                         String email = getElementTextContent(customerElement, "Email");
 
+                        // For simplicity, we'll set default values for price_schedule and contact_method.
+                        // You may want to extract these from the XML or have some logic to determine them.
+                        String priceSchedule = "SPR"; // Example: Default pricing scheme
+                        String contactMethod = "E"; // Example: Default contact method
+
                         // Ensure we have valid customer data before inserting
                         if (customerId != null && name != null && email != null) {
                             preparedStatement.setString(1, customerId); // Store customer_id as a string
                             preparedStatement.setString(2, name);
                             preparedStatement.setString(3, email);
-                            preparedStatement.setString(4, name); // Update name if exists
-                            preparedStatement.setString(5, email); // Update email if exists
+                            preparedStatement.setString(4, priceSchedule); // New field
+                            preparedStatement.setString(5, contactMethod); // New field
+                            preparedStatement.setString(6, name); // Update name if exists
+                            preparedStatement.setString(7, email); // Update email if exists
+                            preparedStatement.setString(8, priceSchedule); // Update price_schedule if exists
+                            preparedStatement.setString(9, contactMethod); // Update contact_method if exists
                             preparedStatement.executeUpdate();
                         } else {
                             updateStatusLabel("Missing customer data for entry: " + (i + 1));
@@ -182,7 +189,6 @@ public class SyncWithQBController extends BaseController {
             updateStatusLabel("Error updating customers: " + e.getMessage());
         }
     }
-
 
     // Utility method to safely get text content from a child element
     private String getElementTextContent(Element parent, String tagName) {
@@ -200,11 +206,13 @@ public class SyncWithQBController extends BaseController {
         Platform.runLater(() -> statusLabel.setText(message));
     }
 
+    // Overriding getTotalHeight from BaseController
     @Override
     public double getTotalHeight() {
         return 300; // Replace with your logic
     }
 
+    // Method to handle back button functionality
     @FXML
     public void handleBack() {
         System.out.println("Back button clicked on SyncWithQBController");

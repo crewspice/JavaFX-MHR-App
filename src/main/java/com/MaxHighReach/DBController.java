@@ -15,6 +15,8 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Region;
 import javafx.scene.control.Tooltip;
 
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 import javafx.util.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -53,7 +55,7 @@ public class DBController extends BaseController {
     @FXML
     private TableColumn<CustomerRental, String> driverColumn;
     @FXML
-    private TableColumn<CustomerRental, String> statusColumn;
+    private TableColumn<CustomerRental, Boolean> statusColumn;
     @FXML
     private Label loadingLabel;
     @FXML
@@ -92,7 +94,7 @@ public class DBController extends BaseController {
         });
 
         // Initialize table columns
-        idColumn.setCellValueFactory(new PropertyValueFactory<>("customerId"));
+       // idColumn.setCellValueFactory(new PropertyValueFactory<>("customerId"));
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
 
         // Date formatting without leading zeros for month and day (M/d format)
@@ -121,11 +123,34 @@ public class DBController extends BaseController {
         });
 
         driverColumn.setCellValueFactory(new PropertyValueFactory<>("driver"));
-        statusColumn.setCellValueFactory(cellData -> cellData.getValue().statusProperty());
-
+        statusColumn.setCellValueFactory(cellData -> {
+            CustomerRental rental = cellData.getValue();
+            String status = cellData.getValue().getStatus();
+            return new SimpleBooleanProperty("Active".equals(status));
+        });
+        statusColumn.setCellFactory(column -> new TableCell<CustomerRental, Boolean>() {
+            @Override
+            protected void updateItem(Boolean item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setGraphic(null);
+                } else {
+                    CustomerRental rental = getTableView().getItems().get(getIndex());
+                    Circle circle = new Circle(8); // Circle size
+                    if (rental.getStatus().equals("Upcoming")) {
+                        circle.setFill(Color.GRAY); // Set color for "Upcoming" status
+                    } else if (rental.getStatus().equals("Active")) {
+                        circle.setFill(Color.RED); // Set color for "Active" status
+                    } else if (rental.getStatus().equals("Ended")) {
+                        circle.setFill(Color.GREEN); // Set color for "Ended" status
+                    }
+                    setGraphic(circle); // Set the circle graphic
+                }
+            }
+        });
         // Disable resizing
         selectColumn.setResizable(false);
-        idColumn.setResizable(false);
+       //idColumn.setResizable(false);
         nameColumn.setResizable(false);
         orderDateColumn.setResizable(false);
         driverColumn.setResizable(false);
@@ -235,22 +260,24 @@ public class DBController extends BaseController {
 
     private void loadData(String filter) {
         ordersList.clear();
-        String query = "SELECT customers.customer_id, customers.name, rentals.rental_date, rentals.driver, rentals.status, rentals.RefNumber, rentals.rental_id " +
-                   "FROM customers JOIN rentals ON customers.customer_id = rentals.customer_id";
+        String query = "SELECT customers.customer_id, customers.customer_name, rental_orders.delivery_date, rental_orders.driver, rental_orders.status, rental_orders.rental_order_id, rental_items.delivery_time " +
+                       "FROM customers " +
+                       "JOIN rental_orders ON customers.customer_id = rental_orders.customer_id " +
+                       "JOIN rental_items ON rental_orders.rental_order_id = rental_items.rental_order_id";
 
         // Modify query based on filter
         switch (filter) {
             case "Today's Rentals":
-                query += " WHERE DATE(rentals.rental_date) = CURDATE()";
+                query += " WHERE DATE(rental_orders.order_date) = CURDATE()"; // Adjusted to order_date
                 break;
             case "Yesterday's Rentals":
-                query += " WHERE DATE(rentals.rental_date) = CURDATE() - INTERVAL 1 DAY";
+                query += " WHERE DATE(rental_orders.order_date) = CURDATE() - INTERVAL 1 DAY"; // Adjusted to order_date
                 break;
             case "Custom Date Range":
                 // Implement custom date range logic here if needed
                 break;
             case "Ended Rentals":
-                query += " WHERE rentals.status = 'Ended'";
+                query += " WHERE rental_orders.status = 'Ended'";
                 break;
             case "All Rentals":
                 // No additional filtering
@@ -262,22 +289,20 @@ public class DBController extends BaseController {
              ResultSet resultSet = statement.executeQuery(query)) {
 
             while (resultSet.next()) {
-                String id = resultSet.getString("customer_id");
-                String name = resultSet.getString("name");
-                String rentalDate = resultSet.getString("rental_date");
+                String name = resultSet.getString("customer_name");
+                String deliveryDate = resultSet.getString("delivery_date");
                 String driver = resultSet.getString("driver");
                 String status = resultSet.getString("status");
-                int refNumber = resultSet.getInt("RefNumber");
-                int rental_id = resultSet.getInt("rental_id");
-                String deliveryTime = resultSet.getString("delivery_time");
+                int rental_id = resultSet.getInt("rental_order_id");
+                String deliveryTime = resultSet.getString("delivery_time"); // Now from rental_items
 
-
-                ordersList.add(new CustomerRental(id, name, rentalDate, deliveryTime, driver != null ? driver : "", status != null ? status : "Unknown", refNumber, rental_id));
+                ordersList.add(new CustomerRental("0", name, deliveryDate, deliveryTime, driver != null ? driver : "", status != null ? status : "Unknown", 999999, rental_id));
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
+
 
 
     private Tooltip createCustomTooltip(String text, Button button, double xOffset, double yOffset) {
@@ -626,6 +651,15 @@ public class DBController extends BaseController {
                 statusUpdated = true;
                 System.out.println("Order for " + order.getName() + " status updated to 'Ended'.");
             }
+        } else if (lastActionType.equals("dropping-off")) {
+            for (CustomerRental order : selectedRentals) {
+            // Mark as dropping-off
+                String newStatus = "Active"; // Set the status for dropping-off
+                order.setStatus(newStatus);
+                updateRentalStatusInDB(order.getCustomerId(), newStatus);  // Sync with DB
+                statusUpdated = true;
+                System.out.println("Order for " + order.getName() + " marked as dropping off.");
+            }
         } else {
             // Existing logic for other action types
             for (CustomerRental order : selectedRentals) {
@@ -651,7 +685,7 @@ public class DBController extends BaseController {
 
 
     private void updateRentalStatusInDB(String customerId, String newStatus) {
-        String updateQuery = "UPDATE rentals SET status = ? WHERE customer_id = ?"; // Update table name
+        String updateQuery = "UPDATE rental_orders SET status = ? WHERE customer_id = ?"; // Update table name
 
         try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
              PreparedStatement statement = connection.prepareStatement(updateQuery)) {

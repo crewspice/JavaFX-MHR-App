@@ -5,23 +5,27 @@ import javafx.beans.property.StringProperty;
 
 public class Customer {
     private StringProperty customerId; // Changed to StringProperty
-    private StringProperty name;
+    private StringProperty customerName;
     private StringProperty email;
 
     // Constructor
-    public Customer(String customerId, String name, String email) {
+    public Customer(String customerId, String customerName, String email) {
         this.customerId = new SimpleStringProperty(customerId);
-        this.name = new SimpleStringProperty(name);
+        this.customerName = new SimpleStringProperty(customerName);
         this.email = new SimpleStringProperty(email);
     }
 
     // Getters for properties
     public StringProperty customerIdProperty() {
-        return customerId;
+        return customerName;
+    }
+
+    public String getCustomerId() {
+        return customerId.get();
     }
 
     public StringProperty nameProperty() {
-        return name;
+        return customerName;
     }
 
     public StringProperty emailProperty() {
@@ -29,20 +33,20 @@ public class Customer {
     }
 
     // Getters and Setters for regular String values (if needed)
-    public String getCustomerId() {
-        return customerId.get();
+    public String getCustomerName() {
+        return customerName.get();
     }
 
-    public void setCustomerId(String customerId) {
-        this.customerId.set(customerId);
+    public void setCustomerName(String customerId) {
+        this.customerName.set(customerId);
     }
 
     public String getName() {
-        return name.get();
+        return customerName.get();
     }
 
     public void setName(String name) {
-        this.name.set(name);
+        this.customerName.set(name);
     }
 
     public String getEmail() {

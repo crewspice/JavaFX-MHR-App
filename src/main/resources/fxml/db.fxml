@@ -37,12 +37,11 @@
             <AnchorPane>
                 <TableView fx:id="dbTableView" prefHeight="486" prefWidth="253" translateY="-25" translateX="-8">
                     <columns>
-                        <TableColumn fx:id="selectColumn" text="" prefWidth="23"/>
-                        <TableColumn fx:id="idColumn" text="ID" prefWidth="13"/>
-                        <TableColumn fx:id="nameColumn" text="Name" prefWidth="33"/>
+                        <TableColumn fx:id="selectColumn" text="" prefWidth="20"/>
+                        <TableColumn fx:id="nameColumn" text="For:" prefWidth="60"/>
                         <TableColumn fx:id="orderDateColumn" text="Date" prefWidth="36"/>
                         <TableColumn fx:id="driverColumn" text="Driver" prefWidth="43"/>
-                        <TableColumn fx:id="statusColumn" text="Status" prefWidth="65"/>
+                        <TableColumn fx:id="statusColumn" text="Status" prefWidth="40"/>
                     </columns>
                 </TableView>
             </AnchorPane>
