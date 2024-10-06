@@ -8,28 +8,42 @@ public class CustomerRental {
     private final StringProperty customerId;  // Changed to SimpleIntegerProperty
     private final StringProperty name;
     private final StringProperty orderDate;
-    private final StringProperty deliveryTime; // New property for delivery time
+    private final StringProperty deliveryDate;
+    private final StringProperty pickupDate;
+    private final StringProperty deliveryTime;
+    private final StringProperty addressBlockOne;
+    private final StringProperty addressBlockTwo;
+    private final StringProperty addressBlockThree;
     private final StringProperty driver;
+    private final StringProperty liftType;
     private final StringProperty status;
     private final SimpleIntegerProperty refNumber;  // Changed to SimpleIntegerProperty
     private boolean selected;
     private boolean isFlagged;
     private boolean isContractWritten;
-    private final SimpleIntegerProperty rentalId; // Changed to SimpleIntegerProperty
+    private final SimpleIntegerProperty rentalOrderId;
+    private final SimpleIntegerProperty rentalItemId;
 
     // Constructor with all relevant fields
-    public CustomerRental(String customerId, String name, String orderDate, String deliveryTime, String driver, String status, int refNumber, int rentalId) {
+    public CustomerRental(String customerId, String name, String deliveryDate, String deliveryTime, String driver, String status, int refNumber, int rentalId) {
         this.customerId = new SimpleStringProperty(customerId); // Initialize SimpleIntegerProperty
         this.name = new SimpleStringProperty(name);
-        this.orderDate = new SimpleStringProperty(orderDate);
+        this.orderDate = new SimpleStringProperty("Unknown");
+        this.deliveryDate = new SimpleStringProperty(deliveryDate);
+        this.pickupDate = new SimpleStringProperty("Unknown");
         this.deliveryTime = new SimpleStringProperty(deliveryTime); // Initialize delivery time
+        this.addressBlockOne = new SimpleStringProperty("Town of Windsor Fire #8");
+        this.addressBlockTwo = new SimpleStringProperty("1283 Hilltop Circle");
+        this.addressBlockThree = new SimpleStringProperty("Windsor");
         this.driver = new SimpleStringProperty(driver);
+        this.liftType = new SimpleStringProperty("Unknown");
         this.status = new SimpleStringProperty(status);
         this.refNumber = new SimpleIntegerProperty(refNumber); // Initialize SimpleIntegerProperty
         this.selected = false;
         this.isFlagged = isFlagged;
         this.isContractWritten = isContractWritten;
-        this.rentalId = new SimpleIntegerProperty(rentalId); // Initialize SimpleIntegerProperty
+        this.rentalOrderId = new SimpleIntegerProperty(rentalId);
+        this.rentalItemId = new SimpleIntegerProperty(0);
     }
 
     // Constructor without driver and status
@@ -74,6 +88,30 @@ public class CustomerRental {
         return orderDate;
     }
 
+    public String getDeliveryDate() {
+        return deliveryDate.get();
+    }
+
+    public void setDeliveryDate(String deliveryDate) {
+        this.deliveryDate.set(deliveryDate);
+    }
+
+    public StringProperty deliveryDateProperty() {
+        return deliveryDate;
+    }
+
+    public String getPickupDate() {
+        return pickupDate.get();
+    }
+
+    public void setPickupDate(String pickupDate) {
+        this.pickupDate.set(pickupDate);
+    }
+
+    public StringProperty pickupDateProperty() {
+        return pickupDate;
+    }
+
     public String getDeliveryTime() {
         return deliveryTime.get(); // Getter for delivery time
     }
@@ -86,6 +124,42 @@ public class CustomerRental {
         return deliveryTime; // Return the property for binding
     }
 
+    public String getAddressBlockOne() {
+        return addressBlockOne.get();
+    }
+
+    public void setAddressBlockOne(String addressBlockOne) {
+        this.addressBlockOne.set(addressBlockOne);
+    }
+
+    public StringProperty addressBlockOneProperty() {
+        return addressBlockOne;
+    }
+
+    public String getAddressBlockTwo() {
+        return addressBlockTwo.get();
+    }
+
+    public void setAddressBlockTwo(String addressBlockTwo) {
+        this.addressBlockTwo.set(addressBlockTwo);
+    }
+
+    public StringProperty addressBlockTwoProperty() {
+        return addressBlockTwo;
+    }
+
+    public String getAddressBlockThree() {
+        return addressBlockThree.get();
+    }
+
+    public void setAddressBlockThree(String addressBlockThree) {
+        this.addressBlockThree.set(addressBlockThree);
+    }
+
+    public StringProperty addressBlockThreeProperty() {
+        return addressBlockThree;
+    }
+
     public String getDriver() {
         return driver.get();
     }
@@ -96,6 +170,18 @@ public class CustomerRental {
 
     public StringProperty driverProperty() {
         return driver;
+    }
+
+    public String getLiftType() {
+        return liftType.get();
+    }
+
+    public void setLiftType(String liftType) {
+        this.liftType.set(liftType);
+    }
+
+    public StringProperty liftTypeProperty() {
+        return liftType;
     }
 
     public String getStatus() {
@@ -135,15 +221,27 @@ public class CustomerRental {
     }
 
     // Getter and Setter for rentalId
-    public int getRentalId() {
-        return rentalId.get();
+    public int getRentalOrderId() {
+        return rentalOrderId.get();
     }
 
-    public void setRentalId(int rentalId) {
-        this.rentalId.set(rentalId); // Use set method for SimpleIntegerProperty
+    public void setRentalOrderId(int rentalId) {
+        this.rentalOrderId.set(rentalId); // Use set method for SimpleIntegerProperty
     }
 
-    public SimpleIntegerProperty rentalIdProperty() {
-        return rentalId; // Return the property for binding
+    public SimpleIntegerProperty rentalOrderIdProperty() {
+        return rentalOrderId;
+    }
+
+    public int getRentalItemId() {
+        return rentalItemId.get();
+    }
+
+    public void setRentalItemId(int itemId) {
+        this.rentalItemId.set(itemId); // Use set method for SimpleIntegerProperty
+    }
+
+    public SimpleIntegerProperty rentalItemIdProperty() {
+        return rentalItemId;// Return the property for binding
     }
 }

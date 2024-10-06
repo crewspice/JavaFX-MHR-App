@@ -195,6 +195,7 @@
 #createInvoicesButton,
 #createContractsButton,
 #droppingOffButton,
+#callingOffButton,
 #pickingUpButton {
     -fx-background-color: transparent;
     -fx-border-color: transparent;
@@ -204,6 +205,7 @@
 #createInvoicesButton:hover,
 #createContractsButton:hover,
 #droppingOffButton:hover,
+#callingOffButton:hover,
 #pickingUpButton:hover {
     -fx-background-color: orange; /* Optional hover background */
 }
@@ -291,6 +293,37 @@
 .delivery-time-button:hover {
     -fx-background-color: orange; /* Background color when hovered */
 }
+
+.transparent-text-field {
+    -fx-background-color: transparent; /* Make background transparent */
+    -fx-border-color: transparent transparent black transparent; /* Orange bottom border */
+    -fx-border-width: 0 0 .5px 0; /* Apply bottom border only */
+    -fx-border-style: none none groove none; /* Dotted bottom border */
+    -fx-text-fill: black; /* Set text color to black */
+    -fx-opacity: 1; /* Ensure text field is visible */
+    -fx-focus-color: transparent; /* Remove focus color */
+    -fx-faint-focus-color: transparent; /* Remove faint focus */
+    -fx-highlight-fill: transparent; /* Remove highlight when selecting */
+    -fx-highlight-text-fill: black; /* Ensure text remains black when selecting */
+}
+
+.transparent-text-field:focused {
+    -fx-focus-color: transparent; /* Remove focus color */
+    -fx-border-color: transparent; /* Remove border when focused */
+    -fx-border-width: 0; /* Ensure no border width when focused */
+}
+
+/* Class when text is present */
+.transparent-text-field.has-text {
+    -fx-border-width: 0; /* Remove the border (line) when text is entered */
+}
+
+/* Class when the field is empty and not focused */
+.transparent-text-field.empty-unfocused {
+    -fx-border-style: none none groove none; /* Ensure dotted style is applied */
+    -fx-border-width: 0 0 0.5px 0; /* Set a .5px dotted border when empty and not focused */
+}
+
 
 /* TilePane Styles */
 .tile-pane {

@@ -9,17 +9,45 @@
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TableColumn?>
 
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.shape.Rectangle?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.control.ComboBox?>
 <AnchorPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.ScheduleDeliveryController">
-    <Label text="Schedule New Rental" layoutX="100" layoutY="20"/>
+    <Label text="Schedule New Rental" layoutX="100" layoutY="10"/>
 
-    <Label text="Customer ID:" layoutX="25" layoutY="80"/>
-    <TextField fx:id="customerIdField" layoutX="125" layoutY="80"/>
+    <Label text="Customer Name:" layoutX="20" layoutY="40" prefWidth="55" wrapText="true"/>
+    <TextField fx:id="customerNameField" layoutX="95" layoutY="46" styleClass="transparent-text-field"/>
 
-    <Label text="Rental Date:" layoutX="25" layoutY="130"/>
-    <TextField fx:id="rentalDateField" layoutX="125" layoutY="130"/>
+    <Label text="Rental Date:" layoutX="20" layoutY="90"/>
+    <TextField fx:id="rentalDateField" layoutX="115" layoutY="90"/>
 
-    <Label text="Lift Type:" layoutX="25" layoutY="180"/>
-    <TilePane fx:id="liftTypeTilePane" layoutX="100" layoutY="180" hgap="-1" vgap="0" prefColumns="4" prefRows="2">
+        <DatePicker fx:id="datePicker" layoutX="115" layoutY="90" styleClass="date-picker"/>
+    <Rectangle fx:id="calendarCover" layoutX="101" layoutY="75" width="200" height="65" fill="#F4F4F4" />
+    <Button layoutX="268" layoutY="92" onAction="#handleOpenCalendar" styleClass="calendar-button">
+        <graphic>
+            <ImageView fitWidth="30" fitHeight="30">
+                <Image url="@../images/calendar.png"/>
+            </ImageView>
+        </graphic>
+    </Button>
+    <!-- TilePane for displaying the weekdays -->
+    <TilePane fx:id="weeksRowTilePane" layoutX="95" layoutY="90" prefColumns="5" prefRows="2" >
+        <ToggleButton text="Mon" minWidth="35" maxWidth="35" styleClass="lift-type-button-stopped" disable="true"/>
+        <ToggleButton text="Tue" minWidth="35" maxWidth="35" styleClass="lift-type-button-stopped" disable="true"/>
+        <ToggleButton text="Wed" minWidth="35" maxWidth="35" styleClass="lift-type-button-stopped" disable="true"/>
+        <ToggleButton text="Thu" minWidth="35" maxWidth="35" styleClass="lift-type-button-stopped" disable="true"/>
+        <ToggleButton text="Fri" minWidth="35" maxWidth="35" styleClass="lift-type-button-stopped" disable="true"/>
+        <ToggleButton fx:id="monButton" text ="fill" minWidth="35" maxWidth="35" styleClass="lift-type-button-stopped" />
+        <ToggleButton fx:id="tueButton" text ="fill" minWidth="35" maxWidth="35" styleClass="lift-type-button-stopped"/>
+        <ToggleButton fx:id="wedButton" text ="fill" minWidth="35" maxWidth="35" styleClass="lift-type-button-stopped"/>
+        <ToggleButton fx:id="thuButton" text ="fill" minWidth="35" maxWidth="35" styleClass="lift-type-button-stopped"/>
+        <ToggleButton fx:id="friButton" text ="fill" minWidth="35" maxWidth="35" styleClass="lift-type-button-stopped"/>
+    </TilePane>
+
+    <Label text="Lift Type:" layoutX="20" layoutY="140"/>
+    <TilePane fx:id="liftTypeTilePane" layoutX="90" layoutY="140" hgap="-1" vgap="0" prefColumns="4" prefRows="2">
         <ToggleButton text="12' Mast" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
         <ToggleButton text="19' Slim" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
         <ToggleButton text="26' Slim" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
@@ -30,12 +58,20 @@
         <ToggleButton text="45' Boom" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
     </TilePane>
 
-    <Label text="Delivery Time:" layoutX="25" layoutY="230"/>
-    <TilePane fx:id="deliveryTimeTilePane" layoutX="125" layoutY="230" hgap="10" vgap="0" prefColumns="3">
-        <ToggleButton text="Day Before" minWidth="70" maxWidth="70" styleClass="delivery-time-button"/>
-        <ToggleButton fx:id="deliveryTime8To10Button" text="8-10" minWidth="70" maxWidth="70" styleClass="delivery-time-button"/> <!-- Add fx:id -->
-        <ToggleButton text="ASAP" minWidth="70" maxWidth="70" styleClass="delivery-time-button"/>
+    <Label text="Delivery Time:" layoutX="20" layoutY="190" prefWidth="55" wrapText="true"/>
+    <TilePane fx:id="deliveryTimeTilePane" layoutX="98" layoutY="190" hgap="10" vgap="0" prefColumns="3">
+        <ToggleButton fx:id="deliveryTime8To10Button" text="8-10am" minWidth="50" maxWidth="50" styleClass="delivery-time-button"/>
+        <ToggleButton text="Prev. Day" minWidth="50" maxWidth="50" styleClass="delivery-time-button"/>
+        <ToggleButton text="ASAP" minWidth="50" maxWidth="50" styleClass="delivery-time-button"/>
+        <ToggleButton fx:id="customButton" translateY="6" text="Custom" minWidth="50" maxWidth="50" styleClass="delivery-time-button"/>
     </TilePane>
+
+    <ComboBox fx:id="hourComboBox" layoutX="156" layoutY="215" prefWidth="70" visible="false" styleClass="small-combo-box"/>
+    <ComboBox fx:id="ampmComboBox" layoutX="236" layoutY="215" prefWidth="65" visible="false" styleClass="small-combo-box"/>
+
+    <Label text="Address:" layoutX="20" layoutY="250"/>
+    <TextField fx:id="addressField" layoutX="95" layoutY="245" styleClass="transparent-text-field"/>
+    <ComboBox fx:id="suggestionsBox" layoutX="95" layoutY="265" visible="false"/>
 
     <Button text="Schedule" layoutX="50" layoutY="300" onAction="#handleScheduleDelivery"/>
     <Label fx:id="statusLabel" text="" layoutX="150" layoutY="300" style="-fx-font-weight: bold; -fx-font-size: 12; -fx-text-fill: green;"/>
@@ -53,5 +89,5 @@
     </TableView>
 
     <!-- Label for Scheduled Deliveries -->
-    <Label text="Scheduled Deliveries" layoutX="28" layoutY="336" translateY="27" style="-fx-font-weight: bold; -fx-font-size: 14;"/>
+    <Label text="Deliveries You Have Scheduled:" layoutX="28" layoutY="336" translateY="27" style="-fx-font-weight: bold; -fx-font-size: 14;"/>
 </AnchorPane>

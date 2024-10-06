@@ -2,11 +2,13 @@ package com.MaxHighReach;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
+import javafx.scene.input.KeyCode;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.TilePane;
@@ -15,7 +17,14 @@ import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.ToggleButton;
 import javafx.util.Duration;
+import okhttp3.*;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -34,6 +43,8 @@ public class ScheduleDeliveryController extends BaseController {
     private ObservableList<Customer> customers = FXCollections.observableArrayList();
     private Customer selectedCustomer;
     private boolean dateSelected = false;
+    private int rentalOrderId;
+    private CustomerRental currentCustomerRental;
 
     @FXML
     private TableView<CustomerRental> scheduledRentalsTableView;  // TableView for rentals
@@ -86,10 +97,16 @@ public class ScheduleDeliveryController extends BaseController {
     @FXML
     private ComboBox<String> ampmComboBox; // Reference to the AM/PM ComboBox
     @FXML
+    private TextField addressField;
+    @FXML
+    private ComboBox<String> suggestionsBox;
+    @FXML
     private Label statusLabel; // Reference to the status label
 
     private Timeline rotationTimeline; // Timeline for rotating highlight
     private boolean isRotating = false; // Flag to track rotation state
+    private ObservableList<String> addressSuggestions = FXCollections.observableArrayList();
+    private OkHttpClient client = new OkHttpClient();
 
     // Initialize method to set up ToggleButtons and the ToggleGroup
     @FXML
@@ -97,8 +114,27 @@ public class ScheduleDeliveryController extends BaseController {
         loadCustomers();
         setDefaultRentalDate();
 
-        customerNameField.textProperty().addListener((obs, oldText, newText) -> {
-            autoFillCustomerName(newText);
+        customerNameField.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                // Remove focus from the text field
+                customerNameField.getParent().requestFocus();
+            }
+        });
+
+        customerNameField.textProperty().addListener((observable, oldValue, newValue) -> {
+            // Call your existing autofill logic
+            autoFillCustomerName(newValue);
+
+            // Check if there's text in the field and update the style accordingly
+            if (newValue.isEmpty()) {
+                // No text, show the underline
+                customerNameField.getStyleClass().remove("has-text");
+            } else {
+                // Text is present, hide the underline
+                if (!customerNameField.getStyleClass().contains("has-text")) {
+                    customerNameField.getStyleClass().add("has-text");
+                }
+            }
         });
 
         weeksRowToggleGroup = new ToggleGroup();  // Create the ToggleGroup for weeks
@@ -202,6 +238,48 @@ public class ScheduleDeliveryController extends BaseController {
             }
         });
 
+        addressField.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                addressField.getParent().requestFocus();
+            }
+        });
+
+        addressField.textProperty().addListener((observable, oldValue, newValue) -> {
+            // Call your existing suggestion update logic
+            updateSuggestions(newValue);
+
+            // Check if there's text in the field and update the style accordingly
+            if (newValue.isEmpty()) {
+                // No text, show the underline
+                addressField.getStyleClass().remove("has-text");
+                addressField.getStyleClass().add("empty-unfocused"); // Add this line
+            } else {
+                // Text is present, hide the underline
+                addressField.getStyleClass().remove("empty-unfocused"); // Remove if empty
+                if (!addressField.getStyleClass().contains("has-text")) {
+                    addressField.getStyleClass().add("has-text");
+                }
+            }
+        });
+
+        // You might want to also handle the focus events
+        addressField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+            if (isNowFocused) {
+                addressField.getStyleClass().remove("empty-unfocused"); // Remove class when focused
+            } else if (addressField.getText().isEmpty()) {
+                addressField.getStyleClass().add("empty-unfocused"); // Add back class if empty when focus is lost
+            }
+        });
+
+
+        // Set up the suggestions box
+        suggestionsBox.setVisible(false); // Initially hidden
+        suggestionsBox.getItems().addAll(addressSuggestions);
+        suggestionsBox.setOnAction(e -> {
+            addressField.setText(suggestionsBox.getValue());
+            suggestionsBox.setVisible(false); // Hide suggestions after selection
+        });
+
         // Initialize TableView columns
         customerIdColumn.setCellValueFactory(cellData -> cellData.getValue().customerIdProperty());
         rentalDateColumn.setCellValueFactory(cellData -> cellData.getValue().orderDateProperty());
@@ -219,12 +297,13 @@ public class ScheduleDeliveryController extends BaseController {
 
         // Start rotating highlight for lift type toggle buttons
         startHighlightRotation();
+
     }
 
 
 // Method to load customers from the SQL database
     private void loadCustomers() {
-        String query = "SELECT customer_id, name, email FROM customers";
+        String query = "SELECT customer_id, customer_name, email FROM customers";
 
         try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
              PreparedStatement preparedStatement = connection.prepareStatement(query)) {
@@ -232,11 +311,11 @@ public class ScheduleDeliveryController extends BaseController {
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
                 String customerId = resultSet.getString("customer_id");
-                String name = resultSet.getString("name");
+                String customer_name = resultSet.getString("customer_name");
                 String email = resultSet.getString("email");
 
                 // Add to the customer list
-                customers.add(new Customer(customerId, name, email));
+                customers.add(new Customer(customerId, customer_name, email));
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -280,7 +359,7 @@ public class ScheduleDeliveryController extends BaseController {
        System.out.println("checking customer " + customerId); // Check if any Customer in the customers list has a matching customerId
         for (Customer customer : customers) {
             System.out.println(customer.getCustomerId());
-            if (customer.getName().equals(customerId)) {
+            if (customer.getCustomerId().equals(customerId)) {
                 return true; // Found a matching customerId
             }
         }
@@ -407,6 +486,64 @@ public class ScheduleDeliveryController extends BaseController {
         return nextToggle;
     }
 
+    private void updateSuggestions(String input) {
+        addressSuggestions.clear(); // Clear previous suggestions
+
+        // Only make the request if the input is sufficiently long
+        if (input.length() < 3) {
+            suggestionsBox.getItems().setAll(addressSuggestions);
+            suggestionsBox.setVisible(false);
+            return;
+        }
+
+        String apiKey = "AIzaSyBN9kWbuL3QuZzONJfWKPX1-o0LG7eNisQ"; // Replace with your actual Google Places API key
+        String url = "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=" +
+                 URLEncoder.encode(input, StandardCharsets.UTF_8) + "&key=" + apiKey;
+
+        Request request = new Request.Builder().url(url).build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                e.printStackTrace();
+                suggestionsBox.setVisible(false); // Hide suggestions on failure
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (response.isSuccessful()) {
+                    String jsonData = response.body().string();
+                    // Parse the JSON response to extract suggestions
+                    parseAddressSuggestions(jsonData);
+
+                    // Update the suggestions box on the JavaFX Application Thread
+                    Platform.runLater(() -> {
+                        suggestionsBox.getItems().setAll(addressSuggestions);
+                        suggestionsBox.setVisible(!addressSuggestions.isEmpty());
+                    });
+                } else {
+                    suggestionsBox.setVisible(false); // Hide suggestions on error
+                }
+            }
+        });
+    }
+
+    private void parseAddressSuggestions(String jsonData) {
+        // Use a JSON library (like org.json or Gson) to parse the response
+        // Assuming the response format is handled properly
+        try {
+            JSONObject jsonObject = new JSONObject(jsonData);
+            JSONArray predictions = jsonObject.getJSONArray("predictions");
+
+            for (int i = 0; i < predictions.length(); i++) {
+                String suggestion = predictions.getJSONObject(i).getString("description");
+                addressSuggestions.add(suggestion);
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
     // Method to adjust the height of the TableView based on the number of entries
     private void adjustTableViewHeight() {
         double newHeight = INITIAL_TABLE_HEIGHT + (ROW_HEIGHT * Math.max(0, rentalsList.size()));
@@ -425,9 +562,18 @@ public class ScheduleDeliveryController extends BaseController {
 
     @FXML
     public void handleScheduleDelivery() {
-        try {
-            String customerId = customerNameField.getText(); // Get customer ID as String
+        ToggleButton selectedLiftTypeButton = (ToggleButton) liftTypeToggleGroup.getSelectedToggle();
+            if (selectedLiftTypeButton == null) {
+                statusLabel.setText("Please select a lift type."); // Show error message
+                statusLabel.setTextFill(Color.RED);
+                statusLabel.setVisible(true);
+                return; // Exit the method early
+            }
+        String liftType = selectedLiftTypeButton.getText();
 
+        try {
+            String customerId = selectedCustomer.getCustomerId(); // Get customer ID as String
+            String customerName = selectedCustomer.getName(); // Get customer name
             // Check if the customerId is in the customers list
             if (!isCustomerValid(customerId)) {
                 statusLabel.setText("Invalid customer ID. Please select a valid customer."); // Show error message
@@ -471,18 +617,12 @@ public class ScheduleDeliveryController extends BaseController {
             }
 
             // Format the date to "MMM-dd"
-            String startDate = selectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")); // For database
+            String deliveryDate = selectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")); // For database
             String formattedDate = selectedDate.format(DateTimeFormatter.ofPattern("MMM-dd")); // For display
 
-            ToggleButton selectedLiftTypeButton = (ToggleButton) liftTypeToggleGroup.getSelectedToggle();
-            if (selectedLiftTypeButton == null) {
-                statusLabel.setText("Please select a lift type."); // Show error message
-                statusLabel.setTextFill(Color.RED);
-                statusLabel.setVisible(true);
-                return; // Exit the method early
-            }
 
-            String liftType = selectedLiftTypeButton.getText();  // Get the text of the selected button (lift type)
+
+             // Get the text of the selected button (lift type)
 
             // Check if the custom delivery time is selected
             String deliveryTime;
@@ -511,15 +651,44 @@ public class ScheduleDeliveryController extends BaseController {
                 deliveryTime = selectedDeliveryTimeButton.getText(); // Get the selected delivery time
             }
 
-            // Insert rental and update the UI
-            if (insertRental(customerId, startDate, liftType, deliveryTime)) {
+            LocalDate today = LocalDate.now(); // Get the current date
+            String orderDate = today.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+            currentCustomerRental = new CustomerRental(customerId, customerName, formattedDate, deliveryTime, "", "Scheduled", 99999, rentalsList.size() + 1);
+            boolean rentalOrderScheduled = insertRentalOrder(customerId, deliveryDate, orderDate);
+            if (rentalOrderScheduled) {
                 // Update the status label for successful scheduling
-                statusLabel.setText("Rental scheduled successfully!"); // Show success message
+                System.out.println("Rental order scheduled successfully!"); // For debugging
+                statusLabel.setText("Rental order scheduled successfully!"); // Show success message
                 statusLabel.setTextFill(Color.GREEN); // Set the text color to green
                 statusLabel.setVisible(true); // Make the status label visible
 
                 // Add the newly scheduled rental to the rentalsList for this session
-                rentalsList.add(new CustomerRental(customerId, liftType, formattedDate, deliveryTime, "", "Scheduled", 99999, rentalsList.size() + 1));
+                currentCustomerRental.setRentalOrderId(rentalOrderId); // Set the rental_order_id
+                rentalsList.add(currentCustomerRental);
+                currentCustomerRental.setLiftType(liftType);
+
+                // Animate the scissor lift down by decrementing its height
+                currentHeight -= 50; // Decrease height
+                MaxReachPro.getScissorLift().animateTransition(currentHeight + ROW_HEIGHT, currentHeight); // Animate the lift
+
+                adjustTableViewHeight(); // Adjust the TableView height after adding a new entry
+
+                // Reset fields after successful scheduling
+                resetFields();
+            } else {
+                statusLabel.setText("Failed to schedule a new Rental Order."); // Show error message
+                    statusLabel.setTextFill(Color.RED); // Set the text color to red
+                    statusLabel.setVisible(true); // Make the status label visible
+                    return;
+            }
+            if (insertRentalItem(rentalOrderId, liftType, currentCustomerRental.getOrderDate(), deliveryDate, deliveryTime) && rentalOrderScheduled) {
+                // Update the status label for successful scheduling
+                System.out.println("Rental item created successfully!"); // For debugging
+                statusLabel.setText("Rental item created successfully!"); // Show success message
+                statusLabel.setTextFill(Color.GREEN); // Set the text color to green
+                statusLabel.setVisible(true); // Make the status label visible
+
 
                 // Animate the scissor lift down by decrementing its height
                 currentHeight -= 50; // Decrease height
@@ -531,7 +700,7 @@ public class ScheduleDeliveryController extends BaseController {
                 resetFields();
             } else {
                 // Update the status label for rental failure
-                statusLabel.setText("Failed to schedule the rental. Please try again."); // Show error message
+                statusLabel.setText("Failed to create the rental item. Please try again."); // Show error message
                 statusLabel.setTextFill(Color.RED); // Set the text color to red
                 statusLabel.setVisible(true); // Make the status label visible
             }
@@ -545,18 +714,51 @@ public class ScheduleDeliveryController extends BaseController {
     }
 
 
-    private boolean insertRental(String customer_name, String rentalDate, String liftType, String deliveryTime) {
-        String query = "INSERT INTO rentals (customer_name, rental_date, lift_type, delivery_time) VALUES (?, ?, ?, ?)";
+    private boolean insertRentalOrder(String customerId, String deliveryDate, String orderDate) {
+        String query = "INSERT INTO rental_orders (customer_id, delivery_date, order_date) VALUES (?, ?, ?)";
         try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
-             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+             PreparedStatement preparedStatement = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
 
-            preparedStatement.setString(1, customer_name); // Change to setString
-            preparedStatement.setString(2, rentalDate);
-            preparedStatement.setString(3, liftType);
-            preparedStatement.setString(4, deliveryTime);
+            preparedStatement.setString(1, customerId); // Change to setString
+            preparedStatement.setString(2, deliveryDate);
+            preparedStatement.setString(3, orderDate);
 
-            preparedStatement.executeUpdate();
+            if (preparedStatement.executeUpdate() > 0) {
+                // Get the generated rental_order_id
+                try (ResultSet generatedKeys = preparedStatement.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        rentalOrderId = generatedKeys.getInt(1);
+                        currentCustomerRental.setRentalOrderId(rentalOrderId);// Retrieve the rental_order_id
+                        System.out.println("Generated rental_order_id: " + rentalOrderId);  // For debugging
+                        currentCustomerRental.setOrderDate(orderDate); // Set the order date
+                    }
+                }
+            }
+
             return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private boolean insertRentalItem(int localRentalOrderId, String liftType, String orderDate, String deliveryDate, String deliveryTime) {
+        String query = "INSERT INTO rental_items (rental_order_id, lift_type, item_order_date, item_delivery_date, delivery_time) VALUES (?, ?, ?, ?, ?)";
+        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
+            PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+
+            preparedStatement.setInt(1, localRentalOrderId);
+            preparedStatement.setString(2, liftType);
+            preparedStatement.setString(3, orderDate);
+            preparedStatement.setString(4, deliveryDate);
+            preparedStatement.setString(5, deliveryTime);
+
+            // Execute the update
+            int rowsAffected = preparedStatement.executeUpdate();
+
+            // Check if any rows were affected, indicating a successful insert
+            return rowsAffected > 0;
+
         } catch (Exception e) {
             e.printStackTrace();
             return false;

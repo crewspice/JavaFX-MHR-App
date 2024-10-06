@@ -10,11 +10,13 @@ repositories {
 }
 
 dependencies {
+    implementation 'com.squareup.okhttp3:okhttp:4.9.3'
     implementation 'org.openjfx:javafx-controls:21'
     implementation 'org.openjfx:javafx-fxml:21'
     implementation 'mysql:mysql-connector-java:8.0.31'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.0'
     implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'org.json:json:20210307'
     implementation 'com.itextpdf:itext7-core:7.2.1'
     implementation files("C:/Program Files/MySQL/mysql-connector-j-9.0.0/mysql-connector-java-9.0.0.jar")
 }

@@ -12,9 +12,11 @@ import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.control.Tooltip;
 
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.util.Duration;
@@ -39,7 +41,7 @@ import java.io.FileNotFoundException;
 public class DBController extends BaseController {
 
     @FXML
-    private Button backButton, editDriverButton, droppingOffButton, pickingUpButton, updateRentalButton, createInvoicesButton, refreshButton, createContractsButton;
+    private Button backButton, editDriverButton, droppingOffButton, callingOffButton, pickingUpButton, updateRentalButton, createInvoicesButton, refreshButton, createContractsButton;
     @FXML
     private AnchorPane anchorPane;
     @FXML
@@ -51,7 +53,9 @@ public class DBController extends BaseController {
     @FXML
     private TableColumn<CustomerRental, String> nameColumn;
     @FXML
-    private TableColumn<CustomerRental, String> orderDateColumn;
+    private TableColumn<CustomerRental, String> deliveryDateColumn;
+    @FXML
+    private TableColumn<CustomerRental, String> deliveryTimeColumn;
     @FXML
     private TableColumn<CustomerRental, String> driverColumn;
     @FXML
@@ -71,6 +75,42 @@ public class DBController extends BaseController {
     @FXML
     public void initialize() {
         super.initialize();
+
+        dbTableView.setRowFactory(tv -> new TableRow<CustomerRental>() {
+            @Override
+            protected void updateItem(CustomerRental item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    VBox vbox = new VBox();
+                    vbox.setSpacing(2);  // Space between the two lines
+
+                    // First line (name and rental details)
+                    HBox line1 = new HBox();
+                    line1.setSpacing(10);  // Adjust spacing between columns
+                    Label nameLabel = new Label(item.getName());
+                    Label dateLabel = new Label(item.getDeliveryDate());
+                    Label timeLabel = new Label(item.getDeliveryTime());
+                    Label driverLabel = new Label(item.getDriver());
+                    Label statusLabel = new Label(item.getStatus());
+
+                    line1.getChildren().addAll(nameLabel, dateLabel, timeLabel, driverLabel, statusLabel);
+
+                    // Second line (address)
+                    HBox line2 = new HBox();
+                    String address = item.getAddressBlockTwo(); // Get the address from the item
+                    Label addressLabel = new Label("Address: " + (address != null && !address.isEmpty() ? address : "No address available"));
+                    line2.getChildren().add(addressLabel);
+
+                    // Add both lines to the vbox
+                    vbox.getChildren().addAll(line1, line2);
+
+                    setGraphic(vbox);
+                }
+            }
+        });
 
         dbTableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 
@@ -100,9 +140,9 @@ public class DBController extends BaseController {
         // Date formatting without leading zeros for month and day (M/d format)
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d");
 
-        // Customize orderDateColumn to show date in M/d format
-        orderDateColumn.setCellValueFactory(new PropertyValueFactory<>("orderDate"));
-        orderDateColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
+        // Customize deliveryDateColumn to show date in M/d format
+        deliveryDateColumn.setCellValueFactory(new PropertyValueFactory<>("deliveryDate"));
+        deliveryDateColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -116,12 +156,12 @@ public class DBController extends BaseController {
             }
         });
 
-        orderDateColumn.setComparator((date1, date2) -> {
+        deliveryDateColumn.setComparator((date1, date2) -> {
             LocalDate d1 = LocalDate.parse(date1);  // assuming dates are stored in yyyy-MM-dd format
             LocalDate d2 = LocalDate.parse(date2);
             return d1.compareTo(d2);  // Ascending order (earlier dates first)
         });
-
+        deliveryTimeColumn.setCellValueFactory(new PropertyValueFactory<>("deliveryTime"));
         driverColumn.setCellValueFactory(new PropertyValueFactory<>("driver"));
         statusColumn.setCellValueFactory(cellData -> {
             CustomerRental rental = cellData.getValue();
@@ -138,11 +178,13 @@ public class DBController extends BaseController {
                     CustomerRental rental = getTableView().getItems().get(getIndex());
                     Circle circle = new Circle(8); // Circle size
                     if (rental.getStatus().equals("Upcoming")) {
-                        circle.setFill(Color.GRAY); // Set color for "Upcoming" status
+                        circle.setFill(Color.web("#FFDEAD")); // Set color for "Upcoming" status
                     } else if (rental.getStatus().equals("Active")) {
-                        circle.setFill(Color.RED); // Set color for "Active" status
-                    } else if (rental.getStatus().equals("Ended")) {
-                        circle.setFill(Color.GREEN); // Set color for "Ended" status
+                        circle.setFill(Color.GREEN); // Set color for "Active" status
+                    } else if (rental.getStatus().equals("Called Off")) {
+                        circle.setFill(Color.RED); // Set color for "Called Off" status
+                    } else if (rental.getStatus().equals("Picked Up")) {
+                        circle.setFill(Color.ORANGE); // Set color for "Ended" status
                     }
                     setGraphic(circle); // Set the circle graphic
                 }
@@ -152,7 +194,7 @@ public class DBController extends BaseController {
         selectColumn.setResizable(false);
        //idColumn.setResizable(false);
         nameColumn.setResizable(false);
-        orderDateColumn.setResizable(false);
+        deliveryDateColumn.setResizable(false);
         driverColumn.setResizable(false);
         statusColumn.setResizable(false);
 
@@ -184,6 +226,8 @@ public class DBController extends BaseController {
         // Enable table editing
         dbTableView.setEditable(true);
 
+
+
         // Load data initially
         showLoadingMessage(true);
         loadDataAsync("All Rentals");
@@ -199,16 +243,20 @@ public class DBController extends BaseController {
         hideCheckboxes(); // Call the method to hide checkboxes initially
 
         // Set tooltip for Edit Driver Button
-        Tooltip editDriverTooltip = createCustomTooltip("Assign Driver", editDriverButton, 8, 10);
+        Tooltip editDriverTooltip = createCustomTooltip("Assign Driver", editDriverButton, 38, 10);
 
         // Tooltip for Dropping Off Button
         Tooltip droppingOffTooltip = createCustomTooltip("Record Drop Off", droppingOffButton, 38, 10);
+
+        // Tooltip for Calling Off Button
+        //callingOffButton.setOnAction(this::handleCallingOff);
+        Tooltip callingOffTooltip = createCustomTooltip("Record Call Off", callingOffButton, 38, 10);
 
         // Tooltip for Picking Up Button
         Tooltip pickingUpTooltip = createCustomTooltip("Record Pick Up", pickingUpButton, 38, 10);
 
         // Tooltip for Create Invoices Button
-        Tooltip createInvoicesTooltip = createCustomTooltip("Create Invoices", createInvoicesButton, 8, 10);
+        Tooltip createInvoicesTooltip = createCustomTooltip("Compose Invoices", createInvoicesButton, 38, 10);
 
         if (createInvoicesButton != null) {
                 // Start with the button hidden
@@ -216,14 +264,14 @@ public class DBController extends BaseController {
             } else {
                 System.err.println("createInvoicesButton is not injected!");
             }
-        Tooltip createContractsTooltip = createCustomTooltip("Create Contracts", createContractsButton, 8, 10);
+        Tooltip createContractsTooltip = createCustomTooltip("Compose Contracts", createContractsButton, 38, 10);
 
-                if (createContractsButton != null) {
-                        // Start with the button hidden
-                        createContractsButton.setOnAction(this::handleCreateContracts);
-                    } else {
-                        System.err.println("createContractsButton is not injected!");
-                    }
+        if (createContractsButton != null) {
+                // Start with the button hidden
+                createContractsButton.setOnAction(this::handleCreateContracts);
+            } else {
+                System.err.println("createContractsButton is not injected!");
+            }
 
     }
 
@@ -260,7 +308,7 @@ public class DBController extends BaseController {
 
     private void loadData(String filter) {
         ordersList.clear();
-        String query = "SELECT customers.customer_id, customers.customer_name, rental_orders.delivery_date, rental_orders.driver, rental_orders.status, rental_orders.rental_order_id, rental_items.delivery_time " +
+        String query = "SELECT customers.customer_id, customers.customer_name, rental_orders.delivery_date, rental_orders.driver, rental_items.item_status, rental_orders.rental_order_id, rental_items.delivery_time, rental_items.rental_item_id " +
                        "FROM customers " +
                        "JOIN rental_orders ON customers.customer_id = rental_orders.customer_id " +
                        "JOIN rental_items ON rental_orders.rental_order_id = rental_items.rental_order_id";
@@ -268,16 +316,16 @@ public class DBController extends BaseController {
         // Modify query based on filter
         switch (filter) {
             case "Today's Rentals":
-                query += " WHERE DATE(rental_orders.order_date) = CURDATE()"; // Adjusted to order_date
+                query += " WHERE DATE(rental_orders.delivery_date) = CURDATE()"; // Adjusted to order_date
                 break;
             case "Yesterday's Rentals":
-                query += " WHERE DATE(rental_orders.order_date) = CURDATE() - INTERVAL 1 DAY"; // Adjusted to order_date
+                query += " WHERE DATE(rental_orders.delivery_date) = CURDATE() - INTERVAL 1 DAY"; // Adjusted to order_date
                 break;
             case "Custom Date Range":
                 // Implement custom date range logic here if needed
                 break;
             case "Ended Rentals":
-                query += " WHERE rental_orders.status = 'Ended'";
+                query += " WHERE rental_orders.order_status = 'Picked Up'";
                 break;
             case "All Rentals":
                 // No additional filtering
@@ -292,11 +340,14 @@ public class DBController extends BaseController {
                 String name = resultSet.getString("customer_name");
                 String deliveryDate = resultSet.getString("delivery_date");
                 String driver = resultSet.getString("driver");
-                String status = resultSet.getString("status");
+                String status = resultSet.getString("item_status");
                 int rental_id = resultSet.getInt("rental_order_id");
+                int rental_item_id = resultSet.getInt("rental_item_id");
                 String deliveryTime = resultSet.getString("delivery_time"); // Now from rental_items
 
-                ordersList.add(new CustomerRental("0", name, deliveryDate, deliveryTime, driver != null ? driver : "", status != null ? status : "Unknown", 999999, rental_id));
+                CustomerRental rental = new CustomerRental("0", name, deliveryDate, deliveryTime, driver != null ? driver : "", status != null ? status : "Unknown", 999999, rental_id);
+                rental.setRentalItemId(rental_item_id);
+                ordersList.add(rental);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -334,7 +385,7 @@ public class DBController extends BaseController {
 
     @FXML
     private void handleAssignDrivers() {
-        System.out.println("assigndriverclicked");
+
 
         // Define the local variable for action type
         // Set initial state
@@ -402,54 +453,6 @@ public class DBController extends BaseController {
         }
     }
 
-
-    @FXML
-    private void handleUpdateDrivers() {
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a")) {
-            String updateQuery = "UPDATE rentals SET driver = ? WHERE customer_id = ?";
-            try (PreparedStatement statement = connection.prepareStatement(updateQuery)) {
-                for (CustomerRental order : dbTableView.getItems()) {
-                    String updatedDriver = order.getDriver();
-                    String rentalId = order.getCustomerId();  // Update this if necessary
-
-                    statement.setString(1, updatedDriver);
-                    statement.setString(2, rentalId);
-
-                    int rowsUpdated = statement.executeUpdate();
-                    if (rowsUpdated > 0) {
-                        System.out.println("Driver updated successfully for rental ID " + rentalId);
-                    } else {
-                        System.out.println("No update made for rental ID " + rentalId);
-                    }
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-        // Exit driver edit mode (same as before)
-        driverColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) {
-                    setText(null);
-                    setGraphic(null);
-                } else {
-                    setText(item);
-                    setGraphic(null);
-                }
-            }
-        });
-
-        isDriverEditMode = false;
-        System.out.println("Driver assignment mode deactivated.");
-    }
-
-
-
     private void hideCheckboxes() {
         // Set the checkboxes to not be visible
         selectColumn.setCellFactory(tc -> new TableCell<CustomerRental, Boolean>() {
@@ -483,6 +486,21 @@ public class DBController extends BaseController {
             showSelectableCheckboxes(true, lastActionType);
   //          System.out.println("Picking Up button pressed.");
             return; // Exit if no action type is set
+        }
+    }
+
+    @FXML
+    private void handleCallingOff(ActionEvent event) {
+        if ("calling-off" == lastActionType) {
+            lastActionType = null;
+            hideCheckboxes();
+            System.out.println("Calling Off button pressed again. Resetting action type.");
+        } else {
+            lastActionType = "calling-off";
+            resetCheckboxes();
+            showSelectableCheckboxes(true, lastActionType);
+            System.out.println("Calling Off button pressed.");
+            return;
         }
     }
 
@@ -575,7 +593,8 @@ public class DBController extends BaseController {
 
 
     private void showSelectableCheckboxes(boolean visible, String actionType) {
-        boolean shouldShowCheckboxes = "dropping-off".equals(actionType) || "picking-up".equals(actionType) || "creating-invoices".equals(actionType);
+        boolean shouldShowCheckboxes = "dropping-off".equals(actionType) || "calling-off".equals(actionType) ||
+                "picking-up".equals(actionType) || "creating-invoices".equals(actionType);
 
         selectColumn.setCellFactory(tc -> new TableCell<CustomerRental, Boolean>() {
             private final CheckBox checkBox = new CheckBox();
@@ -619,14 +638,14 @@ public class DBController extends BaseController {
         // Handle the 'creating-invoices' action type
         if (lastActionType.equals("creating-invoices")) {
             for (CustomerRental order : selectedRentals) {
-                if (order.getStatus().equals("Ended")) {
+                if (order.getStatus().equals("Called Off") || order.getStatus().equals("Picked Up")) {
                     order.setFlagged(true);
                     updateInvoiceFlagInDB(order.getCustomerId(), true); // Flag the order for invoicing
                     System.out.println("Order for " + order.getName() + " flagged for invoicing.");
                     statusUpdated = true;
                     checkAndSwitchScene(statusUpdated);
                 } else {
-                    System.out.println("Order for " + order.getName() + " cannot be flagged; status is not 'Ended'.");
+                    System.out.println("Order for " + order.getName() + " cannot be flagged; status is not 'Called Off' or 'Picked Up'.");
                 }
             }
         } else if (lastActionType.equals("creating-contracts")) {
@@ -635,30 +654,40 @@ public class DBController extends BaseController {
 
             }
         } else if (lastActionType.equals("assigning-drivers")) {
-            // Handle the driver assignment status updates
+            handleAssignDrivers();
+            statusUpdated = true;
+        } else if (lastActionType.equals("dropping-off")) {
             for (CustomerRental order : selectedRentals) {
-                String newStatus = "Driver Assigned"; // Set the appropriate new status
-                order.setStatus(newStatus);
-                statusUpdated = true;
-                System.out.println("Order for " + order.getName() + " status updated to 'Driver Assigned'.");
+                // Mark as dropping-off
+                String newStatus = "Active";
+                System.out.println("Order for " + order.getName() + " status is:" + order.getStatus());
+                if (order.getStatus().equals("Upcoming")) {
+                    order.setStatus(newStatus);
+                    updateRentalStatusInDB(order.getRentalItemId(), newStatus);  // Sync with DB
+                    statusUpdated = true;
+                    System.out.println("Order for " + order.getName() + " marked as dropping off.");
+                }
+            }
+        } else if (lastActionType.equals("calling-off")) {
+            for (CustomerRental order : selectedRentals) {
+                String newStatus = "Called Off";
+                if (order.getStatus().equals("Active")) {
+                    order.setStatus(newStatus);
+                    updateRentalStatusInDB(order.getRentalItemId(), newStatus);  // Sync with DB
+                    statusUpdated = true;
+                    System.out.println("Order for " + order.getName() + " status updated to 'Called Off'.");
+                }
             }
         } else if (lastActionType.equals("picking-up")) {
             // Handle the 'picking-up' action type
             for (CustomerRental order : selectedRentals) {
-                String newStatus = "Ended";  // Set the status for picking-up
-                order.setStatus(newStatus);
-                updateRentalStatusInDB(order.getCustomerId(), newStatus);  // Sync with DB
-                statusUpdated = true;
-                System.out.println("Order for " + order.getName() + " status updated to 'Ended'.");
-            }
-        } else if (lastActionType.equals("dropping-off")) {
-            for (CustomerRental order : selectedRentals) {
-            // Mark as dropping-off
-                String newStatus = "Active"; // Set the status for dropping-off
-                order.setStatus(newStatus);
-                updateRentalStatusInDB(order.getCustomerId(), newStatus);  // Sync with DB
-                statusUpdated = true;
-                System.out.println("Order for " + order.getName() + " marked as dropping off.");
+                String newStatus = "Picked Up";  // Set the status for picking-up
+                if (order.getStatus().equals("Called Off")) {
+                    order.setStatus(newStatus);
+                    updateRentalStatusInDB(order.getRentalItemId(), newStatus);  // Sync with DB
+                    statusUpdated = true;
+                    System.out.println("Order for " + order.getName() + " status updated to 'Picked Up'.");
+                }
             }
         } else {
             // Existing logic for other action types
@@ -666,7 +695,7 @@ public class DBController extends BaseController {
                 String newStatus = determineNewStatus(order, lastActionType);
                 if (!newStatus.equals(order.getStatus())) {
                     order.setStatus(newStatus);
-                    updateRentalStatusInDB(order.getCustomerId(), newStatus);  // Sync with DB
+                    updateRentalStatusInDB(order.getRentalItemId(), newStatus);  // Sync with DB
                     statusUpdated = true;
                     System.out.println("Order for " + order.getName() + " status updated to '" + newStatus + "'.");
                 }
@@ -684,14 +713,14 @@ public class DBController extends BaseController {
     }
 
 
-    private void updateRentalStatusInDB(String customerId, String newStatus) {
-        String updateQuery = "UPDATE rental_orders SET status = ? WHERE customer_id = ?"; // Update table name
+    private void updateRentalStatusInDB(int rentalItemId, String newStatus) {
+        String updateQuery = "UPDATE rental_items SET item_status = ? WHERE rental_item_id = ?"; // Update table name
 
         try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
              PreparedStatement statement = connection.prepareStatement(updateQuery)) {
 
             statement.setString(1, newStatus);
-            statement.setString(2, customerId);
+            statement.setInt(2, rentalItemId);
 
             int rowsUpdated = statement.executeUpdate();
             if (rowsUpdated > 0) {
@@ -727,9 +756,13 @@ public class DBController extends BaseController {
             if (currentStatus.equals("Upcoming")) {
                 return "Active"; // This should work if currentStatus is "Upcoming"
             }
-        } else if (actionType.equals("picking-up")) {
+        } else if (actionType.equals("calling-off")) {
             if (currentStatus.equals("Active")) {
-                return "Ended"; // This should work if currentStatus is "Active"
+                return "Called Off"; // This should work if currentStatus is "Active"
+            }
+        } else if (actionType.equals("picking-up")){
+            if (currentStatus.equals("Called Off")) {
+                return "Picked Up";
             }
         }
 
@@ -763,7 +796,7 @@ public class DBController extends BaseController {
 
             // Add rental details
             String rentalDetails = "Customer Name: " + rental.getName() + "\n" +
-                                   "Rental ID: " + rental.getRentalId() + "\n" +
+                                   "Rental ID: " + rental.getRentalOrderId() + "\n" +
                                    "Status: " + rental.getStatus() + "\n";
 
             Paragraph detailsParagraph = new Paragraph(rentalDetails)

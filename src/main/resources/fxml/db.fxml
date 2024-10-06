@@ -39,9 +39,10 @@
                     <columns>
                         <TableColumn fx:id="selectColumn" text="" prefWidth="20"/>
                         <TableColumn fx:id="nameColumn" text="For:" prefWidth="60"/>
-                        <TableColumn fx:id="orderDateColumn" text="Date" prefWidth="36"/>
+                        <TableColumn fx:id="deliveryDateColumn" text="Date" prefWidth="36"/>
+                        <TableColumn fx:id="deliveryTimeColumn" text="Time" prefWidth="56"/>
                         <TableColumn fx:id="driverColumn" text="Driver" prefWidth="43"/>
-                        <TableColumn fx:id="statusColumn" text="Status" prefWidth="40"/>
+                        <TableColumn fx:id="statusColumn" text="Status" prefWidth="26"/>
                     </columns>
                 </TableView>
             </AnchorPane>
@@ -80,6 +81,15 @@
                 <graphic>
                     <ImageView fitWidth="28" fitHeight="28">
                         <Image url="@/images/dropping-off.png"/>
+                    </ImageView>
+                </graphic>
+
+            </Button>
+
+            <Button fx:id="callingOffButton" onAction="#handleCallingOff" translateY="40" translateX="-12">
+                <graphic>
+                    <ImageView fitWidth="27" fitHeight="30">
+                        <Image url="@/images/calling-off.png"/>
                     </ImageView>
                 </graphic>
 
