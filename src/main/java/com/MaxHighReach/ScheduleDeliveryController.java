@@ -94,17 +94,23 @@ public class ScheduleDeliveryController extends BaseController {
     private ToggleButton customButton;
     @FXML
     private ComboBox<String> hourComboBox;
+ //   @FXML
+ //   private ComboBox<String> ampmComboBox; // Reference to the AM/PM ComboBox
     @FXML
-    private ComboBox<String> ampmComboBox; // Reference to the AM/PM ComboBox
+    private TextField siteField;
     @FXML
     private TextField addressField;
     @FXML
     private ComboBox<String> suggestionsBox;
     @FXML
+    private TextField POField;
+    @FXML
     private Label statusLabel; // Reference to the status label
 
     private Timeline rotationTimeline; // Timeline for rotating highlight
-    private boolean isRotating = false; // Flag to track rotation state
+    private boolean isRotating = false;
+    private boolean suggestionMuter = false;// Flag to track rotation state
+    private int addressTypeCounter = 0;
     private ObservableList<String> addressSuggestions = FXCollections.observableArrayList();
     private OkHttpClient client = new OkHttpClient();
 
@@ -212,7 +218,7 @@ public class ScheduleDeliveryController extends BaseController {
                 toggleButton.setOnAction(event -> {
                     if (toggleButton != customButton) {
                         hourComboBox.setVisible(false);
-                        ampmComboBox.setVisible(false);
+  //                      ampmComboBox.setVisible(false);
                         customButton.setSelected(false); // Unselect custom button
                     }
                 });
@@ -223,61 +229,148 @@ public class ScheduleDeliveryController extends BaseController {
         deliveryTimeToggleGroup.selectToggle(deliveryTime8To10Button);
 
         // Populate hour and AM/PM ComboBoxes
-        for (int i = 1; i <= 12; i++) {
-            hourComboBox.getItems().add(String.valueOf(i+":00")); // Add hours 1-12 to the ComboBox
-        }
-        ampmComboBox.getItems().addAll("am", "pm"); // Add AM and PM to the ComboBox
+      //  for (int i = 1; i <= 12; i++) {
+        hourComboBox.getItems().addAll("6", "7", "8", "9", "10", "11", "12", "1", "2", "3", "4"); // Add hours 1-12 to the ComboBox
+ //       }
+ //       ampmComboBox.getItems().addAll("am", "pm"); // Add AM and PM to the ComboBox
 
         customButton.setOnAction(event -> {
             boolean isSelected = customButton.isSelected();
             hourComboBox.setVisible(isSelected);
-            ampmComboBox.setVisible(isSelected);
+  //          ampmComboBox.setVisible(isSelected);
             if (!isSelected) {
                 hourComboBox.getSelectionModel().clearSelection();
-                ampmComboBox.getSelectionModel().clearSelection();
+  //              ampmComboBox.getSelectionModel().clearSelection();
             }
         });
 
-        addressField.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ENTER) {
-                addressField.getParent().requestFocus();
+        siteField.textProperty().addListener((observable, oldValue, newValue) -> {
+                        // Check if there's text in the field and update the style accordingly
+            if (newValue.isEmpty()) {
+                siteField.getStyleClass().remove("has-text");
+                siteField.getStyleClass().add("empty-unfocused");
+            } else {
+                siteField.getStyleClass().remove("empty-unfocused");
+                if (!siteField.getStyleClass().contains("has-text")) {
+                    siteField.getStyleClass().add("has-text");
+                }
             }
         });
 
+        // Handle focus events for addressField
+        siteField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+            if (isNowFocused) {
+                siteField.getStyleClass().remove("empty-unfocused"); // Remove empty style when focused
+            } else if (siteField.getText().isEmpty()) {
+                siteField.getStyleClass().add("empty-unfocused"); // Add empty style when focus is lost
+            }
+        });
+
+        suggestionsBox.setPrefWidth(200);
+        suggestionsBox.setVisible(false);
+
+        // Listener for addressField text changes
         addressField.textProperty().addListener((observable, oldValue, newValue) -> {
-            // Call your existing suggestion update logic
-            updateSuggestions(newValue);
+            // Check if the last action was a backspace
+            boolean isBackspace = false;
+
+            // If the text length has decreased, we assume a backspace occurred
+            if (newValue.length() < oldValue.length()) {
+                isBackspace = true;
+            }
+
+            // Update suggestions based on input, unless it was a backspace
+            if (!isBackspace) {
+                updateSuggestions(newValue);
+                addressTypeCounter++; // Only increment if it wasn't a backspace
+            }
 
             // Check if there's text in the field and update the style accordingly
             if (newValue.isEmpty()) {
-                // No text, show the underline
                 addressField.getStyleClass().remove("has-text");
-                addressField.getStyleClass().add("empty-unfocused"); // Add this line
+                addressField.getStyleClass().add("empty-unfocused");
+                suggestionsBox.setVisible(false); // Hide suggestions if empty
             } else {
-                // Text is present, hide the underline
-                addressField.getStyleClass().remove("empty-unfocused"); // Remove if empty
+                addressField.getStyleClass().remove("empty-unfocused");
                 if (!addressField.getStyleClass().contains("has-text")) {
                     addressField.getStyleClass().add("has-text");
                 }
             }
         });
 
-        // You might want to also handle the focus events
+        // Handle focus events for addressField
         addressField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+            suggestionsBox.setVisible(false);
             if (isNowFocused) {
-                addressField.getStyleClass().remove("empty-unfocused"); // Remove class when focused
+                addressField.getStyleClass().remove("empty-unfocused"); // Remove empty style when focused
             } else if (addressField.getText().isEmpty()) {
-                addressField.getStyleClass().add("empty-unfocused"); // Add back class if empty when focus is lost
+                addressField.getStyleClass().add("empty-unfocused"); // Add empty style when focus is lost
+                suggestionsBox.setVisible(false); // Hide suggestions when focus is lost and input is empty
             }
         });
 
-
-        // Set up the suggestions box
-        suggestionsBox.setVisible(false); // Initially hidden
-        suggestionsBox.getItems().addAll(addressSuggestions);
+        // Listener for the ComboBox to handle selection
         suggestionsBox.setOnAction(e -> {
-            addressField.setText(suggestionsBox.getValue());
-            suggestionsBox.setVisible(false); // Hide suggestions after selection
+            String selectedSuggestion = suggestionsBox.getValue();
+            if (selectedSuggestion != null) {
+                String formattedAddress = formatSelectedSuggestion(selectedSuggestion);
+                addressField.setText(formattedAddress); // Set selected suggestion in the TextField
+                suggestionsBox.getSelectionModel().clearSelection(); // Clear selection to reset ComboBox
+                suggestionsBox.setVisible(false);
+                addressTypeCounter = 0;// Hide suggestions after selection
+            }
+
+        });
+
+        // Optional: Set up an additional listener if you want to catch selection via valueProperty
+        suggestionsBox.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                addressField.setText(newVal); // Populate addressField with selected suggestion
+                suggestionsBox.setVisible(false);
+                addressTypeCounter = 0;// Hide suggestions after selection
+            }
+        });
+
+        // Handle Enter key press in addressField to confirm selection
+        addressField.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                if (suggestionsBox.isVisible() && suggestionsBox.getValue() != null) {
+                    addressField.setText(suggestionsBox.getValue()); // Set selected suggestion
+                    suggestionsBox.setVisible(false);
+                    addressTypeCounter = 0;// Hide suggestions on Enter key
+                } else {
+                    addressField.getParent().requestFocus(); // Move focus if no selection
+                }
+            }
+        });
+
+        siteField.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+
+                siteField.getParent().requestFocus(); // Move focus if no selection
+            }
+        });
+
+         POField.textProperty().addListener((observable, oldValue, newValue) -> {
+                        // Check if there's text in the field and update the style accordingly
+            if (newValue.isEmpty()) {
+                POField.getStyleClass().remove("has-text");
+                POField.getStyleClass().add("empty-unfocused");
+            } else {
+                POField.getStyleClass().remove("empty-unfocused");
+                if (!POField.getStyleClass().contains("has-text")) {
+                    POField.getStyleClass().add("has-text");
+                }
+            }
+        });
+
+        // Handle focus events for addressField
+        POField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+            if (isNowFocused) {
+                POField.getStyleClass().remove("empty-unfocused"); // Remove empty style when focused
+            } else if (POField.getText().isEmpty()) {
+                POField.getStyleClass().add("empty-unfocused"); // Add empty style when focus is lost
+            }
         });
 
         // Initialize TableView columns
@@ -498,7 +591,7 @@ public class ScheduleDeliveryController extends BaseController {
 
         String apiKey = "AIzaSyBN9kWbuL3QuZzONJfWKPX1-o0LG7eNisQ"; // Replace with your actual Google Places API key
         String url = "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=" +
-                 URLEncoder.encode(input, StandardCharsets.UTF_8) + "&key=" + apiKey;
+                URLEncoder.encode(input, StandardCharsets.UTF_8) + "&key=" + apiKey;
 
         Request request = new Request.Builder().url(url).build();
 
@@ -506,7 +599,7 @@ public class ScheduleDeliveryController extends BaseController {
             @Override
             public void onFailure(Call call, IOException e) {
                 e.printStackTrace();
-                suggestionsBox.setVisible(false); // Hide suggestions on failure
+                Platform.runLater(() -> suggestionsBox.setVisible(false)); // Hide suggestions on failure
             }
 
             @Override
@@ -519,29 +612,49 @@ public class ScheduleDeliveryController extends BaseController {
                     // Update the suggestions box on the JavaFX Application Thread
                     Platform.runLater(() -> {
                         suggestionsBox.getItems().setAll(addressSuggestions);
-                        suggestionsBox.setVisible(!addressSuggestions.isEmpty());
+                        if (addressTypeCounter > 3) {
+                            suggestionsBox.setVisible(!addressSuggestions.isEmpty()); // Show suggestions if not empty
+                        }
                     });
                 } else {
-                    suggestionsBox.setVisible(false); // Hide suggestions on error
+                    Platform.runLater(() -> suggestionsBox.setVisible(false)); // Hide suggestions on error
                 }
             }
         });
     }
 
     private void parseAddressSuggestions(String jsonData) {
-        // Use a JSON library (like org.json or Gson) to parse the response
-        // Assuming the response format is handled properly
         try {
             JSONObject jsonObject = new JSONObject(jsonData);
             JSONArray predictions = jsonObject.getJSONArray("predictions");
 
             for (int i = 0; i < predictions.length(); i++) {
-                String suggestion = predictions.getJSONObject(i).getString("description");
-                addressSuggestions.add(suggestion);
+                JSONObject prediction = predictions.getJSONObject(i);
+                String suggestion = prediction.getString("description");
+                addressSuggestions.add(suggestion); // Add suggestions to the list
             }
         } catch (JSONException e) {
             e.printStackTrace();
         }
+    }
+
+    private String formatSelectedSuggestion(String selectedSuggestion) {
+        // Remove the state and country from the suggestion
+        String[] parts = selectedSuggestion.split(",");
+        if (parts.length >= 2) {
+            // Return formatted address
+            return parts[0] + ", " + parts[1]; // Keep the first two parts (street, city)
+        }
+        return selectedSuggestion; // Return the original suggestion if no comma found
+    }
+
+    private String formatAddressForDatabase(String fullAddress) {
+        // Split the address into parts
+        String[] addressParts = fullAddress.split(",");
+        if (addressParts.length > 1) {
+            return addressParts[0] + ", " + addressParts[1]; // Return first two parts for database
+        }
+        return fullAddress; // If no commas, return the whole address
     }
 
     // Method to adjust the height of the TableView based on the number of entries
@@ -628,15 +741,15 @@ public class ScheduleDeliveryController extends BaseController {
             String deliveryTime;
             if (customButton.isSelected()) {
                 String selectedHour = hourComboBox.getSelectionModel().getSelectedItem();
-                String selectedAmPm = ampmComboBox.getSelectionModel().getSelectedItem();
-                if (selectedHour == null || selectedAmPm == null) {
+   //             String selectedAmPm = ampmComboBox.getSelectionModel().getSelectedItem();
+                if (selectedHour == null /*|| selectedAmPm == null*/) {
                     // Update the status label for input error
                     statusLabel.setText("Please select a custom delivery time."); // Show error message
                     statusLabel.setTextFill(Color.RED); // Set the text color to red
                     statusLabel.setVisible(true); // Make the status label visible
                     return; // Exit the method early
                 }
-                deliveryTime = selectedHour + " " + selectedAmPm; // Construct delivery time string
+                deliveryTime = selectedHour/* + " " + selectedAmPm*/; // Construct delivery time string
             } else {
                 // Get the selected ToggleButton for delivery time
                 ToggleButton selectedDeliveryTimeButton = (ToggleButton) deliveryTimeToggleGroup.getSelectedToggle();
@@ -654,8 +767,15 @@ public class ScheduleDeliveryController extends BaseController {
             LocalDate today = LocalDate.now(); // Get the current date
             String orderDate = today.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
+            String site = siteField.getText();
+
+            String address = addressField.getText();
+            String streetAddress = formatAddressForDatabase(address); // Format the address for the database
+
+            String po = POField.getText();
+
             currentCustomerRental = new CustomerRental(customerId, customerName, formattedDate, deliveryTime, "", "Scheduled", 99999, rentalsList.size() + 1);
-            boolean rentalOrderScheduled = insertRentalOrder(customerId, deliveryDate, orderDate);
+            boolean rentalOrderScheduled = insertRentalOrder(customerId, deliveryDate, orderDate, site, streetAddress, po);
             if (rentalOrderScheduled) {
                 // Update the status label for successful scheduling
                 System.out.println("Rental order scheduled successfully!"); // For debugging
@@ -714,14 +834,17 @@ public class ScheduleDeliveryController extends BaseController {
     }
 
 
-    private boolean insertRentalOrder(String customerId, String deliveryDate, String orderDate) {
-        String query = "INSERT INTO rental_orders (customer_id, delivery_date, order_date) VALUES (?, ?, ?)";
+    private boolean insertRentalOrder(String customerId, String deliveryDate, String orderDate,String site, String streetAddress, String po) {
+        String query = "INSERT INTO rental_orders (customer_id, delivery_date, order_date, site_name, street_address, po_number) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
              PreparedStatement preparedStatement = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
 
             preparedStatement.setString(1, customerId); // Change to setString
             preparedStatement.setString(2, deliveryDate);
             preparedStatement.setString(3, orderDate);
+            preparedStatement.setString(4, site);
+            preparedStatement.setString(5, streetAddress);
+            preparedStatement.setString(6, po);
 
             if (preparedStatement.executeUpdate() > 0) {
                 // Get the generated rental_order_id
@@ -774,13 +897,18 @@ public class ScheduleDeliveryController extends BaseController {
         statusLabel.setText(""); // Clear the status label
         statusLabel.setVisible(false); // Hide the status label
         hourComboBox.setVisible(false); // Hide hour ComboBox
-        ampmComboBox.setVisible(false); // Hide AM/PM ComboBox
+   //     ampmComboBox.setVisible(false); // Hide AM/PM ComboBox
         customButton.setSelected(false);
         closeCalendar();
         datePicker.setValue(null);
         dateSelected = false;// Unselect custom button
         startHighlightRotation();
-        setDefaultRentalDate();// Restart rotation highlight
+        setDefaultRentalDate();
+        suggestionsBox.setVisible(false);
+        suggestionsBox.getItems().clear();// Restart rotation highlight
+        siteField.clear();
+        addressField.clear();
+        POField.clear();
     }
 
     @FXML

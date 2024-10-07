@@ -150,47 +150,81 @@ public class SyncWithQBController extends BaseController {
             // Connect to the database
             String connectionUrl = "jdbc:mysql://localhost:3306/practice_db"; // Update with your DB connection details
             try (Connection connection = DriverManager.getConnection(connectionUrl, "root", "SQL3225422!a")) {
-                String query = "INSERT INTO customers (customer_id, customer_name, email, price_schedule, contact_method) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE customer_name=?, email=?, price_schedule=?, contact_method=?";
+                String query = "INSERT INTO customers (customer_id, customer_name, email, price_schedule, contact_method, po_required) " +
+                               "VALUES (?, ?, ?, ?, ?, ?) " +
+                               "ON DUPLICATE KEY UPDATE customer_name=?, email=?, price_schedule=?, contact_method=?, po_required=?";
                 try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
                     for (int i = 0; i < customerNodes.getLength(); i++) {
                         Element customerElement = (Element) customerNodes.item(i);
 
-                        // Extract customer details with null checks
+                        // Extract customer details
                         String customerId = getElementTextContent(customerElement, "ListID");
-                        String name = getElementTextContent(customerElement, "FullName");
+                        String fullName = getElementTextContent(customerElement, "FullName"); // This contains the customer name and additional info
                         String email = getElementTextContent(customerElement, "Email");
 
-                        // For simplicity, we'll set default values for price_schedule and contact_method.
-                        // You may want to extract these from the XML or have some logic to determine them.
-                        String priceSchedule = "SPR"; // Example: Default pricing scheme
-                        String contactMethod = "E"; // Example: Default contact method
+                        // Initialize default values
+                        String priceSchedule = "SPR"; // Default pricing scheme
+                        String contactMethod = "E"; // Default contact method
+                        int poRequired = 0; // Default: PO not required
+
+                        // Split the full name to extract the customer name, price schedule, and contact method
+                        String[] parts = fullName.split(" - "); // Split name by hyphens
+                        String customerName = parts[0].trim(); // First part is the customer name
+
+                        if (parts.length > 1) {
+                            priceSchedule = parts[1].trim(); // Second part is the price schedule
+                            if (parts.length > 2) {
+                                if (parts[2].equalsIgnoreCase("PO")) {
+                                    poRequired = 1; // Set PO required flag
+                                } else {
+                                    contactMethod = parts[2].trim(); // Third part is the contact method
+                                }
+                            }
+                        }
+
+                        // Validate price_schedule against acceptable enum values
+                        if (!isValidPriceSchedule(priceSchedule)) {
+                            System.out.println("Invalid price schedule detected for customer: " + customerName + ". Defaulting to SPR.");
+                            priceSchedule = "SPR"; // Default to SPR if invalid
+                        }
+
+                        // Validate contact_method against acceptable enum values
+                        if (!isValidContactMethod(contactMethod)) {
+                            System.out.println("Invalid contact method detected for customer: " + customerName + ". Defaulting to E.");
+                            contactMethod = "E"; // Default to E if invalid
+                        }
+
+                        // Debugging output
+                        System.out.printf("Inserting customer: ID=%s, Name=%s, Email=%s, PriceSchedule=%s, ContactMethod=%s, PORequired=%d%n",
+                                          customerId, customerName, email, priceSchedule, contactMethod, poRequired);
 
                         // Ensure we have valid customer data before inserting
-                        if (customerId != null && name != null && email != null) {
+                        if (customerId != null && email != null) {
                             preparedStatement.setString(1, customerId); // Store customer_id as a string
-                            preparedStatement.setString(2, name);
+                            preparedStatement.setString(2, customerName); // Store only the customer name without the vars
                             preparedStatement.setString(3, email);
                             preparedStatement.setString(4, priceSchedule); // New field
                             preparedStatement.setString(5, contactMethod); // New field
-                            preparedStatement.setString(6, name); // Update name if exists
-                            preparedStatement.setString(7, email); // Update email if exists
-                            preparedStatement.setString(8, priceSchedule); // Update price_schedule if exists
-                            preparedStatement.setString(9, contactMethod); // Update contact_method if exists
+                            preparedStatement.setInt(6, poRequired); // New field
+                            preparedStatement.setString(7, customerName); // Update name if exists
+                            preparedStatement.setString(8, email); // Update email if exists
+                            preparedStatement.setString(9, priceSchedule); // Update price_schedule if exists
+                            preparedStatement.setString(10, contactMethod); // Update contact_method if exists
+                            preparedStatement.setInt(11, poRequired); // Update PO requirement
                             preparedStatement.executeUpdate();
                         } else {
                             updateStatusLabel("Missing customer data for entry: " + (i + 1));
                         }
                     }
                 }
+                updateStatusLabel("Customers updated successfully.");
             }
-            updateStatusLabel("Customers updated successfully.");
         } catch (Exception e) {
             e.printStackTrace();
             updateStatusLabel("Error updating customers: " + e.getMessage());
         }
     }
 
-    // Utility method to safely get text content from a child element
     private String getElementTextContent(Element parent, String tagName) {
         NodeList nodes = parent.getElementsByTagName(tagName);
         if (nodes.getLength() > 0) {
@@ -204,6 +238,22 @@ public class SyncWithQBController extends BaseController {
 
     private void updateStatusLabel(String message) {
         Platform.runLater(() -> statusLabel.setText(message));
+    }
+
+    // Method to validate the price schedule
+    private boolean isValidPriceSchedule(String priceSchedule) {
+        String[] validSchedules = {"SPR", "1", "2", "3", "4", "5", "SCR", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9"};
+        for (String valid : validSchedules) {
+            if (valid.equals(priceSchedule)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Method to validate the contact method
+    private boolean isValidContactMethod(String contactMethod) {
+        return "E".equals(contactMethod) || "P".equals(contactMethod) || "B".equals(contactMethod);
     }
 
     // Overriding getTotalHeight from BaseController

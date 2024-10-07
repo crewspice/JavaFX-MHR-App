@@ -8,4 +8,5 @@ public class AppConstants {
     public static final double PADDING = 10;
     public static final double BACK_BUTTON_X = 250;
     public static final double BACK_BUTTON_Y = 10;
+    public static final double DELIVERY_DATE_COLUMN_WIDTH = 100;
 }

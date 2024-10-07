@@ -14,8 +14,10 @@ public class CustomerRental {
     private final StringProperty addressBlockOne;
     private final StringProperty addressBlockTwo;
     private final StringProperty addressBlockThree;
+    private final StringProperty poNumber;
     private final StringProperty driver;
     private final StringProperty liftType;
+    private final StringProperty shortLiftType;
     private final StringProperty status;
     private final SimpleIntegerProperty refNumber;  // Changed to SimpleIntegerProperty
     private boolean selected;
@@ -35,8 +37,10 @@ public class CustomerRental {
         this.addressBlockOne = new SimpleStringProperty("Town of Windsor Fire #8");
         this.addressBlockTwo = new SimpleStringProperty("1283 Hilltop Circle");
         this.addressBlockThree = new SimpleStringProperty("Windsor");
+        this.poNumber = new SimpleStringProperty("Unknown");
         this.driver = new SimpleStringProperty(driver);
         this.liftType = new SimpleStringProperty("Unknown");
+        this.shortLiftType = new SimpleStringProperty("Unknown");
         this.status = new SimpleStringProperty(status);
         this.refNumber = new SimpleIntegerProperty(refNumber); // Initialize SimpleIntegerProperty
         this.selected = false;
@@ -148,6 +152,20 @@ public class CustomerRental {
         return addressBlockTwo;
     }
 
+    public void splitAddressBlockTwo() {
+        String address = getAddressBlockTwo();  // Get the current value of addressBlockTwo
+
+        // Check if the address contains a comma
+        if (address != null && address.contains(",")) {
+            // Split the address at the first comma
+            String[] addressParts = address.split(",", 2); // Limit to 2 parts (before and after the first comma)
+
+            // Set the first part in addressBlockTwo and the second part in addressBlockThree
+            setAddressBlockTwo(addressParts[0].trim());  // Trim to remove any extra spaces
+            setAddressBlockThree(addressParts[1].trim()); // Trim to remove any extra spaces
+        }
+    }
+
     public String getAddressBlockThree() {
         return addressBlockThree.get();
     }
@@ -158,6 +176,18 @@ public class CustomerRental {
 
     public StringProperty addressBlockThreeProperty() {
         return addressBlockThree;
+    }
+
+    public String getPoNumber() {
+        return poNumber.get();
+    }
+
+    public void setPoNumber(String poNumber) {
+        this.poNumber.set(poNumber);
+    }
+
+    public StringProperty poNumberProperty() {
+        return poNumber;
     }
 
     public String getDriver() {
@@ -178,10 +208,47 @@ public class CustomerRental {
 
     public void setLiftType(String liftType) {
         this.liftType.set(liftType);
+        this.shortLiftType.set(generateShortLiftType(liftType));
     }
 
     public StringProperty liftTypeProperty() {
         return liftType;
+    }
+
+    public String getShortLiftType() {
+        return shortLiftType.get();
+    }
+
+    private String generateShortLiftType(String liftType) {
+        if (liftType == null || liftType.isEmpty()) {
+            return "Unknown"; // Fallback if liftType is null or empty
+        }
+
+        // Check the specified lift types and return the short version
+        switch (liftType) {
+            case "12' Mast":
+                return "12m";
+            case "45' Boom":
+                return "45b";
+            case "33' RT":
+                return "33rt";
+            case "19' Slim":
+                return "19s";
+            case "26' Slim":
+                return "26s";
+            case "26'":
+                return "26";
+            case "32'":
+                return "32";
+            case "40'":
+                return "40";
+            default:
+                return liftType; // Return the original if it doesn't match
+        }
+    }
+
+    public StringProperty shortLiftTypeProperty() {
+        return shortLiftType;
     }
 
     public String getStatus() {

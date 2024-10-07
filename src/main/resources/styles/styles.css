@@ -109,27 +109,36 @@
     -fx-background-color: transparent;
 }
 
+
 /* TableView and TableColumn styles */
 .table-view {
-    -fx-border-color: orange;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
     -fx-border-width: 2px;
     -fx-padding: 5px;
 }
 
 .table-view .column-header-background {
-    -fx-background-color: orange;
+    -fx-background-color: transparent;
     -fx-text-fill: white;
 }
 
 .table-view .column-header {
-    -fx-background-color: orange;
-    -fx-text-fill: white;
+    -fx-background-color: transparent;
+    -fx-text-fill: transparent;
 }
 
 .table-view .table-cell {
-    -fx-border-color: #FFDEAD; /* Light Salmon color */
-    -fx-border-width: 0.5px;
-    -fx-border-insets: 0;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent; /* Remove vertical borders */
+}
+
+.table-view .table-column-cell {
+    -fx-border-color: #FFDEAD; /* Remove border color */
+}
+
+.table-view .table-row-cell {
+    -fx-border-color: transparent; /* Remove vertical lines between cells */
 }
 
 /* Ensure the selected row text remains black */
@@ -157,6 +166,61 @@
 /* Default text color for table rows */
 .table-view .table-row-cell .text {
     -fx-text-fill: black; /* Default black text */
+}
+
+.table-view .table-row-cell:filled {
+    -fx-border-color: transparent; /* Make sure filled rows have transparent borders */
+}
+
+.table-view .table-row-cell:filled {
+    -fx-border-color: #FFDEAD; /* Add bottom border color for horizontal lines */
+    -fx-border-width: 0 0 0.5px 0; /* Keep horizontal lines */
+}
+
+.table-view .table-row-cell {
+    -fx-border-color: transparent; /* Remove vertical lines between cells */
+    -fx-border-width: 0 0 0.5px 0; /* Only keep bottom border */
+    -fx-border-style: solid; /* Set border style */
+}
+
+/* Set the general style for the vertical scroll bar */
+.table-view .scroll-bar:vertical {
+    -fx-pref-width: 10px; /* Width of the scroll bar */
+    -fx-background-color: transparent; /* Background transparent */
+    -fx-opacity: .5;
+}
+
+/* Set the general style for the horizontal scroll bar */
+.table-view .scroll-bar:horizontal {
+    -fx-pref-height: 10px; /* Height of the scroll bar */
+    -fx-background-color: transparent; /* Background transparent */
+}
+
+/* Track of the vertical scroll bar */
+.table-view .scroll-bar:vertical .track {
+    -fx-background-color: transparent; /* Make track transparent */
+}
+
+/* Track of the horizontal scroll bar */
+.table-view .scroll-bar:horizontal .track {
+    -fx-background-color: transparent; /* Make track transparent */
+}
+
+/* Thumb for the vertical scroll bar */
+.table-view .scroll-bar:vertical .thumb {
+    -fx-background-color: rgba(255, 222, 173, 0.7); /* Semi-transparent color */
+    -fx-background-radius: 5; /* Rounded edges */
+}
+
+/* Thumb for the horizontal scroll bar */
+.table-view .scroll-bar:horizontal .thumb {
+    -fx-background-color: rgba(255, 222, 173, 0.7); /* Semi-transparent color */
+    -fx-background-radius: 5; /* Rounded edges */
+}
+
+.table-view .deliveryDateColumn .table-cell {
+    -fx-alignment: CENTER; /* Center the text */
+    -fx-text-fill: white; /* Adjust text color if necessary */
 }
 
 /* Styling for edit driver button */
@@ -303,7 +367,7 @@
     -fx-opacity: 1; /* Ensure text field is visible */
     -fx-focus-color: transparent; /* Remove focus color */
     -fx-faint-focus-color: transparent; /* Remove faint focus */
-    -fx-highlight-fill: transparent; /* Remove highlight when selecting */
+    -fx-highlight-fill: orange; /* Remove highlight when selecting */
     -fx-highlight-text-fill: black; /* Ensure text remains black when selecting */
 }
 
@@ -324,6 +388,24 @@
     -fx-border-width: 0 0 0.5px 0; /* Set a .5px dotted border when empty and not focused */
 }
 
+.combo-box.suggestions-box .arrow-button {
+    -fx-opacity: 0; /* Hide the arrow */
+    -fx-padding: 0; /* Remove any padding for the arrow */
+}
+
+.suggestions-box .list-view {
+    -fx-background-color: #F4F4F4; /* Background color for the suggestion box */
+}
+
+.suggestions-box .list-view .list-cell:hover {
+    -fx-background-color: #FFDEAD;
+    -fx-text-fill: black;/* Set hover color */
+}
+
+.suggestions-box .list-view .list-cell:selected {
+    -fx-background-color: #FFDEAD; /* Background color when selected */
+    -fx-text-fill: black; /* Ensure text is black when selected */
+}
 
 /* TilePane Styles */
 .tile-pane {

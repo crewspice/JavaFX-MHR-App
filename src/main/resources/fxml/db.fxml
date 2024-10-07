@@ -35,14 +35,16 @@
             <Label fx:id="loadingLabel" text="Loading..." alignment="TOP_LEFT" visible="false"/> <!-- Loading label -->
 
             <AnchorPane>
-                <TableView fx:id="dbTableView" prefHeight="486" prefWidth="253" translateY="-25" translateX="-8">
+                <TableView fx:id="dbTableView" prefHeight="486" prefWidth="263" translateY="-25" translateX="-13">
                     <columns>
-                        <TableColumn fx:id="selectColumn" text="" prefWidth="20"/>
-                        <TableColumn fx:id="nameColumn" text="For:" prefWidth="60"/>
-                        <TableColumn fx:id="deliveryDateColumn" text="Date" prefWidth="36"/>
-                        <TableColumn fx:id="deliveryTimeColumn" text="Time" prefWidth="56"/>
-                        <TableColumn fx:id="driverColumn" text="Driver" prefWidth="43"/>
-                        <TableColumn fx:id="statusColumn" text="Status" prefWidth="26"/>
+                        <!--TableColumn fx:id="selectColumn" text="" prefWidth="20"/-->
+                        <TableColumn fx:id="statusColumn" text="" prefWidth="26"/>
+                        <TableColumn fx:id="customerAndAddressColumn" text="" prefWidth="120"/>
+                        <!--TableColumn fx:id="nameColumn" text="For:" prefWidth="60"/-->
+                        <TableColumn fx:id="deliveryDateColumn" text="" prefWidth="46"/>
+                        <!--TableColumn fx:id="deliveryTimeColumn" text="Time" prefWidth="38"/-->
+                        <TableColumn fx:id="driverColumn" text="" prefWidth="83"/>
+
                     </columns>
                 </TableView>
             </AnchorPane>
@@ -56,7 +58,7 @@
 
 
         <!-- Buttons (on the right in VBox) -->
-        <VBox spacing="5" alignment="TOP_LEFT" prefWidth="50">
+        <VBox spacing="5" alignment="TOP_LEFT" prefWidth="50" translateX="-5">
 
             <Button fx:id="createContractsButton" onAction="#handleCreateContracts" translateY="40" translateX="-12">
                 <graphic>
