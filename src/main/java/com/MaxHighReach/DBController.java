@@ -2,6 +2,7 @@ package com.MaxHighReach;
 
 import com.itextpdf.kernel.pdf.canvas.draw.SolidLine;
 import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -9,18 +10,28 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
+import javafx.geometry.HPos;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.control.Tooltip;
 
 import javafx.scene.paint.Color;
+import javafx.scene.paint.CycleMethod;
+import javafx.scene.paint.LinearGradient;
+import javafx.scene.paint.Stop;
 import javafx.scene.shape.Circle;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Font;
 import javafx.util.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -44,87 +55,101 @@ import java.util.*;
 public class DBController extends BaseController {
 
     @FXML
-    private Button backButton, editDriverButton, droppingOffButton, callingOffButton, pickingUpButton, updateRentalButton, createInvoicesButton, refreshButton, createContractsButton;
+    private Button backButton;
+    @FXML
+    private Button editDriverButton;
+    @FXML
+    private Button droppingOffButton;
+    @FXML
+    private Button callingOffButton;
+    @FXML
+    private Button pickingUpButton;
+    @FXML
+    private Button updateRentalButton;
+    @FXML
+    private Button composeInvoicesButton;
+    @FXML
+    private Button composeContractsButton;
+    @FXML
+    private Button refreshDataButton;
+    private final Tooltip composeContractsTooltip = new Tooltip("Compose Contracts");
+    private final Tooltip assignDriverTooltip = new Tooltip("Assign Driver");
+    private final Tooltip droppingOffTooltip = new Tooltip("Record Drop Off");
+    private final Tooltip callingOffTooltip = new Tooltip("Record Call Off");
+    private final Tooltip pickingUpTooltip = new Tooltip("Record Pick Up");
+    private final Tooltip composeInvoicesTooltip = new Tooltip("Compose Invoices");
+    private final Tooltip refreshDataTooltip = new Tooltip("Refresh Table");
     @FXML
     private AnchorPane anchorPane;
     @FXML
     private TableView<CustomerRental> dbTableView;
-  //  @FXML
- //   private TableColumn<CustomerRental, Boolean> selectColumn;
-    @FXML
-    private TableColumn<CustomerRental, String> idColumn;
-    @FXML
-    private TableColumn<CustomerRental, String> customerAndAddressColumn;
- //   @FXML
- //   private TableColumn<CustomerRental, String> nameColumn;
-    @FXML
-    private TableColumn<CustomerRental, String> deliveryDateColumn;
-  //  @FXML
-   // private TableColumn<CustomerRental, String> deliveryTimeColumn;
-    @FXML
-    private TableColumn<CustomerRental, String> driverColumn;
-    @FXML
-    private TableColumn<CustomerRental, Boolean> statusColumn;
+    private TableColumn<CustomerRental, Boolean> statusColumn = new TableColumn<>();
+    private TableColumn<CustomerRental, String> customerAndAddressColumn = new TableColumn<>();
+    private TableColumn<CustomerRental, String> thirdColumn = new TableColumn<>();
+    private TableColumn<CustomerRental, String> fourthColumn = new TableColumn<>();
+    private TableColumn<CustomerRental, String> fifthColumn = new TableColumn<>();
+
     @FXML
     private Label loadingLabel;
     @FXML
     private ComboBox<String> filterComboBox;
 
-    private Map<String, Integer> driverCounts = new HashMap<>();
+    @FXML
+    private ComboBox<String> filterComboBoxTwo;
+    @FXML
+    private TableView<CustomerRental> dbTableViewTwo;
+    @FXML
+    private VBox viewsTilePane;
+    @FXML
+    private VBox leftSideVboxStatusView;
+    private ToggleGroup statusViewToggleGroup = new ToggleGroup();
+    @FXML
+    private DatePicker rightSideDatePickerOne;
+    @FXML
+    private DatePicker rightSideDatePickerTwo;
+    @FXML
+    private VBox rightSideVboxStatusView;
+    private VBox latestRightSideVbox;
+    private VBox latestLeftSideVbox;
+    @FXML
+    private VBox leftSideVboxCustomerView;
+    @FXML
+    private VBox rightSideVboxCustomerView;
+    private ToggleGroup customerViewToggleGroup = new ToggleGroup();
+    @FXML
+    private ComboBox<String> customerComboBox;
+    private ObservableList<Customer> customers = FXCollections.observableArrayList();
+
     private ObservableList<CustomerRental> ordersList = FXCollections.observableArrayList();
     private boolean shouldShowCheckboxes = false;
-    private ObservableList<String> driverInitials = FXCollections.observableArrayList("A", "J", "I", "B", "JC", "K");
     private boolean isDriverEditMode = false;
     private String lastActionType;
     private boolean isDroppingOff = false;
     private boolean isPickingUp = false;
 
     private Timeline fadeOutTimeline;
+// globals before the retry
+    private Map<String, Integer> driverCounts = new HashMap<>();
+    private ObservableList<String> driverInitials = FXCollections.observableArrayList("A", "J", "I", "B", "JC", "K");
 
+
+// retry globals
     private ObservableList<String> potentialInitials = FXCollections.observableArrayList();
     private ObservableList<String> currentViewInitials = FXCollections.observableArrayList();
+
+
+    private Map<String, List<CustomerRental>> groupedRentals = new HashMap<>();
+    private Map<String, Integer> driverSequenceMap = new HashMap<>();
+
+    private String initialsErrorCode;
+    private String initialsErrorPointerKey;
+
+    private javafx.scene.text.Text liftTypeText = new javafx.scene.text.Text();
 
 
     @FXML
     public void initialize() {
         super.initialize();
-
-       /* dbTableView.setRowFactory(tv -> new TableRow<CustomerRental>() {
-            @Override
-            protected void updateItem(CustomerRental item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setGraphic(null);
-                } else {
-                    VBox vbox = new VBox();
-                    vbox.setSpacing(2);  // Space between the two lines
-
-                    // First line (name and rental details)
-                    HBox line1 = new HBox();
-                    line1.setSpacing(10);  // Adjust spacing between columns
-                    Label nameLabel = new Label(item.getName());
-                    Label dateLabel = new Label(item.getDeliveryDate());
-                    Label timeLabel = new Label(item.getDeliveryTime());
-                    Label driverLabel = new Label(item.getDriver());
-                    Label statusLabel = new Label(item.getStatus());
-
-                    line1.getChildren().addAll(nameLabel, dateLabel, timeLabel, driverLabel, statusLabel);
-
-                    // Second line (address)
-                    HBox line2 = new HBox();
-                    String address = item.getAddressBlockTwo(); // Get the address from the item
-                    Label addressLabel = new Label("Address: " + (address != null && !address.isEmpty() ? address : "No address available"));
-                    line2.getChildren().add(addressLabel);
-
-                    // Add both lines to the vbox
-                    vbox.getChildren().addAll(line1, line2);
-
-                    setGraphic(vbox);
-                }
-            }
-        });*/
-
 
 
         dbTableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
@@ -151,42 +176,125 @@ public class DBController extends BaseController {
         });
 
 
-
-        /*selectColumn.setCellValueFactory(param -> new SimpleBooleanProperty(param.getValue().isSelected()));
-        selectColumn.setCellFactory(column -> new TableCell<CustomerRental, Boolean>() {
-            private final CheckBox checkBox = new CheckBox();
-            @Override
-            protected void updateItem(Boolean item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
-                } else {
-                    checkBox.setSelected(item != null && item);
-                    setGraphic(checkBox);
-
-                    checkBox.setOnAction(e -> {
-                        getTableView().getItems().get(getIndex()).setSelected(checkBox.isSelected());
-                    });
-                }
-            }
-        }); */
-
-        // Initialize table columns
-       // idColumn.setCellValueFactory(new PropertyValueFactory<>("customerId"));
-     //   nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
-
         customerAndAddressColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
+            private final Label contentLabel = new Label();  // Address and customer label
+            private final Label liftTypeLabel = new Label(); // Lift type label
+            private final StackPane overlayPane = new StackPane(); // Overlay for layout
+            private final DropShadow glowEffect = new DropShadow(); // Glow effect for lift type
+
+
+            {
+                // Configure the glowing effect for the liftTypeLabel
+                glowEffect.setRadius(10);
+                glowEffect.setSpread(0.5);
+                liftTypeLabel.setEffect(glowEffect);
+                liftTypeLabel.getStyleClass().add("lift-type-in-corner");
+                liftTypeLabel.setStyle("-fx-font-weight: bold;");
+                liftTypeLabel.setFont(Font.font("Patrick Hand"));
+
+
+                // Ensure liftTypeLabel never collapses
+                liftTypeLabel.setMinWidth(Region.USE_PREF_SIZE);
+                liftTypeLabel.setMinHeight(Region.USE_PREF_SIZE);
+
+
+                // Create glowing animation for the lift type label
+                Timeline glowTimeline = new Timeline(
+                    new KeyFrame(Duration.ZERO,
+                        new KeyValue(glowEffect.radiusProperty(), 10),
+                        new KeyValue(glowEffect.colorProperty(), Color.web("#FFDEAD", 0.5))
+                    ),
+                    new KeyFrame(Duration.seconds(2),
+                        new KeyValue(glowEffect.radiusProperty(), 10),
+                        new KeyValue(glowEffect.colorProperty(), Color.web("#FF7F00", 1.0))
+                    )
+                );
+
+
+                glowTimeline.setCycleCount(Timeline.INDEFINITE);
+                glowTimeline.setAutoReverse(true);
+                glowTimeline.play();
+
+
+                // Configure the overlayPane using StackPane
+                overlayPane.getChildren().addAll(contentLabel, liftTypeLabel);
+
+
+                // Align liftTypeLabel to the bottom-right corner
+                StackPane.setAlignment(liftTypeLabel, Pos.BOTTOM_RIGHT);
+                StackPane.setAlignment(contentLabel, Pos.CENTER_LEFT);
+
+
+                // Set a high priority for liftTypeLabel so it is always visible
+                StackPane.setMargin(liftTypeLabel, new Insets(0, 5, 5, 0)); // Adjust padding if necessary
+            }
+
+
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
 
+
                 if (empty || getTableRow() == null) {
-                    setText(null);
+                    setGraphic(null); // Clear for empty cells
                 } else {
                     CustomerRental rental = getTableRow().getItem();
                     if (rental != null) {
-                        setText(rental.getName() + "\n" + rental.getAddressBlockOne() + "\n" + rental.getAddressBlockTwo() + "\n" + rental.getAddressBlockThree());
+                        // Set the address and customer text
+                        contentLabel.setText(
+                            rental.getName() + "\n" +
+                            rental.getAddressBlockOne() + "\n" +
+                            rental.getAddressBlockTwo() + "\n" +
+                            rental.getAddressBlockThree()
+                        );
+
+
+                        // Set the lift type text
+                        String liftType = rental.getShortLiftType();
+                        liftTypeLabel.setText(liftType != null ? liftType : "");
+                        liftTypeLabel.setTranslateY(7);
+
+                        // Set the overlay pane as the graphic for the cell
+                        setGraphic(overlayPane);
                     }
+                }
+            }
+        });
+
+
+        thirdColumn.setCellValueFactory(new PropertyValueFactory<>("deliveryDate"));
+
+        thirdColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+
+
+                if (empty || item == null) {
+                    setText(null);  // Clear text for empty cells
+                    setGraphic(null);  // Clear graphic for empty cells
+                } else {
+                    CustomerRental rental = getTableView().getItems().get(getIndex());
+                    LocalDate date = LocalDate.parse(item); // Assuming yyyy-MM-dd format
+
+
+                    // Format month and day components
+                    String month = date.getMonth().toString().substring(0, 3).toUpperCase(); // 3-letter month abbreviation
+                    String day = String.format("%02d", date.getDayOfMonth()); // Two-digit day
+
+
+                    // Create the vertical text with bullet separator
+                    String verticalDate = String.join("\n", month.split("")) +
+                                          "\n\u2022\n" +  // Unicode bullet separator
+                                          String.join("\n", day.split(""));
+
+
+                    // Set the text for the cell
+                    setText(verticalDate);
+
+
+                    // Adjust line spacing and alignment
+                    setStyle("-fx-line-spacing: -6; -fx-alignment: center; -fx-font-size: 11;");
                 }
             }
         });
@@ -196,49 +304,56 @@ public class DBController extends BaseController {
 
         // Customize deliveryDateColumn to show date in M/d format
 
-        deliveryDateColumn.setCellValueFactory(new PropertyValueFactory<>("deliveryDate"));
 
-        deliveryDateColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
+        // Reusing the old column for delivery time
+        fourthColumn.setCellValueFactory(new PropertyValueFactory<>("deliveryDate"));
+
+
+        fourthColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
+
 
                 if (empty || item == null) {
                     setText(null);  // Clear text for empty cells
                     setGraphic(null);  // Clear graphic for empty cells
                 } else {
                     CustomerRental rental = getTableView().getItems().get(getIndex());
-                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM dd");
-                    LocalDate date = LocalDate.parse(item);
-                    String time = rental.getDeliveryTime();
-                    String formattedDate = date.format(formatter);
-                    String liftType = rental.getShortLiftType();
+                    String time = rental.getDeliveryTime(); // Get delivery time
 
-                    // Calculate the length of the time string and create padding spaces
-                    int timeLength = time.length();
-                    StringBuilder padding = new StringBuilder();
-                    // Add spaces based on the length of the time string
-                    for (int i = 0; i < Math.max(0, 6 - timeLength); i++) { // Adjust 10 based on your desired alignment
-                        padding.append(" ");
-                    }
-                    String paddingTwo = liftType.length() < 3 ? "   " : "  ";
 
-                    // Set the text to formatted date and time with padding
-                    setText(formattedDate + "\n" + padding + time + "\n\n" + paddingTwo + liftType);
+                    // Create a vertical text representation for time
+                    String verticalTime = String.join("\n", time.split("")); // Split each character
+
+
+                    // Use a Label to display the vertical time
+                    Label timeLabel = new Label(verticalTime);
+                    timeLabel.setStyle("-fx-line-spacing: -6; -fx-font-size: 12;"); // Adjust font size if needed
+
+
+                    // Create a VBox for vertical centering
+                    VBox vBox = new VBox(timeLabel);
+                    vBox.setAlignment(Pos.CENTER); // Center align the VBox
+                    vBox.setPrefHeight(getHeight()); // Make the VBox the same height as the cell
+
+
+                    setGraphic(vBox); // Set the VBox as the graphic for the cell
                 }
             }
         });
 
-        // Comparator for sorting
-        deliveryDateColumn.setComparator((date1, date2) -> {
-            LocalDate d1 = LocalDate.parse(date1);  // Assuming dates are in yyyy-MM-dd format
-            LocalDate d2 = LocalDate.parse(date2);
-            return d1.compareTo(d2);  // Ascending order
+
+        // Comparator for sorting, if needed
+        fourthColumn.setComparator((time1, time2) -> {
+            // Custom comparison logic for time can be added here if necessary
+            return time1.compareTo(time2);  // Example: simple string comparison
         });
 
+
         //  deliveryTimeColumn.setCellValueFactory(new PropertyValueFactory<>("deliveryTime"));
-        driverColumn.setCellValueFactory(new PropertyValueFactory<>("driver"));
-        driverColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
+        fifthColumn.setCellValueFactory(new PropertyValueFactory<>("driver"));
+        fifthColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -256,6 +371,9 @@ public class DBController extends BaseController {
 
             // Method to display only the driver icon
             private void displayDriverIconOnly() {
+                VBox vBox = new VBox();
+                vBox.setAlignment(Pos.BOTTOM_CENTER);
+
                 try {
                     String imagePath = "/images/driver-icon.png";
                     Image image = new Image(getClass().getResourceAsStream(imagePath));
@@ -264,18 +382,14 @@ public class DBController extends BaseController {
                         imageView.setFitWidth(19);  // Set smaller size
                         imageView.setFitHeight(19);  // Set smaller size
 
-                        VBox vBox = new VBox(imageView);
-                        vBox.setAlignment(Pos.BOTTOM_CENTER); // Align icon to bottom center
-                        vBox.setPrefHeight(50);  // Ensure VBox has some height to work with
+                        vBox.getChildren().add(imageView);
 
                         setGraphic(vBox);
-                        setText("x"); // Set text to "x" for visibility if needed
                     } else {
                         setGraphic(null);
                     }
                 } catch (Exception e) {
                     setGraphic(null);
-                    setText(null); // Clear text in case of an error
                 }
             }
 
@@ -363,8 +477,8 @@ public class DBController extends BaseController {
                         tooltip.setShowDelay(Duration.ZERO); // Set tooltip to appear instantly
 
                         if (status.equals("Upcoming")) {
-                            circle.setFill(Color.web("#FF8C00"));
-                            tooltip.setStyle("-fx-background-color: #FF8C00; -fx-text-fill: black;"); // Tooltip style
+                            circle.setFill(Color.BLACK);
+                            tooltip.setStyle("-fx-background-color: #FF8C00; -fx-text-fill: white;"); // Tooltip style
                         } else if (status.equals("Active")) {
                             circle.setFill(Color.GREEN);
                             tooltip.setStyle("-fx-background-color: green; -fx-text-fill: white;"); // Tooltip style
@@ -388,14 +502,13 @@ public class DBController extends BaseController {
         });
 
 
-
         // Disable resizing
      //   selectColumn.setResizable(false);
        //idColumn.setResizable(false);
         customerAndAddressColumn.setResizable(false);
       //  nameColumn.setResizable(false);
-        deliveryDateColumn.setResizable(false);
-        driverColumn.setResizable(false);
+        fourthColumn.setResizable(false);
+        fifthColumn.setResizable(false);
         statusColumn.setResizable(false);
 
         // Initialize filter combo box
@@ -410,93 +523,6 @@ public class DBController extends BaseController {
         for (String initial : new String[]{"JD", "AB", "MG", "CN"}) {
                 driverCounts.put(initial, 1); // Start with count 1 for each driver
             }
-        updateDriverInitials();
-        // Set the initial cell factory to default mode for the driver column
-        driverColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
-            private final ImageView driverImageView = new ImageView();
-
-            {
-                driverImageView.setFitWidth(20); // Set the image size
-                driverImageView.setFitHeight(20);
-            }
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setGraphic(null);
-                } else {
-                    if (item.equals("x")) {
-                        driverImageView.setImage(new Image("file:C:\\Users\\maxhi\\OneDrive\\Documents\\Quickbooks\\QBProgram Development\\IdeaProjects\\JavaFX-MHR-App\\src\\main\\resources\\images\\driver-icon.png"));
-                        setGraphic(driverImageView);
-                        setText(null); // No text when displaying the icon
-                    } else {
-                        String[] parts = item.split("-");
-                        String driverInitial = parts[0];
-                        if (parts.length > 1) {
-                            String driverNumber = String.valueOf(Integer.parseInt(parts[1]));
-                            setText(driverInitial + "-" + driverNumber);
-                        } else {
-                            String driverNumber = "1";
-                            setText(driverInitial + "-" + driverNumber);
-                        }
-
-                        setGraphic(driverImageView);
-                    }
-                }
-            }
-
-            // Method to display the driver icon only (for "x")
-            private void displayDriverIconOnly() {
-                try {
-                    String imagePath = "/images/driver-icon.png";
-                    Image image = new Image(getClass().getResourceAsStream(imagePath));
-                    if (!image.isError()) {
-                        ImageView imageView = new ImageView(image);
-                        imageView.setFitWidth(19);  // 24px minus 5px
-                        imageView.setFitHeight(19); // 24px minus 5px
-                        setGraphic(imageView);      // Display the smaller image
-                    } else {
-                        setText("Image error");
-                        setGraphic(null);
-                    }
-                } catch (Exception e) {
-                    setText("Image not found");
-                    setGraphic(null);
-                }
-                setText(null);  // No text when showing the icon
-            }
-
-            // Method to display initials and driver icon for assigned drivers
-            private void displayDriverWithIcon(String driverInitials) {
-                VBox vBox = new VBox();
-                vBox.setSpacing(5);  // Space between initials and the icon
-                vBox.setAlignment(Pos.BOTTOM_CENTER);  // Align icon at the bottom
-
-                // Create a label for driver initials
-                Label initialsLabel = new Label(driverInitials);
-
-                // Create an ImageView for the driver icon
-                try {
-                    String imagePath = "/images/driver-icon.png";
-                    Image image = new Image(getClass().getResourceAsStream(imagePath));
-                    if (!image.isError()) {
-                        ImageView imageView = new ImageView(image);
-                        imageView.setFitWidth(19);  // Smaller image (24px - 5px)
-                        imageView.setFitHeight(19);
-                        vBox.getChildren().addAll(initialsLabel, imageView);  // Add both to VBox
-                        setGraphic(vBox);
-                    } else {
-                        setText(driverInitials);
-                        setGraphic(null);
-                    }
-                } catch (Exception e) {
-                    setText(driverInitials);  // Fallback to just initials
-                    setGraphic(null);
-                }
-            }
-        });
-
 
 
         // Enable table editing
@@ -518,36 +544,48 @@ public class DBController extends BaseController {
         }
         hideCheckboxes(); // Call the method to hide checkboxes initially
 
-        // Set tooltip for Edit Driver Button
-        Tooltip editDriverTooltip = createCustomTooltip("Assign Driver", editDriverButton, 38, 10);
+        createCustomTooltip(editDriverButton, 38, 10, assignDriverTooltip);
+        createCustomTooltip(droppingOffButton, 38, 10, droppingOffTooltip);
+        createCustomTooltip(callingOffButton, 38, 10, callingOffTooltip);
+        createCustomTooltip(pickingUpButton, 38, 10, pickingUpTooltip);
+        createCustomTooltip(composeInvoicesButton, 38, 10, composeInvoicesTooltip);
+        createCustomTooltip(composeContractsButton, 38, 10, composeContractsTooltip);
+        createCustomTooltip(refreshDataButton, 38, 10, refreshDataTooltip);
 
-        // Tooltip for Dropping Off Button
-        Tooltip droppingOffTooltip = createCustomTooltip("Record Drop Off", droppingOffButton, 38, 10);
+        for (javafx.scene.Node node : leftSideVboxStatusView.getChildren()) {
+            node.getStyleClass().add("lift-type-button-rotating");
+            if (node instanceof ToggleButton toggleButton) {
+                toggleButton.setToggleGroup(statusViewToggleGroup);
 
-        // Tooltip for Calling Off Button
-        //callingOffButton.setOnAction(this::handleCallingOff);
-        Tooltip callingOffTooltip = createCustomTooltip("Record Call Off", callingOffButton, 38, 10);
+                toggleButton.setOnAction(event -> {
+                    if (toggleButton.isSelected()) {
+                        System.out.println("Selected: " + toggleButton.getText());
+                        toggleButton.getStyleClass().removeAll("lift-type-button-rotating");
+                        toggleButton.getStyleClass().add("lift-type-button-stopped");
+                        statusViewToggleGroup.selectToggle(toggleButton);
 
-        // Tooltip for Picking Up Button
-        Tooltip pickingUpTooltip = createCustomTooltip("Record Pick Up", pickingUpButton, 38, 10);
-
-        // Tooltip for Create Invoices Button
-        Tooltip createInvoicesTooltip = createCustomTooltip("Compose Invoices", createInvoicesButton, 38, 10);
-
-        if (createInvoicesButton != null) {
-                // Start with the button hidden
-                createInvoicesButton.setOnAction(this::handleCreateInvoices);
-            } else {
-                System.err.println("createInvoicesButton is not injected!");
+                    }
+                });
             }
-        Tooltip createContractsTooltip = createCustomTooltip("Compose Contracts", createContractsButton, 38, 10);
+        }
 
-        if (createContractsButton != null) {
-                // Start with the button hidden
-                createContractsButton.setOnAction(this::handleCreateContracts);
-            } else {
-                System.err.println("createContractsButton is not injected!");
+        loadCustomers();
+        for (javafx.scene.Node node : rightSideVboxCustomerView.getChildren()) {
+            node.getStyleClass().add("lift-type-button-rotating");
+            if (node instanceof ToggleButton toggleButton) {
+                toggleButton.setToggleGroup(customerViewToggleGroup);
+
+                toggleButton.setOnAction(event -> {
+                    if (toggleButton.isSelected()) {
+                        System.out.println("Selected: " + toggleButton.getText());
+                        toggleButton.getStyleClass().removeAll("lift-type-button-rotating");
+                        toggleButton.getStyleClass().add("lift-type-button-stopped");
+                        customerViewToggleGroup.selectToggle(toggleButton);
+
+                    }
+                });
             }
+        }
 
     }
 
@@ -565,7 +603,6 @@ public class DBController extends BaseController {
                 Platform.runLater(() -> {
                     showLoadingMessage(false);
                     dbTableView.setItems(ordersList); // Update the table
-                    refreshButton.setVisible(true);
                 });
             }
 
@@ -574,19 +611,21 @@ public class DBController extends BaseController {
                 Platform.runLater(() -> {
                     showLoadingMessage(false);
                     loadingLabel.setText("Failed to load data.");
-                    refreshButton.setVisible(true);
                 });
             }
         };
-        refreshButton.setVisible(false); // Hide refresh while loading
         new Thread(task).start();
     }
 
     private void loadData(String filter) {
         ordersList.clear();
+        groupedRentals.clear();
+        currentViewInitials.clear();
         String query = "SELECT * FROM customers " +
                "JOIN rental_orders ON customers.customer_id = rental_orders.customer_id " +
                "JOIN rental_items ON rental_orders.rental_order_id = rental_items.rental_order_id";
+
+        dbTableView.getColumns().clear();
 
         // Modify query based on filter
         switch (filter) {
@@ -595,6 +634,9 @@ public class DBController extends BaseController {
                 break;
             case "Yesterday's Rentals":
                 query += " WHERE DATE(rental_orders.delivery_date) = CURDATE() - INTERVAL 1 DAY"; // Adjusted to order_date
+                RentalTableView caseTableView = new RentalTableView() {
+                };
+                dbTableView = caseTableView.getTableView();
                 break;
             case "Custom Date Range":
                 // Implement custom date range logic here if needed
@@ -604,8 +646,11 @@ public class DBController extends BaseController {
                 break;
             case "All Rentals":
                 // No additional filtering
+                dbTableView.getColumns().addAll(statusColumn, customerAndAddressColumn, thirdColumn, fourthColumn, fifthColumn);
                 break;
         }
+
+
 
         try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
              Statement statement = connection.createStatement();
@@ -636,7 +681,7 @@ public class DBController extends BaseController {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        setCurrentViewInitialsJustLoadedPage();
+        fixCurrentViewInitials(0);
     }
 
     private void showScrollBars(TableView<CustomerRental> dbTableView) {
@@ -670,8 +715,7 @@ public class DBController extends BaseController {
         fadeOutTimeline.playFromStart();
     }
 
-    private Tooltip createCustomTooltip(String text, Button button, double xOffset, double yOffset) {
-        Tooltip tooltip = new Tooltip(text);
+    private Tooltip createCustomTooltip(Button button, double xOffset, double yOffset, Tooltip tooltip) {
         tooltip.setShowDelay(Duration.ZERO);
         tooltip.setHideDelay(Duration.ZERO);
 
@@ -687,6 +731,37 @@ public class DBController extends BaseController {
 
         return tooltip;
     }
+
+
+
+    /**
+     * Activates the button's selected state.
+     */
+    private void visuallySelectSidebarButton(Button button) {
+        refreshButtonStyles(button);
+        button.getStyleClass().add("sidebar-button-active"); // Apply active class
+    }
+
+    /**
+     * Deactivates the button's state to inactive.
+     */
+    private void visuallyUnselectSidebarButton(Button button) {
+        refreshButtonStyles(button);
+        button.getStyleClass().add("sidebar-button-inactive"); // Apply inactive class
+    }
+
+    /**
+     * Ensures the button's style is refreshed properly.
+     */
+    private void refreshButtonStyles(Button button) {
+        button.getStyleClass().removeAll("sidebar-button-active", "sidebar-button-inactive");
+        button.setDisable(true); // Temporarily disable to force CSS refresh
+        button.applyCss();       // Force re-apply CSS
+        button.setDisable(false); // Re-enable after refreshing
+    }
+
+
+
 
     private void updateDriverInitials() {
         driverInitials.clear();
@@ -710,17 +785,10 @@ public class DBController extends BaseController {
     private void handleAssignDrivers() {
 
         if ("assigning-drivers".equals(lastActionType)) {
-            // Exit driver edit mode and revert to displaying driver names or icons
             lastActionType = null;
+            updateRentalButton.setVisible(false); // Call this method to hide checkboxes
 
-            driverColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
-                private final ImageView driverImageView = new ImageView();
-
-                {
-                    driverImageView.setFitWidth(20); // Set the image size
-                    driverImageView.setFitHeight(20);
-                }
-
+            fifthColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
                 @Override
                 protected void updateItem(String item, boolean empty) {
                     super.updateItem(item, empty);
@@ -728,269 +796,542 @@ public class DBController extends BaseController {
                         setText(null);
                         setGraphic(null);
                     } else {
-                        if (item.equals("x")) {
-                            driverImageView.setImage(new Image("file:C:\\Users\\maxhi\\OneDrive\\Documents\\Quickbooks\\QBProgram Development\\IdeaProjects\\JavaFX-MHR-App\\src\\main\\resources\\images\\driver-icon.png"));
-                            setGraphic(driverImageView);
-                            setText(null);
+                        if ("x".equals(item)) {
+                            displayDriverIconOnly(); // Show only the driver icon when value is "x"
                         } else {
-                            String[] parts = item.split("-");
-                            String driverInitial = parts[0];
-                            if (parts.length > 1) {
-                                String driverNumber = String.valueOf(Integer.parseInt(parts[1]));
-                                setText(driverInitial + "-" + driverNumber);
-                            } else {
-                                String driverNumber = "1";
-                                setText(driverInitial + "-" + driverNumber);
-                            }
-
-                            setGraphic(driverImageView);
+                            displayDriverWithIcon(item); // Show initials and icon for assigned drivers
                         }
                     }
                 }
 
+                // Method to display only the driver icon
                 private void displayDriverIconOnly() {
+                    VBox vBox = new VBox();
+                    vBox.setAlignment(Pos.BOTTOM_CENTER);
+
                     try {
                         String imagePath = "/images/driver-icon.png";
                         Image image = new Image(getClass().getResourceAsStream(imagePath));
                         if (!image.isError()) {
                             ImageView imageView = new ImageView(image);
-                            imageView.setFitWidth(19);  // 24px minus 5px
-                            imageView.setFitHeight(19); // 24px minus 5px
+                            imageView.setFitWidth(19);  // Set smaller size
+                            imageView.setFitHeight(19);  // Set smaller size
 
-                            VBox vBox = new VBox(imageView); // Wrap icon in VBox
-                            vBox.setAlignment(Pos.BOTTOM_CENTER); // Align icon to bottom center
-                            vBox.setPrefHeight(50);  // Ensure VBox has some height to work with
+                            vBox.getChildren().add(imageView);
 
-                            setGraphic(vBox);  // Set VBox as the graphic
-                            setText(null);      // No text
+                            setGraphic(vBox);
                         } else {
-                            setText("Image error");
                             setGraphic(null);
                         }
                     } catch (Exception e) {
-                        setText("Image not found");
                         setGraphic(null);
                     }
                 }
 
+                // Method to display driver initials and icon
                 private void displayDriverWithIcon(String driverInitials) {
                     VBox vBox = new VBox();
-                    vBox.setSpacing(5);
-                    vBox.setAlignment(Pos.BOTTOM_CENTER);
+                    vBox.setSpacing(5);  // Space between initials and the icon
+                    vBox.setAlignment(Pos.BOTTOM_CENTER);  // Align icon at the bottom
 
+                    // Create a label for driver initials
                     Label initialsLabel = new Label(driverInitials);
+                    initialsLabel.setTextFill(Color.BLACK); // Ensure text is visible
 
+                    // Create an ImageView for the driver icon
                     try {
                         String imagePath = "/images/driver-icon.png";
                         Image image = new Image(getClass().getResourceAsStream(imagePath));
                         if (!image.isError()) {
                             ImageView imageView = new ImageView(image);
-                            imageView.setFitWidth(19);
+                            imageView.setFitWidth(19);  // Smaller image (24px - 5px)
                             imageView.setFitHeight(19);
-                            vBox.getChildren().addAll(initialsLabel, imageView);
+                            vBox.getChildren().addAll(initialsLabel, imageView);  // Add both to VBox
                             setGraphic(vBox);
                         } else {
                             setText(driverInitials);
+                            setTextFill(Color.BLACK); // Ensure text is visible
                             setGraphic(null);
                         }
                     } catch (Exception e) {
-                        setText(driverInitials);
+                        setText(driverInitials);  // Fallback to just initials
+                        setTextFill(Color.BLACK); // Ensure text is visible
                         setGraphic(null);
                     }
                 }
             });
-
-            isDriverEditMode = false;
-            updateRentalButton.setVisible(false);
-            System.out.println("Driver assignment mode deactivated.");
-
         } else {
+
             // Switch to driver edit mode with ComboBox
-            driverColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
-                private final ComboBox<String> comboBox = new ComboBox<>(driverInitials);
+            fifthColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
+            private final ComboBox<String> comboBox = new ComboBox<>();
 
-                {
-                    comboBox.setEditable(true);
-                    comboBox.setOnAction(e -> {
-                        String selectedDriver = comboBox.getValue();
-                        if (selectedDriver != null) {
-                            // Update driver counts
-                            String[] parts = selectedDriver.split("-");
-                            String driverInitial = parts[0];
-                            int driverNumber = Integer.parseInt(parts[1]);
-
-                            // Update the count for the selected driver
-                            driverCounts.put(driverInitial, driverNumber);
-
-                            // Refresh the driver initials
-                            updateDriverInitials();
-
-                            commitEdit(selectedDriver); // Commit the selected driver
-                        }
-                    });
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || getItem() == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
                 }
 
-                @Override
-                protected void updateItem(String item, boolean empty) {
-                    super.updateItem(item, empty);
-                    if (empty) {
-                        setText(null);
-                        setGraphic(null);
-                    } else {
-                        comboBox.getSelectionModel().select(item);  // Pre-select driver initials
-                        VBox vBox = new VBox();
-                        vBox.setSpacing(5);
-                        vBox.setAlignment(Pos.BOTTOM_CENTER);
+                CustomerRental currentRental = dbTableView.getItems().get(getIndex());
+                System.out.println("Updating cell for rental: " + currentRental);
 
-                        vBox.getChildren().addAll(comboBox);
-                        setGraphic(vBox);  // Display combo box in VBox
+                Set<String> potentialDrivers = calculatePotentialDrivers(currentRental);
+                comboBox.getItems().setAll(potentialDrivers);
+                comboBox.getSelectionModel().select(currentRental.getDriver());
+
+                comboBox.setOnAction(event -> {
+                    String selectedDriver = comboBox.getValue();
+                    System.out.println("Driver Selection: " + selectedDriver);
+                    if (selectedDriver != null) {
+                        updateGroupedRentals(selectedDriver, currentRental);
+                        commitEdit(selectedDriver);
+                        dbTableView.refresh();
+                    }
+                });
+
+                // Pre-select driver initials
+                VBox vBox = new VBox(comboBox);
+                vBox.setSpacing(5);
+                vBox.setAlignment(Pos.BOTTOM_CENTER);
+                setGraphic(vBox);  // Display combo box in VBox
+            }
+
+            @Override
+            public void commitEdit(String newValue) {
+                super.commitEdit(newValue);
+                if (getTableRow() != null && getTableRow().getItem() != null) {
+                    CustomerRental rental = getTableRow().getItem();
+                    if (rental != null) {
+                        rental.setDriver(newValue);  // Update driver in rental
+                        System.out.println("Committed Edit: New Driver for Rental: " + newValue);
+                        updateDriverInDatabase(rental.getRentalItemId(), newValue);
                     }
                 }
+            }
+        });
 
-                @Override
-                public void commitEdit(String newValue) {
-                    super.commitEdit(newValue);
-                    if (getTableRow() != null) {
-                        CustomerRental order = getTableRow().getItem();
-                        if (order != null) {
-                            order.setDriver(newValue);  // Update driver in rental
-                        }
-                    }
-                }
-            });
+        isDriverEditMode = true;
+        updateRentalButton.setVisible(true);
+        System.out.println("Driver assignment mode activated.");
+        lastActionType = "assigning-drivers";
 
-            isDriverEditMode = true;
-            updateRentalButton.setVisible(true);
-            System.out.println("Driver assignment mode activated.");
-            lastActionType = "assigning-drivers";
         }
     }
 
+    private boolean isInitialsSetValid() {
+        groupedRentals.clear();
+        currentViewInitials.clear();  // Reset to avoid stale data
 
-    private void prepareDriverNumbers(ComboBox<String> comboBox, CustomerRental rental) {
-        currentViewInitials.clear();
+
+        // Populate the groupedRentals map from ordersList
         for (CustomerRental rental : ordersList) {
-            currentViewInitials.add(rental.getDriver());
-        }
-    }
+            String driver = rental.getDriver();
+            String[] parts = driver.split("(?<=\\D)(?=\\d)"); // Split into the initial and number parts
+            String initial = parts[0];
+            int number = parts.length > 1 ? Integer.parseInt(parts[1]) : 0; // Default to 0 if no number present
 
-    private void setCurrentViewInitialsJustLoadedPage() {
-        currentViewInitials.clear();
-        for (CustomerRental rental : ordersList) {
-            currentViewInitials.add(rental.getDriver());
-        }
-        if (isCurrentViewInitialsValid()) {
 
-        } else {
-            fixCurrentViewInitials();
+            groupedRentals.computeIfAbsent(initial, k -> new ArrayList<>()).add(rental);
+            currentViewInitials.add(driver);
         }
-    }
 
-    private boolean isCurrentViewInitialsValid() {
-        // Set of valid initials from the driverInitials list
+
+        // Display the grouped rentals for debugging purposes
+        System.out.println("Grouped Rentals:");
+        groupedRentals.forEach((initial, rentals) -> {
+            System.out.println("Initial: " + initial);
+            rentals.forEach(rental ->
+                System.out.println("   Rental ID: " + rental.getRentalItemId() + ", Driver: " + rental.getDriver())
+            );
+        });
+
+
+        // Create a set of valid initials from the driverInitials list
         Set<String> validInitials = new HashSet<>(driverInitials);
+        System.out.println("Valid Initials: " + validInitials);
 
-        // Map to track the sequence of integers for each initial
+
         Map<String, Set<Integer>> initialIntegerMap = new HashMap<>();
 
-        for (String value : currentViewInitials) {
-            if (value.equals("x")) {
-                // "x" is always valid
+
+        // Validate each rental's driver value
+        for (CustomerRental rental : ordersList) {
+            String driver = rental.getDriver();
+            System.out.println("Processing Driver: " + driver);
+
+
+            if (driver.equals("x")) {
+                System.out.println("Skipping 'x' (always valid)");
                 continue;
             }
 
-            // Split the value into initials and the number part
-            String[] parts = value.split("(?<=\\D)(?=\\d)"); // Splits into non-digit and digit parts
+
+            // Split the driver string into initial and number parts
+            String[] parts = driver.split("(?<=\\D)(?=\\d)");
             if (parts.length != 2) {
-                return false; // Not in the correct format
+                System.out.println("Invalid Format: " + driver);
+                initialsErrorCode = "format";
+                initialsErrorPointerKey = parts[0];
+                return false;
             }
 
-            String initial = parts[0]; // The alphabetical part
-            String numberPart = parts[1]; // The numerical part
 
-            // Check if the initial is in the set of valid initials
+            String initial = parts[0];
+            String numberPart = parts[1];
+
+
+            System.out.println("Initial: " + initial + ", Number: " + numberPart);
+
+
+            // Check if the initial is valid
             if (!validInitials.contains(initial)) {
-                return false; // Invalid initial
+                System.out.println("Invalid Initial: " + initial);
+                initialsErrorCode = "out-of-bounds";
+                initialsErrorPointerKey = initial;
+                return false;
             }
 
-            // Check if the number part is a valid positive integer
+
+            // Parse and validate the number
             int number;
             try {
                 number = Integer.parseInt(numberPart);
                 if (number <= 0) {
-                    return false; // The number must be positive
+                    System.out.println("Invalid Number (<= 0): " + number);
+                    return false;
                 }
             } catch (NumberFormatException e) {
-                return false; // Not a valid number
+                System.out.println("Invalid Number Format: " + numberPart);
+                return false;
             }
 
-            // Ensure sequential and non-duplicate integers for each initial
+
+            // Check for duplicate numbers within the same initial group
             Set<Integer> numberSet = initialIntegerMap.computeIfAbsent(initial, k -> new HashSet<>());
             if (numberSet.contains(number)) {
-                return false; // Duplicate number for this initial
+                System.out.println("Duplicate Number for Initial " + initial + ": " + number);
+                return false;
             }
 
-            numberSet.add(number); // Add the number to the set for this initial
+
+            numberSet.add(number);
+            System.out.println("Added Number " + number + " to Initial " + initial);
         }
 
-        // After processing all values, ensure that each initial has a sequential series of numbers starting from 1
+
+        // Check if all numbers are sequential for each initial
         for (Map.Entry<String, Set<Integer>> entry : initialIntegerMap.entrySet()) {
+            String initial = entry.getKey();
             Set<Integer> numberSet = entry.getValue();
+            System.out.println("Checking Sequence for Initial: " + initial + ", Numbers: " + numberSet);
+
+
             for (int i = 1; i <= numberSet.size(); i++) {
                 if (!numberSet.contains(i)) {
-                    return false; // The sequence is not continuous
+                    System.out.println("Non-Sequential Numbers for Initial " + initial);
+                    initialsErrorCode = "non-sequential";
+                    initialsErrorPointerKey = initial;
+                    return false;
                 }
             }
         }
 
+
+        System.out.println("All checks passed.");
         return true; // All checks passed
     }
 
-    private void fixCurrentViewInitials() {
-        // Step 1: Group drivers by their initials (without numbers) and collect their numbers
-        Map<String, List<CustomerRental>> groupedRentals = new HashMap<>();
 
-        // Populate the groupedRentals map
-        for (CustomerRental rental : ordersList) {
-            String driver = rental.getDriver();
-            String[] parts = driver.split("(?<=\\D)(?=\\d)"); // Split into the initial and number parts
 
-            String initial = parts[0];
-            int number = parts.length > 1 ? Integer.parseInt(parts[1]) : 0; // Default to 0 if no number present
 
-            // Group by initials
-            groupedRentals.computeIfAbsent(initial, k -> new ArrayList<>()).add(rental);
+
+
+
+
+
+
+
+
+
+
+    private void repairLineOfInitials(String problemInitial) {
+        System.out.println("Repairing rentals for initial: " + problemInitial);
+        List<CustomerRental> rentalsForDriver = groupedRentals.get(problemInitial);
+
+
+        if (rentalsForDriver == null || rentalsForDriver.isEmpty()) {
+            System.out.println("No rentals found for initial: " + problemInitial);
+            return;
         }
 
-        // Step 2: Fix the sequence for each group
-        for (Map.Entry<String, List<CustomerRental>> entry : groupedRentals.entrySet()) {
-            String initial = entry.getKey();
-            List<CustomerRental> rentals = entry.getValue();
 
-            // Sort the rentals by their current number (if any) or default to zero
-            rentals.sort(Comparator.comparingInt(rental -> {
-                String[] parts = rental.getDriver().split("(?<=\\D)(?=\\d)");
-                return parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
-            }));
+        System.out.println("Initials Error Code: " + initialsErrorCode);
+        switch (initialsErrorCode) {
+            case "format":
+                System.out.println("Handling 'format' error for initial: " + problemInitial);
+                for (CustomerRental rental : rentalsForDriver) {
+                    String driver = rental.getDriver();
+                    String[] parts = driver.split("(?<=\\D)(?=\\d)");
+                    System.out.println("Processing Driver: " + driver + ", Parts: " + Arrays.toString(parts));
 
-            // Step 3: Assign new sequential numbers to each rental
-            int currentNumber = 1;
-            for (CustomerRental rental : rentals) {
-                String newDriver;
-                if ("B".equals(initial) && currentNumber == 1) {
-                    newDriver = initial + currentNumber; // Assign B1 for the first "B"
-                } else {
-                    newDriver = initial + currentNumber;
+
+                    if (parts.length == 1) { // No number part
+                        int maxNumber = 0;
+                        System.out.println("Finding max number for initial: " + problemInitial);
+
+
+                        for (CustomerRental siblingRental : rentalsForDriver) {
+                            String siblingDriver = siblingRental.getDriver();
+                            String[] siblingParts = siblingDriver.split("(?<=\\D)(?=\\d)");
+
+
+                            if (siblingParts.length > 1) {
+                                int siblingNumber = Integer.parseInt(siblingParts[1]);
+                                maxNumber = Math.max(maxNumber, siblingNumber);
+                                System.out.println("Sibling Driver: " + siblingDriver + ", Number: " + siblingNumber);
+                            }
+                        }
+
+
+                        String newDriver = parts[0] + (maxNumber + 1);
+                        rental.setDriver(newDriver);
+                        System.out.println("Updated Driver: " + newDriver);
+                        break;
+                    }
                 }
-                rental.setDriver(newDriver);  // Update the in-memory object
+                break;
 
-                // Step 4: Update the SQL database with the new driver value
-                updateDriverInDatabase(rental.getRentalItemId(), newDriver);
 
-                currentNumber++; // Increment the number for the next driver
+            case "out-of-bounds":
+                System.out.println("Handling 'out-of-bounds' error for initial: " + problemInitial);
+                CustomerRental rental = rentalsForDriver.get(0);
+                rental.setDriver("x");
+                System.out.println("Set Driver to 'x' for Rental ID: " + rental.getRentalItemId());
+                break;
+
+
+            case "next-case":
+                System.out.println("Handling 'next-case'. No changes made.");
+                break;
+
+
+            default:
+                System.out.println("Unknown initials error code: " + initialsErrorCode);
+                break;
+        }
+    }
+
+
+    private void fixCurrentViewInitials(int tryCounter) {
+        if (tryCounter >= 10) {
+            System.out.println("Reached maximum retry limit (10). Exiting.");
+            return;
+        } else {
+            tryCounter++;
+        }
+        System.out.println("Try counter: " + tryCounter);
+
+
+        if (isInitialsSetValid()) {
+            System.out.println("Initials set is valid. No further fixes needed.");
+            return;
+        }
+
+
+        System.out.println("Initials set is invalid. Repairing initials for: " + initialsErrorPointerKey);
+        repairLineOfInitials(initialsErrorPointerKey);
+
+        System.out.println("Rechecking initials set validity...");
+        fixCurrentViewInitials(tryCounter); // Retry if still not valid
+    }
+
+    private Set<String> calculatePotentialDrivers(CustomerRental rental) {
+        // Initialize a set to hold potential drivers.
+        Set<String> potentialDrivers = new HashSet<>();
+
+        // Add the "x" option for clearing the driver.
+        potentialDrivers.add("x");
+
+        // Get the current driver assigned to this rental.
+        String currentDriver = rental.getDriver();
+        String currentDriverInitial = currentDriver.replaceAll("[^A-Za-z]", "");
+        String currentDriverNumber = currentDriver.replaceAll("[^0-9]", "");
+
+        driverSequenceMap.clear();
+
+        // Count existing drivers by their initials.
+        for (CustomerRental r : dbTableView.getItems()) {
+            String driver = r.getDriver();
+
+            if (driver != null && !driver.equals("x")) {
+                // Extract letters (initials) part only, assuming initials are the letters at the start
+                String initial = driver.replaceAll("[^A-Za-z]", "");
+
+                // Increment the sequence for the extracted initial
+                int newSequence = driverSequenceMap.getOrDefault(initial, 0) + 1;
+                driverSequenceMap.put(initial, newSequence);
+            }
+        }
+
+        // Add potential drivers based on the initials and count
+        for (String driverInitial : driverInitials) {
+            // Count of existing drivers for this initial
+            int count = driverSequenceMap.getOrDefault(driverInitial, 0);
+
+            // Adding the current driver without increment
+            if (driverInitial.equals(currentDriverInitial)) {
+                for (int i = 1; i <= count; i++) {
+                    String potentialDriver = driverInitial + i; // Append the count
+                    potentialDrivers.add(potentialDriver);
+                }
+            } else {
+                // Adding initial with a sequence number
+                for (int i = 1; i <= count + 1; i++) {
+                    String potentialDriver = driverInitial + i; // Append the count
+                    potentialDrivers.add(potentialDriver);
+                }
+
+                // If there are no existing rentals for this initial, we still want to add the first option
+                if (count == 0) {
+                    potentialDrivers.add(driverInitial + "1");
+                }
+            }
+        }
+
+        return potentialDrivers;
+    }
+
+
+
+    private void updateGroupedRentals(String driverValue, CustomerRental rental) {
+        // Extract letters (initials) and numbers (sequence) from the new driver value
+        System.out.println("New Driver Value: " + driverValue);
+
+        String newInitial = driverValue.replaceAll("[^A-Za-z]", "");  // Extract letters only
+        String newStringSeqNumber = driverValue.replaceAll("[^0-9]", "");  // Extract digits only
+
+        System.out.println("New Initial: " + newInitial);
+        System.out.println("New Sequence Number: " + newStringSeqNumber);
+
+        // Get the current driver assigned to this rental
+        String currentDriver = rental.getDriver();
+        System.out.println("Old Driver Value: " + currentDriver);
+
+        // Extract initials and sequence from the old driver value
+        String oldInitial = currentDriver.replaceAll("[^A-Za-z]", "");  // Extract letters only
+        String oldSeqNumber = currentDriver.replaceAll("[^0-9]", "");  // Extract digits only
+
+        System.out.println("Old Initial: " + oldInitial);
+        System.out.println("Old Sequence Number: " + oldSeqNumber);
+
+        // Convert sequence numbers to integers for comparisons, if needed
+
+        int newIntSeqNum = newStringSeqNumber.isEmpty() ? 0 : Integer.parseInt(newStringSeqNumber);
+        int oldIntSeqNum = oldSeqNumber.isEmpty() ? 0 : Integer.parseInt(oldSeqNumber);
+
+        // Adjust sequence for rentals with the new initial
+        List<CustomerRental> newRentals = groupedRentals.get(newInitial);
+
+        if (!driverValue.equals("x")) {
+            if (newRentals != null) {
+                System.out.println("Derived newRentals for the new initial '" + newInitial + "': " + newRentals);
+                System.out.println("Processing rentals with new initial: " + newInitial);
+                System.out.println("Current driver sequence: " + driverSequenceMap.get(newInitial));
+
+                // Increment sequence numbers for rentals with the new initial that are higher
+                for (CustomerRental r : newRentals) {
+                    System.out.println("Checking rental: " + r);
+
+                    String sequenceStringOfRentalBeingChecked = String.valueOf(r.getSequenceNumber());
+                    int sequenceIntOfRentalBeingChecked = r.getSequenceNumber();
+                    System.out.println("Sequence number of rental being checked: " + sequenceStringOfRentalBeingChecked);
+
+                    if (sequenceIntOfRentalBeingChecked >= newIntSeqNum) {
+                        System.out.println("Updating rental from new initial: " + r);
+                        int newSequenceInt = sequenceIntOfRentalBeingChecked + 1;
+                        String newSequenceString = String.valueOf(newSequenceInt);
+                        r.setDriver(newInitial + newSequenceString); // Update driver value
+                        System.out.println("Set driver to: " + r.getDriver());
+                    } else {
+                        System.out.println("Skipping rental (below the sequence of the new rental value): " + r);
+                    }
+                }
+            } else {
+                System.out.println("No rentals found with initial: " + newInitial);
+            }
+        }
+
+        // Adjust sequence for rentals with the old initial
+        List<CustomerRental> currentRentals = groupedRentals.get(oldInitial);
+        if (currentRentals != null) {
+            System.out.println("Derived currentRentals for the old initial '" + oldInitial + "': " + currentRentals);
+            System.out.println("Processing rentals with old initial: " + oldInitial);
+            System.out.println("Current driver sequence: " + driverSequenceMap.get(oldInitial));
+
+            // Decrement sequence numbers for rentals with the old initial that are higher
+            for (CustomerRental r : currentRentals) {
+                System.out.println("Checking rental: " + r);
+
+                String sequenceStringOfRentalBeingChecked = String.valueOf(r.getSequenceNumber());
+                int sequenceIntOfRentalBeingChecked = r.getSequenceNumber();
+                System.out.println("Sequence number of rental being checked: " + sequenceStringOfRentalBeingChecked);
+
+                if (sequenceIntOfRentalBeingChecked > oldIntSeqNum) {
+                    System.out.println("Updating rental from old initial: " + r);
+                    int newSequenceInt = sequenceIntOfRentalBeingChecked - 1;
+                    String newSequenceString = String.valueOf(newSequenceInt);
+                    r.setDriver(oldInitial + newSequenceString); // Update driver value
+                    System.out.println("Set driver to: " + r.getDriver());
+                }
+            }
+            // Remove the rental from the old initial list
+            currentRentals.remove(rental);
+            System.out.println("Removed rental: " + rental + " from old initial: " + oldInitial);
+
+            // If there are no more rentals for the old initial, remove it from the map
+            if (currentRentals.isEmpty()) {
+                groupedRentals.remove(oldInitial);
+                System.out.println("Removed old initial: " + oldInitial + " from groupedRentals.");
+            }
+        }
+
+        // Now, set the new driver for the rental
+        rental.setDriver(driverValue); // Set the new driver value
+        System.out.println("Set new driver for rental: " + rental + " to: " + driverValue);
+
+        // Update the sequence number of the rental
+        if (newIntSeqNum != 0) {
+            rental.setSequenceNumber(newIntSeqNum); // Set the new sequence number
+            System.out.println("Set sequence number for rental: " + rental + " to: " + newIntSeqNum);
+        }
+
+        // Add the rental to the new driver's list
+        groupedRentals.computeIfAbsent(newInitial, k -> new ArrayList<>()).add(rental);
+        System.out.println("Added rental: " + rental + " to new initial: " + newInitial);
+    }
+
+
+    private void initialsFallbackFailsafe() {
+        // Iterate through all the rentals in the ordersList and remove numeric suffixes from drivers
+        for (CustomerRental rental : ordersList) {
+            String driver = rental.getDriver();
+
+            // Check if the driver has a number suffix, and if so, strip it off
+            String[] parts = driver.split("(?<=\\D)(?=\\d)");  // Split at the point where a letter meets a number
+            if (parts.length > 1) {
+                // If there is a number part, we want to keep only the initials
+                String driverInitials = parts[0]; // Keep only the non-numeric part (initials)
+                rental.setDriver(driverInitials);  // Update the in-memory object
+
+                // Update the driver initials in the database
+                updateDriverInDatabase(rental.getRentalItemId(), driverInitials);
             }
         }
     }
+
 
     private void updateDriverInDatabase(int rentalItemId, String newDriver) {
         String updateQuery = "UPDATE rental_items SET driver = ? WHERE rental_item_id = ?";
@@ -1030,20 +1371,25 @@ public class DBController extends BaseController {
 
    @FXML
     private void handleDroppingOff(ActionEvent event) {
-        if ("dropping-off" == lastActionType) {
+        if ("dropping-off".equals(lastActionType)) { // Use .equals() to compare strings
             lastActionType = null;
             hideCheckboxes();
             showSelectableCheckboxes(false, lastActionType);
-  //          System.out.println("Picking Up button pressed again. Resetting action type.");
             updateRentalButton.setVisible(false); // Call this method to hide checkboxes
+
+            visuallyUnselectSidebarButton(droppingOffButton);
         } else {
+
             lastActionType = "dropping-off";
             resetCheckboxes();
             showSelectableCheckboxes(true, lastActionType);
-  //          System.out.println("Picking Up button pressed.");
-            return; // Exit if no action type is set
+            visuallySelectSidebarButton(droppingOffButton);
+
         }
     }
+
+
+
 
     @FXML
     private void handleCallingOff(ActionEvent event) {
@@ -1082,8 +1428,8 @@ public class DBController extends BaseController {
     }
 
     @FXML
-    private void handleCreateInvoices(ActionEvent event) {
-        System.out.println("Create Invoices Button pressed. Current lastActionType: " + lastActionType);
+    private void handleComposeInvoices(ActionEvent event) {
+        System.out.println("Compose Invoices Button pressed. Current lastActionType: " + lastActionType);
 
         // Check for the current action type
         if ("creating-invoices".equals(lastActionType)) {
@@ -1104,8 +1450,8 @@ public class DBController extends BaseController {
 
 
     @FXML
-    private void handleCreateContracts(ActionEvent event) {
-        System.out.println("Create Contracts Button pressed. Current lastActionType: " + lastActionType);
+    private void handleComposeContracts(ActionEvent event) {
+        System.out.println("Compose Contracts Button pressed. Current lastActionType: " + lastActionType);
 
         if ("creating-contracts" == lastActionType) {
             lastActionType = null; // Reset the action type
@@ -1240,9 +1586,11 @@ public class DBController extends BaseController {
                     order.setStatus(newStatus);
                     updateRentalStatusInDB(order.getRentalItemId(), newStatus);  // Sync with DB
                     statusUpdated = true;
+                    visuallyUnselectSidebarButton(droppingOffButton);
                     System.out.println("Order for " + order.getName() + " marked as Active.");
                 }
             }
+            droppingOffButton.setStyle("-fx-background-color: transparent");
         } else if (lastActionType.equals("calling-off")) {
             for (CustomerRental order : selectedRentals) {
                 String newStatus = "Called Off";
@@ -1288,6 +1636,8 @@ public class DBController extends BaseController {
         dbTableView.refresh();
 
     }
+
+
 
 
     private void updateRentalStatusInDB(int rentalItemId, String newStatus) {
@@ -1400,7 +1750,7 @@ public class DBController extends BaseController {
 
     // Refresh the table view data
     @FXML
-    private void handleRefresh() {
+    private void handleRefreshData() {
         showLoadingMessage(true);
         loadDataAsync(filterComboBox.getValue());
     }
@@ -1423,11 +1773,11 @@ public class DBController extends BaseController {
             loadingLabel.setText("Loading database...");
             loadingLabel.setVisible(true);
             dbTableView.setVisible(false);
-            refreshButton.setVisible(false);
+            refreshDataButton.setVisible(false);
         } else {
             loadingLabel.setVisible(false);
             dbTableView.setVisible(true);
-            refreshButton.setVisible(true);
+            refreshDataButton.setVisible(true);
         }
     }
 
@@ -1438,12 +1788,65 @@ public class DBController extends BaseController {
             return 65;
         } else {
             double totalHeight = 0;
-            for (Node node : anchorPane.getChildren()) {
-                if (node instanceof Region) {
-                    totalHeight += ((Region) node).getHeight();
-                }
-            }
+
             return totalHeight;
         }
     }
+
+    @FXML
+    private void handleViewSelect(ActionEvent event) {
+        ToggleButton selectedButton = (ToggleButton) event.getSource();
+        String selectedView = selectedButton.getText();
+        if (latestLeftSideVbox != null) {
+            latestLeftSideVbox.setVisible(false);
+        }
+        if (latestRightSideVbox != null) {
+            latestRightSideVbox.setVisible(false);
+        }
+        switch (selectedView) {
+            case "Interval":
+                break;
+            case "Customer":
+                leftSideVboxCustomerView.setVisible(true);
+                latestLeftSideVbox = leftSideVboxCustomerView;
+                rightSideVboxCustomerView.setVisible(true);
+                latestRightSideVbox = rightSideVboxCustomerView;
+                break;
+            case "Status":
+                leftSideVboxStatusView.setVisible(true);
+                latestLeftSideVbox = leftSideVboxStatusView;
+                rightSideVboxStatusView.setVisible(true);
+                latestRightSideVbox = rightSideVboxStatusView;
+                break;
+            case "Driver":
+                break;
+        }
+    }
+
+    private void loadCustomers() {
+        String query = "SELECT customer_id, customer_name, email FROM customers";
+
+        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
+             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                String customerId = resultSet.getString("customer_id");
+                String customer_name = resultSet.getString("customer_name");
+                String email = resultSet.getString("email");
+
+                // Add to the customer list
+                customers.add(new Customer(customerId, customer_name, email));
+            }
+
+            for (Customer customer : customers) {
+                customerComboBox.getItems().add(customer.getCustomerName());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+
+        }
+    }
+
+
 }

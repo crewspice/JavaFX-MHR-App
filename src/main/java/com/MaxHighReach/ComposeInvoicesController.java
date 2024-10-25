@@ -34,7 +34,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
-public class CreateInvoicesController extends BaseController {
+public class ComposeInvoicesController extends BaseController {
 
     @FXML
     private Label statusLabel;

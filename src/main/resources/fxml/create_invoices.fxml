@@ -14,7 +14,7 @@
 <?import java.lang.String?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TableColumn?>
-<AnchorPane fx:id="anchorPane" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.CreateInvoicesController">
+<AnchorPane fx:id="anchorPane" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.ComposeInvoicesController">
     <VBox spacing="10" alignment="TOP_CENTER" AnchorPane.leftAnchor="20" AnchorPane.rightAnchor="20" AnchorPane.topAnchor="20" AnchorPane.bottomAnchor="20">
         <ComboBox fx:id="filterComboBox" onAction="#handleFilterSelection">
             <items>

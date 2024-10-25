@@ -202,8 +202,28 @@ public class CustomerRental {
         return driver;
     }
 
-    public String getLiftType() {
-        return liftType.get();
+    public int getSequenceNumber() {
+        String driver = getDriver();
+        if (driver != null) {
+            String digits = driver.replaceAll("\\D", ""); // Remove all non-digits
+            if (!digits.isEmpty()) {
+                return Integer.parseInt(digits); // Parse the digits as an integer
+            }
+        }
+        return 0;
+    }
+
+    public void setSequenceNumber(int sequenceNumber){
+        String driver = getDriver();
+        String newDriverName;
+        if (driver != null) {
+            newDriverName = driver.replaceAll("\\d+","");
+        } else {
+            newDriverName = "";
+        }
+
+        newDriverName += sequenceNumber;
+        setDriver(newDriverName.trim());
     }
 
     public void setLiftType(String liftType) {

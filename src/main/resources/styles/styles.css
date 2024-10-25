@@ -1,8 +1,9 @@
 /* General button styles */
 .button {
     -fx-border-color: orange;
-    -fx-faint-focus-color: transparent;
-    -fx-border-width: 2px;
+    -fx-faint-focus-color: gray;
+    -fx-border-width: .5px;
+    -fx-background-color: #FFDEAD;
 }
 
 .button:hover {
@@ -53,6 +54,7 @@
     -fx-faint-focus-color: transparent; /* Remove faint focus color */
     -fx-font-size: 12px; /* Smaller font size */
     -fx-text-fill: black; /* Default text color for the ComboBox */
+
 }
 
 /* Ensure text color is black when the ComboBox is closed */
@@ -66,7 +68,7 @@
 }
 
 .small-combo-box .list-view .list-cell:hover {
-    -fx-background-color: orange; /* Change background color on hover */
+    -fx-background-color: #FFDEAD; /* Change background color on hover */
     -fx-text-fill: black; /* Ensure text remains black when hovered */
 }
 
@@ -76,25 +78,32 @@
 }
 
 .small-combo-box .list-view .list-cell:focused {
-    -fx-background-color: orange; /* Background color for focused item */
+    -fx-background-color: #FFDEAD; /* Background color for focused item */
     -fx-text-fill: black; /* Ensure text is black for focused item */
 }
 
 /* Other styles */
 .list-cell:focused {
-    -fx-background-color: orange;
+    -fx-background-color: #FFDEAD;
     -fx-text-fill: black;
 }
 
+/* Specific style for liftTypeColumn cells */
+.lift-type-in-corner {
+   -fx-text-fill: black;
+   -fx-alignment: CENTER;
+    -fx-font-size: 14;
+   -fx-background-color: transparent;
+}
 
 /* TextField highlight */
 .text-field {
-    -fx-border-color: orange;
+    -fx-border-color: #FFDEAD;
     -fx-border-width: 2px;
 }
 
 .text-field:focused {
-    -fx-border-color: orange;
+    -fx-border-color: #FFDEAD;
 }
 
 /* Source code label styles */
@@ -116,6 +125,34 @@
     -fx-border-color: transparent;
     -fx-border-width: 2px;
     -fx-padding: 5px;
+    -fx-faint-focus-color: gray;
+}
+
+.table-view:focused {
+    -fx-faint-focus-color: gray;
+    -fx-focus-color: gray;
+    -fx-border-color: gray;
+}
+
+/* TableColumnHeader focus */
+.table-column-header:focused {
+          -fx-border-color: gray;
+          -fx-border-width: 2px;
+          -fx-focus-color: gray;
+          -fx-faint-focus-color: gray;
+      } /* General rule for all controls to remove blue focus */
+
+:focused {
+    -fx-focus-color: gray;
+    -fx-faint-focus-color: gray;
+    -fx-border-width: .1px;
+
+}
+
+.table-view .virtual-flow:focused {
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+    -fx-border-color: transparent;
 }
 
 .table-view .column-header-background {
@@ -139,6 +176,7 @@
 
 .table-view .table-row-cell {
     -fx-border-color: transparent; /* Remove vertical lines between cells */
+    -fx-faint-focus-color: gray;
 }
 
 /* Ensure the selected row text remains black */
@@ -150,6 +188,13 @@
 /* Add this to target the text specifically in selected row */
 .table-view .table-row-cell:selected .text {
     -fx-fill: black !important; /* Ensures the text fill is black */
+}
+
+.table-row-cell:focused {
+   -fx-border-color: gray; /* Gray border on focus */
+   -fx-border-width: 2px; /* Adjust width if needed */
+   -fx-focus-color: gray; /* Gray focus color */
+   -fx-faint-focus-color: lightgray; /* Optional faint focus color */
 }
 
 /* Optional: Style for TableView rows when hovered */
@@ -233,45 +278,35 @@
     -fx-background-color: transparent; /* Remove button background */
     -fx-border-color: transparent; /* Remove border */
     -fx-padding: 0px; /* Adjust padding */
+    -fx-faint-focus-color: gray;
 }
 
 .calendar-button:hover {
     -fx-background-color: orange; /* Optional hover background */
 }
 
-/* Styling for edit driver button */
-#editDriverButton {
-    -fx-pref-width: 30px;
-    -fx-pref-height: 30px;
+/* Default sidebar button style */
+.sidebar-button-inactive {
+   -fx-background-color: transparent;
+   -fx-border-color: transparent;
+   -fx-padding: 5px;
+   -fx-faint-focus-color: gray;
 }
 
-.edit-driver-button {
-    -fx-background-color: transparent; /* Remove button background */
-    -fx-border-color: transparent; /* Remove border */
-    -fx-padding: 5px; /* Adjust padding */
+.sidebar-button-active {
+   -fx-background-color: #FFDEAD;
+   -fx-border-color: transparent;
+   -fx-padding: 5px;
+   -fx-faint-focus-color: gray;
 }
 
-.edit-driver-button:hover {
-    -fx-background-color: orange; /* Optional hover background */
+/* Hover effect for sidebar buttons */
+.sidebar-button-inactive:hover {
+   -fx-background-color: orange;
 }
 
-/* Styling for various buttons with hover effects */
-#createInvoicesButton,
-#createContractsButton,
-#droppingOffButton,
-#callingOffButton,
-#pickingUpButton {
-    -fx-background-color: transparent;
-    -fx-border-color: transparent;
-    -fx-padding: 5px;
-}
-
-#createInvoicesButton:hover,
-#createContractsButton:hover,
-#droppingOffButton:hover,
-#callingOffButton:hover,
-#pickingUpButton:hover {
-    -fx-background-color: orange; /* Optional hover background */
+.sidebar-button-active:hover {
+   -fx-background-color: orange;
 }
 
 /* Tooltip styling */
@@ -388,6 +423,14 @@
     -fx-border-width: 0 0 0.5px 0; /* Set a .5px dotted border when empty and not focused */
 }
 
+.combo-box {
+    -fx-background-color: #FFDEAD;
+}
+
+.combo-box .arrow-button {
+    -fx-background-color: #FFDEAD;
+}
+
 .combo-box.suggestions-box .arrow-button {
     -fx-opacity: 0; /* Hide the arrow */
     -fx-padding: 0; /* Remove any padding for the arrow */
@@ -419,6 +462,7 @@
 .schedule-delivery-table {
     -fx-background-color: transparent; /* Transparent background */
     -fx-border-color: transparent; /* No border */
+    -fx-faint-focus-color: gray;
 }
 
 .schedule-delivery-table .scroll-bar:vertical {

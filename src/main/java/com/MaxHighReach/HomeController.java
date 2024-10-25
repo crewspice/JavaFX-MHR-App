@@ -41,7 +41,6 @@ public class HomeController extends BaseController {
 
     @FXML
     public void initialize() {
-        System.out.println("HomeController initialized");
 
        /* // Initialize and add the ScissorLift to the AnchorPane
         scissorLift = new ScissorLift();
