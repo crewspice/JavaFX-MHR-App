@@ -23,9 +23,9 @@
     <Label text="Date:" layoutX="20" layoutY="82" prefWidth="50" wrapText="true"/>
     <TextField fx:id="rentalDateField" layoutX="107" layoutY="77"/>
 
-        <DatePicker fx:id="datePicker" layoutX="107" layoutY="77" styleClass="date-picker"/>
+    <DatePicker fx:id="datePicker" layoutX="107" layoutY="77" styleClass="date-picker"/>
     <Rectangle fx:id="calendarCover" layoutX="93" layoutY="72" width="200" height="65" fill="#F4F4F4" />
-    <Button layoutX="260" layoutY="79" onAction="#handleOpenCalendar" styleClass="calendar-button">
+    <Button layoutX="260" layoutY="79" onAction="#handleOpenCalendar" styleClass="schedule-delivery-calendar-button">
         <graphic>
             <ImageView fitWidth="30" fitHeight="30">
                 <Image url="@../images/calendar.png"/>

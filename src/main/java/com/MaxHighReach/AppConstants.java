@@ -9,4 +9,6 @@ public class AppConstants {
     public static final double BACK_BUTTON_X = 250;
     public static final double BACK_BUTTON_Y = 10;
     public static final double DELIVERY_DATE_COLUMN_WIDTH = 100;
+    public static final double DB_ROW_HEIGHT = 66;
+    public static final double DB_ROW_HEIGHT_EMPTY = 20;
 }

@@ -270,7 +270,7 @@ public class ComposeInvoicesController extends BaseController {
                 // Implement custom date range logic here if needed
                 break;
             case "Ended Rentals":
-                query += " WHERE rentals.status = 'Ended'";
+                query += " WHERE rentals.status = 'Picked Up'";
                 break;
             case "All Rentals":
                 // No additional filtering

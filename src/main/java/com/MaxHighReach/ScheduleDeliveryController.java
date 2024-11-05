@@ -802,7 +802,7 @@ public class ScheduleDeliveryController extends BaseController {
                     statusLabel.setVisible(true); // Make the status label visible
                     return;
             }
-            if (insertRentalItem(rentalOrderId, liftType, currentCustomerRental.getOrderDate(), deliveryDate, deliveryTime) && rentalOrderScheduled) {
+            if (insertRentalItem(rentalOrderId, liftType, currentCustomerRental.getOrderDate(), deliveryDate, deliveryTime, po) && rentalOrderScheduled) {
                 // Update the status label for successful scheduling
                 System.out.println("Rental item created successfully!"); // For debugging
                 statusLabel.setText("Rental item created successfully!"); // Show success message
@@ -865,8 +865,8 @@ public class ScheduleDeliveryController extends BaseController {
         }
     }
 
-    private boolean insertRentalItem(int localRentalOrderId, String liftType, String orderDate, String deliveryDate, String deliveryTime) {
-        String query = "INSERT INTO rental_items (rental_order_id, lift_type, item_order_date, item_delivery_date, delivery_time) VALUES (?, ?, ?, ?, ?)";
+    private boolean insertRentalItem(int localRentalOrderId, String liftType, String orderDate, String deliveryDate, String deliveryTime, String  po) {
+        String query = "INSERT INTO rental_items (rental_order_id, lift_type, item_order_date, item_delivery_date, delivery_time, customer_ref_number) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
 
@@ -875,6 +875,7 @@ public class ScheduleDeliveryController extends BaseController {
             preparedStatement.setString(3, orderDate);
             preparedStatement.setString(4, deliveryDate);
             preparedStatement.setString(5, deliveryTime);
+            preparedStatement.setString(6, po);
 
             // Execute the update
             int rowsAffected = preparedStatement.executeUpdate();

@@ -4,6 +4,9 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 public class CustomerRental {
     private final StringProperty customerId;  // Changed to SimpleIntegerProperty
     private final StringProperty name;
@@ -16,6 +19,9 @@ public class CustomerRental {
     private final StringProperty addressBlockThree;
     private final StringProperty poNumber;
     private final StringProperty driver;
+    private final StringProperty driverInitial;
+    private final SimpleIntegerProperty driverNumber;
+    private final StringProperty serialNumber;
     private final StringProperty liftType;
     private final StringProperty shortLiftType;
     private final StringProperty status;
@@ -39,6 +45,9 @@ public class CustomerRental {
         this.addressBlockThree = new SimpleStringProperty("Windsor");
         this.poNumber = new SimpleStringProperty("Unknown");
         this.driver = new SimpleStringProperty(driver);
+        this.driverInitial = new SimpleStringProperty(driver);
+        this.driverNumber = new SimpleIntegerProperty(0);
+        this.serialNumber = new SimpleStringProperty("118280");
         this.liftType = new SimpleStringProperty("Unknown");
         this.shortLiftType = new SimpleStringProperty("Unknown");
         this.status = new SimpleStringProperty(status);
@@ -202,6 +211,47 @@ public class CustomerRental {
         return driver;
     }
 
+    public void setupDriverCompositionalParts(){
+        if (driver != null) {
+            String localVarDriver = getDriver();
+            Pattern pattern = Pattern.compile("^([A-Za-z]{1,2})(\\d+)?$");
+            Matcher matcher = pattern.matcher(localVarDriver);
+
+            if (matcher.matches()) {
+                driverInitial.set(matcher.group(1));
+                driverNumber.set(matcher.group(2) != null ? Integer.parseInt(matcher.group(2)) : 0);
+            } else {
+                driverInitial.set("x");
+                driverNumber.set(0);
+            }
+        }
+
+    }
+
+    public String getDriverInitial() {
+        return driverInitial.get();
+    }
+
+    public void setDriverInitial(String driverInitial) {
+        this.driverInitial.set(driverInitial);
+    }
+
+    public StringProperty driverInitialProperty() {
+        return driverInitial;
+    }
+
+    public int getDriverNumber() {
+        return driverNumber.get();
+    }
+
+    public void setDriverNumber(int driverNumber) {
+        this.driverNumber.set(driverNumber);
+    }
+
+    public SimpleIntegerProperty driverNumberProperty() {
+        return driverNumber;
+    }
+
     public int getSequenceNumber() {
         String driver = getDriver();
         if (driver != null) {
@@ -224,6 +274,18 @@ public class CustomerRental {
 
         newDriverName += sequenceNumber;
         setDriver(newDriverName.trim());
+    }
+
+    public String getSerialNumber() {
+        return serialNumber.get();
+    }
+
+    public void setSerialNumber(String serialNumber) {
+        this.serialNumber.set(serialNumber);
+    }
+
+    public StringProperty serialNumberProperty() {
+        return serialNumber;
     }
 
     public void setLiftType(String liftType) {

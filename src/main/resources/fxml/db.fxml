@@ -17,43 +17,92 @@
 <?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.TilePane?>
 <?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.shape.Rectangle?>
+<?import javafx.scene.shape.Line?>
+<?import javafx.scene.layout.StackPane?>
 <AnchorPane fx:id="anchorPane" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.DBController">
 
-    <!-- Main Layout: HBox with TableView on the left and VBox with buttons on the right -->
-    <HBox AnchorPane.leftAnchor="20" AnchorPane.rightAnchor="20" AnchorPane.topAnchor="20" AnchorPane.bottomAnchor="50" spacing="10">
+    <StackPane AnchorPane.leftAnchor="0" AnchorPane.topAnchor="0" prefWidth="320" prefHeight="800">
 
-        <!-- Table View (on the left) -->
-        <VBox spacing="15" alignment="TOP_CENTER" HBox.hgrow="ALWAYS" translateY="-10">
-            <ComboBox fx:id="filterComboBox" onAction="#handleFilterSelection">
-                <items>
-                    <FXCollections fx:factory="observableArrayList">
-                        <String fx:value="All Deliveries"/>
-                        <String fx:value="Today's Deliveries"/>
-                        <String fx:value="Yesterday's Deliveries"/>
-                        <String fx:value="Custom Date Range"/>
-                    </FXCollections>
-                </items>
-            </ComboBox>
+        <HBox fx:id="datePickersPane" alignment="TOP_LEFT"  visible="false" translateX="100" spacing="-15">
+            <DatePicker fx:id="datePickerOne"  translateX="80" translateY="17" styleClass="date-picker" prefWidth="15" prefHeight="15"/>
+            <DatePicker fx:id="datePickerTwo"  translateX="83" translateY="17" styleClass="date-picker" prefWidth="15" prefHeight="15"/>
+        </HBox>
+        <Rectangle fx:id="datePickerOneCover" fill="#F4F4F4" translateX="-5" translateY="-370" width="167" height="35" />
 
-            <Label fx:id="loadingLabel" text="Loading..." alignment="TOP_LEFT" visible="false"/> <!-- Loading label -->
+        <Button fx:id="updateRentalButton" text="Update Rental" onAction="#handleUpdateRental" prefWidth="300 " translateY="174" translateX="-99"/>
 
-            <AnchorPane>
-                <TableView fx:id="dbTableView" prefHeight="486" prefWidth="263" translateY="-25" translateX="-13" />
-            </AnchorPane>
 
-            <!-- Refresh Button below the table -->
-            <HBox spacing="10">
-                <Button fx:id="updateRentalButton" text="Update Rental" onAction="#handleUpdateRental" prefWidth="300 " translateY="-25" translateX="-12"/>
+
+
+
+
+        <!-- Back Button (located at the top) -->
+
+        <Rectangle layoutX="265" layoutY="67" width="10" height="10" fill="#FFDEAD" />
+        <Rectangle layoutX="265" layoutY="538" width="10" height="10" fill="#FFDEAD" />
+        <Rectangle layoutX="248" layoutY="540" width="23" height="13" fill="#FFDEAD" />
+        <Rectangle layoutX="8" layoutY="535" width="17" height="21" fill="#FFDEAD" />
+
+        <TableView fx:id="dbTableView" minHeight="552" maxHeight="552" minWidth="284" maxWidth="284"  translateX="-117" translateY="-121" />
+
+
+        <HBox minHeight="25" maxHeight="25" translateX="22" translateY="-379">
+            <HBox fx:id="viewsTilePane"
+                 translateX="-15" translateY="-3">
+                <ToggleButton text="Interval"  minWidth="70" maxWidth="70" fx:id="intervalButton" />
+                <ToggleButton text="Customer" minWidth="75" maxWidth="75" fx:id="customerButton"/>
+                <ToggleButton text="Status" minWidth="55" maxWidth="55" fx:id="statusButton"/>
+                <ToggleButton text="Driver" minWidth="55" maxWidth="55" fx:id="driverButton"/>
             </HBox>
-        </VBox>
+            <VBox fx:id="statusesPane" visible="false"
+                      translateY="-11" translateX="-206">
+                <ToggleButton text="Upcoming"   minWidth="55" maxWidth="55" fx:id="upcomingButton"/>
+                <ToggleButton text="Called Off"  minWidth="55" maxWidth="55" fx:id="calledOffButton"/>
+            </VBox>
+            <VBox fx:id="statusesPaneTwo" visible="false" translateY="-11" translateX="-206">
+                <ToggleButton text="Active"  minWidth="45" maxWidth="45" fx:id="activeButton"/>
+                <ToggleButton text="Billable"  minWidth="45" maxWidth="45" fx:id="billableButton"/>
+            </VBox>
+
+            <HBox fx:id="leftSideVboxCustomerView" visible="false">
+                <ComboBox fx:id="customerComboBox" onAction="#handleViewAndCustomerSelect" minWidth="80" maxWidth="80" translateX="-290" translateY="-5"/>
+            </HBox>
+            <HBox fx:id="leftSideVboxDriverView" visible="false">
+                <ComboBox fx:id="driverComboBox" onAction="#handleViewAndDriverSelect" minWidth="80" maxWidth="80" translateX="-380" translateY="-5"/>
+            </HBox>
+        </HBox>
+
+        <Button fx:id="calendarButtonOne" onAction="#handleOpenDatePickerOne" styleClass="database-calendar-button"
+                visible="false" minWidth="30" maxWidth="30" minHeight="25" maxHeight="25" translateX="-55" translateY="-378">
+            <graphic>
+                <ImageView fitWidth="30" fitHeight="25">
+                    <Image url="@../images/calendar.png"/>
+                </ImageView>
+            </graphic>
+        </Button>
+        <Label fx:id="datePickerOneLabel" text="From:" visible="false"  minWidth="30" maxWidth="36" minHeight="25"
+               maxHeight="25" translateX="-55" translateY="-394"/>
 
 
-        <!-- Buttons (on the right in VBox) -->
-        <VBox spacing="5" alignment="TOP_LEFT" prefWidth="50" translateX="-5">
+        <Button fx:id="calendarButtonTwo" onAction="#handleOpenDatePickerTwo" styleClass="database-calendar-button"
+                visible="false" minWidth="30" maxWidth="30" minHeight="25" maxHeight="25" translateX="-15" translateY="-378">
+            <graphic>
+                <ImageView fitWidth="30" fitHeight="25">
+                    <Image url="@../images/calendar.png"/>
+                </ImageView>
+            </graphic>
+        </Button>
+        <Label fx:id="datePickerTwoLabel" text="To:" visible="false"  minWidth="30" maxWidth="36" minHeight="25"
+               maxHeight="25" translateX="-15" translateY="-394"/>
 
+
+
+
+        <VBox spacing="5" alignment="TOP_LEFT" minWidth="50" maxWidth="50" translateX="56" translateY="-5" >
             <Button fx:id="composeContractsButton" onAction="#handleComposeContracts" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
                 <graphic>
-                    <ImageView fitWidth="29" fitHeight="29">
+                    <ImageView fitWidth="28" fitHeight="28">
                         <Image url="@/images/create-contracts.png"/>
                     </ImageView>
                 </graphic>
@@ -62,7 +111,7 @@
             <!-- Edit Driver Button with Tooltip -->
             <Button fx:id="editDriverButton" onAction="#handleAssignDrivers" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
                 <graphic>
-                    <ImageView fitWidth="26" fitHeight="26">
+                    <ImageView fitWidth="24" fitHeight="24">
                         <Image url="@/images/driver-icon.png"/>
                     </ImageView>
                 </graphic>
@@ -81,7 +130,7 @@
 
             <Button fx:id="callingOffButton" onAction="#handleCallingOff" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
                 <graphic>
-                    <ImageView fitWidth="27" fitHeight="30">
+                    <ImageView fitWidth="25" fitHeight="28">
                         <Image url="@/images/calling-off.png"/>
                     </ImageView>
                 </graphic>
@@ -91,7 +140,7 @@
             <!-- Picking Up Button with Tooltip -->
             <Button fx:id="pickingUpButton" onAction="#handlePickingUp" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
                 <graphic>
-                    <ImageView fitWidth="27" fitHeight="30">
+                    <ImageView fitWidth="28" fitHeight="29">
                         <Image url="@/images/picking-up.png"/>
                     </ImageView>
                 </graphic>
@@ -101,7 +150,7 @@
             <!-- Create Invoices Button with Tooltip -->
             <Button fx:id="composeInvoicesButton" onAction="#handleComposeInvoices" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
                 <graphic>
-                    <ImageView fitWidth="29" fitHeight="29">
+                    <ImageView fitWidth="27" fitHeight="27">
                         <Image url="@/images/create-invoices.png"/>
                     </ImageView>
                 </graphic>
@@ -111,61 +160,19 @@
             <!-- Refresh Data Button with Tooltip -->
             <Button fx:id="refreshDataButton" onAction="#handleRefreshData" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
                 <graphic>
-                    <ImageView fitWidth="29" fitHeight="29">
+                    <ImageView fitWidth="27" fitHeight="27">
                         <Image url="@/images/refresh.png"/>
                     </ImageView>
                 </graphic>
             </Button>
-
-
         </VBox>
 
 
 
-        <VBox spacing="15" alignment="TOP_CENTER" HBox.hgrow="ALWAYS" translateY="-10">
-            <HBox>
-                <VBox fx:id="viewsTilePane" alignment="TOP_LEFT"
-                    prefWidth="80" prefHeight="100">
-                    <ToggleButton text="Today" onAction="#handleViewSelect" minWidth="75" maxWidth="75"/>
-                    <ToggleButton text="Customer" onAction="#handleViewSelect" minWidth="75" maxWidth="75"/>
-                    <ToggleButton text="Status" onAction="#handleViewSelect" minWidth="75" maxWidth="75"/>
-                    <ToggleButton text="Driver" onAction="#handleViewSelect" minWidth="75" maxWidth="75"/>
-                </VBox>
-                <VBox fx:id="leftSideVboxStatusView" visible="false" alignment="TOP_LEFT" translateX="-120">
-                    <ToggleButton text="Active"   minWidth="65" maxWidth="65"/>
-                    <ToggleButton text="Billable"  minWidth="65" maxWidth="65"/>
-                    <ToggleButton text="Upcoming"  minWidth="65" maxWidth="65"/>
-                    <ToggleButton text="Called Off"  minWidth="65" maxWidth="65"/>
-                </VBox>
-                <VBox fx:id="rightSideVboxStatusView" alignment="TOP_LEFT"  visible="false" translateX="100">
-                    <Label fx:id="rightSideDatePickerOneLabel" text="From:"/>
-                    <DatePicker fx:id="rightSideDatePickerOne"  translateX="-110"/>
-                    <Label fx:id="rightSideDatePickerTwoLabel" text="To:"/>
-                    <DatePicker fx:id="rightSideDatePickerTwo"  translateX="-110"/>
-                </VBox>
-                <VBox fx:id="leftSideVboxCustomerView" visible="false">
-                    <ComboBox fx:id="customerComboBox"/>
-                </VBox>
-                <VBox fx:id="rightSideVboxCustomerView" visible="false">
-                    <ToggleButton text="Active"   minWidth="65" maxWidth="65"/>
-                    <ToggleButton text="Billable"  minWidth="65" maxWidth="65"/>
-                    <ToggleButton text="Upcoming"  minWidth="65" maxWidth="65"/>
-                    <ToggleButton text="Called Off"  minWidth="65" maxWidth="65"/>
-                </VBox>
-            </HBox>
+        <Button fx:id="backButton" text="Back" onAction="#handleBack" translateX="34" translateY="-382"/>
 
 
-
-            <AnchorPane>
-                <TableView fx:id="dbTableViewTwo" prefHeight="486" prefWidth="263" translateY="-25" translateX="-13" />
-            </AnchorPane>
-
-        </VBox>
+    </StackPane>
 
 
-    </HBox>
-
-    <!-- Back Button (located at the top) -->
-    <Button fx:id="backButton" text="Back" layoutX="270" layoutY="5" onAction="#handleBack"/>
-
-</AnchorPane>
+ </AnchorPane>

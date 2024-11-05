@@ -125,21 +125,21 @@
     -fx-border-color: transparent;
     -fx-border-width: 2px;
     -fx-padding: 5px;
-    -fx-faint-focus-color: gray;
+    -fx-faint-focus-color: transparent;
 }
 
 .table-view:focused {
-    -fx-faint-focus-color: gray;
-    -fx-focus-color: gray;
-    -fx-border-color: gray;
+    -fx-faint-focus-color: transparent;
+    -fx-focus-color: transparent;
+    -fx-border-color: transparent;
 }
 
 /* TableColumnHeader focus */
 .table-column-header:focused {
-          -fx-border-color: gray;
+          -fx-border-color: transparent;
           -fx-border-width: 2px;
-          -fx-focus-color: gray;
-          -fx-faint-focus-color: gray;
+          -fx-focus-color: transparent;
+          -fx-faint-focus-color: transparent;
       } /* General rule for all controls to remove blue focus */
 
 :focused {
@@ -176,7 +176,8 @@
 
 .table-view .table-row-cell {
     -fx-border-color: transparent; /* Remove vertical lines between cells */
-    -fx-faint-focus-color: gray;
+    -fx-faint-focus-color: transparent;
+    -fx-background-color: #F4F4F4;
 }
 
 /* Ensure the selected row text remains black */
@@ -191,10 +192,10 @@
 }
 
 .table-row-cell:focused {
-   -fx-border-color: gray; /* Gray border on focus */
+   -fx-border-color: #F4F4F4; /* Gray border on focus */
    -fx-border-width: 2px; /* Adjust width if needed */
-   -fx-focus-color: gray; /* Gray focus color */
-   -fx-faint-focus-color: lightgray; /* Optional faint focus color */
+   -fx-focus-color: #F4F4F4; /* Gray focus color */
+   -fx-faint-focus-color: #F4F4F4; /* Optional faint focus color */
 }
 
 /* Optional: Style for TableView rows when hovered */
@@ -214,12 +215,12 @@
 }
 
 .table-view .table-row-cell:filled {
-    -fx-border-color: transparent; /* Make sure filled rows have transparent borders */
+    -fx-border-color: #F4F4F4; /* Make sure filled rows have transparent borders */
 }
 
 .table-view .table-row-cell:filled {
     -fx-border-color: #FFDEAD; /* Add bottom border color for horizontal lines */
-    -fx-border-width: 0 0 0.5px 0; /* Keep horizontal lines */
+    -fx-border-width: 0 0 0 0; /* Keep horizontal lines */
 }
 
 .table-view .table-row-cell {
@@ -263,6 +264,11 @@
     -fx-background-radius: 5; /* Rounded edges */
 }
 
+.scroll-bar .increment-button .arrow,
+.scroll-bar .decrement-button .arrow{
+    -fx-background-color: #F4F4F4;
+}
+
 .table-view .deliveryDateColumn .table-cell {
     -fx-alignment: CENTER; /* Center the text */
     -fx-text-fill: white; /* Adjust text color if necessary */
@@ -274,14 +280,25 @@
     -fx-pref-height: 30px;
 }
 
-.calendar-button {
+.schedule-delivery-calendar-button {
     -fx-background-color: transparent; /* Remove button background */
     -fx-border-color: transparent; /* Remove border */
     -fx-padding: 0px; /* Adjust padding */
     -fx-faint-focus-color: gray;
 }
 
-.calendar-button:hover {
+.schedule-delivery-calendar-button:hover {
+    -fx-background-color: orange; /* Optional hover background */
+}
+
+.database-calendar-button {
+    -fx-background-color: transparent; /* Remove button background */
+    -fx-border-color: transparent; /* Remove border */
+    -fx-padding: 0px; /* Adjust padding */
+    -fx-faint-focus-color: gray;
+}
+
+.database-calendar-button:hover {
     -fx-background-color: orange; /* Optional hover background */
 }
 
@@ -334,6 +351,23 @@
 .check-box:selected > .box {
     -fx-background-color: orange;
 }
+
+.status-type-button-rotating {
+    -fx-background-color: transparent; /* Default background */
+    -fx-text-fill: black; /* Text color */
+    -fx-font-size: 12px; /* Adjust font size */
+    -fx-padding: 1 0; /* Adjust top and bottom padding */
+    -fx-alignment: center; /* Center the text within the button */
+}
+
+.view-type-button-rotating {
+    -fx-background-color: transparent; /* Default background */
+    -fx-text-fill: black; /* Text color */
+    -fx-font-size: 15px; /* Adjust font size */
+    -fx-padding: 1 0; /* Adjust top and bottom padding */
+    -fx-alignment: center; /* Center the text within the button */
+}
+
 /* Styles for ToggleButtons in the lift type TilePane */
 .lift-type-button-rotating {
     -fx-background-color: transparent; /* Default background */
@@ -349,12 +383,46 @@
     -fx-text-fill: black; /* Text color when selected */
 }
 
+.view-type-button-rotating:selected {
+    -fx-background-color: #FFDEAD; /* Background color when selected */
+    -fx-text-fill: black; /* Text color when selected */
+}
+
+.status-type-button-rotating:selected {
+    -fx-background-color: #FFDEAD; /* Background color when selected */
+    -fx-text-fill: black; /* Text color when selected */
+}
+
 /* Hover state for Lift Type ToggleButtons */
 .lift-type-button-rotating:hover {
     -fx-background-color: orange; /* Background color when hovered */
 }
 
+.view-type-button-rotating:hover {
+    -fx-background-color: orange; /* Background color when hovered */
+}
+
+.status-type-button-rotating:hover {
+    -fx-background-color: orange; /* Background color when hovered */
+}
+
 .lift-type-button-stopped {
+    -fx-background-color: transparent; /* Default background */
+    -fx-text-fill: black; /* Text color */
+    -fx-font-size: 12px; /* Adjust font size */
+    -fx-padding: 1 0; /* Adjust top and bottom padding */
+    -fx-alignment: center; /* Center the text within the button */
+}
+
+.view-type-button-stopped {
+    -fx-background-color: transparent; /* Default background */
+    -fx-text-fill: black; /* Text color */
+    -fx-font-size: 12px; /* Adjust font size */
+    -fx-padding: 1 0; /* Adjust top and bottom padding */
+    -fx-alignment: center; /* Center the text within the button */
+}
+
+.status-type-button-stopped {
     -fx-background-color: transparent; /* Default background */
     -fx-text-fill: black; /* Text color */
     -fx-font-size: 12px; /* Adjust font size */
@@ -368,8 +436,41 @@
     -fx-text-fill: black; /* Text color when selected */
 }
 
+.view-type-button-stopped:selected {
+    -fx-background-color: orange; /* Background color when selected */
+    -fx-text-fill: black; /* Text color when selected */
+}
+
+.status-type-button-stopped:selected {
+    -fx-background-color: orange; /* Background color when selected */
+    -fx-text-fill: black; /* Text color when selected */
+}
+
+.lift-type-button-stopped:selected {
+    -fx-background-color: orange; /* Background color when selected */
+    -fx-text-fill: black; /* Text color when selected */
+}
+
+.view-type-button-stopped:selected {
+    -fx-background-color: orange; /* Background color when selected */
+    -fx-text-fill: black; /* Text color when selected */
+}
+
+.status-type-button-stopped:selected {
+    -fx-background-color: orange; /* Background color when selected */
+    -fx-text-fill: black; /* Text color when selected */
+}
+
 /* Hover state for Lift Type ToggleButtons */
 .lift-type-button-stopped:hover {
+    -fx-background-color: orange; /* Background color when hovered */
+}
+
+.view-type-button-stopped:hover {
+    -fx-background-color: orange; /* Background color when hovered */
+}
+
+.status-type-button-stopped:hover {
     -fx-background-color: orange; /* Background color when hovered */
 }
 
