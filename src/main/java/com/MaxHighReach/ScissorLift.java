@@ -32,25 +32,25 @@ public class ScissorLift extends Pane {
 
     private Circle createWheel1() {
         Circle wheel1 = new Circle(WHEEL_RADIUS, Color.GRAY);
-        wheel1.setCenterX(WHEEL_RADIUS + AppConstants.PADDING);
-        wheel1.setCenterY(AppConstants.WINDOW_HEIGHT - AppConstants.PADDING - WHEEL_RADIUS);
+        wheel1.setCenterX(WHEEL_RADIUS + Config.PADDING);
+        wheel1.setCenterY(Config.WINDOW_HEIGHT - Config.PADDING - WHEEL_RADIUS);
         wheel1.setOnMouseClicked(ScissorLift::handleWheelClick);
         return wheel1;
     }
 
     private void drawLift(double drawHeight) {
-        double width = AppConstants.SCISSOR_LIFT_WIDTH;
+        double width = Config.SCISSOR_LIFT_WIDTH;
         double baseHeight = WHEEL_RADIUS;
 
         getChildren().clear();
 
         Circle wheel2 = new Circle(WHEEL_RADIUS, Color.GRAY);
-        wheel2.setCenterX(width - WHEEL_RADIUS - AppConstants.PADDING);
-        wheel2.setCenterY(AppConstants.WINDOW_HEIGHT - AppConstants.PADDING - WHEEL_RADIUS);
+        wheel2.setCenterX(width - WHEEL_RADIUS - Config.PADDING);
+        wheel2.setCenterY(Config.WINDOW_HEIGHT - Config.PADDING - WHEEL_RADIUS);
 
         double rectYCoordinate = WHEEL_RADIUS * 2.7;
-        Rectangle base = new Rectangle(AppConstants.PADDING, AppConstants.WINDOW_HEIGHT - rectYCoordinate,
-                AppConstants.SCISSOR_LIFT_WIDTH - (AppConstants.PADDING * 2), WHEEL_RADIUS * 1.8);
+        Rectangle base = new Rectangle(Config.PADDING, Config.WINDOW_HEIGHT - rectYCoordinate,
+                Config.SCISSOR_LIFT_WIDTH - (Config.PADDING * 2), WHEEL_RADIUS * 1.8);
         base.setFill(Color.ORANGE);
 
         arm1 = new Line[ARM_COUNT];
@@ -59,37 +59,37 @@ public class ScissorLift extends Pane {
         arm2Borders = new Line[ARM_COUNT];
         double armWidth = 9;
         double borderWidth = armWidth + 2;
-        double lastArm = AppConstants.WINDOW_HEIGHT - rectYCoordinate;
+        double lastArm = Config.WINDOW_HEIGHT - rectYCoordinate;
         double armSpacing = drawHeight / ARM_COUNT;
 
         for (int i = 0; i < ARM_COUNT; i++) {
             // Only add borders for arms that are not the bottom two
             if (i < ARM_COUNT) {
             // Create arm1 border (grey)
-            arm1Borders[i] = new Line(AppConstants.PADDING + 15, lastArm,
-                                       width - AppConstants.PADDING - 15,
+            arm1Borders[i] = new Line(Config.PADDING + 15, lastArm,
+                                       width - Config.PADDING - 15,
                                        lastArm - armSpacing);
             arm1Borders[i].setStroke(Color.GREY);
             arm1Borders[i].setStrokeWidth(borderWidth);
 
             // Create arm2 border (grey)
-            arm2Borders[i] = new Line(AppConstants.PADDING + 15, lastArm - armSpacing,
-                                       width - AppConstants.PADDING - 15, lastArm);
+            arm2Borders[i] = new Line(Config.PADDING + 15, lastArm - armSpacing,
+                                       width - Config.PADDING - 15, lastArm);
             arm2Borders[i].setStroke(Color.GREY);
             arm2Borders[i].setStrokeWidth(borderWidth);
 
          }
 
             // Create arm1 (actual line with color)
-            arm1[i] = new Line(AppConstants.PADDING + 15, lastArm,
-                               width - AppConstants.PADDING - 15, lastArm - armSpacing);
+            arm1[i] = new Line(Config.PADDING + 15, lastArm,
+                               width - Config.PADDING - 15, lastArm - armSpacing);
             arm1[i].setStroke(Color.web("#FFDEAD"));
             arm1[i].setStrokeWidth(armWidth);
 
 
             // Create arm2 (actual line with color)
-            arm2[i] = new Line(AppConstants.PADDING + 15, lastArm - armSpacing,
-                               width - AppConstants.PADDING - 15, lastArm);
+            arm2[i] = new Line(Config.PADDING + 15, lastArm - armSpacing,
+                               width - Config.PADDING - 15, lastArm);
             arm2[i].setStroke(Color.web("#FFDEAD"));
             arm2[i].setStrokeWidth(armWidth);
 
@@ -109,14 +109,14 @@ public class ScissorLift extends Pane {
         getChildren().remove(arm1Borders[0]);
         getChildren().remove(arm2Borders[0]);
 
-        Rectangle platform = new Rectangle(AppConstants.PADDING, lastArm,
-                width - (AppConstants.PADDING * 2), AppConstants.PADDING * 2);
+        Rectangle platform = new Rectangle(Config.PADDING, lastArm,
+                width - (Config.PADDING * 2), Config.PADDING * 2);
         platform.setFill(Color.ORANGE);
 
         double railHeight = 30;
         double railWidth = 5;
 
-        Rectangle verticalRail1 = new Rectangle(AppConstants.PADDING, lastArm - (railHeight * 2),
+        Rectangle verticalRail1 = new Rectangle(Config.PADDING, lastArm - (railHeight * 2),
                 railWidth, railHeight * 2);
         verticalRail1.setFill(Color.ORANGE);
 
@@ -124,16 +124,16 @@ public class ScissorLift extends Pane {
                 railWidth, railHeight * 2);
         verticalRail2.setFill(Color.ORANGE);
 
-        Rectangle verticalRail3 = new Rectangle(AppConstants.WINDOW_WIDTH - AppConstants.PADDING - railWidth,
+        Rectangle verticalRail3 = new Rectangle(Config.WINDOW_WIDTH - Config.PADDING - railWidth,
                 lastArm - (railHeight * 2), railWidth, railHeight * 2);
         verticalRail3.setFill(Color.ORANGE);
 
-        Rectangle horizontalRail1 = new Rectangle(AppConstants.PADDING, lastArm - railHeight,
-                width - (AppConstants.PADDING * 2), railWidth);
+        Rectangle horizontalRail1 = new Rectangle(Config.PADDING, lastArm - railHeight,
+                width - (Config.PADDING * 2), railWidth);
         horizontalRail1.setFill(Color.ORANGE);
 
-        Rectangle horizontalRail2 = new Rectangle(AppConstants.PADDING, lastArm - (railHeight * 2),
-                width - (AppConstants.PADDING * 2), railWidth);
+        Rectangle horizontalRail2 = new Rectangle(Config.PADDING, lastArm - (railHeight * 2),
+                width - (Config.PADDING * 2), railWidth);
         horizontalRail2.setFill(Color.ORANGE);
 
         basket = new Rectangle[]{verticalRail1, verticalRail2, verticalRail3, horizontalRail1, horizontalRail2,

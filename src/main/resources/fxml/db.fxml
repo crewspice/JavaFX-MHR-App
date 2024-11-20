@@ -20,6 +20,7 @@
 <?import javafx.scene.shape.Rectangle?>
 <?import javafx.scene.shape.Line?>
 <?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.control.TextField?>
 <AnchorPane fx:id="anchorPane" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.DBController">
 
     <StackPane AnchorPane.leftAnchor="0" AnchorPane.topAnchor="0" prefWidth="320" prefHeight="800">
@@ -30,10 +31,8 @@
         </HBox>
         <Rectangle fx:id="datePickerOneCover" fill="#F4F4F4" translateX="-5" translateY="-370" width="167" height="35" />
 
-        <Button fx:id="updateRentalButton" text="Update Rental" onAction="#handleUpdateRental" prefWidth="300 " translateY="174" translateX="-99"/>
-
-
-
+        <Button fx:id="updateRentalButton" text="Update Rental" onAction="#handleUpdateRental" prefWidth="295" translateY="174" translateX="-99"/>
+        <TextField fx:id="serialNumberField" translateY="174" translateX="-180" minWidth="145" maxWidth="145" styleClass="transparent-text-field" visible="false" promptText="     Serial Number"/>
 
 
 

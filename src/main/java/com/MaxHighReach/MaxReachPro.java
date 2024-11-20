@@ -6,8 +6,6 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Polygon;
 import javafx.stage.Stage;
 
 import java.util.HashMap;
@@ -20,9 +18,10 @@ public class MaxReachPro extends Application {
     private static boolean isFirstScene = true;
     private static Map<String, String> sceneHierarchy = new HashMap<>();
     private static Stage primaryStage;
+    private static String[] user;
 
     private static double SCISSOR_DRAW_HEIGHT = 50;
-    private static double SCISSOR_INITIAL_HEIGHT = 350;
+    private static double SCISSOR_INITIAL_HEIGHT = Config.SCISSOR_LIFT_INITIAL_HEIGHT;
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -49,12 +48,12 @@ public class MaxReachPro extends Application {
         sceneHierarchy.put("/fxml/smm_tax.fxml", "/fxml/home.fxml");
         sceneHierarchy.put("/fxml/db.fxml", "/fxml/home.fxml");
         sceneHierarchy.put("/fxml/schedule_delivery.fxml", "/fxml/home.fxml");
-        sceneHierarchy.put("/fxml/create_invoices.fxml", "/fxml/db.fxml");
+        sceneHierarchy.put("/fxml/compose_invoices.fxml", "/fxml/db.fxml");
         sceneHierarchy.put("/fxml/sync_with_qb.fxml", "/fxml/home.fxml");
 
         loadScene("/fxml/login.fxml");
 
-        Scene scene = new Scene(mainLayout, AppConstants.WINDOW_WIDTH, AppConstants.WINDOW_HEIGHT);
+        Scene scene = new Scene(mainLayout, Config.WINDOW_WIDTH, Config.WINDOW_HEIGHT);
         scene.getStylesheets().add(getClass().getResource("/styles/styles.css").toExternalForm());
 
         stage.setTitle("MaxReachPro");
@@ -117,6 +116,18 @@ public class MaxReachPro extends Application {
         return scissorLift;
     }
 
+    public static void setUser(String[] userInfo) {
+       user = userInfo;
+       System.out.println("User set: " + userInfo[0] + " (" + userInfo[1] + ")");
+   }
+
+    public static String[] getUser(){
+        if (user == null) {
+            return new String[]{"", "", ""};
+        }
+        return user;
+    }
+
 
     public static void goBack(String previousScene) throws Exception {
         if (sceneHierarchy.containsKey(previousScene)) {
@@ -127,7 +138,4 @@ public class MaxReachPro extends Application {
         }
     }
 
-    public static double getScissorInitialHeight() {
-        return SCISSOR_INITIAL_HEIGHT;
-    }
 }

@@ -476,12 +476,33 @@
 
 /* Styles for ToggleButtons in the delivery time TilePane */
 .delivery-time-button {
-    -fx-background-color: transparent; /* Default background */
+    -fx-background-color: radial-gradient(
+            center 10% 25%,
+            radius 40%,
+            orange 0%,
+            transparent 50%,
+            hotpink 100%
+    ); /* Default background */
     -fx-text-fill: black; /* Text color */
     -fx-font-size: 12px; /* Adjust font size */
     -fx-padding: 1 0; /* Adjust top and bottom padding */
     -fx-alignment: center; /* Center the text within the button */
 }
+
+.delivery-time-button-reverse {
+    -fx-background-color: radial-gradient(
+            center 90% 25%,
+            radius 40%,
+            orange 0%,
+            transparent 50%,
+            hotpink 100%
+    ); /* Default background */
+    -fx-text-fill: black; /* Text color */
+    -fx-font-size: 12px; /* Adjust font size */
+    -fx-padding: 1 0; /* Adjust top and bottom padding */
+    -fx-alignment: center; /* Center the text within the button */
+}
+
 
 /* Selected state for Delivery Time ToggleButtons */
 .delivery-time-button:selected {
@@ -491,6 +512,17 @@
 
 /* Hover state for Delivery Time ToggleButtons */
 .delivery-time-button:hover {
+    -fx-background-color: orange !important; /* Background color when hovered */
+}
+
+/* Selected state for Delivery Time ToggleButtons */
+.delivery-time-button-reverse:selected {
+    -fx-background-color: orange; /* Background color when selected */
+    -fx-text-fill: black; /* Text color when selected */
+}
+
+/* Hover state for Delivery Time ToggleButtons */
+.delivery-time-button-reverse:hover {
     -fx-background-color: orange; /* Background color when hovered */
 }
 

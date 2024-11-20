@@ -62,7 +62,7 @@
     <TilePane fx:id="deliveryTimeTilePane" layoutX="78" layoutY="187" hgap="-12" vgap="0" prefColumns="4">
         <ToggleButton fx:id="deliveryTime8To10Button" text="8-10" minWidth="35" maxWidth="35" styleClass="delivery-time-button"/>
         <ToggleButton text="ASAP" minWidth="35" maxWidth="35" styleClass="delivery-time-button"/>
-        <ToggleButton text="Any" minWidth="35" maxWidth="35" styleClass="delivery-time-button"/>
+        <ToggleButton text="Any" minWidth="35" maxWidth="35" styleClass="delivery-time-button-reverse"/>
         <ToggleButton fx:id="customButton" text="Custom" minWidth="50" maxWidth="50" translateX="5" styleClass="delivery-time-button"/>
     </TilePane>
 

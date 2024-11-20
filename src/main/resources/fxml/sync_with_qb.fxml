@@ -5,8 +5,14 @@
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.HBox?>
 
+<?import javafx.scene.control.ToggleButton?>
 <AnchorPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.SyncWithQBController">
     <Label text="Sync with QuickBooks" layoutX="20" layoutY="20"/>
+    <HBox fx:id="syncablesTilePane"
+         translateX="15" translateY="40">
+        <ToggleButton text="Customers" minWidth="80" maxWidth="80" fx:id="customersButton" />
+        <ToggleButton text="Sales Items" minWidth="75" maxWidth="75" fx:id="salesItemsButton"/>
+    </HBox>
     <Label fx:id="statusLabel" layoutX="20" layoutY="50" style="-fx-text-fill: red;"/>
     <Label fx:id="progressLabel" layoutX="20" layoutY="80"/>
 

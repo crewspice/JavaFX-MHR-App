@@ -10,6 +10,8 @@ import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
@@ -19,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.*;
 import java.time.YearMonth;
 import java.util.regex.Matcher;
@@ -54,30 +57,19 @@ public class ComposeInvoicesController extends BaseController {
     @FXML
     private Label dateRangeLabel;
 
-    @FXML
-    private HBox confirmationPrompt;
 
     @FXML
-    private Button refreshButton, composeInvoicesButton;
+    private Button composeInvoicesButton;
+    @FXML
+    private Button openSDKButton;
 
     @FXML
     private TableView<CustomerRental> dbTableView;
     @FXML
-    private TableColumn<CustomerRental, Boolean> selectColumn;
-    @FXML
-    private TableColumn<CustomerRental, Integer> idColumn;
-    @FXML
-    private TableColumn<CustomerRental, String> nameColumn;
-    @FXML
-    private TableColumn<CustomerRental, String> orderDateColumn;
-    @FXML
-    private TableColumn<CustomerRental, String> driverColumn;
-    @FXML
-    private TableColumn<CustomerRental, String> statusColumn;
-    @FXML
     private Label loadingLabel;
+
     @FXML
-    private ComboBox<String> filterComboBox;
+    private HBox confirmationPrompt;
 
     private ObservableList<CustomerRental> ordersList = FXCollections.observableArrayList();
     private ObservableList<String> driverInitials = FXCollections.observableArrayList("JD", "AB", "MG", "CN");
@@ -104,7 +96,7 @@ public class ComposeInvoicesController extends BaseController {
         OUTPUT_DIRECTORY = PREFIX;
         TEMPLATE_PATH = PREFIX + "SMM template 2020.xlsx";
         SCRIPT_PATH = PREFIX + SRCDIR + "scripts\\orchestrate_process.py";
-        INVOICE_QUERY = PREFIX + SRCDIR + "scripts\\invoice_query.xml";
+        INVOICE_QUERY = PREFIX + SRCDIR + "scripts\\invoice_batch.xml";
         SDK_OUTPUT = PREFIX + SRCDIR + "outputs\\QBResponse.xml";
         SDK_PATH = PREFIX + "..\\..\\Quickbooks\\QBProgram Development\\Intuit Applications\\IDN\\QBSDK16.0\\tools\\SDKTest\\SDKTestPlus3.exe";
     }
@@ -120,245 +112,190 @@ public class ComposeInvoicesController extends BaseController {
     @FXML
     public void initialize() {
         super.initialize();
-        runSDKTool();
-        super.initialize();
 
         dbTableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 
-        selectColumn.setCellValueFactory(param -> new SimpleBooleanProperty(param.getValue().isSelected()));
-        selectColumn.setCellFactory(column -> new TableCell<CustomerRental, Boolean>() {
-            private final CheckBox checkBox = new CheckBox();
-            @Override
-            protected void updateItem(Boolean item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
-                } else {
-                    checkBox.setSelected(item != null && item);
-                    setGraphic(checkBox);
-
-                    checkBox.setOnAction(e -> {
-                        getTableView().getItems().get(getIndex()).setSelected(checkBox.isSelected());
-                    });
-                }
-            }
-        });
-
-        // Initialize table columns
-        idColumn.setCellValueFactory(new PropertyValueFactory<>("customerId"));
-        nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
-
-        // Date formatting without leading zeros for month and day (M/d format)
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d");
-
-        // Customize orderDateColumn to show date in M/d format
-        orderDateColumn.setCellValueFactory(new PropertyValueFactory<>("orderDate"));
-        orderDateColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                } else {
-                    // Parse the date string into a LocalDate and format it
-                    LocalDate date = LocalDate.parse(item);  // assuming item is in yyyy-MM-dd format
-                    setText(date.format(formatter));
-                }
-            }
-        });
-
-        orderDateColumn.setComparator((date1, date2) -> {
-            LocalDate d1 = LocalDate.parse(date1);  // assuming dates are stored in yyyy-MM-dd format
-            LocalDate d2 = LocalDate.parse(date2);
-            return d1.compareTo(d2);  // Ascending order (earlier dates first)
-        });
-
-        driverColumn.setCellValueFactory(new PropertyValueFactory<>("driver"));
-        statusColumn.setCellValueFactory(cellData -> cellData.getValue().statusProperty());
-
-        // Disable resizing
-        selectColumn.setResizable(false);
-        idColumn.setResizable(false);
-        nameColumn.setResizable(false);
-        orderDateColumn.setResizable(false);
-        driverColumn.setResizable(false);
-        statusColumn.setResizable(false);
-
-        // Initialize filter combo box
-        filterComboBox.setItems(FXCollections.observableArrayList(
-                "All Rentals",
-                "Today's Rentals",
-                "Yesterday's Rentals",
-                "Custom Date Range",
-                "Ended Rentals"
-        ));
-        filterComboBox.setValue("All Rentals"); // Default selection
-
-        // Set the initial cell factory to default mode for the driver column
-        driverColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setGraphic(null);
-                } else {
-                    setText(item);
-                    setGraphic(null);
-                }
-            }
-        });
-
-        // Enable table editing
+                // Enable table editing
         dbTableView.setEditable(true);
 
         // Load data initially
         showLoadingMessage(true);
-        loadDataAsync("All Rentals");
+        loadData();
+        showLoadingMessage(false);
 
-        // Handle filter changes
-        filterComboBox.setOnAction(event -> handleFilterSelection());
+        Image image = new Image(getClass().getResourceAsStream("/images/send-to-quickbooks.png"));
+        ImageView imageView = new ImageView(image);
+        imageView.setFitHeight(17);
+        imageView.setFitWidth(20);
 
-        showSelectableCheckboxes(true);
-        composeInvoicesButton.setVisible(isAnySelected());
-    }
+        HBox hbox = new HBox();
+        hbox.getChildren().addAll(new Label("Send to Quickbooks  "), imageView);
 
-    private void loadDataAsync(String filter) {
-        Task<Void> task = new Task<Void>() {
-            @Override
-            protected Void call() throws Exception {
-                loadData(filter);
-                return null;
+        openSDKButton.setGraphic(hbox);
+
+        // Path of the file you want to delete
+        String saveDirectory = "C:\\Users\\maxhi\\OneDrive\\Documents\\Quickbooks\\QBProgram Development\\Invoice Creating";
+        String filename = "invoice_batch.xml";
+        String filePath = saveDirectory + "\\" + filename;
+
+
+        // Check if the file exists and delete it if found
+        File file = new File(filePath);
+
+        if (file.exists()) {
+            try {
+                Files.delete(Paths.get(filePath));  // Delete the file
+                System.out.println("Existing file " + filePath + " deleted.");
+            } catch (Exception e) {
+                System.err.println("Error deleting the file: " + e.getMessage());
             }
-
-            @Override
-            protected void succeeded() {
-                Platform.runLater(() -> {
-                    showLoadingMessage(false);
-                    dbTableView.setItems(ordersList); // Update the table
-                    refreshButton.setVisible(true);
-                });
-            }
-
-            @Override
-            protected void failed() {
-                Platform.runLater(() -> {
-                    showLoadingMessage(false);
-                    loadingLabel.setText("Failed to load data.");
-                    refreshButton.setVisible(true);
-                });
-            }
-        };
-        refreshButton.setVisible(false); // Hide refresh while loading
-        new Thread(task).start();
-    }
-
-    private void loadData(String filter) {
-        ordersList.clear();
-        String query = "SELECT customers.customer_id, customers.name, rentals.rental_date, rentals.driver, rentals.status " +
-                   "FROM customers JOIN rentals ON customers.customer_id = rentals.customer_id";
-
-        // Modify query based on filter
-        switch (filter) {
-            case "Today's Rentals":
-                query += " WHERE DATE(rentals.rental_date) = CURDATE()";
-                break;
-            case "Yesterday's Rentals":
-                query += " WHERE DATE(rentals.rental_date) = CURDATE() - INTERVAL 1 DAY";
-                break;
-            case "Custom Date Range":
-                // Implement custom date range logic here if needed
-                break;
-            case "Ended Rentals":
-                query += " WHERE rentals.status = 'Picked Up'";
-                break;
-            case "All Rentals":
-                // No additional filtering
-                break;
+        } else {
+            System.out.println("No existing file found to delete.");
         }
 
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
+    }
+
+    private void loadData() {
+        ordersList.clear();
+        dbTableView.setItems(ordersList);
+
+        dbTableView.setVisible(true);
+        DBColumnFactory dbColumnFactory = new DBColumnFactory(dbTableView, composeInvoicesButton);
+        dbTableView.getColumns().addAll(dbColumnFactory.getSelectColumn(),
+                dbColumnFactory.getStatusColumn(),
+                dbColumnFactory.getAddressColumn(),
+                dbColumnFactory.getDeliveryDateColumn(),
+                dbColumnFactory.getInvoiceColumn());
+
+        String query = "SELECT * FROM customers " +
+               "JOIN rental_orders ON customers.customer_id = rental_orders.customer_id " +
+               "JOIN rental_items ON rental_orders.rental_order_id = rental_items.rental_order_id " +
+                "JOIN lifts ON lifts.lift_id = rental_items.lift_id " +
+                "WHERE rental_items.item_status IN ('Called Off', 'Picked Up')";
+
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
              Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(query)) {
 
             while (resultSet.next()) {
                 String id = resultSet.getString("customer_id");
-                String name = resultSet.getString("name");
-                String rentalDate = resultSet.getString("rental_date");
-                String deliveryTime = resultSet.getString("deliveryTime");
+                String name = resultSet.getString("customer_name");
+                String rentalDate = resultSet.getString("item_delivery_date");
+                String deliveryTime = resultSet.getString("delivery_time");
                 String driver = resultSet.getString("driver");
-                String status = resultSet.getString("status");
-                int refNumber = resultSet.getInt("RefNumber");
-                int rental_id = resultSet.getInt("rental_id");
+                String status = resultSet.getString("item_status");
+                int rental_id = resultSet.getInt("rental_order_id");
+                int rental_item_id = resultSet.getInt("rental_item_id");
+                String refNumber = resultSet.getString("customer_ref_number");
+                String serialNumber = resultSet.getString("serial_number");
+                String liftType = resultSet.getString("lift_type");
+                boolean isInvoiceWrit = resultSet.getBoolean("invoice_composed");
 
-                ordersList.add(new CustomerRental(id, name, rentalDate, deliveryTime, driver != null ? driver : "", status != null ? status : "Unknown", refNumber, rental_id));
+                CustomerRental rental = new CustomerRental(id, name, rentalDate, deliveryTime, driver != null ? driver : "", status != null ? status : "Unknown", refNumber, rental_id);
+                rental.setRentalItemId(rental_item_id);
+                rental.setSerialNumber(serialNumber);
+                rental.setLiftType(liftType);
+                rental.setInvoiceWritten(isInvoiceWrit);
+
+                ordersList.add(rental);
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-    }
-
-    @FXML
-    private void handleFilterSelection() {
-        String selectedFilter = filterComboBox.getValue();
-        showLoadingMessage(true);
-        loadDataAsync(selectedFilter);
-    }
-
-    @FXML
-    private void handleRefresh() {
-        showLoadingMessage(true);
-        loadDataAsync (filterComboBox.getValue());
-    }
-
-    private void handleSelection(boolean isSelected, int index) {
-        dbTableView.getItems().get(index).setSelected(isSelected);
-
-        // Show the update button only if at least one row is selected
-
-        composeInvoicesButton.setVisible(isAnySelected());
-
-    }
-
-    private boolean isAnySelected() {
-        return dbTableView.getItems().stream().anyMatch(CustomerRental::isSelected);
-    }
-
-    private void showSelectableCheckboxes(boolean visible) {
-        selectColumn.setCellFactory(tc -> new TableCell<CustomerRental, Boolean>() {
-            private final CheckBox checkBox = new CheckBox();
-
-            @Override
-            protected void updateItem(Boolean item, boolean empty) {
-                super.updateItem(item, empty);
-                if (!empty) {
-                    CustomerRental order = getTableView().getItems().get(getIndex());
-                    checkBox.setVisible(visible);
-                    checkBox.setSelected(order.isSelected() || order.isFlagged()); // Default checked if flagged
-                    setGraphic(checkBox);
-
-                    checkBox.setOnAction(e -> {
-                        handleSelection(checkBox.isSelected(), getIndex());
-                        order.setSelected(checkBox.isSelected());
-                        System.out.println("Checkbox at index " + getIndex() + " selected: " + checkBox.isSelected());
-                    });
-                } else {
-                    setGraphic(null);
-                }
-            }
-        });
+        clearAllComposingInvoiceInDB();
     }
 
     @FXML
     private void handleComposeInvoices(ActionEvent event) {
         System.out.println("Compose Invoices button clicked");
 
-        // Path to the Python script
-        String scriptPath = "C:\\Users\\maxhi\\OneDrive\\Documents\\Quickbooks\\QBProgram Development\\Invoice Creating\\.venv\\Scripts\\make_invoices_from_queue.py";
 
-        // Execute the Python script directly without passing data
-        executePythonScript(scriptPath);
+        // Get selected rentals from the table
+        ObservableList<CustomerRental> selectedRentals = dbTableView.getItems().filtered(CustomerRental::isSelected);
+
+
+        // Check if any rentals are selected
+        if (selectedRentals.isEmpty()) {
+            System.out.println("No rentals selected.");
+            statusLabel.setText("No rentals selected.");
+            return;
+        }
+
+
+        System.out.println("Number of selected rentals: " + selectedRentals.size());
+
+        for (CustomerRental rental : ordersList) {
+            rental.setWritingInvoice(false);
+        }
+        clearAllComposingInvoiceInDB();
+
+        // Loop through each selected rental and flag it in the database
+        boolean anyUpdated = false;
+        for (CustomerRental rental : selectedRentals) {
+            System.out.println("Processing rental item ID: " + rental.getRentalItemId());
+            boolean updateSuccess = flagComposingInvoiceInDB(rental.getRentalItemId());
+
+
+            if (updateSuccess) {
+                anyUpdated = true;
+                rental.setWritingInvoice(true);
+            } else {
+                System.out.println("Failed to update rental item ID: " + rental.getRentalItemId());
+            }
+        }
+
+
+        // Show confirmation if any updates were successful
+        if (anyUpdated) {
+            System.out.println("At least one rental item was updated successfully.");
+
+            statusLabel.setText("Selected rentals updated successfully.");
+            // Path to the Python script
+            String scriptPath = "C:\\Users\\maxhi\\OneDrive\\Documents\\Quickbooks\\QBProgram Development\\Invoice Creating\\.venv\\Scripts\\make_invoices_from_queue.py";
+
+            // Execute the Python script directly without passing data
+            executePythonScript(scriptPath);
+
+            openSDKButton.setVisible(true);
+        } else {
+            System.out.println("No rental items were updated.");
+            statusLabel.setText("No rentals updated.");
+        }
+        resetCheckboxes();
+        dbTableView.refresh();
     }
+
+    private boolean flagComposingInvoiceInDB(int rentalItemId) {
+        System.out.println("Attempting to update rental item ID: " + rentalItemId);
+        String updateQuery = "UPDATE rental_items SET composing_invoice = 1 WHERE rental_item_id = ?";
+        boolean success = false;
+
+
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+             PreparedStatement statement = connection.prepareStatement(updateQuery)) {
+
+
+            statement.setInt(1, rentalItemId);
+            int rowsUpdated = statement.executeUpdate();
+
+
+            if (rowsUpdated > 0) {
+                System.out.println("Update successful for rental item ID: " + rentalItemId);
+                success = true;
+            } else {
+                System.out.println("No rows updated for rental item ID: " + rentalItemId);
+            }
+
+
+        } catch (SQLException e) {
+            System.err.println("SQL exception while updating rental item ID " + rentalItemId + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+
+
+        return success;
+    }
+
 
     private void executePythonScript(String scriptPath) {
         try {
@@ -381,6 +318,12 @@ public class ComposeInvoicesController extends BaseController {
             int exitCode = process.waitFor();
             System.out.println("Python script executed with exit code: " + exitCode);
 
+            Platform.runLater(() -> {
+                if (exitCode == 0) {
+                    confirmationPrompt.setVisible(true);
+                }
+            });
+
             if (exitCode != 0) {
                 System.err.println("Python script returned an error.");
             }
@@ -390,12 +333,38 @@ public class ComposeInvoicesController extends BaseController {
         }
     }
 
+    @FXML
+    private void handleOpenSDK(ActionEvent event){
+        runSDKTool();
+    }
 
+    private void resetCheckboxes() {
+        // Deselect all checkboxes in the table
+        for (CustomerRental order : dbTableView.getItems()) {
+            order.setSelected(false);
+        }
+    }
+
+    @FXML
+    public void handleConfirmationYes(){
+        for (CustomerRental rental : ordersList) {
+            if (rental.isWritingInvoice()) {
+                updateInvoiceWrittenInDB(rental.getRentalItemId());
+            }
+        }
+        confirmationPrompt.setVisible(false);
+        dbTableView.refresh();
+    }
+
+    @FXML
+    public void handleConfirmationNo(){
+        confirmationPrompt.setVisible(false);
+    }
 
     @FXML
     public void handleBack(ActionEvent event) {
         try {
-            MaxReachPro.goBack("/fxml/create_invoices.fxml");
+            MaxReachPro.goBack("/fxml/compose_invoices.fxml");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -406,11 +375,10 @@ public class ComposeInvoicesController extends BaseController {
             loadingLabel.setText("Loading database...");
             loadingLabel.setVisible(true);
             dbTableView.setVisible(false);
-            refreshButton.setVisible(false);
+
         } else {
             loadingLabel.setVisible(false);
             dbTableView.setVisible(true);
-            refreshButton.setVisible(true);
         }
     }
 
@@ -427,122 +395,6 @@ public class ComposeInvoicesController extends BaseController {
                 }
             }
             return totalHeight;
-        }
-    }
-
-
-    @FXML
-    private void handleConfirmationYes(ActionEvent event) {
-        Platform.runLater(() -> {
-            // Hide confirmation prompt and "Please use the Quickbooks SDK..." message
-            confirmationPrompt.setVisible(false);
-            statusLabel.setText("Processing...");
-            runPythonScript();
-        });
-    }
-
-    @FXML
-    private void handleConfirmationNo(ActionEvent event) {
-        Platform.runLater(() -> {
-            confirmationPrompt.setVisible(false);
-            statusLabel.setText("Please prepare the invoices file and try again.");
-        });
-    }
-
-   private void runPythonScript() {
-        // Hide the status label when the script starts running
-        Platform.runLater(() -> statusLabel.setVisible(false));
-
-        System.out.println("SDK Path: " + SDK_PATH);
-
-        new Thread(() -> {
-            try {
-                ProcessBuilder processBuilder = new ProcessBuilder("python", SCRIPT_PATH, SDK_OUTPUT);
-                processBuilder.redirectErrorStream(true);
-                Process process = processBuilder.start();
-
-                Platform.runLater(() -> progressLabel.setText("Running Python script..."));
-
-                StringBuilder outputBuilder = new StringBuilder();
-
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        // Accumulate the output lines in the StringBuilder
-                        outputBuilder.append(line).append("\n");
-
-                        // Update the progressLabel with the latest output
-                        Platform.runLater(() -> progressLabel.setText(outputBuilder.toString()));
-                    }
-                }
-
-                int exitCode = process.waitFor();
-                Platform.runLater(() -> {
-                    if (exitCode == 0) {
-                        renameGeneratedFile();
-                        statusLabel.setText("SMM file completed.");
-                        statusLabel.setVisible(false);  // Show the status label again
-                        progressLabel.setText("Script finished successfully.");
-                    } else {
-                        statusLabel.setText("SMM Task failed with exit code: " + exitCode);
-                        statusLabel.setVisible(true);  // Show the status label again
-                        progressLabel.setText("Script encountered an error.");
-                    }
-                    loadingIndicator.setVisible(false);
-                });
-
-            } catch (IOException | InterruptedException e) {
-                e.printStackTrace();
-                Platform.runLater(() -> {
-                    statusLabel.setText("SMM Task encountered an error.");
-                    statusLabel.setVisible(true);  // Show the status label again
-                    progressLabel.setText("Error during script execution.");
-                    loadingIndicator.setVisible(false);
-                });
-            }
-        }).start();
-    }
-
-
-    private void renameGeneratedFile() {
-        String dateRange = normalizeDateRange(dateRangeTextField.getText());
-        if (dateRange == null) {
-            Platform.runLater(() -> statusLabel.setText("Date range is not valid."));
-            return;
-        }
-
-        String tempFilePath = OUTPUT_DIRECTORY + "Filled_SMM_Temp.xlsx";
-        String newFileName = "SMM_" + dateRange + ".xlsx";
-        File tempFile = new File(tempFilePath);
-        File renamedFile = new File(OUTPUT_DIRECTORY, newFileName);
-
-        int count = 1;
-      //  File renamedFile = new File(OUTPUT_DIRECTORY, "SMM_" + dateRange + "(" + count + ").xlsx");
-
-        // Print the initial state of the renamedFile
-        System.out.println("Initial renamedFile path: " + renamedFile.getAbsolutePath());
-
-        while (renamedFile.exists()) {
-            newFileName = "SMM_" + dateRange + "(" + count + ").xlsx";
-            renamedFile = new File(OUTPUT_DIRECTORY, newFileName);
-            count++;
-
-            // Print the new state of the renamedFile each iteration
-            System.out.println("Checking if renamedFile exists: " + renamedFile.getAbsolutePath());
-        }
-
-        if (tempFile.exists()) {
-            System.out.println("Temporary file exists: " + tempFile.getAbsolutePath());
-
-            if (tempFile.renameTo(renamedFile)) {
-                Platform.runLater(() -> statusLabel.setText("SMM file completed."));
-            } else {
-                Platform.runLater(() -> statusLabel.setText("File renaming failed."));
-                System.out.println("Failed to rename file. Temp file: " + tempFile.getAbsolutePath() + ", Renamed file: " + renamedFile.getAbsolutePath());
-            }
-        } else {
-            Platform.runLater(() -> statusLabel.setText("Temporary file does not exist."));
-            System.out.println("Temporary file does not exist: " + tempFile.getAbsolutePath());
         }
     }
 
@@ -563,21 +415,16 @@ public class ComposeInvoicesController extends BaseController {
             statusLabel.setVisible(false);
             progressLabel.setText(
                 "Instructions:\n" +
-                "1. Fill in the request file\n" +
-                "   i. Click \"Browse\" by \"Request File\"\n" +
-                "   ii. Select \"invoice_query.xml\"\n" +
+                "1. Select \"invoice_batch.xml\" as the \"Rsquest File\"\n" +
                 "2. Open QuickBooks\n" +
                 "3. Click \"Open Connection\"\n" +
                 "4. Click \"Begin Session\"\n" +
                 "5. Click \"Send XML to Request Processor\"\n" +
-                "6. Wait for invoices to be received\n" +
-                "7. Click \"View Output\"\n" +
-                "8. Save that file\n" +
-                "   i. Use shortcut Ctrl + S\n" +
-                "   ii. Overwrite \"QBResponse.xml\"\n" +
-                "Finished!   -    Click Yes below"
+                "Finished!  -  Click Yes below if new QB invoices exist"
             );
             progressLabel.setVisible(true);
+            progressLabel.setTranslateX(-20);
+            progressLabel.setTranslateY(-25);
         });
 
         new Thread(() -> {
@@ -618,95 +465,50 @@ public class ComposeInvoicesController extends BaseController {
         }).start();
     }
 
-    private String normalizeDateRange(String dateRange) {
-        Pattern[] patterns = {
-                Pattern.compile("(\\d{2})-(\\d{2})"),  // MM-YY
-                Pattern.compile("(\\d{2})/(\\d{2})"),  // MM/YY
-                Pattern.compile("(\\d{2})/(\\d{4})"),   // MM/YYYY
-                Pattern.compile("(\\d{2})-(\\d{4})")   // MM-YYYY
-        };
+    private void updateInvoiceWrittenInDB(int rentalItemId) {
+        System.out.println("Attempting to update rental item ID: " + rentalItemId);
+        String updateQuery = "UPDATE rental_items SET invoice_composed = 1 WHERE rental_item_id = ?";
+        boolean success = false;
 
-        for (Pattern pattern : patterns) {
-            Matcher matcher = pattern.matcher(dateRange);
-            if (matcher.matches()) {
-                String month = matcher.group(1);
-                String year = matcher.group(2);
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+             PreparedStatement statement = connection.prepareStatement(updateQuery)) {
 
-                if (year.length() == 2) {
-                    year = "20" + year;
-                }
+            statement.setInt(1, rentalItemId);
+            int rowsUpdated = statement.executeUpdate();
 
-                return month + "-" + year;
-            }
-        }
-
-        return null;
-    }
-
-    /*
-
-            <?qbxml version="8.0"?>
-        <QBXML>
-          <QBXMLMsgsRq onError="stopOnError">
-            <InvoiceAddRq>
-            <InvoiceAdd defMacro="MACROTYPE">
-                 <CustomerRef>
-                 <TemplateRef>
-                 </TemplateRef>
-                 </CustomerRef>
-            </InvoiceAdd>
-            </InvoiceAddRq>
-          </QBXMLMsgsRq>
-        </QBXML>
-
-     */
-
-    private boolean updateXmlWithDateRange(String dateRange, String xmlFilePath) {
-        try {
-            Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new File(xmlFilePath));
-
-            Element fromDateElement = (Element) doc.getElementsByTagName("FromTxnDate").item(0);
-            Element toDateElement = (Element) doc.getElementsByTagName("ToTxnDate").item(0);
-
-            String[] parts = dateRange.split("-");
-            if (parts.length != 2) {
-                throw new IllegalArgumentException("Invalid date range format.");
+            if (rowsUpdated > 0) {
+                System.out.println("Update successful for rental item ID: " + rentalItemId);
+                success = true;
+            } else {
+                System.out.println("No rows updated for rental item ID: " + rentalItemId);
             }
 
-            String month = parts[0];
-            String year = parts[1];
-
-            LocalDate firstDate = YearMonth.of(Integer.parseInt(year), Integer.parseInt(month)).atDay(1);
-            LocalDate lastDate = firstDate.withDayOfMonth(firstDate.lengthOfMonth());
-
-            fromDateElement.setTextContent(firstDate.toString());
-            toDateElement.setTextContent(lastDate.toString());
-
-            Transformer transformer = TransformerFactory.newInstance().newTransformer();
-            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-            transformer.transform(new DOMSource(doc), new StreamResult(new File(xmlFilePath)));
-
-            return true;
-        } catch (Exception e) {
+        } catch (SQLException e) {
+            System.err.println("SQL exception while updating rental item ID " + rentalItemId + ": " + e.getMessage());
             e.printStackTrace();
-            return false;
         }
     }
 
-    private boolean copyTemplateFile(String src, String dest) {
-        try {
-            File sourceFile = new File(src);
-            File destFile = new File(dest);
+    private void clearAllComposingInvoiceInDB() {
+        System.out.println("Attempting to clear all composing invoices in the database.");
+        String updateQuery = "UPDATE rental_items SET composing_invoice = 0 WHERE composing_invoice = 1";
+        boolean success = false;
 
-            if (destFile.exists()) {
-                destFile.delete();
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+             PreparedStatement statement = connection.prepareStatement(updateQuery)) {
+
+            int rowsUpdated = statement.executeUpdate();
+
+            if (rowsUpdated > 0) {
+                System.out.println("Update successful for all composing invoices.");
+                success = true;
+            } else {
+                System.out.println("No rows updated for composing invoices.");
             }
 
-            Files.copy(sourceFile.toPath(), destFile.toPath());
-            return true;
-        } catch (IOException e) {
+        } catch (SQLException e) {
+            System.err.println("SQL exception while updating composing invoices: " + e.getMessage());
             e.printStackTrace();
-            return false;
         }
     }
 

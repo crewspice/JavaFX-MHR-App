@@ -61,7 +61,7 @@ public class LoginController extends BaseController {
 
     @Override
     public double getTotalHeight() {
-        return MaxReachPro.getScissorInitialHeight();
+        return Config.SCISSOR_LIFT_INITIAL_HEIGHT;
     }
 
     private void handleTabKey(KeyEvent event) {
@@ -110,6 +110,16 @@ public class LoginController extends BaseController {
 
     @FXML
     private void handleLogin(ActionEvent event) {
+        String enteredName = nameField.getText().trim();  // Get and trim the input
+
+        // Set user if a match is found in the array
+        for (String[] employee : Config.EMPLOYEES) {
+            if (employee[0].equals(enteredName)) {
+                MaxReachPro.setUser(employee);  // Set the user if a match is found
+                break;  // Exit the loop once the user is set
+            }
+        }
+
         try {
             MaxReachPro.loadScene("/fxml/home.fxml");
         } catch (Exception e) {

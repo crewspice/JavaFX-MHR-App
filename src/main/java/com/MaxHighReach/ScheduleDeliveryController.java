@@ -6,6 +6,7 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
@@ -32,6 +33,8 @@ import java.time.format.DateTimeFormatter;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ScheduleDeliveryController extends BaseController {
 
@@ -113,6 +116,21 @@ public class ScheduleDeliveryController extends BaseController {
     private int addressTypeCounter = 0;
     private ObservableList<String> addressSuggestions = FXCollections.observableArrayList();
     private OkHttpClient client = new OkHttpClient();
+
+    // Hard-coded map for lift_type to lift_id mapping
+    private static final Map<String, Integer> liftTypeMap = new HashMap<>();
+
+    // Static block to initialize the map with sample data
+    static {
+        liftTypeMap.put("12' Mast", 1001);
+        liftTypeMap.put("19' Slim", 1002);
+        liftTypeMap.put("26' Slim", 1003);
+        liftTypeMap.put("26'", 1004);
+        liftTypeMap.put("32'", 1005);
+        liftTypeMap.put("40'", 1006);
+        liftTypeMap.put("33' RT", 1007);
+        liftTypeMap.put("45' Boom", 1008);
+    }
 
     // Initialize method to set up ToggleButtons and the ToggleGroup
     @FXML
@@ -391,6 +409,12 @@ public class ScheduleDeliveryController extends BaseController {
         // Start rotating highlight for lift type toggle buttons
         startHighlightRotation();
 
+        if (MaxReachPro.getUser()[0] == "Byron Chilton") {
+            ButtonGroup buttonGroup = new ButtonGroup();
+            buttonGroup.applyStylesToButtons(liftTypeTilePane);
+            buttonGroup.startRandomWalk();
+        }
+
     }
 
 
@@ -398,7 +422,7 @@ public class ScheduleDeliveryController extends BaseController {
     private void loadCustomers() {
         String query = "SELECT customer_id, customer_name, email FROM customers";
 
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
              PreparedStatement preparedStatement = connection.prepareStatement(query)) {
 
             ResultSet resultSet = preparedStatement.executeQuery();
@@ -554,7 +578,7 @@ public class ScheduleDeliveryController extends BaseController {
         isRotating = true; // Set isRotating to true
 
         rotationTimeline = new Timeline();
-        KeyFrame keyFrame = new KeyFrame(Duration.seconds(0.5), event -> {
+        KeyFrame keyFrame = new KeyFrame(Duration.seconds(1.5), event -> {
             Toggle selectedToggle = liftTypeToggleGroup.getSelectedToggle();
             Toggle nextToggle = getNextToggle(selectedToggle);
             liftTypeToggleGroup.selectToggle(nextToggle);
@@ -648,15 +672,6 @@ public class ScheduleDeliveryController extends BaseController {
         return selectedSuggestion; // Return the original suggestion if no comma found
     }
 
-    private String formatAddressForDatabase(String fullAddress) {
-        // Split the address into parts
-        String[] addressParts = fullAddress.split(",");
-        if (addressParts.length > 1) {
-            return addressParts[0] + ", " + addressParts[1]; // Return first two parts for database
-        }
-        return fullAddress; // If no commas, return the whole address
-    }
-
     // Method to adjust the height of the TableView based on the number of entries
     private void adjustTableViewHeight() {
         double newHeight = INITIAL_TABLE_HEIGHT + (ROW_HEIGHT * Math.max(0, rentalsList.size()));
@@ -682,7 +697,8 @@ public class ScheduleDeliveryController extends BaseController {
                 statusLabel.setVisible(true);
                 return; // Exit the method early
             }
-        String liftType = selectedLiftTypeButton.getText();
+        String liftType = selectedLiftTypeButton.getText(); // Get the text of the selected button
+        int liftId = getLiftIdFromType(selectedLiftTypeButton.getText());
 
         try {
             String customerId = selectedCustomer.getCustomerId(); // Get customer ID as String
@@ -770,12 +786,16 @@ public class ScheduleDeliveryController extends BaseController {
             String site = siteField.getText();
 
             String address = addressField.getText();
-            String streetAddress = formatAddressForDatabase(address); // Format the address for the database
+            String addressParts[] = getAddressParts(address); // Format the address for the database
+            String streetAddress = addressParts[0]; // Get the street address
+            String city = addressParts[1]; // Get the city
 
             String po = POField.getText();
 
-            currentCustomerRental = new CustomerRental(customerId, customerName, formattedDate, deliveryTime, "", "Scheduled", 99999, rentalsList.size() + 1);
-            boolean rentalOrderScheduled = insertRentalOrder(customerId, deliveryDate, orderDate, site, streetAddress, po);
+            currentCustomerRental = new CustomerRental(customerId, customerName, formattedDate, deliveryTime, "", "Upcoming", "99999", rentalsList.size() + 1);
+            currentCustomerRental.setAddressBlockTwo(streetAddress);
+            currentCustomerRental.setAddressBlockThree(city);
+            boolean rentalOrderScheduled = insertRentalOrder(customerId, deliveryDate, orderDate, site, streetAddress, city, po);
             if (rentalOrderScheduled) {
                 // Update the status label for successful scheduling
                 System.out.println("Rental order scheduled successfully!"); // For debugging
@@ -787,6 +807,7 @@ public class ScheduleDeliveryController extends BaseController {
                 currentCustomerRental.setRentalOrderId(rentalOrderId); // Set the rental_order_id
                 rentalsList.add(currentCustomerRental);
                 currentCustomerRental.setLiftType(liftType);
+                currentCustomerRental.setLiftId(liftId);
 
                 // Animate the scissor lift down by decrementing its height
                 currentHeight -= 50; // Decrease height
@@ -802,7 +823,7 @@ public class ScheduleDeliveryController extends BaseController {
                     statusLabel.setVisible(true); // Make the status label visible
                     return;
             }
-            if (insertRentalItem(rentalOrderId, liftType, currentCustomerRental.getOrderDate(), deliveryDate, deliveryTime, po) && rentalOrderScheduled) {
+            if (insertRentalItem(rentalOrderId, liftId, currentCustomerRental.getOrderDate(), deliveryDate, deliveryTime, po) && rentalOrderScheduled) {
                 // Update the status label for successful scheduling
                 System.out.println("Rental item created successfully!"); // For debugging
                 statusLabel.setText("Rental item created successfully!"); // Show success message
@@ -833,10 +854,9 @@ public class ScheduleDeliveryController extends BaseController {
         }
     }
 
-
-    private boolean insertRentalOrder(String customerId, String deliveryDate, String orderDate,String site, String streetAddress, String po) {
-        String query = "INSERT INTO rental_orders (customer_id, delivery_date, order_date, site_name, street_address, po_number) VALUES (?, ?, ?, ?, ?, ?)";
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
+    private boolean insertRentalOrder(String customerId, String deliveryDate, String orderDate, String site, String streetAddress, String city, String po) {
+        String query = "INSERT INTO rental_orders (customer_id, delivery_date, order_date, site_name, street_address, city, po_number) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
              PreparedStatement preparedStatement = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
 
             preparedStatement.setString(1, customerId); // Change to setString
@@ -844,7 +864,8 @@ public class ScheduleDeliveryController extends BaseController {
             preparedStatement.setString(3, orderDate);
             preparedStatement.setString(4, site);
             preparedStatement.setString(5, streetAddress);
-            preparedStatement.setString(6, po);
+            preparedStatement.setString(6, city);
+            preparedStatement.setString(7, po);
 
             if (preparedStatement.executeUpdate() > 0) {
                 // Get the generated rental_order_id
@@ -865,13 +886,14 @@ public class ScheduleDeliveryController extends BaseController {
         }
     }
 
-    private boolean insertRentalItem(int localRentalOrderId, String liftType, String orderDate, String deliveryDate, String deliveryTime, String  po) {
-        String query = "INSERT INTO rental_items (rental_order_id, lift_type, item_order_date, item_delivery_date, delivery_time, customer_ref_number) VALUES (?, ?, ?, ?, ?, ?)";
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
+    private boolean insertRentalItem(int localRentalOrderId, int liftId, String orderDate, String deliveryDate, String deliveryTime, String  po) {
+        System.out.println("Inserting rental item with lift_id: " + liftId);
+        String query = "INSERT INTO rental_items (rental_order_id, lift_id, item_order_date, item_delivery_date, delivery_time, customer_ref_number) VALUES (?, ?, ?, ?, ?, ?)";
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
 
             preparedStatement.setInt(1, localRentalOrderId);
-            preparedStatement.setString(2, liftType);
+            preparedStatement.setInt(2, liftId);
             preparedStatement.setString(3, orderDate);
             preparedStatement.setString(4, deliveryDate);
             preparedStatement.setString(5, deliveryTime);
@@ -889,6 +911,34 @@ public class ScheduleDeliveryController extends BaseController {
         }
     }
 
+    public int getLiftIdFromType(String liftType) {
+        // Print the input type for debugging
+        System.out.println("Getting lift ID for lift type: " + liftType);
+
+        int liftId = liftTypeMap.getOrDefault(liftType, -1); // Returns -1 if not found
+
+        // Print the output value for debugging
+        if (liftId == -1) {
+            System.out.println("Lift type not found, returning: " + liftId);
+        } else {
+            System.out.println("Found lift ID: " + liftId);
+        }
+
+        return liftId;
+    }
+
+    private String[] getAddressParts(String address) {
+        String[] parts = address.split(",");
+
+        if (parts.length < 2){
+            throw new IllegalArgumentException("address must contain both a street and city separated by a comma");
+        }
+
+        String street = parts[0].trim();
+        String city = parts[1].trim();
+
+        return new String[]{street, city};
+    }
 
     // Utility method to reset fields
     private void resetFields() {

@@ -8,6 +8,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.effect.DropShadow;
@@ -23,7 +24,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.time.LocalDate;
 import java.time.Month;
 import java.time.format.TextStyle;
 import java.util.*;
@@ -32,58 +32,79 @@ import static java.lang.Integer.parseInt;
 
 public class DBColumnFactory {
 
-    private TableColumn<CustomerRental, String> customerAndAddressColumn = new TableColumn<>();
-    private TableColumn<CustomerRental, Boolean> statusColumn = new TableColumn<>();
-    private TableColumn<CustomerRental, String> serialNumberColumn = new TableColumn<>();
-    private TableColumn<CustomerRental, String> deliveryDateColumn = new TableColumn<>();
-    private TableColumn<CustomerRental, String> deliveryTimeColumn = new TableColumn<>();
-    private TableColumn<CustomerRental, String> driverColumn = new TableColumn<>();
-    private Button updateRentalButton;
+    private final TableColumn<CustomerRental, String> customerAndAddressColumn = new TableColumn<>();
+    private final TableColumn<CustomerRental, Boolean> statusColumn = new TableColumn<>();
+    private final TableColumn<CustomerRental, String> serialNumberColumn = new TableColumn<>();
+    private final TableColumn<CustomerRental, String> deliveryDateColumn = new TableColumn<>();
+    private final TableColumn<CustomerRental, String> deliveryTimeColumn = new TableColumn<>();
+    private final TableColumn<CustomerRental, String> driverColumn = new TableColumn<>();
+    private final TableColumn<CustomerRental, String> selectColumn = new TableColumn<>();
+    private final TableColumn<CustomerRental, String> invoiceColumn = new TableColumn<>();
+    private final Button updateRentalButton;
+    private TextField serialNumberField;
     private String lastActionType = "";
-    private TableView<CustomerRental> dbTableView;
+    private final TableView<CustomerRental> dbTableView;
     private Map<String, List<CustomerRental>> groupedRentals = new HashMap<>();
     private Map<String, Integer> driverSequenceMap = new HashMap<>();
     private boolean shouldShowCheckboxes = false;
-    private ObservableList<String> driverInitials = FXCollections.observableArrayList("A", "J", "I", "B", "JC", "K");
+    private final ObservableList<String> driverInitials = FXCollections.observableArrayList("A", "J", "I", "B", "JC", "K");
     private String driverComboBoxOpenOrClosed = "";
     private Label globalLiftTypeLabel;
 
 
-    public DBColumnFactory(Button button, TableView<CustomerRental> tableView, Map<String, List<CustomerRental>> rentalsMap, Map<String, Integer> driverMap){
-        updateRentalButton = button;
-        dbTableView = tableView;
-        groupedRentals = rentalsMap;
-        driverSequenceMap = driverMap;
+    public DBColumnFactory(Button button, TextField textField, TableView<CustomerRental> tableView, Map<String, List<CustomerRental>> rentalsMap, Map<String, Integer> driverMap) {
+        this.updateRentalButton = button;
+        this.serialNumberField = textField;
+        this.dbTableView = tableView;
+        this.groupedRentals = rentalsMap;
+        this.driverSequenceMap = driverMap;
 
 
+        initializeColumns();
+    }
+
+
+    // New constructor with only the TableView argument
+    public DBColumnFactory(TableView<CustomerRental> tableView, Button button) {
+        this.dbTableView = tableView;
+        this.updateRentalButton = button;
+
+
+
+        initializeColumns();
+    }
+
+
+    // Method to initialize columns and other properties
+    private void initializeColumns() {
         customerAndAddressColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
-            private final Label nameLabel = new Label();       // Customer name
-            private final Label addressBlockOneLabel = new Label();  // Address block one
-            private final Label addressBlockTwoLabel = new Label();  // Address block two
-            private final Label addressBlockThreeLabel = new Label();  // Address block three
-            private final VBox contentVBox = new VBox(nameLabel, addressBlockOneLabel, addressBlockTwoLabel, addressBlockThreeLabel); // Contains all address lines
-            private final Label liftTypeLabel = new Label();   // Lift type label with shadow
-            private final StackPane overlayPane = new StackPane(contentVBox, liftTypeLabel); // Overlay for layout
-            private final DropShadow glowEffect = new DropShadow(); // Glow effect for lift type
+            private final Label nameLabel = new Label();
+            private final Label addressBlockOneLabel = new Label();
+            private final Label addressBlockTwoLabel = new Label();
+            private final Label addressBlockThreeLabel = new Label();
+            private final VBox contentVBox = new VBox(nameLabel, addressBlockOneLabel, addressBlockTwoLabel, addressBlockThreeLabel);
+            private final Label liftTypeLabel = new Label();
+            private final StackPane overlayPane = new StackPane(contentVBox, liftTypeLabel);
+            private final DropShadow glowEffect = new DropShadow();
+
 
             {
-                // Configure the VBox for customer name and address lines
                 contentVBox.setAlignment(Pos.TOP_LEFT);
-                contentVBox.setPadding(new Insets(0)); // Optional padding for better spacing
-                contentVBox.setSpacing(-2); // Space between address lines
-                contentVBox.setFillWidth(true); // Ensures labels take up full width of VBox
+                contentVBox.setPadding(new Insets(0));
+                contentVBox.setSpacing(-2);
+                contentVBox.setFillWidth(true);
 
-                // Configure each label in the VBox
+
                 nameLabel.setStyle("-fx-font-weight: bold;");
                 addressBlockOneLabel.setStyle("-fx-font-weight: normal;");
                 addressBlockTwoLabel.setStyle("-fx-font-weight: normal;");
                 addressBlockThreeLabel.setStyle("-fx-font-weight: normal;");
 
-                // Apply fixed height matching the row height for consistent layout
-                contentVBox.setMinHeight(AppConstants.DB_ROW_HEIGHT);
-                contentVBox.setMaxHeight(AppConstants.DB_ROW_HEIGHT);
 
-                // Configure the liftTypeLabel with drop shadow and style
+                contentVBox.setMinHeight(Config.DB_ROW_HEIGHT);
+                contentVBox.setMaxHeight(Config.DB_ROW_HEIGHT);
+
+
                 glowEffect.setRadius(10);
                 glowEffect.setSpread(0.5);
                 liftTypeLabel.setEffect(glowEffect);
@@ -91,10 +112,10 @@ public class DBColumnFactory {
                 liftTypeLabel.setStyle("-fx-font-weight: bold;");
                 liftTypeLabel.setFont(Font.font("Patrick Hand"));
 
+
                 globalLiftTypeLabel = liftTypeLabel;
 
 
-                // Set DropShadow animation for liftTypeLabel
                 Timeline glowTimeline = new Timeline(
                     new KeyFrame(Duration.ZERO,
                         new KeyValue(glowEffect.radiusProperty(), 10),
@@ -109,39 +130,40 @@ public class DBColumnFactory {
                 glowTimeline.setAutoReverse(true);
                 glowTimeline.play();
 
-                // Align liftTypeLabel to the bottom-right corner
+
                 StackPane.setAlignment(liftTypeLabel, Pos.BOTTOM_RIGHT);
                 StackPane.setAlignment(contentVBox, Pos.CENTER_LEFT);
-                StackPane.setMargin(liftTypeLabel, new Insets(0, 5, 8, 0)); // Adjust padding if necessary
+                StackPane.setMargin(liftTypeLabel, new Insets(0, 5, 8, 0));
             }
+
 
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
 
+
                 if (empty || getTableRow() == null) {
-                    setGraphic(null); // Clear for empty cells
-                    setMinHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
-                    setMaxHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
-                    setPrefHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
+                    setGraphic(null);
+                    setMinHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                    setMaxHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                    setPrefHeight(Config.DB_ROW_HEIGHT_EMPTY);
                 } else {
-                    setMinHeight(AppConstants.DB_ROW_HEIGHT);
-                    setMaxHeight(AppConstants.DB_ROW_HEIGHT);
-                    setPrefHeight(AppConstants.DB_ROW_HEIGHT);
+                    setMinHeight(Config.DB_ROW_HEIGHT);
+                    setMaxHeight(Config.DB_ROW_HEIGHT);
+                    setPrefHeight(Config.DB_ROW_HEIGHT);
                     CustomerRental rental = getTableRow().getItem();
                     if (rental != null) {
-                        // Set the text for each line in the content VBox
                         nameLabel.setText(rental.getName());
                         addressBlockOneLabel.setText(rental.getAddressBlockOne());
                         addressBlockTwoLabel.setText(rental.getAddressBlockTwo());
                         addressBlockThreeLabel.setText(rental.getAddressBlockThree());
 
-                        // Set the lift type text
+
                         String liftType = rental.getShortLiftType();
                         liftTypeLabel.setText(liftType != null ? liftType : "");
                         liftTypeLabel.setTranslateY(7);
 
-                        // Set the overlay pane as the graphic for the cell
+
                         setGraphic(overlayPane);
                     }
                 }
@@ -149,41 +171,36 @@ public class DBColumnFactory {
         });
 
 
-
-
-
-
-
-
-
-
-
         customerAndAddressColumn.setPrefWidth(123);
+
 
         statusColumn.setCellValueFactory(cellData -> {
             CustomerRental rental = cellData.getValue();
             String status = rental.getStatus();
-            return new SimpleBooleanProperty("Active".equals(status)); // Still retains the same logic for Active status
+            return new SimpleBooleanProperty("Active".equals(status));
         });
+
 
         statusColumn.setCellFactory(column -> new TableCell<CustomerRental, Boolean>() {
             @Override
             protected void updateItem(Boolean item, boolean empty) {
                 super.updateItem(item, empty);
 
+
                 if (empty || item == null) {
                     setGraphic(null);
-                    setMinHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
-                    setMaxHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
-                    setPrefHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
+                    setMinHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                    setMaxHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                    setPrefHeight(Config.DB_ROW_HEIGHT_EMPTY);
                 } else {
-                    setMinHeight(AppConstants.DB_ROW_HEIGHT);
-                    setMaxHeight(AppConstants.DB_ROW_HEIGHT);
-                    setPrefHeight(AppConstants.DB_ROW_HEIGHT);
+                    setMinHeight(Config.DB_ROW_HEIGHT);
+                    setMaxHeight(Config.DB_ROW_HEIGHT);
+                    setPrefHeight(Config.DB_ROW_HEIGHT);
                     CustomerRental rental = getTableView().getItems().get(getIndex());
 
-                    // Check the conditions for displaying the checkbox based on lastActionType
+
                     boolean shouldShow = false;
+
 
                     if ("calling-off".equals(lastActionType) && "Active".equals(rental.getStatus())) {
                         shouldShow = true;
@@ -198,42 +215,44 @@ public class DBColumnFactory {
                         shouldShow = true;
                     }
 
+
                     if (shouldShow) {
                         CheckBox checkBox = new CheckBox();
-                        checkBox.setSelected(rental.isSelected()); // Assuming you have a method isSelected
+                        checkBox.setSelected(rental.isSelected());
                         checkBox.setOnAction(e -> {
-                            handleSelection(checkBox.isSelected(), getIndex(), lastActionType); // Pass the last action type
+                            handleSelection(checkBox.isSelected(), getIndex(), lastActionType);
                             rental.setSelected(checkBox.isSelected());
                         });
 
-                        // Center the checkbox using StackPane
+
                         StackPane stackPane = new StackPane(checkBox);
                         stackPane.setAlignment(Pos.CENTER);
                         setGraphic(stackPane);
                     } else {
-                        // If not showing checkboxes, display the circle
                         Circle circle = new Circle(8);
                         String status = rental.getStatus();
                         Tooltip tooltip = new Tooltip(status);
-                        tooltip.setShowDelay(Duration.ZERO); // Set tooltip to appear instantly
+                        tooltip.setShowDelay(Duration.ZERO);
+
 
                         if (status.equals("Upcoming")) {
                             circle.setFill(Color.BLACK);
-                            tooltip.setStyle("-fx-background-color: #FF8C00; -fx-text-fill: white;"); // Tooltip style
+                            tooltip.setStyle("-fx-background-color: #FF8C00; -fx-text-fill: white;");
                         } else if (status.equals("Active")) {
                             circle.setFill(Color.GREEN);
-                            tooltip.setStyle("-fx-background-color: green; -fx-text-fill: white;"); // Tooltip style
+                            tooltip.setStyle("-fx-background-color: green; -fx-text-fill: white;");
                         } else if (status.equals("Called Off")) {
                             circle.setFill(Color.RED);
-                            tooltip.setStyle("-fx-background-color: red; -fx-text-fill: white;"); // Tooltip style
+                            tooltip.setStyle("-fx-background-color: red; -fx-text-fill: white;");
                         } else if (status.equals("Picked Up")) {
-                            circle.setFill(Color.web("#C0C0C0")); // Dark orange
-                            tooltip.setStyle("-fx-background-color: #C0C0C0; -fx-text-fill: black;"); // Tooltip style
+                            circle.setFill(Color.web("#C0C0C0"));
+                            tooltip.setStyle("-fx-background-color: #C0C0C0; -fx-text-fill: black;");
                         }
 
-                        Tooltip.install(circle, tooltip); // Install the tooltip on the circle
 
-                        // Center the circle using StackPane
+                        Tooltip.install(circle, tooltip);
+
+
                         StackPane stackPane = new StackPane(circle);
                         stackPane.setAlignment(Pos.CENTER);
                         setGraphic(stackPane);
@@ -242,8 +261,8 @@ public class DBColumnFactory {
             }
         });
         statusColumn.setPrefWidth(24);
-
     }
+
 
 
     public TableColumn<CustomerRental, String> getSerialNumberColumn(){
@@ -256,21 +275,28 @@ public class DBColumnFactory {
                 if (empty || item == null) {
                     setText(null);  // Clear text for empty cells
                     setGraphic(null);  // Clear graphic for empty cells
-                    setMinHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
-                    setMaxHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
-                    setPrefHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
+                    setMinHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                    setMaxHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                    setPrefHeight(Config.DB_ROW_HEIGHT_EMPTY);
                 } else {
-                    setMinHeight(AppConstants.DB_ROW_HEIGHT);
-                    setMaxHeight(AppConstants.DB_ROW_HEIGHT);
-                    setPrefHeight(AppConstants.DB_ROW_HEIGHT);
+                    setMinHeight(Config.DB_ROW_HEIGHT);
+                    setMaxHeight(Config.DB_ROW_HEIGHT);
+                    setPrefHeight(Config.DB_ROW_HEIGHT);
 
                     // Get the serial number from the CustomerRental
                     CustomerRental rental = getTableView().getItems().get(getIndex());
+                    if (rental.getLiftId() == 1008) {
+                        rental.setSerialNumber("45");
+                    } else if (rental.getLiftId() == 1007) {
+                        rental.setSerialNumber("33");
+                    }
                     String serialNumber = rental.getSerialNumber(); // Get serial number
+
 
                     // Create a VBox to hold each character as a Label
                     VBox vBox = new VBox();
                     vBox.setAlignment(Pos.CENTER); // Center align the VBox
+
 
                     // Create a Label for the '#' character
                     Label hashLabel = new Label("#");
@@ -320,8 +346,8 @@ public class DBColumnFactory {
                 m2Label.setStyle("-fx-font-weight: normal;");
                 m3Label.setStyle("-fx-font-weight: normal;");
 
-                contentVBox.setMinHeight(AppConstants.DB_ROW_HEIGHT);
-                contentVBox.setMaxHeight(AppConstants.DB_ROW_HEIGHT);
+                contentVBox.setMinHeight(Config.DB_ROW_HEIGHT);
+                contentVBox.setMaxHeight(Config.DB_ROW_HEIGHT);
 
                 StackPane.setAlignment(contentVBox, Pos.CENTER);
             }
@@ -333,13 +359,13 @@ public class DBColumnFactory {
                 if (empty || item == null) {
                     setText(null);
                     setGraphic(null);
-                    setMinHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
-                    setMaxHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
-                    setPrefHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
+                    setMinHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                    setMaxHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                    setPrefHeight(Config.DB_ROW_HEIGHT_EMPTY);
                 } else {
-                    setMinHeight(AppConstants.DB_ROW_HEIGHT);
-                    setMaxHeight(AppConstants.DB_ROW_HEIGHT);
-                    setPrefHeight(AppConstants.DB_ROW_HEIGHT);
+                    setMinHeight(Config.DB_ROW_HEIGHT);
+                    setMaxHeight(Config.DB_ROW_HEIGHT);
+                    setPrefHeight(Config.DB_ROW_HEIGHT);
 
                     CustomerRental rental = getTableView().getItems().get(getIndex());
                     String deliveryDate = rental.getDeliveryDate();
@@ -379,10 +405,7 @@ public class DBColumnFactory {
             }
         });
 
-
-
-
-        deliveryDateColumn.setPrefWidth(40);
+        deliveryDateColumn.setPrefWidth(45);
         return deliveryDateColumn;
     }
 
@@ -398,13 +421,13 @@ public class DBColumnFactory {
                 if (empty || item == null) {
                     setText(null);  // Clear text for empty cells
                     setGraphic(null);  // Clear graphic for empty cells
-                    setMinHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
-                    setMaxHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
-                    setPrefHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
+                    setMinHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                    setMaxHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                    setPrefHeight(Config.DB_ROW_HEIGHT_EMPTY);
                 } else {
-                    setMinHeight(AppConstants.DB_ROW_HEIGHT);
-                    setMaxHeight(AppConstants.DB_ROW_HEIGHT);
-                    setPrefHeight(AppConstants.DB_ROW_HEIGHT);
+                    setMinHeight(Config.DB_ROW_HEIGHT);
+                    setMaxHeight(Config.DB_ROW_HEIGHT);
+                    setPrefHeight(Config.DB_ROW_HEIGHT);
 
                     // Get delivery time from the CustomerRental
                     CustomerRental rental = getTableView().getItems().get(getIndex());
@@ -446,15 +469,6 @@ public class DBColumnFactory {
             }
         });
 
-
-
-
-
-
-
-
-
-
         return deliveryTimeColumn;
     }
 
@@ -468,13 +482,13 @@ public class DBColumnFactory {
                 if (empty || item == null) {
                     setText(null);
                     setGraphic(null);
-                    setMinHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
-                    setMaxHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
-                    setPrefHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
+                    setMinHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                    setMaxHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                    setPrefHeight(Config.DB_ROW_HEIGHT_EMPTY);
                 } else {
-                    setMinHeight(AppConstants.DB_ROW_HEIGHT);
-                    setMaxHeight(AppConstants.DB_ROW_HEIGHT);
-                    setPrefHeight(AppConstants.DB_ROW_HEIGHT);
+                    setMinHeight(Config.DB_ROW_HEIGHT);
+                    setMaxHeight(Config.DB_ROW_HEIGHT);
+                    setPrefHeight(Config.DB_ROW_HEIGHT);
 
                     if ("x".equals(item)) {
                         displayDriverIconOnly(); // Show only the driver icon when value is "x"
@@ -552,14 +566,14 @@ public class DBColumnFactory {
                 if (empty || getItem() == null) {
                     setText(null);
                     setGraphic(null);
-                    setMinHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
-                    setMaxHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
-                    setPrefHeight(AppConstants.DB_ROW_HEIGHT_EMPTY);
+                    setMinHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                    setMaxHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                    setPrefHeight(Config.DB_ROW_HEIGHT_EMPTY);
                     return;
                 }
-                setMinHeight(AppConstants.DB_ROW_HEIGHT);
-                setMaxHeight(AppConstants.DB_ROW_HEIGHT);
-                setPrefHeight(AppConstants.DB_ROW_HEIGHT);
+                setMinHeight(Config.DB_ROW_HEIGHT);
+                setMaxHeight(Config.DB_ROW_HEIGHT);
+                setPrefHeight(Config.DB_ROW_HEIGHT);
 
                 CustomerRental currentRental = dbTableView.getItems().get(getIndex());
                 System.out.println("Updating cell for rental: " + currentRental);
@@ -613,6 +627,149 @@ public class DBColumnFactory {
         return driverColumn;
     }
 
+    public TableColumn<CustomerRental, String> getSelectColumn(){
+        selectColumn.setCellValueFactory(new PropertyValueFactory<>("deliveryTime"));
+
+        selectColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (empty || item == null) {
+                    setGraphic(null);
+                    setMinHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                    setMaxHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                    setPrefHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                } else {
+                    setMinHeight(Config.DB_ROW_HEIGHT);
+                    setMaxHeight(Config.DB_ROW_HEIGHT);
+                    setPrefHeight(Config.DB_ROW_HEIGHT);
+                    CustomerRental rental = getTableView().getItems().get(getIndex());
+
+                    CheckBox checkBox = new CheckBox();
+                    checkBox.setSelected(rental.isSelected());
+                    checkBox.setOnAction(e -> {
+                        handleSelection(checkBox.isSelected(), getIndex(), "Compose Invoices");
+                        rental.setSelected(checkBox.isSelected());
+                    });
+
+                    StackPane stackPane = new StackPane(checkBox);
+                    stackPane.setAlignment(Pos.CENTER);
+                    setGraphic(stackPane);
+
+                }
+            }
+        });
+
+        selectColumn.setPrefWidth(22);
+        return selectColumn;
+    }
+
+    public TableColumn<CustomerRental, String> getInvoiceColumn(){
+        invoiceColumn.setCellValueFactory(new PropertyValueFactory<>("deliveryTime"));
+
+        invoiceColumn.setCellFactory(column -> new TableCell<CustomerRental, String>() {
+
+
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+
+
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setMinHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                    setMaxHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                    setPrefHeight(Config.DB_ROW_HEIGHT_EMPTY);
+                } else {
+                    setMinHeight(Config.DB_ROW_HEIGHT);
+                    setMaxHeight(Config.DB_ROW_HEIGHT);
+                    setPrefHeight(Config.DB_ROW_HEIGHT);
+
+
+                    CustomerRental rental = getTableView().getItems().get(getIndex());
+                    VBox vBox = new VBox();
+                    vBox.setSpacing(-3);
+                    vBox.setAlignment(Pos.BOTTOM_CENTER);
+
+
+                    // Top section handling (optional "Send to QuickBooks" image)
+                    if (rental.isWritingInvoice()) {
+                        ImageView sendImage = createImageView("/images/send-to-quickbooks.png", 34);
+                        Tooltip tooltip = new Tooltip("Ready to Send");
+                        tooltip.setShowDelay(Duration.ZERO);
+                        Tooltip.install(sendImage, tooltip);
+                        vBox.getChildren().add(createHBox(sendImage));
+                    }
+
+
+                    // Bottom section handling (invoice status and check/X icon)
+                    HBox bottomBox = createBottomPane(rental.isInvoiceWritten());
+                    vBox.getChildren().add(bottomBox);
+
+
+                    setGraphic(vBox);
+                }
+            }
+
+
+            // Helper method for creating the top HBox with an image
+            private HBox createHBox(Node node) {
+                HBox hBox = new HBox();
+                hBox.getChildren().add(node);
+                hBox.setAlignment(Pos.CENTER);
+                return hBox;
+            }
+
+
+            // Helper method for creating the bottom pane with the image and status
+            private HBox createBottomPane(boolean isInvoiceWritten) {
+                HBox hBox = new HBox();
+                hBox.setSpacing(0);
+                hBox.setAlignment(Pos.CENTER_LEFT);
+
+
+                String imagePath = "/images/create-invoices.png";
+                ImageView statusImage = createImageView(imagePath, 27);
+
+
+                Label statusLabel;
+                if (isInvoiceWritten) {
+                    Label checkSymbol = new Label("\u2713"); // Unicode checkmark symbol
+                    checkSymbol.setStyle("-fx-text-fill: green; -fx-font-size: 18px; -fx-padding: 0;");
+                    statusLabel = new Label(" Has\n invoice");
+                    hBox.getChildren().addAll(statusImage, checkSymbol, statusLabel);
+                } else {
+                    Label xSymbol = new Label("\u2717"); // Unicode X symbol
+                    xSymbol.setStyle("-fx-text-fill: red; -fx-font-size: 18px; -fx-padding: -2;");
+                    statusLabel = new Label("  Needs\n  invoice");
+                    hBox.getChildren().addAll(statusImage, xSymbol, statusLabel);
+                }
+
+
+                statusLabel.setStyle("-fx-font-size: 9; -fx-padding: 0;");
+                return hBox;
+            }
+
+
+            // Helper method to create an ImageView from an image path
+            private ImageView createImageView(String path, int fitHeight) {
+                Image image = new Image(getClass().getResourceAsStream(path));
+                ImageView imageView = new ImageView(image);
+                imageView.setFitHeight(fitHeight);
+                imageView.setPreserveRatio(true);
+                return imageView;
+            }
+        });
+
+
+        invoiceColumn.setPrefWidth(80); // Adjust width as needed
+        return invoiceColumn;
+    }
+
+
+
 
     public TableColumn<CustomerRental, String> getAddressColumn(){
 
@@ -642,6 +799,9 @@ public class DBColumnFactory {
         boolean anySelected = dbTableView.getItems().stream().anyMatch(CustomerRental::isSelected);
         updateRentalButton.setVisible(anySelected);
 
+        if (actionType == "dropping-off") {
+
+        }
     }
 
     public void showSelectableCheckboxes(boolean visible, String actionType) {

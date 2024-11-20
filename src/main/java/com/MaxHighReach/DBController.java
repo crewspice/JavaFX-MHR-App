@@ -3,33 +3,20 @@ package com.MaxHighReach;
 import com.itextpdf.kernel.pdf.canvas.draw.SolidLine;
 import javafx.animation.*;
 import javafx.application.Platform;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
 import javafx.fxml.FXML;
-import javafx.geometry.HPos;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.effect.Glow;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.control.Tooltip;
 import java.lang.String;
 
 import javafx.scene.paint.Color;
-import javafx.scene.paint.CycleMethod;
-import javafx.scene.paint.LinearGradient;
-import javafx.scene.paint.Stop;
-import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.util.Duration;
@@ -51,6 +38,7 @@ import com.itextpdf.layout.element.LineSeparator;
 
 import java.io.FileNotFoundException;
 import java.util.*;
+import java.util.Date;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DBController extends BaseController {
@@ -73,6 +61,8 @@ public class DBController extends BaseController {
     private Button composeContractsButton;
     @FXML
     private Button refreshDataButton;
+    @FXML
+    private TextField serialNumberField;
     private final Tooltip composeContractsTooltip = new Tooltip("Compose Contracts");
     private final Tooltip assignDriverTooltip = new Tooltip("Assign Driver");
     private final Tooltip droppingOffTooltip = new Tooltip("Record Drop Off");
@@ -417,9 +407,12 @@ public class DBController extends BaseController {
         groupedRentals.clear();
         currentViewInitials.clear();
 
-        String query = "SELECT * FROM customers " +
-                       "JOIN rental_orders ON customers.customer_id = rental_orders.customer_id " +
-                       "JOIN rental_items ON rental_orders.rental_order_id = rental_items.rental_order_id ";
+        String query = "SELECT customers.*, rental_orders.*, rental_items.*, lifts.*" +
+               "FROM customers " +
+               "JOIN rental_orders ON customers.customer_id = rental_orders.customer_id " +
+               "JOIN rental_items ON rental_orders.rental_order_id = rental_items.rental_order_id " +
+               "JOIN lifts ON rental_items.lift_id = lifts.lift_id ";
+
 
         // This variable tracks if we need to append WHERE or AND
         boolean hasWhereClause = false;
@@ -436,7 +429,7 @@ public class DBController extends BaseController {
             endDate = datePickerTwo.getValue().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         }
 
-        workingDBColumnFactory = new DBColumnFactory(updateRentalButton, dbTableView, groupedRentals, driverSequenceMap);
+        workingDBColumnFactory = new DBColumnFactory(updateRentalButton, serialNumberField, dbTableView, groupedRentals, driverSequenceMap);
 
         // Modify query based on filter
         switch (filter) {
@@ -537,7 +530,7 @@ public class DBController extends BaseController {
         // Add LIMIT clause at the end
         query += "LIMIT 100;";
 
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
              Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(query)) {
 
@@ -550,18 +543,21 @@ public class DBController extends BaseController {
                 int rental_item_id = resultSet.getInt("rental_item_id");
                 String deliveryTime = resultSet.getString("delivery_time"); // Now from rental_items
                 String serialNumber = resultSet.getString("serial_number");
+                int liftId = resultSet.getInt("lift_id");
                 String liftType = resultSet.getString("lift_type");
                 String siteName = resultSet.getString("site_name");
                 String streetAddress = resultSet.getString("street_address");
                 String poNumber = resultSet.getString("po_number");
 
-                CustomerRental rental = new CustomerRental("0", name, deliveryDate, deliveryTime, driver != null ? driver : "", status != null ? status : "Unknown", 999999, rental_id);
+                CustomerRental rental = new CustomerRental("0", name, deliveryDate, deliveryTime, driver != null ? driver : "", status != null ? status : "Unknown", "999999", rental_id);
                 rental.setRentalItemId(rental_item_id);
+                rental.setLiftId(liftId);
                 rental.setLiftType(liftType);
                 rental.setAddressBlockOne(siteName);
                 rental.setAddressBlockTwo(streetAddress);
                 rental.splitAddressBlockTwo();
                 rental.setPoNumber(poNumber);
+                rental.setSerialNumber(serialNumber);
                 ordersList.add(rental);
             }
         } catch (SQLException e) {
@@ -1178,6 +1174,8 @@ public class DBController extends BaseController {
             showSelectableCheckboxes(false, lastActionType);
             workingDBColumnFactory.showSelectableCheckboxes(false, lastActionType);
             updateRentalButton.setVisible(false); // Call this method to hide checkboxes
+            serialNumberField.setVisible(false);
+            shiftUpdateButtonFull();
 
             visuallyUnselectSidebarButton(droppingOffButton);
         } else {
@@ -1187,6 +1185,8 @@ public class DBController extends BaseController {
             showSelectableCheckboxes(true, lastActionType);
             workingDBColumnFactory.showSelectableCheckboxes(true, lastActionType);
             visuallySelectSidebarButton(droppingOffButton);
+            serialNumberField.setVisible(true);
+            shiftUpdateButtonHalf();
 
         }
     }
@@ -1209,6 +1209,10 @@ public class DBController extends BaseController {
             showSelectableCheckboxes(true, lastActionType);
             workingDBColumnFactory.showSelectableCheckboxes(true, lastActionType);
             System.out.println("Calling Off button pressed.");
+            if (serialNumberField.isVisible()) {
+                serialNumberField.setVisible(false);
+                shiftUpdateButtonFull();
+            }
             return;
         }
     }
@@ -1227,8 +1231,13 @@ public class DBController extends BaseController {
             resetCheckboxes();
             showSelectableCheckboxes(true, lastActionType);
             workingDBColumnFactory.showSelectableCheckboxes(true, lastActionType);
-       //     System.out.println("Picking Up button pressed.");
+            if (serialNumberField.isVisible()) {
+                serialNumberField.setVisible(false);
+                shiftUpdateButtonFull();
+            }
+            //     System.out.println("Picking Up button pressed.");
             return; // Exit if no action type is set
+
         }
 
     }
@@ -1252,6 +1261,10 @@ public class DBController extends BaseController {
             showSelectableCheckboxes(true, lastActionType); // Show the checkboxes
             workingDBColumnFactory.showSelectableCheckboxes(true, lastActionType);
             System.out.println("Action type set to 'creating-invoices'. Checkboxes shown.");
+            if (serialNumberField.isVisible()) {
+                serialNumberField.setVisible(false);
+                shiftUpdateButtonFull();
+            }
         }
 
     }
@@ -1275,31 +1288,12 @@ public class DBController extends BaseController {
             showSelectableCheckboxes(true, lastActionType); // Show the checkboxes
             workingDBColumnFactory.showSelectableCheckboxes(true, lastActionType);
             System.out.println("Action type set to 'creating-contracts'. Checkboxes shown.");
-        }
-    }
-
-
-    private void updateInvoiceFlagInDB(String customerId, boolean isFlagged) {
-        String updateQuery = "UPDATE rentals SET is_flagged = ? WHERE customer_id = ?";
-
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
-             PreparedStatement statement = connection.prepareStatement(updateQuery)) {
-
-            statement.setBoolean(1, isFlagged); // Convert boolean to int (1 or 0)
-            statement.setString(2, customerId);
-
-            int rowsUpdated = statement.executeUpdate();
-            System.out.println("Rows updated: " + rowsUpdated);  // Debugging line
-            if (rowsUpdated > 0) {
-                System.out.println("Invoice flag updated successfully for customer ID " + customerId);
-            } else {
-                System.out.println("Failed to update invoice flag for customer ID " + customerId);
+            if (serialNumberField.isVisible()) {
+                serialNumberField.setVisible(false);
+                shiftUpdateButtonFull();
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
-
 
 
     private void resetCheckboxes() {
@@ -1323,54 +1317,45 @@ public class DBController extends BaseController {
 
     }
 
-
-    private void handleSelection(boolean isSelected, int index, String actionType) {
-        dbTableView.getItems().get(index).setSelected(isSelected);
-
-        // Show the update button only if at least one row is selected
-        boolean anySelected = dbTableView.getItems().stream().anyMatch(CustomerRental::isSelected);
-        updateRentalButton.setVisible(anySelected);
-
-    }
-
-
     @FXML
     private void handleUpdateRental(ActionEvent event) {
         ObservableList<CustomerRental> selectedRentals = dbTableView.getItems().filtered(CustomerRental::isSelected);
         boolean statusUpdated = false;
+        Date today = new Date(); // Today's date
 
         // Handle the 'creating-invoices' action type
         if (lastActionType.equals("creating-invoices")) {
-            for (CustomerRental order : selectedRentals) {
-                if (order.getStatus().equals("Called Off") || order.getStatus().equals("Picked Up")) {
-                    order.setFlagged(true);
-                    updateInvoiceFlagInDB(order.getCustomerId(), true); // Flag the order for invoicing
-                    System.out.println("Order for " + order.getName() + " flagged for invoicing.");
-                    statusUpdated = true;
-                    checkAndSwitchScene(statusUpdated);
-                } else {
-                    System.out.println("Order for " + order.getName() + " cannot be flagged; status is not 'Called Off' or 'Picked Up'.");
-                }
-            }
+            statusUpdated = true;
+            checkAndSwitchScene(statusUpdated);
         } else if (lastActionType.equals("creating-contracts")) {
             // Handle the driver assignment status updates
             for (CustomerRental order : selectedRentals) {
-
+                // Logic for contracts if needed
             }
         } else if (lastActionType.equals("assigning-drivers")) {
             handleAssignDrivers();
             statusUpdated = true;
         } else if (lastActionType.equals("dropping-off")) {
             for (CustomerRental order : selectedRentals) {
-                // Mark as dropping-off
                 String newStatus = "Active";
                 System.out.println("Order for " + order.getName() + " status is:" + order.getStatus());
                 if (order.getStatus().equals("Upcoming")) {
                     order.setStatus(newStatus);
-                    updateRentalStatusInDB(order.getRentalItemId(), newStatus);  // Sync with DB
+                    updateRentalStatusInDB(order.getRentalItemId(), newStatus); // Sync with DB
+                    updateDateInDB(order.getRentalItemId(), "item_delivery_date", today); // Update delivery date
                     statusUpdated = true;
                     visuallyUnselectSidebarButton(droppingOffButton);
-                    System.out.println("Order for " + order.getName() + " marked as Active.");
+                    System.out.println("Order for " + order.getName() + " marked as Active with today's delivery date.");
+                    if (serialNumberField.getText().length() >= 5) {
+                    for (CustomerRental rental : selectedRentals) {
+                            updateSerialNumberInDB(rental.getRentalItemId(), serialNumberField.getText());
+                            rental.setSerialNumber(serialNumberField.getText());
+                        }
+                    }
+
+                    serialNumberField.setVisible(false);
+                    shiftUpdateButtonFull();
+                    serialNumberField.clear();
                 }
             }
             droppingOffButton.setStyle("-fx-background-color: transparent");
@@ -1379,20 +1364,20 @@ public class DBController extends BaseController {
                 String newStatus = "Called Off";
                 if (order.getStatus().equals("Active")) {
                     order.setStatus(newStatus);
-                    updateRentalStatusInDB(order.getRentalItemId(), newStatus);  // Sync with DB
+                    updateRentalStatusInDB(order.getRentalItemId(), newStatus); // Sync with DB
+                    updateDateInDB(order.getRentalItemId(), "item_call_off_date", today); // Update pickup date
                     statusUpdated = true;
                     System.out.println("Order for " + order.getName() + " status updated to 'Called Off'.");
                 }
             }
         } else if (lastActionType.equals("picking-up")) {
-            // Handle the 'picking-up' action type
             for (CustomerRental order : selectedRentals) {
-                String newStatus = "Picked Up";  // Set the status for picking-up
+                String newStatus = "Picked Up"; // Set the status for picking-up
                 if (order.getStatus().equals("Called Off")) {
                     order.setStatus(newStatus);
-                    updateRentalStatusInDB(order.getRentalItemId(), newStatus);  // Sync with DB
+                    updateRentalStatusInDB(order.getRentalItemId(), newStatus); // Sync with DB
                     statusUpdated = true;
-                    System.out.println("Order for " + order.getName() + " status updated to 'Picked Up'.");
+                    System.out.println("Order for " + order.getName() + " status updated to 'Picked Up' with today's pickup date.");
                 }
             }
         } else {
@@ -1401,7 +1386,7 @@ public class DBController extends BaseController {
                 String newStatus = determineNewStatus(order, lastActionType);
                 if (!newStatus.equals(order.getStatus())) {
                     order.setStatus(newStatus);
-                    updateRentalStatusInDB(order.getRentalItemId(), newStatus);  // Sync with DB
+                    updateRentalStatusInDB(order.getRentalItemId(), newStatus); // Sync with DB
                     statusUpdated = true;
                     System.out.println("Order for " + order.getName() + " status updated to '" + newStatus + "'.");
                 }
@@ -1417,16 +1402,55 @@ public class DBController extends BaseController {
             workingDBColumnFactory.showSelectableCheckboxes(false, lastActionType);
             updateRentalButton.setVisible(false);
 
+
         }
         dbTableView.refresh();
+    }
 
+
+
+    private void updateSerialNumberInDB(int rentalItemId, String serialNumber) {
+       if (!checkSerialNumberExists(serialNumber)) {
+           System.out.println("The provided serial number does not exist in the database.");
+           return;
+       }
+
+       String updateQuery = """
+          UPDATE rental_items
+          SET lift_id = (
+              SELECT lift_id
+              FROM lifts
+              WHERE serial_number = ?
+          )
+          WHERE rental_item_id = ?;
+       """;
+
+       try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+            PreparedStatement preparedStatement = connection.prepareStatement(updateQuery)) {
+
+           // Set the parameters for the query
+           preparedStatement.setString(1, serialNumber);
+           preparedStatement.setInt(2, rentalItemId);
+
+           // Execute the update
+           int rowsAffected = preparedStatement.executeUpdate();
+           if (rowsAffected > 0) {
+               System.out.println("Rental item updated successfully.");
+           } else {
+               System.out.println("No matching rental item found or serial number does not exist.");
+           }
+
+       } catch (SQLException e) {
+           System.err.println("Error while updating the rental item: " + e.getMessage());
+           e.printStackTrace();
+       }
     }
 
 
     private void updateRentalStatusInDB(int rentalItemId, String newStatus) {
         String updateQuery = "UPDATE rental_items SET item_status = ? WHERE rental_item_id = ?"; // Update table name
 
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
              PreparedStatement statement = connection.prepareStatement(updateQuery)) {
 
             statement.setString(1, newStatus);
@@ -1441,11 +1465,45 @@ public class DBController extends BaseController {
         }
     }
 
+    private void updateDateInDB(int rentalItemId, String dateColumn, Date date) {
+        String updateQuery = "UPDATE rental_items SET " + dateColumn + " = ? WHERE rental_item_id = ?";
+
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+             PreparedStatement statement = connection.prepareStatement(updateQuery)) {
+
+            statement.setDate(1, new java.sql.Date(date.getTime()));
+            statement.setInt(2, rentalItemId);
+
+            int rowsUpdated = statement.executeUpdate();
+            if (rowsUpdated > 0) {
+                // Log or success logic
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    private boolean checkSerialNumberExists(String serialNumber) {
+        String checkQuery = "SELECT COUNT(*) FROM lifts WHERE serial_number = ?;";
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+             PreparedStatement preparedStatement = connection.prepareStatement(checkQuery)) {
+            preparedStatement.setString(1, serialNumber);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            if (resultSet.next()) {
+                return resultSet.getInt(1) > 0;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
 
     private void checkAndSwitchScene(boolean statusUpdated) {
         if (statusUpdated) {
             try {
-                MaxReachPro.loadScene("/fxml/create_invoices.fxml"); // Replace with your scene path
+                MaxReachPro.loadScene("/fxml/compose_invoices.fxml"); // Replace with your scene path
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -1559,6 +1617,20 @@ public class DBController extends BaseController {
 
             return totalHeight;
         }
+    }
+
+    public void shiftUpdateButtonHalf(){
+        updateRentalButton.setMinWidth(145);
+        updateRentalButton.setMaxWidth(145);
+        updateRentalButton.setTranslateX(-23);
+    }
+
+    public void shiftUpdateButtonFull(){
+        serialNumberField.clear();
+        serialNumberField.setPromptText("     Serial Number");
+        updateRentalButton.setMinWidth(295);
+        updateRentalButton.setMaxWidth(295);
+        updateRentalButton.setTranslateX(-100);
     }
 
 
@@ -1714,7 +1786,7 @@ public class DBController extends BaseController {
     private void loadCustomers() {
         String query = "SELECT customer_id, customer_name, email FROM customers";
 
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
              PreparedStatement preparedStatement = connection.prepareStatement(query)) {
 
             ResultSet resultSet = preparedStatement.executeQuery();
@@ -1739,7 +1811,7 @@ public class DBController extends BaseController {
 
     private void handleViewSettingSelect (String viewType, String firstSetting) {
         dbTableView.getColumns().clear();
-        workingDBColumnFactory = new DBColumnFactory(updateRentalButton, dbTableView, groupedRentals, driverSequenceMap);
+        workingDBColumnFactory = new DBColumnFactory(updateRentalButton, serialNumberField, dbTableView, groupedRentals, driverSequenceMap);
         TableColumn<CustomerRental, String> serialNumberColumn = workingDBColumnFactory.getSerialNumberColumn();
         TableColumn<CustomerRental, Boolean> statusColumn = workingDBColumnFactory.getStatusColumn();
         TableColumn<CustomerRental, String> deliveryDateColumn = workingDBColumnFactory.getDeliveryDateColumn();

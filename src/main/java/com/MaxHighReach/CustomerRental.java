@@ -1,5 +1,6 @@
 package com.MaxHighReach;
 
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -22,18 +23,21 @@ public class CustomerRental {
     private final StringProperty driverInitial;
     private final SimpleIntegerProperty driverNumber;
     private final StringProperty serialNumber;
+    private final SimpleIntegerProperty liftId;
     private final StringProperty liftType;
     private final StringProperty shortLiftType;
     private final StringProperty status;
-    private final SimpleIntegerProperty refNumber;  // Changed to SimpleIntegerProperty
+    private final StringProperty refNumber;  // Changed to SimpleIntegerProperty
     private boolean selected;
     private boolean isFlagged;
-    private boolean isContractWritten;
+    private SimpleBooleanProperty isContractWritten;
+    private SimpleBooleanProperty writingInvoice;
+    private SimpleBooleanProperty isInvoiceWritten;
     private final SimpleIntegerProperty rentalOrderId;
     private final SimpleIntegerProperty rentalItemId;
 
     // Constructor with all relevant fields
-    public CustomerRental(String customerId, String name, String deliveryDate, String deliveryTime, String driver, String status, int refNumber, int rentalId) {
+    public CustomerRental(String customerId, String name, String deliveryDate, String deliveryTime, String driver, String status, String refNumber, int rentalId) {
         this.customerId = new SimpleStringProperty(customerId); // Initialize SimpleIntegerProperty
         this.name = new SimpleStringProperty(name);
         this.orderDate = new SimpleStringProperty("Unknown");
@@ -48,20 +52,23 @@ public class CustomerRental {
         this.driverInitial = new SimpleStringProperty(driver);
         this.driverNumber = new SimpleIntegerProperty(0);
         this.serialNumber = new SimpleStringProperty("118280");
+        this.liftId = new SimpleIntegerProperty(0);
         this.liftType = new SimpleStringProperty("Unknown");
         this.shortLiftType = new SimpleStringProperty("Unknown");
         this.status = new SimpleStringProperty(status);
-        this.refNumber = new SimpleIntegerProperty(refNumber); // Initialize SimpleIntegerProperty
+        this.refNumber = new SimpleStringProperty(refNumber); // Initialize SimpleIntegerProperty
         this.selected = false;
         this.isFlagged = isFlagged;
-        this.isContractWritten = isContractWritten;
+        this.isContractWritten = new SimpleBooleanProperty(false);
+        this.writingInvoice = new SimpleBooleanProperty(false);
+        this.isInvoiceWritten = new SimpleBooleanProperty(false);
         this.rentalOrderId = new SimpleIntegerProperty(rentalId);
         this.rentalItemId = new SimpleIntegerProperty(0);
     }
 
     // Constructor without driver and status
     public CustomerRental(String customerId, String name, String orderDate, String deliveryTime) {
-        this(customerId, name, orderDate, deliveryTime, "", "Unknown", 99999, 0); // Default values
+        this(customerId, name, orderDate, deliveryTime, "", "Unknown", "99999", 0); // Default values
     }
 
     // Getters and setters
@@ -288,6 +295,18 @@ public class CustomerRental {
         return serialNumber;
     }
 
+    public void setLiftId(int liftId) {
+        this.liftId.set(liftId);
+    }
+
+    public int getLiftId() {
+        return liftId.get();
+    }
+
+    public SimpleIntegerProperty liftIdProperty() {
+        return liftId;
+    }
+
     public void setLiftType(String liftType) {
         this.liftType.set(liftType);
         this.shortLiftType.set(generateShortLiftType(liftType));
@@ -295,6 +314,10 @@ public class CustomerRental {
 
     public StringProperty liftTypeProperty() {
         return liftType;
+    }
+
+    public String getLiftType() {
+        return liftType.get();
     }
 
     public String getShortLiftType() {
@@ -362,11 +385,28 @@ public class CustomerRental {
     }
 
     public boolean isContractWritten() {
-        return isContractWritten;
+        return isContractWritten.get();
     }
 
     public void setContractWritten(boolean contractWritten) {
-        isContractWritten = contractWritten;
+
+        this.isContractWritten.set(contractWritten);
+    }
+
+    public boolean isWritingInvoice() {
+        return writingInvoice.get();
+    }
+
+    public void setWritingInvoice(boolean writingInvoice) {
+        this.writingInvoice.set(writingInvoice);
+    }
+
+    public boolean isInvoiceWritten() {
+        return isInvoiceWritten.get();
+    }
+
+    public void setInvoiceWritten(boolean invoiceWritten) {
+        this.isInvoiceWritten.set(invoiceWritten);
     }
 
     // Getter and Setter for rentalId
