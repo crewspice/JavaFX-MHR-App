@@ -1,16 +1,20 @@
 package com.MaxHighReach;
 
+import com.mysql.cj.x.protobuf.MysqlxDatatypes;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
+import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class CustomerRental {
     private final StringProperty customerId;  // Changed to SimpleIntegerProperty
     private final StringProperty name;
+    private final StringProperty orderedByName;
+    private final StringProperty orderedByPhone;
     private final StringProperty orderDate;
     private final StringProperty deliveryDate;
     private final StringProperty pickupDate;
@@ -18,7 +22,12 @@ public class CustomerRental {
     private final StringProperty addressBlockOne;
     private final StringProperty addressBlockTwo;
     private final StringProperty addressBlockThree;
+    private final StringProperty city;
+    private final StringProperty siteContactName;
+    private final StringProperty siteContactPhone;
     private final StringProperty poNumber;
+    private final StringProperty locationNotes;
+    private final StringProperty preTripInstructions;
     private final StringProperty driver;
     private final StringProperty driverInitial;
     private final SimpleIntegerProperty driverNumber;
@@ -40,6 +49,8 @@ public class CustomerRental {
     public CustomerRental(String customerId, String name, String deliveryDate, String deliveryTime, String driver, String status, String refNumber, int rentalId) {
         this.customerId = new SimpleStringProperty(customerId); // Initialize SimpleIntegerProperty
         this.name = new SimpleStringProperty(name);
+        this.orderedByName = new SimpleStringProperty(null);
+        this.orderedByPhone = new SimpleStringProperty(null);
         this.orderDate = new SimpleStringProperty("Unknown");
         this.deliveryDate = new SimpleStringProperty(deliveryDate);
         this.pickupDate = new SimpleStringProperty("Unknown");
@@ -47,7 +58,12 @@ public class CustomerRental {
         this.addressBlockOne = new SimpleStringProperty("Town of Windsor Fire #8");
         this.addressBlockTwo = new SimpleStringProperty("1283 Hilltop Circle");
         this.addressBlockThree = new SimpleStringProperty("Windsor");
+        this.city = new SimpleStringProperty("Windsor");
+        this.siteContactName = new SimpleStringProperty(null);
+        this.siteContactPhone = new SimpleStringProperty(null);
         this.poNumber = new SimpleStringProperty("Unknown");
+        this.locationNotes = new SimpleStringProperty(null);
+        this.preTripInstructions = new SimpleStringProperty(null);
         this.driver = new SimpleStringProperty(driver);
         this.driverInitial = new SimpleStringProperty(driver);
         this.driverNumber = new SimpleIntegerProperty(0);
@@ -94,6 +110,30 @@ public class CustomerRental {
 
     public StringProperty nameProperty() {
         return name;
+    }
+
+    public String getOrderedByName() {
+        return orderedByName.get();
+    }
+
+    public void setOrderedByName(String orderedByName) {
+        this.orderedByName.set(orderedByName);
+    }
+
+    public StringProperty orderedByNameProperty() {
+        return orderedByName;
+    }
+
+    public String getOrderedByPhone() {
+        return orderedByPhone.get();
+    }
+
+    public void setOrderedByPhone(String orderedByPhone) {
+        this.orderedByPhone.set(orderedByPhone);
+    }
+
+    public StringProperty orderedByPhoneProperty() {
+        return orderedByPhone;
     }
 
     public String getOrderDate() {
@@ -188,10 +228,64 @@ public class CustomerRental {
 
     public void setAddressBlockThree(String addressBlockThree) {
         this.addressBlockThree.set(addressBlockThree);
+        setCityShort();
     }
 
     public StringProperty addressBlockThreeProperty() {
         return addressBlockThree;
+    }
+
+    public void setCityShort() {
+        String str = addressBlockThree.getValue();
+
+        if (str == null || str.isEmpty()) {
+            city.set(""); // Handle null or empty str strings
+            return;
+        }
+
+        String[] words = str.trim().split("\\s+"); // Split by whitespace
+        if (words.length == 1) {
+            city.set(str); // If there's only one word or none, return an empty string
+            return;
+        }
+
+        city.set(String.join(" ", Arrays.copyOf(words, words.length - 1))); // Join all but the last word
+    }
+
+    public String getCity() {
+        return city.get();
+    }
+
+    public void setCity(String city) {
+        this.city.set(city);
+    }
+
+    public StringProperty cityProperty() {
+        return city;
+    }
+
+    public String getSiteContactName() {
+        return siteContactName.get();
+    }
+
+    public void setSiteContactName(String siteContactName) {
+        this.siteContactName.set(siteContactName);
+    }
+
+    public StringProperty siteContactNameProperty() {
+        return siteContactName;
+    }
+
+    public String getSiteContactPhone() {
+        return siteContactPhone.get();
+    }
+
+    public void setSiteContactPhone(String siteContactPhone) {
+        this.siteContactPhone.set(siteContactPhone);
+    }
+
+    public StringProperty siteContactPhoneProperty() {
+        return siteContactPhone;
     }
 
     public String getPoNumber() {
@@ -204,6 +298,30 @@ public class CustomerRental {
 
     public StringProperty poNumberProperty() {
         return poNumber;
+    }
+
+    public String getLocationNotes() {
+        return locationNotes.get();
+    }
+
+    public void setLocationNotes(String locationNotes) {
+        this.locationNotes.set(locationNotes);
+    }
+
+    public StringProperty locationNotesProperty() {
+        return locationNotes;
+    }
+
+    public String getPreTripInstructions() {
+        return preTripInstructions.get();
+    }
+
+    public void setPreTripInstructions(String preTripInstructions) {
+        this.preTripInstructions.set(preTripInstructions);
+    }
+
+    public StringProperty preTripInstructionsProperty() {
+        return preTripInstructions;
     }
 
     public String getDriver() {

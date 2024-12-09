@@ -23,49 +23,45 @@
 <?import javafx.scene.control.TextField?>
 <AnchorPane fx:id="anchorPane" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.DBController">
 
+    <Rectangle fx:id="sideBarHighlighter" layoutX="278" layoutY="37" width="37" height="37" arcWidth="5" arcHeight="5" visible="false" fill="#FFDEAD" />
+
     <StackPane AnchorPane.leftAnchor="0" AnchorPane.topAnchor="0" prefWidth="320" prefHeight="800">
 
         <HBox fx:id="datePickersPane" alignment="TOP_LEFT"  visible="false" translateX="100" spacing="-15">
             <DatePicker fx:id="datePickerOne"  translateX="80" translateY="17" styleClass="date-picker" prefWidth="15" prefHeight="15"/>
             <DatePicker fx:id="datePickerTwo"  translateX="83" translateY="17" styleClass="date-picker" prefWidth="15" prefHeight="15"/>
         </HBox>
-        <Rectangle fx:id="datePickerOneCover" fill="#F4F4F4" translateX="-5" translateY="-370" width="167" height="35" />
+
+        <Rectangle fx:id="datePickerOneCover" translateX="-30" translateY="-400" width="100" height="100" fill="#F4F4F4"/>
 
         <Button fx:id="updateRentalButton" text="Update Rental" onAction="#handleUpdateRental" prefWidth="295" translateY="174" translateX="-99"/>
         <TextField fx:id="serialNumberField" translateY="174" translateX="-180" minWidth="145" maxWidth="145" styleClass="transparent-text-field" visible="false" promptText="     Serial Number"/>
 
+        <Button fx:id="batchButton" text="Batch Contracts" onAction="#handleBatchContracts" prefWidth="145" translateX="-180"  translateY="174" visible="false"/>
+        <Button fx:id="secondInProcessButton" text="Open Document" onAction="#handleSecondInProcess" prefWidth="145" translateX="-25" translateY="174" visible="false" />
 
-
-        <!-- Back Button (located at the top) -->
-
-        <Rectangle layoutX="265" layoutY="67" width="10" height="10" fill="#FFDEAD" />
-        <Rectangle layoutX="265" layoutY="538" width="10" height="10" fill="#FFDEAD" />
-        <Rectangle layoutX="248" layoutY="540" width="23" height="13" fill="#FFDEAD" />
-        <Rectangle layoutX="8" layoutY="535" width="17" height="21" fill="#FFDEAD" />
-
-        <TableView fx:id="dbTableView" minHeight="552" maxHeight="552" minWidth="284" maxWidth="284"  translateX="-117" translateY="-121" />
+        <TableView fx:id="dbTableView" minHeight="552" maxHeight="552" minWidth="289" maxWidth="289"  translateX="-120" translateY="-121" />
 
 
         <HBox minHeight="25" maxHeight="25" translateX="22" translateY="-379">
             <HBox fx:id="viewsTilePane"
                  translateX="-15" translateY="-3">
-                <ToggleButton text="Interval"  minWidth="70" maxWidth="70" fx:id="intervalButton" />
-                <ToggleButton text="Customer" minWidth="75" maxWidth="75" fx:id="customerButton"/>
-                <ToggleButton text="Status" minWidth="55" maxWidth="55" fx:id="statusButton"/>
-                <ToggleButton text="Driver" minWidth="55" maxWidth="55" fx:id="driverButton"/>
+                <ToggleButton text="Status" minWidth="80" maxWidth="80" fx:id="statusButton"/>
+                <ToggleButton text="Customer" minWidth="100" maxWidth="100" fx:id="customerButton"/>
+                <ToggleButton text="Driver" minWidth="80" maxWidth="80" fx:id="driverButton"/>
             </HBox>
             <VBox fx:id="statusesPane" visible="false"
-                      translateY="-11" translateX="-206">
+                      translateY="-11" translateX="-202">
                 <ToggleButton text="Upcoming"   minWidth="55" maxWidth="55" fx:id="upcomingButton"/>
                 <ToggleButton text="Called Off"  minWidth="55" maxWidth="55" fx:id="calledOffButton"/>
             </VBox>
-            <VBox fx:id="statusesPaneTwo" visible="false" translateY="-11" translateX="-206">
+            <VBox fx:id="statusesPaneTwo" visible="false" translateY="-11" translateX="-202">
                 <ToggleButton text="Active"  minWidth="45" maxWidth="45" fx:id="activeButton"/>
                 <ToggleButton text="Billable"  minWidth="45" maxWidth="45" fx:id="billableButton"/>
             </VBox>
 
             <HBox fx:id="leftSideVboxCustomerView" visible="false">
-                <ComboBox fx:id="customerComboBox" onAction="#handleViewAndCustomerSelect" minWidth="80" maxWidth="80" translateX="-290" translateY="-5"/>
+                <ComboBox fx:id="customerComboBox" onAction="#handleViewAndCustomerSelect" minWidth="80" maxWidth="80" translateX="-285" translateY="-5"/>
             </HBox>
             <HBox fx:id="leftSideVboxDriverView" visible="false">
                 <ComboBox fx:id="driverComboBox" onAction="#handleViewAndDriverSelect" minWidth="80" maxWidth="80" translateX="-380" translateY="-5"/>
@@ -156,11 +152,28 @@
 
             </Button>
 
+            <Button fx:id="expandButton" onAction="#handleExpand" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
+                <graphic>
+                    <ImageView fitWidth="27" fitHeight="27">
+                        <Image url="@/images/expand.png"/>
+                    </ImageView>
+                </graphic>
+
+            </Button>
+
             <!-- Refresh Data Button with Tooltip -->
             <Button fx:id="refreshDataButton" onAction="#handleRefreshData" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
                 <graphic>
                     <ImageView fitWidth="27" fitHeight="27">
                         <Image url="@/images/refresh.png"/>
+                    </ImageView>
+                </graphic>
+            </Button>
+
+            <Button fx:id="deleteButton" onAction="#handleDelete" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
+                <graphic>
+                    <ImageView fitWidth="27" fitHeight="27">
+                        <Image url="@/images/delete.png"/>
                     </ImageView>
                 </graphic>
             </Button>
@@ -171,7 +184,10 @@
         <Button fx:id="backButton" text="Back" onAction="#handleBack" translateX="34" translateY="-382"/>
 
 
+
     </StackPane>
+
+
 
 
  </AnchorPane>

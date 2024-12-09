@@ -3,32 +3,68 @@ plugins {
     id 'org.openjfx.javafxplugin' version '0.0.13'
     id 'org.jetbrains.gradle.plugin.idea-ext' version '1.1.8' // For IDEA support (optional)
     id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1' // For creating a fat JAR
 }
+
 
 repositories {
-    mavenCentral()
+    mavenCentral() // Maven Central is more reliable
 }
 
+
 dependencies {
-    implementation 'com.squareup.okhttp3:okhttp:4.9.3'
-    implementation 'org.openjfx:javafx-controls:21'
-    implementation 'org.openjfx:javafx-fxml:21'
-    implementation 'mysql:mysql-connector-java:8.0.31'
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.0'
-    implementation 'com.google.code.gson:gson:2.10.1'
-    implementation 'org.json:json:20210307'
-    implementation 'com.itextpdf:itext7-core:7.2.1'
-    implementation files("C:/Program Files/MySQL/mysql-connector-j-9.0.0/mysql-connector-java-9.0.0.jar")
+   // JavaFX dependencies
+   implementation 'org.openjfx:javafx-controls:21'
+   implementation 'org.openjfx:javafx-fxml:21'
+
+
+   // HTTP client
+   implementation 'com.squareup.okhttp3:okhttp:4.9.3'
+
+
+   // JSON and Jackson
+   implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.0'
+   implementation 'com.google.code.gson:gson:2.10.1'
+   implementation 'org.json:json:20210307'
+
+
+   // iText dependencies
+   implementation 'com.itextpdf:kernel:8.0.5'
+   implementation 'com.itextpdf:layout:8.0.5'
+
+
+   // MySQL connector
+   implementation 'mysql:mysql-connector-java:8.0.31'
+
+
+   // Optional: Additional local dependency (only if needed)
+   implementation files("C:/Program Files/MySQL/mysql-connector-j-9.0.0/mysql-connector-java-9.0.0.jar")
 }
+
+
+
 
 javafx {
     version = "21"
     modules = [ 'javafx.controls', 'javafx.fxml' ]
 }
 
+
 application {
-    mainClass.set('com.MaxHighReach.Main')
+    mainClass.set('com.MaxHighReach.Main') // Your main class
 }
+
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+
+shadowJar {
+    archiveClassifier.set('all') // Creates a fat JAR with all dependencies
+}
+
 
 tasks.withType(JavaExec) {
     doFirst {
@@ -39,10 +75,6 @@ tasks.withType(JavaExec) {
     }
 }
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
-}
 
 jar {
     manifest {
@@ -65,15 +97,14 @@ task customDist(type: Zip) {
 task jpackage(type: Exec) {
     dependsOn build
 
+
     doFirst {
         def jpackageCmd = "jpackage" // Ensure this command is in your PATH
-
-        // JAR file name in the build/libs directory
-        def mainJarName = "MaxReachPro.jar" // Name of your JAR file
+        def mainJarName = "MaxReachPro-all.jar" // Name of your fat JAR file
         def mainClass = 'com.MaxHighReach.Main'
-        def outputDir = "C:/Users/maxhi/OneDrive/Documents/Quickbooks/ QBProgram Development/IdeaProjects/JavaFX-MHR-App/build/installer" // Output directory for installer
-
+        def outputDir = "C:/Users/maxhi/OneDrive/Documents/Quickbooks/QBProgram Development/IdeaProjects/JavaFX-MHR-App/build/installer" // Output directory for installer
         def jarInputDir = "$buildDir/libs" // Directory where the JAR file is located
+
 
         commandLine jpackageCmd,
             '--type', 'exe', // Or 'app-image' for a distributable folder
@@ -85,5 +116,4 @@ task jpackage(type: Exec) {
             '--java-options', '--module-path=C:/Program Files/JavaFX/javafx-sdk-21.0.4/lib --add-modules=javafx.controls,javafx.fxml'
     }
 }
-
 

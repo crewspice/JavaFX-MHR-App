@@ -3,6 +3,7 @@ package com.MaxHighReach;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -20,6 +21,9 @@ import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 import javafx.util.Duration;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -27,8 +31,19 @@ import java.sql.SQLException;
 import java.time.Month;
 import java.time.format.TextStyle;
 import java.util.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.io.File;
+
 
 import static java.lang.Integer.parseInt;
+
+import com.itextpdf.kernel.pdf.PdfReader;
+import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
+import com.itextpdf.kernel.utils.PdfMerger;
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.layout.Document;
 
 public class DBColumnFactory {
 
@@ -42,6 +57,9 @@ public class DBColumnFactory {
     private final TableColumn<CustomerRental, String> invoiceColumn = new TableColumn<>();
     private final Button updateRentalButton;
     private TextField serialNumberField;
+    private final Button batchButton;
+    private String batchSwitcher;
+    private final Button secondInProcessButton;
     private String lastActionType = "";
     private final TableView<CustomerRental> dbTableView;
     private Map<String, List<CustomerRental>> groupedRentals = new HashMap<>();
@@ -51,29 +69,28 @@ public class DBColumnFactory {
     private String driverComboBoxOpenOrClosed = "";
     private Label globalLiftTypeLabel;
 
-
-    public DBColumnFactory(Button button, TextField textField, TableView<CustomerRental> tableView, Map<String, List<CustomerRental>> rentalsMap, Map<String, Integer> driverMap) {
+    public DBColumnFactory(Button button, TextField textField, TableView<CustomerRental> tableView, Map<String,
+            List<CustomerRental>> rentalsMap, Map<String, Integer> driverMap, Button button2, String buttonString, Button button3) {
         this.updateRentalButton = button;
         this.serialNumberField = textField;
+        this.batchButton = button2;
+        this.batchSwitcher = buttonString;
+        this.secondInProcessButton = button3;
         this.dbTableView = tableView;
         this.groupedRentals = rentalsMap;
         this.driverSequenceMap = driverMap;
 
-
         initializeColumns();
     }
 
-
-    // New constructor with only the TableView argument
+    // New constructr with only the TableView argument
     public DBColumnFactory(TableView<CustomerRental> tableView, Button button) {
         this.dbTableView = tableView;
         this.updateRentalButton = button;
-
-
-
+        batchButton = new Button();
+        secondInProcessButton = new Button();
         initializeColumns();
     }
-
 
     // Method to initialize columns and other properties
     private void initializeColumns() {
@@ -87,23 +104,19 @@ public class DBColumnFactory {
             private final StackPane overlayPane = new StackPane(contentVBox, liftTypeLabel);
             private final DropShadow glowEffect = new DropShadow();
 
-
             {
                 contentVBox.setAlignment(Pos.TOP_LEFT);
                 contentVBox.setPadding(new Insets(0));
                 contentVBox.setSpacing(-2);
                 contentVBox.setFillWidth(true);
 
-
                 nameLabel.setStyle("-fx-font-weight: bold;");
                 addressBlockOneLabel.setStyle("-fx-font-weight: normal;");
                 addressBlockTwoLabel.setStyle("-fx-font-weight: normal;");
                 addressBlockThreeLabel.setStyle("-fx-font-weight: normal;");
 
-
                 contentVBox.setMinHeight(Config.DB_ROW_HEIGHT);
                 contentVBox.setMaxHeight(Config.DB_ROW_HEIGHT);
-
 
                 glowEffect.setRadius(10);
                 glowEffect.setSpread(0.5);
@@ -112,9 +125,7 @@ public class DBColumnFactory {
                 liftTypeLabel.setStyle("-fx-font-weight: bold;");
                 liftTypeLabel.setFont(Font.font("Patrick Hand"));
 
-
                 globalLiftTypeLabel = liftTypeLabel;
-
 
                 Timeline glowTimeline = new Timeline(
                     new KeyFrame(Duration.ZERO,
@@ -130,17 +141,14 @@ public class DBColumnFactory {
                 glowTimeline.setAutoReverse(true);
                 glowTimeline.play();
 
-
                 StackPane.setAlignment(liftTypeLabel, Pos.BOTTOM_RIGHT);
                 StackPane.setAlignment(contentVBox, Pos.CENTER_LEFT);
                 StackPane.setMargin(liftTypeLabel, new Insets(0, 5, 8, 0));
             }
 
-
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
-
 
                 if (empty || getTableRow() == null) {
                     setGraphic(null);
@@ -156,13 +164,11 @@ public class DBColumnFactory {
                         nameLabel.setText(rental.getName());
                         addressBlockOneLabel.setText(rental.getAddressBlockOne());
                         addressBlockTwoLabel.setText(rental.getAddressBlockTwo());
-                        addressBlockThreeLabel.setText(rental.getAddressBlockThree());
-
+                        addressBlockThreeLabel.setText(rental.getCity());
 
                         String liftType = rental.getShortLiftType();
                         liftTypeLabel.setText(liftType != null ? liftType : "");
                         liftTypeLabel.setTranslateY(7);
-
 
                         setGraphic(overlayPane);
                     }
@@ -170,9 +176,7 @@ public class DBColumnFactory {
             }
         });
 
-
         customerAndAddressColumn.setPrefWidth(123);
-
 
         statusColumn.setCellValueFactory(cellData -> {
             CustomerRental rental = cellData.getValue();
@@ -180,12 +184,10 @@ public class DBColumnFactory {
             return new SimpleBooleanProperty("Active".equals(status));
         });
 
-
         statusColumn.setCellFactory(column -> new TableCell<CustomerRental, Boolean>() {
             @Override
             protected void updateItem(Boolean item, boolean empty) {
                 super.updateItem(item, empty);
-
 
                 if (empty || item == null) {
                     setGraphic(null);
@@ -198,9 +200,8 @@ public class DBColumnFactory {
                     setPrefHeight(Config.DB_ROW_HEIGHT);
                     CustomerRental rental = getTableView().getItems().get(getIndex());
 
-
                     boolean shouldShow = false;
-
+                    boolean shouldShowExpandIcons = false;
 
                     if ("calling-off".equals(lastActionType) && "Active".equals(rental.getStatus())) {
                         shouldShow = true;
@@ -208,13 +209,16 @@ public class DBColumnFactory {
                         shouldShow = true;
                     } else if ("picking-up".equals(lastActionType) && "Called Off".equals(rental.getStatus())) {
                         shouldShow = true;
-                    } else if ("creating-invoices".equals(lastActionType) &&
+                    } else if ("composing-invoices".equals(lastActionType) &&
                                ("Called Off".equals(rental.getStatus()) || "Ended".equals(rental.getStatus()))) {
                         shouldShow = true;
-                    } else if ("creating-contracts".equals(lastActionType)) {
+                    } else if ("composing-contracts".equals(lastActionType)) {
                         shouldShow = true;
+                    } else if ("deleting".equals(lastActionType)) {
+                        shouldShow = true;
+                    } else if ("expanding".equals(lastActionType)) {
+                        shouldShowExpandIcons = true;
                     }
-
 
                     if (shouldShow) {
                         CheckBox checkBox = new CheckBox();
@@ -224,8 +228,19 @@ public class DBColumnFactory {
                             rental.setSelected(checkBox.isSelected());
                         });
 
-
                         StackPane stackPane = new StackPane(checkBox);
+                        stackPane.setAlignment(Pos.CENTER);
+                        setGraphic(stackPane);
+                    } else if (shouldShowExpandIcons) {
+                        Button button = new Button();
+                        ImageView imageView = new ImageView(new Image(getClass().getResourceAsStream("/images/small-expand.png")));
+                        imageView.setFitWidth(13);
+                        imageView.setFitHeight(13);
+                        button.setGraphic(imageView);
+                        button.getStyleClass().add("expand-button");
+                        int rowIndex = getIndex();
+                        button.setOnAction(event -> handleExpandSelection(rowIndex));
+                        StackPane stackPane = new StackPane(button);
                         stackPane.setAlignment(Pos.CENTER);
                         setGraphic(stackPane);
                     } else {
@@ -234,10 +249,14 @@ public class DBColumnFactory {
                         Tooltip tooltip = new Tooltip(status);
                         tooltip.setShowDelay(Duration.ZERO);
 
-
                         if (status.equals("Upcoming")) {
-                            circle.setFill(Color.BLACK);
-                            tooltip.setStyle("-fx-background-color: #FF8C00; -fx-text-fill: white;");
+                            if (MaxReachPro.getUser()[0] == "Sandy Mulberry") {
+                                circle.setFill(Color.web("#F4F471"));
+                                tooltip.setStyle("-fx-background-color: #F4F471; -fx-text-fill: black;");
+                            } else {
+                                circle.setFill(Color.ORANGE);
+                                tooltip.setStyle("-fx-background-color: orange; -fx-text-fill: black;");
+                            }
                         } else if (status.equals("Active")) {
                             circle.setFill(Color.GREEN);
                             tooltip.setStyle("-fx-background-color: green; -fx-text-fill: white;");
@@ -245,13 +264,11 @@ public class DBColumnFactory {
                             circle.setFill(Color.RED);
                             tooltip.setStyle("-fx-background-color: red; -fx-text-fill: white;");
                         } else if (status.equals("Picked Up")) {
-                            circle.setFill(Color.web("#C0C0C0"));
-                            tooltip.setStyle("-fx-background-color: #C0C0C0; -fx-text-fill: black;");
+                            circle.setFill(Color.BLACK);
+                            tooltip.setStyle("-fx-background-color: black; -fx-text-fill: white;");
                         }
 
-
                         Tooltip.install(circle, tooltip);
-
 
                         StackPane stackPane = new StackPane(circle);
                         stackPane.setAlignment(Pos.CENTER);
@@ -262,8 +279,6 @@ public class DBColumnFactory {
         });
         statusColumn.setPrefWidth(24);
     }
-
-
 
     public TableColumn<CustomerRental, String> getSerialNumberColumn(){
         serialNumberColumn.setCellValueFactory(new PropertyValueFactory<>("serialNumber"));
@@ -315,7 +330,7 @@ public class DBColumnFactory {
                     // Set the VBox as the graphic for the cell
                     setGraphic(vBox); // Set the VBox as the graphic for the cell
                 }
-            }
+                    }
 });
 
 
@@ -418,6 +433,7 @@ public class DBColumnFactory {
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
 
+
                 if (empty || item == null) {
                     setText(null);  // Clear text for empty cells
                     setGraphic(null);  // Clear graphic for empty cells
@@ -429,46 +445,37 @@ public class DBColumnFactory {
                     setMaxHeight(Config.DB_ROW_HEIGHT);
                     setPrefHeight(Config.DB_ROW_HEIGHT);
 
+
                     // Get delivery time from the CustomerRental
                     CustomerRental rental = getTableView().getItems().get(getIndex());
                     String time = rental.getDeliveryTime(); // Get delivery time
 
-                    // Create a Pane to hold individual character labels
-                    Pane pane = new Pane();
-                    double labelHeight = 10; // Set height for character labels
-                    double labelWidth = 10; // Set width for character labels
 
-                    // Create labels for each character in the delivery time
+                    // Create a VBox to hold each character as a Label
+                    VBox vBox = new VBox();
+                    vBox.setAlignment(Pos.CENTER); // Center align the VBox
+
+
+                    // Create a Label for each character in the delivery time
                     for (int i = 0; i < time.length(); i++) {
                         char c = time.charAt(i);
-                        Label charLabel = new Label(String.valueOf(c));
-                        charLabel.setStyle("-fx-font-size: 10; -fx-padding: 0; -fx-margin: 0;"); // Remove padding and margin
-
-                        // Set the layout position for each label, allowing significant overlap
-                        charLabel.setLayoutX(i * 2); // Adjusting label width for closer overlap
-                        charLabel.setLayoutY(0); // Align them to the top
-
-                        // Set explicit dimensions
-                        charLabel.setMinHeight(labelHeight);
-                        charLabel.setMaxHeight(labelHeight);
-                        charLabel.setPrefHeight(labelHeight);
-                        charLabel.setMinWidth(labelWidth);
-                        charLabel.setMaxWidth(labelWidth);
-                        charLabel.setPrefWidth(labelWidth);
-
-                        pane.getChildren().add(charLabel); // Add the label to the pane
+                        String cc = String.valueOf(c);
+                        if (cc == "-") {
+                            cc = "|";
+                        }
+                        Label charLabel = new Label(cc);
+                        charLabel.setStyle("-fx-font-size: 10; -fx-padding: 1.5;"); // Adjust style as needed
+                        vBox.getChildren().add(charLabel); // Add each character label to the VBox
                     }
 
-                    // Adjust the height of the pane if needed
-                    pane.setMinHeight(labelHeight);
-                    pane.setMaxHeight(labelHeight);
-                    pane.setPrefHeight(labelHeight);
 
-                    setGraphic(pane); // Set the Pane as the graphic for the cell
+                    vBox.setSpacing(-5.5); // Set the spacing between characters
+                    setGraphic(vBox); // Set the VBox as the graphic for the cell
                 }
             }
         });
 
+        deliveryTimeColumn.setPrefWidth(11);
         return deliveryTimeColumn;
     }
 
@@ -576,7 +583,6 @@ public class DBColumnFactory {
                 setPrefHeight(Config.DB_ROW_HEIGHT);
 
                 CustomerRental currentRental = dbTableView.getItems().get(getIndex());
-                System.out.println("Updating cell for rental: " + currentRental);
 
                 Set<String> potentialDrivers = calculatePotentialDrivers(currentRental);
                 comboBox.getItems().setAll(potentialDrivers);
@@ -799,8 +805,250 @@ public class DBColumnFactory {
         boolean anySelected = dbTableView.getItems().stream().anyMatch(CustomerRental::isSelected);
         updateRentalButton.setVisible(anySelected);
 
-        if (actionType == "dropping-off") {
+        if (actionType.equals("composing-contracts")) {
+            batchButton.setText("Batch Contracts");
+            batchButton.setVisible(anySelected);
+            updateRentalButton.setVisible(false);
 
+            if (anySelected) {
+                batchButton.setOnAction(event -> {
+                    ObservableList<CustomerRental> selectedRentals = dbTableView.getItems().filtered(CustomerRental::isSelected);
+
+                    if (selectedRentals.isEmpty()) {
+                        System.out.println("No rentals selected. Cannot compose contracts.");
+                        return;
+                    }
+
+                    String sourceFile = "C:/Users/maxhi/OneDrive/Documents/Quickbooks/QBProgram Development/Composing Contracts/contract template.pdf";
+                    List<String> createdPdfFiles = new ArrayList<>();
+
+                    for (CustomerRental rental : selectedRentals) {
+                        String outputFile = "C:/Users/maxhi/OneDrive/Documents/Quickbooks/QBProgram Development/Composing Contracts/contract_" + rental.getRentalItemId() + ".pdf";
+
+                        try {
+                            // Open the source PDF
+                            PdfDocument pdfDoc = new PdfDocument(new PdfReader(sourceFile), new PdfWriter(outputFile));
+                            Document document = new Document(pdfDoc);
+
+                            // Get page 1 of the PDF
+                            PdfCanvas canvas = new PdfCanvas(pdfDoc.getPage(1));
+
+                            // Add text to specific coordinates
+                            canvas.beginText();
+                            canvas.setFontAndSize(com.itextpdf.kernel.font.PdfFontFactory.createFont(), 12);
+
+                            String dateString = rental.getDeliveryDate();
+                            LocalDate date = LocalDate.parse(dateString, DateTimeFormatter.ISO_LOCAL_DATE);
+                            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM'.' d");
+                            String formattedDate = date.format(formatter);
+                            int day = date.getDayOfMonth();
+                            String suffix = getDaySuffix(day);
+                            String formattedDeliveryDate = formattedDate + suffix;
+                            canvas.setTextMatrix(435, 711); // Delivery Date
+                            canvas.showText(formattedDeliveryDate);
+
+                            // Additional fields
+                            canvas.setTextMatrix(449, 747); // Delivery Time
+                            canvas.showText("P" + rental.getRentalItemId());
+                            canvas.setTextMatrix(355, 631); // Address Block One
+                            canvas.showText(rental.getAddressBlockOne());
+                            canvas.setTextMatrix(346, 613); // Address Block Two
+                            canvas.showText(rental.getAddressBlockTwo());
+                            canvas.setTextMatrix(364, 595); // Address Block Three
+                            canvas.showText(rental.getCity());
+
+                            if (rental.getSiteContactName() != null) {
+                                canvas.setTextMatrix(371, 577); // Address Block Four
+                                canvas.showText(rental.getSiteContactName());
+                                canvas.setTextMatrix(454, 577); // Address Block Five
+                                canvas.showText(formatPhoneNumber(rental.getSiteContactPhone()));
+                            }
+
+                            if (rental.getOrderedByName() != null) {
+                                canvas.setTextMatrix(119, 559); // Address Block Four
+                                canvas.showText(rental.getOrderedByName());
+                                canvas.setTextMatrix(76, 577); // Address Block Five
+                                canvas.showText(formatPhoneNumber(rental.getOrderedByPhone()));
+                            }
+
+                            canvas.setTextMatrix(194, 559); // PO Number
+                            canvas.showText(rental.getPoNumber());
+                            canvas.setTextMatrix(43, 523);
+                            canvas.showText(rental.getLocationNotes());
+                            canvas.setTextMatrix(81, 630); // Name
+                            canvas.showText(rental.getName());
+                            canvas.setTextMatrix(43, 652);
+                            canvas.showText(rental.getPreTripInstructions());
+                            canvas.setTextMatrix(99, 481); // Lift Type
+                            canvas.showText(rental.getLiftType());
+
+                            canvas.endText();
+
+                            // Close the document
+                            document.close();
+
+                            // Track the generated PDF file
+                            createdPdfFiles.add(outputFile);
+
+                            System.out.println("Contract created: " + outputFile);
+                            secondInProcessButton.setVisible(true);
+                        } catch (Exception e) {
+                            System.out.println("Error creating contract for rental ID " + rental.getRentalItemId() + ": " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                    }
+
+                    // Merge individual PDFs into one file
+                    if (!createdPdfFiles.isEmpty()) {
+                        String todayDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                        String finalOutputFile = "C:/Users/maxhi/OneDrive/Documents/Quickbooks/QBProgram Development/Composing Contracts/contracts_" + todayDate + ".pdf";
+
+                        try {
+                            PdfDocument finalPdfDoc = new PdfDocument(new PdfWriter(finalOutputFile));
+                            PdfMerger merger = new PdfMerger(finalPdfDoc);
+
+                            for (String pdfFile : createdPdfFiles) {
+                                PdfDocument docToMerge = new PdfDocument(new PdfReader(pdfFile));
+                                merger.merge(docToMerge, 1, docToMerge.getNumberOfPages());
+                                docToMerge.close();
+                            }
+
+                            finalPdfDoc.close();
+
+                            System.out.println("All contracts merged into: " + finalOutputFile);
+
+                            // Clean up individual PDFs
+                            for (String pdfFile : createdPdfFiles) {
+                                File file = new File(pdfFile);
+                                if (file.exists() && file.delete()) {
+                                    System.out.println("Deleted temporary file: " + pdfFile);
+                                }
+                            }
+
+                            System.out.println("Temporary individual contract files deleted.");
+                        } catch (Exception e) {
+                            System.out.println("Error merging PDFs: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                    } else {
+                        System.out.println("No contracts were created, so no merge occurred.");
+                    }
+
+                    System.out.println("Batch contracts processing completed.");
+                });
+            }
+        }
+
+        if (actionType.equals("composing-invoices")) {
+            batchButton.setText("Batch Invoices");
+            batchButton.setVisible(anySelected);
+            updateRentalButton.setVisible(false);
+            if (anySelected) {
+                batchButton.setText("Batch Invoices");
+                batchButton.setVisible(true);
+                updateRentalButton.setVisible(false);
+
+                batchButton.setOnAction(event -> {
+                    ObservableList<CustomerRental> selectedRentals = dbTableView.getItems().filtered(CustomerRental::isSelected);
+
+                    if (selectedRentals.isEmpty()) {
+                        System.out.println("No rentals selected. Cannot compose invoices.");
+                        return;
+                    }
+
+                    clearAllComposingInvoiceInDB();
+
+                    // Loop through each selected rental and flag it in the database
+                    boolean anyUpdated = false;
+                    for (CustomerRental rental : selectedRentals) {
+                        System.out.println("Processing rental item ID: " + rental.getRentalItemId());
+                        boolean updateSuccess = flagComposingInvoiceInDB(rental.getRentalItemId());
+
+                        if (updateSuccess) {
+                            anyUpdated = true;
+                            rental.setWritingInvoice(true);
+                        } else {
+                            System.out.println("Failed to update rental item ID: " + rental.getRentalItemId());
+                        }
+                    }
+
+                    // Show confirmation if any updates were successful
+                    if (anyUpdated) {
+                        System.out.println("At least one rental item was updated successfully.");
+
+                        // Path to the Python script
+                        String scriptPath = "C:\\Users\\maxhi\\OneDrive\\Documents\\Quickbooks\\QBProgram Development\\Invoice Creating\\.venv\\Scripts\\make_invoices_from_queue.py";
+
+                        // Execute the Python script directly without passing data
+                        executePythonScript(scriptPath);
+
+                        prepareSecondaryButtonForInvoices();
+                        secondInProcessButton.setVisible(true);
+                        runSDKTool();
+                    } else {
+                        System.out.println("No rental items were updated.");
+                    }
+
+                    resetCheckboxes();
+                    dbTableView.refresh();
+                });
+
+                secondInProcessButton.setOnAction(event -> {
+                    ObservableList<CustomerRental> selectedRentals = dbTableView.getItems().filtered(CustomerRental::isSelected);
+
+                    if (selectedRentals.isEmpty()) {
+                        System.out.println("No rentals selected. Cannot compose invoices.");
+                        return;
+                    }
+
+                    clearAllComposingInvoiceInDB();
+
+                    // Loop through each selected rental and flag it in the database
+                    boolean anyUpdated = false;
+                    for (CustomerRental rental : selectedRentals) {
+                        System.out.println("Processing rental item ID: " + rental.getRentalItemId());
+                        boolean updateSuccess = flagComposingInvoiceInDB(rental.getRentalItemId());
+
+                        if (updateSuccess) {
+                            anyUpdated = true;
+                            rental.setWritingInvoice(true);
+                        } else {
+                            System.out.println("Failed to update rental item ID: " + rental.getRentalItemId());
+                        }
+                    }
+
+                    // Show confirmation if any updates were successful
+                    if (anyUpdated) {
+                        System.out.println("At least one rental item was updated successfully.");
+
+                        // Path to the Python script
+                        String scriptPath = "C:\\Users\\maxhi\\OneDrive\\Documents\\Quickbooks\\QBProgram Development\\Invoice Creating\\.venv\\Scripts\\make_invoices_from_queue.py";
+
+                        // Execute the Python script directly without passing data
+                        executePythonScript(scriptPath);
+
+                        prepareSecondaryButtonForInvoices();
+                        secondInProcessButton.setVisible(true);
+                        runSDKTool();
+                    } else {
+                        System.out.println("No rental items were updated.");
+                    }
+
+                    resetCheckboxes();
+                    dbTableView.refresh();
+                });
+            }
+
+        }
+    }
+
+
+    private void handleExpandSelection(int index) {
+        MaxReachPro.setRentalForExpanding(dbTableView.getItems().get(index));
+        try {
+            MaxReachPro.loadScene("/fxml/expand.fxml");
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -809,10 +1057,20 @@ public class DBColumnFactory {
         boolean shouldShow = "dropping-off".equals(actionType) ||
                 "calling-off".equals(actionType) ||
                 "picking-up".equals(actionType) ||
-                "creating-invoices".equals(actionType) ||
-                "creating-contracts".equals(actionType);
+                "composing-invoices".equals(actionType) ||
+                "composing-contracts".equals(actionType) ||
+                "deleting".equals(actionType);
 
         this.shouldShowCheckboxes = shouldShow && visible; // Set the class-level variable
+        dbTableView.refresh();
+    }
+
+    public void showExpandIcons(boolean visible) {
+        if (visible) {
+            lastActionType = "expanding";
+        } else {
+            lastActionType = null;
+        }
         dbTableView.refresh();
     }
 
@@ -989,18 +1247,176 @@ public class DBColumnFactory {
 
 
     private void updateDriverInDatabase(int rentalItemId, String newDriver) {
-        String updateQuery = "UPDATE rental_items SET driver = ? WHERE rental_item_id = ?";
+        // Extract initials from the newDriver argument
+        String driverInitials = extractDriverInitials(newDriver);
 
-        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/practice_db", "root", "SQL3225422!a");
+        // Update both the driver and driver_initial columns
+        String updateQuery = "UPDATE rental_items SET driver = ?, driver_initial = ? WHERE rental_item_id = ?";
+
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
              PreparedStatement preparedStatement = connection.prepareStatement(updateQuery)) {
 
+            // Set parameters for the prepared statement
             preparedStatement.setString(1, newDriver);
-            preparedStatement.setInt(2, rentalItemId);
+            preparedStatement.setString(2, driverInitials);
+            preparedStatement.setInt(3, rentalItemId);
+
+            // Execute the update
             preparedStatement.executeUpdate();
 
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    private String extractDriverInitials(String driverName) {
+        // Split the driverName into parts and concatenate the first letter of each part
+        StringBuilder initials = new StringBuilder();
+        String[] parts = driverName.split("\\s+"); // Split by whitespace
+        for (String part : parts) {
+            if (!part.isEmpty()) {
+                initials.append(part.charAt(0));
+            }
+        }
+        return initials.toString().toUpperCase(); // Convert to uppercase for consistency
+    }
+
+    private String getDaySuffix(int day) {
+        if (day >= 11 && day <= 13) {
+            return "th";
+        }
+        switch (day % 10) {
+            case 1: return "st";
+            case 2: return "nd";
+            case 3: return "rd";
+            default: return "th";
+        }
+    }
+
+    private String formatPhoneNumber(String phoneNumber) {
+        if (phoneNumber == null || phoneNumber.length() != 10) {
+            throw new IllegalArgumentException("Input must be a 10-digit number.");
+        }
+
+        return "(" + phoneNumber.substring(0, 3) + ")-" + phoneNumber.substring(3, 6) + "-" + phoneNumber.substring(6, 10);
+    }
+
+    private void clearAllComposingInvoiceInDB() {
+        System.out.println("Attempting to clear all composing invoices in the database.");
+        String updateQuery = "UPDATE rental_items SET composing_invoice = 0 WHERE composing_invoice = 1";
+        boolean success = false;
+
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+             PreparedStatement statement = connection.prepareStatement(updateQuery)) {
+
+            int rowsUpdated = statement.executeUpdate();
+
+            if (rowsUpdated > 0) {
+                System.out.println("Update successful for all composing invoices.");
+                success = true;
+            } else {
+                System.out.println("No rows updated for composing invoices.");
+            }
+
+        } catch (SQLException e) {
+            System.err.println("SQL exception while updating composing invoices: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private boolean flagComposingInvoiceInDB(int rentalItemId) {
+        System.out.println("Attempting to update rental item ID: " + rentalItemId);
+        String updateQuery = "UPDATE rental_items SET composing_invoice = 1 WHERE rental_item_id = ?";
+        boolean success = false;
+
+
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+             PreparedStatement statement = connection.prepareStatement(updateQuery)) {
+
+
+            statement.setInt(1, rentalItemId);
+            int rowsUpdated = statement.executeUpdate();
+
+
+            if (rowsUpdated > 0) {
+                System.out.println("Update successful for rental item ID: " + rentalItemId);
+                success = true;
+            } else {
+                System.out.println("No rows updated for rental item ID: " + rentalItemId);
+            }
+
+
+        } catch (SQLException e) {
+            System.err.println("SQL exception while updating rental item ID " + rentalItemId + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+
+
+        return success;
+    }
+
+    private void executePythonScript(String scriptPath) {
+        try {
+            // Prepare the command to execute the Python script
+            ProcessBuilder processBuilder = new ProcessBuilder("python", scriptPath);
+            processBuilder.redirectErrorStream(true);
+
+            // Start the Python process
+            Process process = processBuilder.start();
+
+            // Capture and print output from the Python script
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    System.out.println("Python script output: " + line);
+                }
+            }
+
+            // Wait for the process to finish
+            int exitCode = process.waitFor();
+            System.out.println("Python script executed with exit code: " + exitCode);
+
+            if (exitCode != 0) {
+                System.err.println("Python script returned an error.");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void runSDKTool() {
+        // Debug output path
+        System.out.println("SDK Path: " + SDK_PATH);
+
+        File sdkToolFile = new File(SDK_PATH);
+        if (!sdkToolFile.exists()) {
+            return;
+        }
+
+
+        new Thread(() -> {
+            try {
+                ProcessBuilder processBuilder = new ProcessBuilder(SDK_PATH);
+                processBuilder.redirectErrorStream(true);
+                Process process = processBuilder.start();
+
+            } catch (IOException | InterruptedException e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    private void prepareSecondaryButtonForInvoices(){
+        Image image = new Image(getClass().getResourceAsStream("/images/send-to-quickbooks.png"));
+        ImageView imageView = new ImageView(image);
+        imageView.setFitHeight(17);
+        imageView.setFitWidth(20);
+
+        HBox hbox = new HBox();
+        hbox.getChildren().addAll(new Label("Send to Quickbooks  "), imageView);
+
+        secondInProcessButton.setGraphic(hbox);
     }
 
     private void initialsFallbackFailsafe() {

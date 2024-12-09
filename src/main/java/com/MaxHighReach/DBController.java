@@ -1,6 +1,11 @@
 package com.MaxHighReach;
 
+import com.itextpdf.io.font.constants.StandardFonts;
+import com.itextpdf.kernel.pdf.PdfPage;
+import com.itextpdf.kernel.pdf.PdfReader;
+import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import com.itextpdf.kernel.pdf.canvas.draw.SolidLine;
+import com.itextpdf.kernel.utils.PdfMerger;
 import javafx.animation.*;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -10,10 +15,17 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.effect.Glow;
 import javafx.scene.layout.*;
 import javafx.scene.control.Tooltip;
+
+import java.awt.*;
+import java.io.File;
+import java.io.IOException;
 import java.lang.String;
 
 import javafx.scene.paint.Color;
@@ -36,9 +48,11 @@ import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Text;
 import com.itextpdf.layout.element.LineSeparator;
 
+import javax.swing.*;
 import java.io.FileNotFoundException;
 import java.util.*;
 import java.util.Date;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DBController extends BaseController {
@@ -58,35 +72,46 @@ public class DBController extends BaseController {
     @FXML
     private Button composeInvoicesButton;
     @FXML
+    private Button expandButton;
+    @FXML
     private Button composeContractsButton;
     @FXML
     private Button refreshDataButton;
     @FXML
+    private Button deleteButton;
+    @FXML
     private TextField serialNumberField;
+    @FXML
+    private Button batchButton;
+    private String batchSwitcher = null;
+    @FXML
+    private Button secondInProcessButton;
+    @FXML
+    private Button openSDKButton;
     private final Tooltip composeContractsTooltip = new Tooltip("Compose Contracts");
     private final Tooltip assignDriverTooltip = new Tooltip("Assign Driver");
     private final Tooltip droppingOffTooltip = new Tooltip("Record Drop Off");
     private final Tooltip callingOffTooltip = new Tooltip("Record Call Off");
     private final Tooltip pickingUpTooltip = new Tooltip("Record Pick Up");
     private final Tooltip composeInvoicesTooltip = new Tooltip("Compose Invoices");
+    private final Tooltip expandTooltip = new Tooltip("Expand Rental");
     private final Tooltip refreshDataTooltip = new Tooltip("Refresh Table");
+    private final Tooltip deleteTooltip = new Tooltip("Delete Rental");
     @FXML
     private AnchorPane anchorPane;
     @FXML
     private TableView<CustomerRental> dbTableView;
-
-    private TableColumn<CustomerRental, String> fifthColumn = new TableColumn<>();
-
-
-
-
     private DBColumnFactory workingDBColumnFactory;
-
+    TableColumn<CustomerRental, String> serialNumberColumn = new TableColumn<>();
+    TableColumn<CustomerRental, Boolean> statusColumn = new TableColumn<>();
+    TableColumn<CustomerRental, String> deliveryDateColumn = new TableColumn<>();
+    TableColumn<CustomerRental, String> deliveryTimeColumn = new TableColumn<>();
+    TableColumn<CustomerRental, String> addressColumn = new TableColumn<>();
+    TableColumn<CustomerRental, String> invoiceColumn = new TableColumn<>();
+    TableColumn<CustomerRental, String> driverColumn = new TableColumn<>();
     @FXML
     private HBox viewsTilePane;
     private ToggleGroup viewsToggleGroup = new ToggleGroup();
-    @FXML
-    private ToggleButton intervalButton;
     @FXML
     private ToggleButton customerButton;
     @FXML
@@ -146,17 +171,17 @@ public class DBController extends BaseController {
     private boolean areStatusesRotating = false;
 
     private ObservableList<CustomerRental> ordersList = FXCollections.observableArrayList();
-    private boolean shouldShowCheckboxes = false;
-    private boolean isDriverEditMode = false;
     private String lastActionType;
-    private boolean isDroppingOff = false;
-    private boolean isPickingUp = false;
+    @FXML
+    private Rectangle sideBarHighlighter;
 
     private Timeline fadeOutTimeline;
     private Timeline inactivityCheckTimeLine;
     private long lastScrollTime = System.currentTimeMillis();
     private static final long SCROLL_TIMEOUT = 2000; // 5 seconds
     private Glow glowEffect;
+    private Timeline[] glowTimelines = new Timeline[2];
+    private boolean timelineFlagger = false;
 // globals before the retry
     private Map<String, Integer> driverCounts = new HashMap<>();
     private ObservableList<String> driverInitials = FXCollections.observableArrayList("A", "J", "I", "B", "JC", "K");
@@ -175,14 +200,27 @@ public class DBController extends BaseController {
 
     private javafx.scene.text.Text liftTypeText = new javafx.scene.text.Text();
 
+    private String PREFIX = "C:\\Users\\maxhi\\OneDrive\\Documents\\Max High Reach\\MONTH END\\";
+    private String SRCDIR = "..\\..\\Quickbooks\\QBProgram Development\\Composing Invoices\\";
+    private String INVOICE_QUERY = PREFIX + SRCDIR + "scripts\\invoice_batch.xml";
 
     @FXML
     public void initialize() {
         super.initialize();
 
-
         dbTableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 
+        animateScrollBars(dbTableView);
+
+        dbTableView.setOnMouseExited(event -> {
+            timelineFlagger = true;
+        });
+
+        dbTableView.setOnMouseEntered(event -> {
+            timelineFlagger = false;
+        });
+
+        /*
         dbTableView.setOnMouseEntered(event -> {
             showScrollBars(dbTableView);
             resetFadeOutTimeline(dbTableView, fadeOutTimeline);
@@ -215,10 +253,23 @@ public class DBController extends BaseController {
 
         glowEffect =  new Glow(1);
 
+
+         */
         // Enable table editing
         dbTableView.setEditable(true);
 
+        workingDBColumnFactory = new DBColumnFactory(updateRentalButton, serialNumberField, dbTableView, groupedRentals,
+                driverSequenceMap, batchButton, batchSwitcher, secondInProcessButton);
 
+        serialNumberColumn = workingDBColumnFactory.getSerialNumberColumn();
+        statusColumn = workingDBColumnFactory.getStatusColumn();
+        deliveryDateColumn = workingDBColumnFactory.getDeliveryDateColumn();
+        deliveryTimeColumn = workingDBColumnFactory.getDeliveryTimeColumn();
+        addressColumn = workingDBColumnFactory.getAddressColumn();
+        invoiceColumn = workingDBColumnFactory.getInvoiceColumn();
+        driverColumn = workingDBColumnFactory.getDriverColumn();
+
+        dbTableView.getColumns().addAll(statusColumn, addressColumn, deliveryDateColumn, serialNumberColumn, driverColumn);
 
         // Load data initially
         loadDataAsync("All Rentals");
@@ -235,8 +286,10 @@ public class DBController extends BaseController {
         createCustomTooltip(callingOffButton, 38, 10, callingOffTooltip);
         createCustomTooltip(pickingUpButton, 38, 10, pickingUpTooltip);
         createCustomTooltip(composeInvoicesButton, 38, 10, composeInvoicesTooltip);
+        createCustomTooltip(expandButton, 38, 10, expandTooltip);
         createCustomTooltip(composeContractsButton, 38, 10, composeContractsTooltip);
         createCustomTooltip(refreshDataButton, 38, 10, refreshDataTooltip);
+        createCustomTooltip(deleteButton, 38, 10, deleteTooltip);
 
         for (javafx.scene.Node node : viewsTilePane.getChildren()) {
             node.getStyleClass().add("view-type-button-rotating");
@@ -253,14 +306,32 @@ public class DBController extends BaseController {
                         viewsToggleGroup.selectToggle(toggleButton);
                         selectedViewButton = toggleButton;
                         handleViewSelect(event, "collapse");
+                        /*if (selectedViewButton != null) {
+                            String view = selectedViewButton.getText();
+                            switch (view) {
+                                case "Status":
+                                    dbTableView.getColumns().clear();
+                                    dbTableView.getColumns().addAll(statusColumn, addressColumn, deliveryDateColumn, serialNumberColumn, driverColumn);
+                                    break;
+                                case "Customer":
+                                    dbTableView.getColumns().clear();
+                                    dbTableView.getColumns().addAll(statusColumn, addressColumn, invoiceColumn);
+                                    break;
+                                case "Driver":
+                                    dbTableView.getColumns().clear();
+                                    dbTableView.getColumns().addAll(statusColumn, addressColumn, serialNumberColumn, driverColumn);
+                                    break;
+                            }
+                        }
+                        dbTableView.refresh();*/
                     } else if (selectedViewButton == toggleButton) {
                         toggleButton.getStyleClass().removeAll("view-type-button-stopped");
                         toggleButton.getStyleClass().add("view-type-button-rotating");
                         areViewsRotating = true;
-                        viewsToggleGroup.selectToggle(intervalButton);
+                        viewsToggleGroup.selectToggle(statusButton);
                         handleViewSelect(event,"expand");
                         startHighlightRotation(viewsToggleGroup);
-                        loadData("Open Interval");
+                        handleViewSettingSelect("All Rentals", null);
                     } else {
                         toggleButton.getStyleClass().removeAll("view-type-button-rotating");
                         toggleButton.getStyleClass().add("view-type-button-stopped");
@@ -268,11 +339,29 @@ public class DBController extends BaseController {
                         selectedViewButton.getStyleClass().add("view-type-button-rotating");
                         selectedViewButton = toggleButton;
                         handleViewSelect(event, "collapse");
+                        /*if (selectedViewButton != null) {
+                            String view = selectedViewButton.getText();
+                            switch (view) {
+                                case "Status":
+                                    dbTableView.getColumns().clear();
+                                    dbTableView.getColumns().addAll(statusColumn, addressColumn, deliveryDateColumn, serialNumberColumn, driverColumn);
+                                    break;
+                                case "Customer":
+                                    dbTableView.getColumns().clear();
+                                    dbTableView.getColumns().addAll(statusColumn, addressColumn, invoiceColumn);
+                                    break;
+                                case "Driver":
+                                    dbTableView.getColumns().clear();
+                                    dbTableView.getColumns().addAll(statusColumn, addressColumn, serialNumberColumn, driverColumn);
+                                    break;
+                            }
+                        }
+                        dbTableView.refresh();*/
                     }
                 });
             }
         }
-        viewsToggleGroup.selectToggle(intervalButton);
+        viewsToggleGroup.selectToggle(statusButton);
         startHighlightRotation(viewsToggleGroup);
 
 
@@ -284,7 +373,21 @@ public class DBController extends BaseController {
                 toggleButton.setOnAction(event -> {
                     if (toggleButton.isSelected()) {
                         System.out.println("Selected: " + toggleButton.getText());
-                        handleViewSettingSelect("Status", toggleButton.getText());
+                        ToggleButton selectedViewButton = (ToggleButton) viewsToggleGroup.getSelectedToggle();
+                        if (selectedViewButton != null) {
+                            String view = selectedViewButton.getText();
+                            switch (view) {
+                                case "Status":
+                                    handleSettingInStatusSelect();
+                                    break;
+                                case "Customer":
+                                    handleViewAndCustomerSelect();
+                                    break;
+                                case "Driver":
+                                    handleViewAndDriverSelect();
+                                    break;
+                            }
+                        }
                         toggleButton.getStyleClass().removeAll("status-type-button-rotating");
                         toggleButton.getStyleClass().add("status-type-button-stopped");
                         statusViewToggleGroup.selectToggle(toggleButton);
@@ -303,7 +406,21 @@ public class DBController extends BaseController {
                 toggleButton.setOnAction(event -> {
                     if (toggleButton.isSelected()) {
                         System.out.println("Selected: " + toggleButton.getText());
-                        handleViewSettingSelect("Status", toggleButton.getText());
+                        ToggleButton selectedViewButton = (ToggleButton) viewsToggleGroup.getSelectedToggle();
+                        if (selectedViewButton != null) {
+                            String view = selectedViewButton.getText();
+                            switch (view) {
+                                case "Status":
+                                    handleSettingInStatusSelect();
+                                    break;
+                                case "Customer":
+                                    handleViewAndCustomerSelect();
+                                    break;
+                                case "Driver":
+                                    handleViewAndDriverSelect();
+                                    break;
+                            }
+                        }
                         toggleButton.getStyleClass().removeAll("status-type-button-rotating");
                         toggleButton.getStyleClass().add("status-type-button-stopped");
                         statusViewToggleGroup.selectToggle(toggleButton);
@@ -323,57 +440,64 @@ public class DBController extends BaseController {
                     toggleButton.getStyleClass().add("status-type-button-stopped");
                     statusViewToggleGroup.selectToggle(toggleButton);
                     selectedStatusButton = toggleButton;
-                    handleViewSettingSelect(selectedViewButton.getText(), toggleButton.getText());
+                    if (selectedViewButton != null) {
+                        String view = selectedViewButton.getText();
+                        switch (view) {
+                            case "Status":
+                                handleSettingInStatusSelect();
+                                break;
+                            case "Customer":
+                                handleViewAndCustomerSelect();
+                                break;
+                            case "Driver":
+                                handleViewAndDriverSelect();
+                                break;
+                        }
+                    }
                 } else if (selectedStatusButton == toggleButton) {
                     toggleButton.getStyleClass().removeAll("status-type-button-stopped");
                     toggleButton.getStyleClass().add("status-type-button-rotating");
                     areStatusesRotating = true;
                     statusViewToggleGroup.selectToggle((ToggleButton) statusesPane.getChildren().get(0));
                     startHighlightRotation(statusViewToggleGroup);
-                    handleViewSettingSelect(selectedViewButton.getText(), null);
+                    handleViewSelect(null, "expand");
                 } else {
                     toggleButton.getStyleClass().removeAll("status-type-button-rotating");
                     toggleButton.getStyleClass().add("status-type-button-stopped");
                     selectedStatusButton.getStyleClass().removeAll("status-type-button-stopped");
                     selectedStatusButton.getStyleClass().add("status-type-button-rotating");
                     selectedStatusButton = toggleButton;
-                    handleViewSettingSelect(selectedViewButton.getText(), toggleButton.getText());
+                    if (selectedViewButton != null) {
+                        String view = selectedViewButton.getText();
+                        switch (view) {
+                            case "Status":
+                                handleSettingInStatusSelect();
+                                break;
+                            case "Customer":
+                                handleViewAndCustomerSelect();
+                                break;
+                            case "Driver":
+                                handleViewAndDriverSelect();
+                                break;
+                        }
+                    }
                 }
             });
         }
 
+        loadCustomers();
 
-
-        /*loadCustomers();
-        for (javafx.scene.Node node : statusesPane.getChildren()) {
-            node.getStyleClass().add("view-type-button-rotating");
-            if (node instanceof ToggleButton toggleButton) {
-                toggleButton.setToggleGroup(customerViewToggleGroup);
-
-                toggleButton.setOnAction(event -> {
-                    if (toggleButton.isSelected()) {
-                        System.out.println("Selected: " + toggleButton.getText());
-                        toggleButton.getStyleClass().removeAll("view-type-button-rotating");
-                        toggleButton.getStyleClass().add("view-type-button-stopped");
-                        customerViewToggleGroup.selectToggle(toggleButton);
-                    }
-                });
-            }
-        }*/
-
-        datePickerOne.setOnAction(event -> {
-            ToggleButton selectedViewButton = (ToggleButton) viewsToggleGroup.getSelectedToggle();
-            if (selectedViewButton != null) {
-                handleViewSettingSelect(selectedViewButton.getText(), null);
-                }
+        driverComboBox.setOnAction(event -> {
+            handleViewAndDriverSelect();
         });
 
-        datePickerTwo.setOnAction(event -> {
-            ToggleButton selectedViewButton = (ToggleButton) viewsToggleGroup.getSelectedToggle();
-            if (selectedViewButton != null) {
-                handleViewSettingSelect(selectedViewButton.getText(), null);
-                }
+        customerComboBox.setOnAction(event -> {
+            handleViewAndCustomerSelect();
         });
+
+
+
+
     }
 
     // Method to load data asynchronously from the database
@@ -407,128 +531,111 @@ public class DBController extends BaseController {
         groupedRentals.clear();
         currentViewInitials.clear();
 
-        String query = "SELECT customers.*, rental_orders.*, rental_items.*, lifts.*" +
-               "FROM customers " +
-               "JOIN rental_orders ON customers.customer_id = rental_orders.customer_id " +
-               "JOIN rental_items ON rental_orders.rental_order_id = rental_items.rental_order_id " +
-               "JOIN lifts ON rental_items.lift_id = lifts.lift_id ";
-
-
-        // This variable tracks if we need to append WHERE or AND
-        boolean hasWhereClause = false;
+        String query = "SELECT customers.*, rental_orders.*, rental_items.*, lifts.*, " +
+                "ordered_contacts.first_name AS ordered_contact_name, " +
+                "ordered_contacts.phone_number AS ordered_contact_phone, " +
+                "site_contacts.first_name AS site_contact_name, " +
+                "site_contacts.phone_number AS site_contact_phone " +
+                "FROM customers " +
+                "JOIN rental_orders ON customers.customer_id = rental_orders.customer_id " +
+                "JOIN rental_items ON rental_orders.rental_order_id = rental_items.rental_order_id " +
+                "JOIN lifts ON rental_items.lift_id = lifts.lift_id " +
+                "LEFT JOIN contacts AS ordered_contacts ON rental_items.ordered_contact_id = ordered_contacts.contact_id " +
+                "LEFT JOIN contacts AS site_contacts ON rental_items.site_contact_id = site_contacts.contact_id ";
 
         String customerName = customerComboBox.getValue();
         String date = "";
         String startDate = "";
         if (datePickerOne.getValue() != null) {
             date = datePickerOne.getValue().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-            startDate = datePickerOne.getValue().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            startDate = date;
         }
         String endDate = "";
         if (datePickerTwo.getValue() != null) {
             endDate = datePickerTwo.getValue().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         }
+        boolean fixInitials = false;
 
-        workingDBColumnFactory = new DBColumnFactory(updateRentalButton, serialNumberField, dbTableView, groupedRentals, driverSequenceMap);
-
-        // Modify query based on filter
         switch (filter) {
-            case "Open Interval":
-                // No additional filtering
-                dbTableView.getColumns().addAll(workingDBColumnFactory.getDeliveryDateColumn(),
-                        workingDBColumnFactory.getDriverColumn());
-                break;
-            case "One Date":
-                query += "WHERE DATE(rental_orders.delivery_date) = '" + date + "' ";
-                hasWhereClause = true;
-                break;
-            case "Interval":
-                query += (hasWhereClause ? "AND " : "WHERE ") + "rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "' ";
-                hasWhereClause = true;
-                break;
-            case "Interval Active":
-                query += (hasWhereClause ? "AND " : "WHERE ") + "rental_items.item_status = 'Active' " +
-                         "AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "' ";
-                hasWhereClause = true;
-                break;
-            case "Interval Billable":
-                query += (hasWhereClause ? "AND " : "WHERE ") + "rental_items.item_status = 'Billable' " +
-                         "AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "' ";
-                hasWhereClause = true;
-                break;
-            case "Interval Upcoming":
-                query += (hasWhereClause ? "AND " : "WHERE ") + "rental_items.item_status = 'Upcoming' " +
-                         "AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "' ";
-                hasWhereClause = true;
-                break;
-            case "Interval Called Off":
-                query += (hasWhereClause ? "AND " : "WHERE ") + "rental_items.item_status = 'Called Off' " +
-                         "AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "' ";
-                hasWhereClause = true;
-                break;
-            case "Customer Active":
-                query += (hasWhereClause ? "AND " : "WHERE ") + "customers.customer_name = '" + customerName + "'" +
-                         " AND rental_orders.order_status = 'Active' ";
-                hasWhereClause = true;
-                break;
-            case "Customer Billable":
-                query += (hasWhereClause ? "AND " : "WHERE ") + "customers.customer_name = '" + customerName + "'" +
-                         " AND rental_orders.order_status = 'Billable' ";
-                hasWhereClause = true;
-                break;
-            case "Customer Upcoming":
-                query += (hasWhereClause ? "AND " : "WHERE ") + "customers.customer_name = '" + customerName + "'" +
-                         " AND rental_orders.order_status = 'Upcoming' ";
-                hasWhereClause = true;
-                break;
-            case "Customer Called Off":
-                query += (hasWhereClause ? "AND " : "WHERE ") + "customers.customer_name = '" + customerName + "'" +
-                         " AND rental_orders.order_status = 'Called Off' ";
-                hasWhereClause = true;
-                break;
             case "Active":
-                query += (hasWhereClause ? "AND " : "WHERE ") + "rental_items.item_status = 'Active' ";
-                hasWhereClause = true;
+                query += " WHERE rental_items.item_status = 'Active'";
                 break;
             case "Billable":
-                query += (hasWhereClause ? "AND " : "WHERE ") + "rental_items.item_status = 'Billable' ";
-                hasWhereClause = true;
+                query += " WHERE rental_items.item_status IN ('Called Off', 'Ended') AND rental_items.invoice_composed = 0";
                 break;
             case "Upcoming":
-                query += (hasWhereClause ? "AND " : "WHERE ") + "rental_items.item_status = 'Upcoming' ";
-                hasWhereClause = true;
+                query += " WHERE rental_items.item_status = 'Upcoming'";
                 break;
             case "Called Off":
-                query += (hasWhereClause ? "AND " : "WHERE ") + "rental_items.item_status = 'Called Off' ";
-                hasWhereClause = true;
+                query += " WHERE rental_items.item_status = 'Called Off'";
+                fixInitials = true;
+                break;
+            case "Active One Date":
+                query += " WHERE rental_items.item_status = 'Active' AND rental_orders.delivery_date = '" + date + "'";
+                break;
+            case "Billable One Date":
+                query += " WHERE rental_items.item_status IN ('Called Off', 'Ended') AND rental_items.invoice_composed = 0 " +
+                         "AND rental_orders.delivery_date = '" + date + "'";
+                break;
+            case "Upcoming One Date":
+                query += " WHERE rental_items.item_status = 'Upcoming' AND rental_orders.delivery_date = '" + date + "'";
+                fixInitials = true;
+                break;
+            case "Called Off One Date":
+                query += " WHERE rental_items.item_status = 'Called Off' AND rental_orders.delivery_date = '" + date + "'";
+                fixInitials = true;
+                break;
+            case "Active Interval":
+                query += " WHERE rental_items.item_status = 'Active' AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
+                break;
+            case "Billable Interval":
+                query += " WHERE rental_items.item_status IN ('Called Off', 'Ended') AND rental_items.invoice_composed = 0 " +
+                         "AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
+                break;
+            case "Upcoming Interval":
+                query += " WHERE rental_items.item_status = 'Upcoming' AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
+                break;
+            case "Called Off Interval":
+                query += " WHERE rental_items.item_status = 'Called Off' AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
+                break;
+            case "Customer":
+                query += " WHERE customers.customer_name = '" + customerName + "'";
+                break;
+            case "Customer One Date":
+                query += " WHERE customers.customer_name = '" + customerName + "' AND rental_orders.delivery_date = '" + date + "'";
+                break;
+            case "Customer Interval":
+                query += " WHERE customers.customer_name = '" + customerName + "' AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
                 break;
             case "Driver":
-               // query += (hasWhereClause ? "AND " : "WHERE ") + "rental_items.driver = '" + driverComboBox.getValue() + "' ";
+                query += " WHERE rental_items.driver_initial = '" + driverComboBox.getValue() + "'";
                 break;
             case "Driver One Date":
-                query += (hasWhereClause ? "AND " : "WHERE ") + "rental_items.driver = '" + driverComboBox.getValue() + "'" +
-                         " AND rental_orders.delivery_date = '" + date + "' ";
+                query += " WHERE rental_items.driver_initial = '" + driverComboBox.getValue() + "' AND rental_orders.delivery_date = '" + date + "'";
+                fixInitials = true;
                 break;
             case "Driver Interval":
-                query += (hasWhereClause ? "AND " : "WHERE ") + "rental_items.driver = '" + driverComboBox.getValue() + "'" +
-                         " AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "' ";
+                query += " WHERE rental_items.driver_initial = '" + driverComboBox.getValue() + "' " +
+                         "AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
                 break;
-            case "Ended Rentals":
-                query += (hasWhereClause ? "AND " : "WHERE ") + "rental_orders.order_status = 'Picked Up' " +
-                         " OR rental_orders.order_status = 'Called Off' ";
+            case "One Date":
+                query += " WHERE rental_orders.delivery_date = '" + date + "'";
+                fixInitials = true;
+                break;
+            case "Interval":
+                query += " WHERE rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
                 break;
             case "All Rentals":
-                // No additional filtering
-                dbTableView.getColumns().addAll(workingDBColumnFactory.getStatusColumn(),
-                                                    workingDBColumnFactory.getAddressColumn(),
-                                                    workingDBColumnFactory.getDeliveryDateColumn(),
-                                                    workingDBColumnFactory.getSerialNumberColumn(),
-                                                    workingDBColumnFactory.getDriverColumn());
+                // No additional filtering needed
                 break;
+            default:
+                throw new IllegalArgumentException("Unknown filter: " + filter);
         }
 
+
         // Add LIMIT clause at the end
-        query += "LIMIT 100;";
+        query += " LIMIT 100";
+        System.out.println(query);
 
         try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
              Statement statement = connection.createStatement();
@@ -536,6 +643,8 @@ public class DBController extends BaseController {
 
             while (resultSet.next()) {
                 String name = resultSet.getString("customer_name");
+                String orderedContactName = resultSet.getString("ordered_contact_name");
+                String orderedContactPhone = resultSet.getString("ordered_contact_phone");
                 String deliveryDate = resultSet.getString("delivery_date");
                 String driver = resultSet.getString("driver");
                 String status = resultSet.getString("item_status");
@@ -547,27 +656,42 @@ public class DBController extends BaseController {
                 String liftType = resultSet.getString("lift_type");
                 String siteName = resultSet.getString("site_name");
                 String streetAddress = resultSet.getString("street_address");
+                String cityState = resultSet.getString("city");
+                String siteContactName = resultSet.getString("site_contact_name");
+                String siteContactPhone = resultSet.getString("site_contact_phone");
                 String poNumber = resultSet.getString("po_number");
+                String locationNotes = resultSet.getString("location_notes");
+                String preTripInstructions = resultSet.getString("pre_trip_instructions");
 
                 CustomerRental rental = new CustomerRental("0", name, deliveryDate, deliveryTime, driver != null ? driver : "", status != null ? status : "Unknown", "999999", rental_id);
                 rental.setRentalItemId(rental_item_id);
+                rental.setOrderedByName(orderedContactName);
+                rental.setOrderedByPhone(orderedContactPhone);
                 rental.setLiftId(liftId);
                 rental.setLiftType(liftType);
                 rental.setAddressBlockOne(siteName);
                 rental.setAddressBlockTwo(streetAddress);
+                rental.setAddressBlockThree(cityState);
                 rental.splitAddressBlockTwo();
+                rental.setSiteContactName(siteContactName);
+                rental.setSiteContactPhone(siteContactPhone);
                 rental.setPoNumber(poNumber);
+                rental.setLocationNotes(locationNotes);
+                rental.setPreTripInstructions(preTripInstructions);
                 rental.setSerialNumber(serialNumber);
                 ordersList.add(rental);
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        fixCurrentViewInitials(0);
+        if (fixInitials) {
+            fixCurrentViewInitials(0);
+        }
+
     }
 
+
     private void startHighlightRotation(ToggleGroup toggleGroup) {
-        System.out.println("Starting highlight rotation for" + toggleGroup);
         // Start rotation styling for each toggle button in the group
         for (Toggle toggle : toggleGroup.getToggles()) {
             if (toggle instanceof ToggleButton toggleButton) {
@@ -588,7 +712,7 @@ public class DBController extends BaseController {
         if (toggleGroup == viewsToggleGroup) {
             areViewsRotating = true;
             // Set the initial selected button and configure the timeline for rotation
-            selectedViewButton = intervalButton; // Set an initial toggle button
+            selectedViewButton = statusButton; // Set an initial toggle button
             toggleGroup.selectToggle(selectedViewButton); // Make sure it's selected in the toggle group
             rotateViewsTimeline = new Timeline();
             currentToggle = selectedViewButton; // Store current toggle
@@ -604,11 +728,8 @@ public class DBController extends BaseController {
             currentToggle = selectedStatusButton; // Store current toggle
         }
 
-        System.out.println("Starting the rotation with button: " + currentToggle.getText());
-
-
         // Define the keyframe to toggle through views
-        KeyFrame keyFrame = new KeyFrame(Duration.seconds(0.5), event -> {
+        KeyFrame keyFrame = new KeyFrame(Duration.seconds(1.5), event -> {
             Toggle nextToggle = getNextToggle(toggleGroup); // Get the next toggle
             // Update the selection in the ToggleGroup
             toggleGroup.selectToggle(nextToggle);
@@ -648,17 +769,15 @@ public class DBController extends BaseController {
     // Returns the next toggle in the sequence based on the current selection
     private ToggleButton getNextToggle(ToggleGroup toggleGroup) {
         if (toggleGroup == viewsToggleGroup) {
-            if (selectedViewButton == intervalButton) {
+            if (selectedViewButton == statusButton) {
                 return customerButton;
             } else if (selectedViewButton == customerButton) {
-                return statusButton;
-            } else if (selectedViewButton == statusButton) {
                 return driverButton;
             } else if (selectedViewButton == driverButton) {
-                return intervalButton;
+                return statusButton;
             } else {
                 // Return a default button if the current selection is null or unrecognized
-                return intervalButton;
+                return statusButton;
             }
         } else {
             if (selectedStatusButton == upcomingButton) {
@@ -686,31 +805,41 @@ public class DBController extends BaseController {
         resetFadeOutTimeline(dbTableView, fadeOutTimeline); // Reset the fade out timer
     }
 
-    private void animateScrollBars(TableView<CustomerRental> dbTableView) {
-        // Assuming your scroll bars are part of the dbTableView's skin
-        for (Node node : dbTableView.lookupAll(".scroll-bar")) {
-            if (node instanceof ScrollBar) {
-                // Create a glow effect for the scroll bar
-                DropShadow glowEffect = new DropShadow();
-                glowEffect.setRadius(10);
-                glowEffect.setSpread(0.5);
-                node.setEffect(glowEffect);
+    private void animateScrollBars(TableView<CustomerRental> tableView) {
+       Platform.runLater(() -> {
+           int i = 0;
+           // Assuming your scroll bars are part of the dbTableView's skin
+           for (Node node : tableView.lookupAll(".scroll-bar")) {
+               System.out.println("animating for:" + node);
+               if (node instanceof ScrollBar) {
+                   // Create a glow effect for the scroll bar
+                   DropShadow glowEffect = new DropShadow();
+                   glowEffect.setRadius(10);
+                   glowEffect.setSpread(0.5);
+                   node.setEffect(glowEffect);
 
-                // Create a glow animation
-                Timeline glowTimeline = new Timeline(
-                    new KeyFrame(Duration.ZERO,
-                        new KeyValue(glowEffect.colorProperty(), Color.web("#FFDEAD", 0.5))
-                    ),
-                    new KeyFrame(Duration.seconds(1),
-                        new KeyValue(glowEffect.colorProperty(), Color.web("#FF7F00", 1.0))
-                    )
-                );
-                glowTimeline.setCycleCount(Timeline.INDEFINITE);
-                glowTimeline.setAutoReverse(true);
-                glowTimeline.play();
-            }
-        }
+
+                   // Create a glow animation
+                   glowTimelines[i] = new Timeline(
+                           new KeyFrame(Duration.ZERO,
+                                   new KeyValue(glowEffect.colorProperty(),
+                                           timelineFlagger ? Color.web("#FFDEAD", 0.5) : Color.web("#FFDEAD", 0.5))
+                           ),
+                           new KeyFrame(Duration.seconds(1),
+                                   new KeyValue(glowEffect.colorProperty(),
+                                           timelineFlagger ? Color.web("#000000", 0.0) : Color.web("#FF7F00", 1.0))
+                           )
+                   );
+
+
+                   glowTimelines[i].setCycleCount(Timeline.INDEFINITE);
+                   glowTimelines[i].setAutoReverse(true);
+                   glowTimelines[i].play();
+               }
+           }
+       });
     }
+
 
 
     private void fadeOutScrollBars(TableView<CustomerRental> dbTableView) {
@@ -801,11 +930,6 @@ public class DBController extends BaseController {
     }
 
 
-
-
-
-
-
     private Tooltip createCustomTooltip(Button button, double xOffset, double yOffset, Tooltip tooltip) {
         tooltip.setShowDelay(Duration.ZERO);
         tooltip.setHideDelay(Duration.ZERO);
@@ -823,55 +947,142 @@ public class DBController extends BaseController {
         return tooltip;
     }
 
+    private void loadCustomers() {
+        String query = "SELECT customer_name FROM customers";
+        ObservableList<String> customers = FXCollections.observableArrayList();
 
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
 
-    /**
-     * Activates the button's selected state.
-     */
-    private void visuallySelectSidebarButton(Button button) {
-        refreshButtonStyles(button);
-        button.getStyleClass().add("sidebar-button-active"); // Apply active class
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                customers.add(resultSet.getString("customer_name"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        FXCollections.sort(customers, (customer1, customer2) -> customer1.compareTo(customer2));
+        customerComboBox.setItems(customers);
     }
 
-    /**
-     * Deactivates the button's state to inactive.
-     */
-    private void visuallyUnselectSidebarButton(Button button) {
-        refreshButtonStyles(button);
-        button.getStyleClass().add("sidebar-button-inactive"); // Apply inactive class
+
+    private void shiftSidebarHighlighter(String nextActionType) {
+        if (nextActionType == null) {
+            sideBarHighlighter.setVisible(false);
+            updateHighlighterPosition(lastActionType, -1);
+            lastActionType = null;
+        } else {
+            sideBarHighlighter.setVisible(true);
+            if (lastActionType == null) {
+                updateHighlighterPosition(nextActionType, 1);
+                lastActionType = nextActionType;
+            } else {
+                lastActionType = null;
+                shiftSidebarHighlighter(nextActionType);
+            }
+        }
     }
 
-    /**
-     * Ensures the button's style is refreshed properly.
-     */
-    private void refreshButtonStyles(Button button) {
-        button.getStyleClass().removeAll("sidebar-button-active", "sidebar-button-inactive");
-        button.setDisable(true); // Temporarily disable to force CSS refresh
-        button.applyCss();       // Force re-apply CSS
-        button.setDisable(false); // Re-enable after refreshing
+    private void updateHighlighterPosition(String actionType, int direction) {
+        double downset = 44; // Distance for each sidebar item
+        switch (actionType) {
+            case "composing-contracts":
+                sideBarHighlighter.setTranslateY(downset * 0 * direction);
+                break;
+            case "assigning-drivers":
+                sideBarHighlighter.setTranslateY(downset * 1 * direction);
+                sideBarHighlighter.setTranslateX(direction * -1);
+                break;
+            case "dropping-off":
+                sideBarHighlighter.setTranslateY(downset * 2 * direction - 2);
+                sideBarHighlighter.setTranslateX(direction * 1);
+                break;
+            case "calling-off":
+                sideBarHighlighter.setTranslateY(downset * 3 * direction - 1);
+                sideBarHighlighter.setTranslateX(direction * 0);
+                break;
+            case "picking-up":
+                sideBarHighlighter.setTranslateY(downset * 4 * direction - 1);
+                sideBarHighlighter.setTranslateX(direction * 1);
+                break;
+            case "composing-invoices":
+                sideBarHighlighter.setTranslateY(downset * 5 * direction);
+                sideBarHighlighter.setTranslateX(direction * 0);
+                break;
+            case "expanding":
+                sideBarHighlighter.setTranslateY(downset * 6 * direction);
+                sideBarHighlighter.setTranslateX(direction * 0);
+                break;
+            case "refreshing-data":
+                sideBarHighlighter.setTranslateY(downset * 7 * direction);
+                sideBarHighlighter.setTranslateX(direction * -1);
+                break;
+            case "deleting":
+                sideBarHighlighter.setTranslateY(downset * 8 * direction);
+                sideBarHighlighter.setTranslateX(direction * 0);
+                break;
+            default:
+                sideBarHighlighter.setVisible(false);
+                break;
+        }
     }
 
 
 
     @FXML
     private void handleViewAndDriverSelect(){
-        if (datePickerOne.getValue() == null && datePickerTwo.getValue() == null) {
-            handleViewSettingSelect("Driver", null);
-        } else if (datePickerOne.getValue() != null && datePickerTwo.getValue() == null) {
-            handleViewSettingSelect("Driver One Date", null);
+        if (driverComboBox.getValue() != null) {
+            if (datePickerOne.getValue() == null && datePickerTwo.getValue() == null) {
+                handleViewSettingSelect("Driver", null);
+            } else if (datePickerOne.getValue() != null && datePickerTwo.getValue() == null) {
+                handleViewSettingSelect("Driver One Date", null);
+            } else {
+                handleViewSettingSelect("Driver Interval", null);
+            }
         } else {
-            handleViewSettingSelect("Driver Interval", null);
+            if (datePickerOne.getValue() == null && datePickerTwo.getValue() == null) {
+                handleViewSettingSelect("All Rentals", null);
+            } else if (datePickerOne.getValue() != null && datePickerTwo.getValue() == null) {
+                handleViewSettingSelect("One Date", null);
+            } else {
+                handleViewSettingSelect("Interval", null);
+            }
         }
     }
 
     @FXML
     private void handleViewAndCustomerSelect(){
-        if (datePickerOne.getValue() == null && datePickerTwo.getValue() == null) {
-            handleViewSettingSelect("Customer Active", null);
-        } else if (datePickerOne.getValue() != null && datePickerTwo.getValue() == null) {
-            handleViewSettingSelect("Customer One Date", null);
+        if (customerComboBox.getValue() != null) {
+            if (datePickerOne.getValue() == null && datePickerTwo.getValue() == null) {
+                handleViewSettingSelect("Customer", null);
+            } else if (datePickerOne.getValue() != null && datePickerTwo.getValue() == null) {
+                handleViewSettingSelect("Customer One Date", null);
+            } else {
+                handleViewSettingSelect("Customer Interval", null);
+            }
         } else {
-            handleViewSettingSelect("Customer Interval", null);
+            if (datePickerOne.getValue() == null && datePickerTwo.getValue() == null) {
+                handleViewSettingSelect("All Rentals", null);
+            } else if (datePickerOne.getValue() != null && datePickerTwo.getValue() == null) {
+                handleViewSettingSelect("One Date", null);
+            } else {
+                handleViewSettingSelect("Interval", null);
+            }
+        }
+    }
+
+    private void handleSettingInStatusSelect(){
+        String status = null;
+        if (!areStatusesRotating) {
+            ToggleButton selectedStatusButton = (ToggleButton) statusViewToggleGroup.getSelectedToggle();
+            status = selectedStatusButton.getText();
+        }
+        if (datePickerOne.getValue() == null && datePickerTwo.getValue() == null){
+            handleViewSettingSelect("Status", status);
+        } else if (datePickerOne.getValue() != null && datePickerTwo.getValue() == null) {
+            handleViewSettingSelect("Status One Date", status);
+        } else {
+            handleViewSettingSelect("Status Interval", status);
         }
     }
 
@@ -912,6 +1123,24 @@ public class DBController extends BaseController {
                     calendarButtonTwo.setVisible(true);
                     datePickerTwoLabel.setVisible(true);
                 }
+                ToggleButton selectedViewButton = (ToggleButton) viewsToggleGroup.getSelectedToggle();
+                if (selectedViewButton != null) {
+                    String view = selectedViewButton.getText();
+                    switch (view) {
+                        case "Status":
+                            handleSettingInStatusSelect();
+                            System.out.println("Going to handleSettingInStatusSelect from datePickerOne");
+                            break;
+                        case "Customer":
+                            handleViewAndCustomerSelect();
+                            System.out.println("Going to handleViewAndCustomerSelect from datePickerOne");
+                            break;
+                        case "Driver":
+                            handleViewAndDriverSelect();
+                            System.out.println("Going to handleViewAndDriverSelect from datePickerOne");
+                            break;
+                    }
+                }
             }
         });
 
@@ -922,28 +1151,6 @@ public class DBController extends BaseController {
         });
     }
 
-    @FXML
-    private void handleAssignDrivers() {
-
-        if ("assigning-drivers".equals(lastActionType)) {
-
-            isDriverEditMode = false;
-            lastActionType = null;
-            updateRentalButton.setVisible(false); // Call this method to hide checkboxes
-            workingDBColumnFactory.setClosedDriverColumn();
-
-        } else {
-
-            isDriverEditMode = true;
-            updateRentalButton.setVisible(true);
-            System.out.println("Driver assignment mode activated.");
-            lastActionType = "assigning-drivers";
-            workingDBColumnFactory.setOpenDriverColumn();
-
-        }
-
-        dbTableView.refresh();
-    }
 
     private boolean isInitialsSetValid() {
         groupedRentals.clear();
@@ -1138,8 +1345,8 @@ public class DBController extends BaseController {
 
 
     private void fixCurrentViewInitials(int tryCounter) {
-        if (tryCounter >= 10) {
-            System.out.println("Reached maximum retry limit (10). Exiting.");
+        if (tryCounter >= 20) {
+            System.out.println("Reached maximum retry limit (20). Exiting.");
             return;
         } else {
             tryCounter++;
@@ -1166,132 +1373,155 @@ public class DBController extends BaseController {
         dbTableView.refresh();
     }
 
-   @FXML
-    private void handleDroppingOff(ActionEvent event) {
-        if ("dropping-off".equals(lastActionType)) { // Use .equals() to compare strings
-            lastActionType = null;
-            hideCheckboxes();
-            showSelectableCheckboxes(false, lastActionType);
-            workingDBColumnFactory.showSelectableCheckboxes(false, lastActionType);
-            updateRentalButton.setVisible(false); // Call this method to hide checkboxes
-            serialNumberField.setVisible(false);
-            shiftUpdateButtonFull();
-
-            visuallyUnselectSidebarButton(droppingOffButton);
+    @FXML
+    private void handleAssignDrivers() {
+        String actionType = "assigning-drivers";
+        if (actionType.equals(lastActionType)) {
+            updateRentalButton.setVisible(false); // Hide the update button
+            workingDBColumnFactory.setClosedDriverColumn(); // Reset driver column
+            shiftSidebarHighlighter(null); // Reset sidebar highlighter
+            System.out.println("Driver assignment mode deactivated.");
         } else {
-
-            lastActionType = "dropping-off";
-            resetCheckboxes();
-            showSelectableCheckboxes(true, lastActionType);
-            workingDBColumnFactory.showSelectableCheckboxes(true, lastActionType);
-            visuallySelectSidebarButton(droppingOffButton);
-            serialNumberField.setVisible(true);
-            shiftUpdateButtonHalf();
-
+            updateRentalButton.setVisible(true); // Show the update button
+            workingDBColumnFactory.setOpenDriverColumn(); // Open driver column for assignment
+            shiftSidebarHighlighter(actionType); // Highlight the sidebar for driver assignment
+            System.out.println("Driver assignment mode activated.");
         }
+        dbTableView.refresh(); // Refresh the table view
     }
 
 
-
+   @FXML
+    private void handleDroppingOff(ActionEvent event) {
+        String actionType = "dropping-off";
+        if (actionType.equals(lastActionType)) {
+            hideCheckboxes();
+            workingDBColumnFactory.showSelectableCheckboxes(false, null);
+            updateRentalButton.setVisible(false);
+            serialNumberField.setVisible(false);
+            shiftSidebarHighlighter(null); // Reset sidebar highlighter
+            shiftUpdateButtonFull();
+        } else {
+            resetCheckboxes();
+            workingDBColumnFactory.showSelectableCheckboxes(true, actionType);
+            serialNumberField.setVisible(true);
+            shiftSidebarHighlighter(actionType); // Update sidebar highlighter
+            shiftUpdateButtonHalf();
+        }
+    }
 
     @FXML
     private void handleCallingOff(ActionEvent event) {
-        if ("calling-off" == lastActionType) {
-            lastActionType = null;
+        String actionType = "calling-off";
+        if (actionType.equals(lastActionType)) {
             hideCheckboxes();
-            showSelectableCheckboxes(false, lastActionType);
-            workingDBColumnFactory.showSelectableCheckboxes(false, lastActionType);
+            workingDBColumnFactory.showSelectableCheckboxes(false, null);
             updateRentalButton.setVisible(false);
-            System.out.println("Calling Off button pressed again. Resetting action type.");
+            shiftSidebarHighlighter(null);
         } else {
-            lastActionType = "calling-off";
             resetCheckboxes();
-            showSelectableCheckboxes(true, lastActionType);
-            workingDBColumnFactory.showSelectableCheckboxes(true, lastActionType);
-            System.out.println("Calling Off button pressed.");
-            if (serialNumberField.isVisible()) {
-                serialNumberField.setVisible(false);
-                shiftUpdateButtonFull();
-            }
-            return;
+            workingDBColumnFactory.showSelectableCheckboxes(true, actionType);
+            serialNumberField.setVisible(false);
+            shiftSidebarHighlighter(actionType);
+            shiftUpdateButtonFull();
         }
     }
 
     @FXML
     private void handlePickingUp(ActionEvent event) {
-        if ("picking-up" == lastActionType) {
-            lastActionType = null; // Reset the action type if the button is pressed again
+        String actionType = "picking-up";
+        if (actionType.equals(lastActionType)) {
             hideCheckboxes();
-            showSelectableCheckboxes(false, lastActionType);
-            workingDBColumnFactory.showSelectableCheckboxes(false, lastActionType);
-   //         System.out.println("Picking Up button pressed again. Resetting action type.");
+            workingDBColumnFactory.showSelectableCheckboxes(false, null);
             updateRentalButton.setVisible(false);
+            shiftSidebarHighlighter(null);
         } else {
-            lastActionType = "picking-up";
             resetCheckboxes();
-            showSelectableCheckboxes(true, lastActionType);
-            workingDBColumnFactory.showSelectableCheckboxes(true, lastActionType);
-            if (serialNumberField.isVisible()) {
-                serialNumberField.setVisible(false);
-                shiftUpdateButtonFull();
-            }
-            //     System.out.println("Picking Up button pressed.");
-            return; // Exit if no action type is set
-
+            workingDBColumnFactory.showSelectableCheckboxes(true, actionType);
+            serialNumberField.setVisible(false);
+            shiftSidebarHighlighter(actionType);
+            shiftUpdateButtonFull();
         }
-
     }
 
     @FXML
     private void handleComposeInvoices(ActionEvent event) {
-        System.out.println("Compose Invoices Button pressed. Current lastActionType: " + lastActionType);
-
-        // Check for the current action type
-        if ("creating-invoices".equals(lastActionType)) {
-            lastActionType = null; // Reset the action type
-            hideCheckboxes(); // Hide the checkboxes
-            showSelectableCheckboxes(false, lastActionType);
-            workingDBColumnFactory.showSelectableCheckboxes(false, lastActionType);
+        String actionType = "composing-invoices";
+        if (actionType.equals(lastActionType)) {
+            hideCheckboxes();
+            workingDBColumnFactory.showSelectableCheckboxes(false, null);
             updateRentalButton.setVisible(false);
-            System.out.println("Resetting action type. Checkboxes hidden.");
-            return; // Exit the method
+            shiftSidebarHighlighter(null);
         } else {
-            lastActionType = "creating-invoices"; // Set the action type
-            resetCheckboxes(); // Deselect all checkboxes first
-            showSelectableCheckboxes(true, lastActionType); // Show the checkboxes
-            workingDBColumnFactory.showSelectableCheckboxes(true, lastActionType);
-            System.out.println("Action type set to 'creating-invoices'. Checkboxes shown.");
-            if (serialNumberField.isVisible()) {
-                serialNumberField.setVisible(false);
-                shiftUpdateButtonFull();
-            }
+            resetCheckboxes();
+            workingDBColumnFactory.showSelectableCheckboxes(true, actionType);
+            serialNumberField.setVisible(false);
+            shiftSidebarHighlighter(actionType);
+            shiftUpdateButtonFull();
         }
+    }
 
+    @FXML
+    private void handleComposeContracts(ActionEvent event) {
+        String actionType = "composing-contracts";
+        if (actionType.equals(lastActionType)) {
+            shiftSidebarHighlighter(null);
+            hideCheckboxes();
+            workingDBColumnFactory.showSelectableCheckboxes(false, null);
+            updateRentalButton.setVisible(false);
+            composeContractsButton.setVisible(false);
+            secondInProcessButton.setVisible(false);
+            } else {
+            shiftSidebarHighlighter(actionType);
+            resetCheckboxes();
+            workingDBColumnFactory.showSelectableCheckboxes(true, actionType);
+            serialNumberField.setVisible(false);
+            shiftUpdateButtonFull();
+        }
+    }
+
+    @FXML
+    private void handleExpand(ActionEvent event) {
+        String actionType = "expanding";
+        if (actionType.equals(lastActionType)) {
+            workingDBColumnFactory.showExpandIcons(false);
+            shiftSidebarHighlighter(null);
+        } else {
+            workingDBColumnFactory.showExpandIcons(true);
+            serialNumberField.setVisible(false);
+            shiftSidebarHighlighter(actionType);
+            shiftUpdateButtonFull();
+        }
+        dbTableView.refresh();
+    }
+
+
+
+    // Refresh the table view data
+    @FXML
+    private void handleRefreshData() {
+        dbTableView.refresh();
     }
 
 
     @FXML
-    private void handleComposeContracts(ActionEvent event) {
-        System.out.println("Compose Contracts Button pressed. Current lastActionType: " + lastActionType);
-
-        if ("creating-contracts" == lastActionType) {
-            lastActionType = null; // Reset the action type
-            hideCheckboxes(); // Hide the checkboxes
-            showSelectableCheckboxes(false, lastActionType);
-            workingDBColumnFactory.showSelectableCheckboxes(false, lastActionType);
+    private void handleDelete(ActionEvent event) {
+        String actionType = "deleting";
+        if (actionType.equals(lastActionType)) {
+            hideCheckboxes();
+            workingDBColumnFactory.showSelectableCheckboxes(false, null);
             updateRentalButton.setVisible(false);
-            System.out.println("Resetting action type. Checkboxes hidden.");
-            return; // Exit the method
+            shiftSidebarHighlighter(null); // Reset sidebar highlighter
         } else {
-            lastActionType = "creating-contracts"; // Set the action type
-            resetCheckboxes(); // Deselect all checkboxes first
-            showSelectableCheckboxes(true, lastActionType); // Show the checkboxes
-            workingDBColumnFactory.showSelectableCheckboxes(true, lastActionType);
-            System.out.println("Action type set to 'creating-contracts'. Checkboxes shown.");
+            resetCheckboxes();
+            workingDBColumnFactory.showSelectableCheckboxes(true, actionType);
+            shiftSidebarHighlighter(actionType); // Update sidebar highlighter
+            System.out.println("Delete button pressed.");
             if (serialNumberField.isVisible()) {
                 serialNumberField.setVisible(false);
                 shiftUpdateButtonFull();
             }
+            shiftSidebarHighlighter(actionType);
         }
     }
 
@@ -1305,18 +1535,6 @@ public class DBController extends BaseController {
     }
 
 
-    private void showSelectableCheckboxes(boolean visible, String actionType) {
-        boolean shouldShowCheckboxes = "dropping-off".equals(actionType) ||
-                                       "calling-off".equals(actionType) ||
-                                       "picking-up".equals(actionType) ||
-                                       "creating-invoices".equals(actionType) ||
-                                        "creating-contracts".equals(actionType);
-
-        this.shouldShowCheckboxes = shouldShowCheckboxes && visible; // Set the class-level variable
-        dbTableView.refresh(); // Refresh to update cell rendering
-
-    }
-
     @FXML
     private void handleUpdateRental(ActionEvent event) {
         ObservableList<CustomerRental> selectedRentals = dbTableView.getItems().filtered(CustomerRental::isSelected);
@@ -1324,10 +1542,10 @@ public class DBController extends BaseController {
         Date today = new Date(); // Today's date
 
         // Handle the 'creating-invoices' action type
-        if (lastActionType.equals("creating-invoices")) {
+        if (lastActionType.equals("composing-invoices")) {
             statusUpdated = true;
             checkAndSwitchScene(statusUpdated);
-        } else if (lastActionType.equals("creating-contracts")) {
+        } else if (lastActionType.equals("composing-contracts")) {
             // Handle the driver assignment status updates
             for (CustomerRental order : selectedRentals) {
                 // Logic for contracts if needed
@@ -1344,10 +1562,9 @@ public class DBController extends BaseController {
                     updateRentalStatusInDB(order.getRentalItemId(), newStatus); // Sync with DB
                     updateDateInDB(order.getRentalItemId(), "item_delivery_date", today); // Update delivery date
                     statusUpdated = true;
-                    visuallyUnselectSidebarButton(droppingOffButton);
                     System.out.println("Order for " + order.getName() + " marked as Active with today's delivery date.");
-                    if (serialNumberField.getText().length() >= 5) {
-                    for (CustomerRental rental : selectedRentals) {
+                    if (serialNumberField.getText().length() >= 4) {
+                        for (CustomerRental rental : selectedRentals) {
                             updateSerialNumberInDB(rental.getRentalItemId(), serialNumberField.getText());
                             rental.setSerialNumber(serialNumberField.getText());
                         }
@@ -1380,6 +1597,15 @@ public class DBController extends BaseController {
                     System.out.println("Order for " + order.getName() + " status updated to 'Picked Up' with today's pickup date.");
                 }
             }
+        } else if (lastActionType.equals("deleting")) {
+            List<CustomerRental> itemsToRemove = new ArrayList<>();
+            for (CustomerRental order : selectedRentals) {
+                deleteRentalFromDB(order.getRentalItemId());
+                itemsToRemove.add(order);
+                statusUpdated = true;
+            }
+            ordersList.removeAll(itemsToRemove);
+            selectedRentals.removeAll(itemsToRemove);
         } else {
             // Existing logic for other action types
             for (CustomerRental order : selectedRentals) {
@@ -1396,7 +1622,6 @@ public class DBController extends BaseController {
         if (statusUpdated) {
             lastActionType = null;
             hideCheckboxes(); // If needed, based on logic
-            shouldShowCheckboxes = false;
             resetCheckboxes();
             workingDBColumnFactory.resetCheckboxes();
             workingDBColumnFactory.showSelectableCheckboxes(false, lastActionType);
@@ -1500,6 +1725,27 @@ public class DBController extends BaseController {
     }
 
 
+    private void deleteRentalFromDB(int rentalItemId) {
+        String deleteQuery = "DELETE FROM rental_items WHERE rental_item_id = ?";
+
+
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+             PreparedStatement statement = connection.prepareStatement(deleteQuery)) {
+
+
+            statement.setInt(1, rentalItemId);
+            int rowsDeleted = statement.executeUpdate();
+
+
+            if (rowsDeleted > 0) {
+                System.out.println("Rental item with ID " + rentalItemId + " successfully deleted.");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
     private void checkAndSwitchScene(boolean statusUpdated) {
         if (statusUpdated) {
             try {
@@ -1509,6 +1755,15 @@ public class DBController extends BaseController {
             }
         }
     }
+
+    private void switchToExpandScene() {
+        try {
+            MaxReachPro.loadScene("/fxml/expand.fxml"); // Replace with your scene path
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 
 
     private void highlightRow(CustomerRental order, String color) {
@@ -1539,62 +1794,6 @@ public class DBController extends BaseController {
         return currentStatus;
     }
 
-    private void createContractPDF(CustomerRental rental, String contractPath) {
-        try {
-            // Create a PdfWriter instance
-            PdfWriter writer = new PdfWriter(contractPath);
-
-            // Create a PdfDocument instance
-            PdfDocument pdf = new PdfDocument(writer);
-
-            // Create a Document instance
-            Document document = new Document(pdf);
-
-            // Load a font
-            PdfFont font = PdfFontFactory.createFont();
-
-            // Add title as a Paragraph with text
-            Paragraph paragraph = new Paragraph()
-                .add(new Text("Rental Agreement").setFont(font).setFontSize(18).setBold())
-                .setFixedPosition(50, 750, 500) // Set x, y, and width
-                .setFontColor(ColorConstants.BLACK);
-
-            // Add the paragraph to the document
-            document.add(paragraph);
-
-            // Add rental details
-            String rentalDetails = "Customer Name: " + rental.getName() + "\n" +
-                                   "Rental ID: " + rental.getRentalOrderId() + "\n" +
-                                   "Status: " + rental.getStatus() + "\n";
-
-            Paragraph detailsParagraph = new Paragraph(rentalDetails)
-                .setFixedPosition(50, 700, 500) // Adjust the position as needed
-                .setFontColor(ColorConstants.BLACK);
-
-            // Add the details paragraph to the document
-            document.add(detailsParagraph);
-
-            // Add a line separator (correct usage of LineSeparator)
-            LineSeparator lineSeparator = new LineSeparator(new SolidLine());
-            document.add(lineSeparator);
-
-            // Close the document
-            document.close();
-            System.out.println("Contract PDF created at: " + contractPath);
-        } catch (FileNotFoundException e) {
-            System.err.println("Error creating PDF: " + e.getMessage());
-        } catch (Exception e) {
-            System.err.println("Error while generating contract PDF: " + e.getMessage());
-        }
-    }
-
-
-    // Refresh the table view data
-    @FXML
-    private void handleRefreshData() {
-        loadDataAsync("All Rentals");
-    }
-
 
 
     // Handle the back button action
@@ -1611,7 +1810,7 @@ public class DBController extends BaseController {
     public double getTotalHeight() {
         boolean hardCode = true;
         if (hardCode) {
-            return 65;
+            return 155;
         } else {
             double totalHeight = 0;
 
@@ -1631,6 +1830,9 @@ public class DBController extends BaseController {
         updateRentalButton.setMinWidth(295);
         updateRentalButton.setMaxWidth(295);
         updateRentalButton.setTranslateX(-100);
+
+        composeContractsButton.setVisible(false);
+        secondInProcessButton.setVisible(false);
     }
 
 
@@ -1640,7 +1842,7 @@ public class DBController extends BaseController {
         datePickerOneLabel.setText("From:");
         datePickerTwoLabel.setText("To:");
 
-        ToggleButton selectedButton = event.getSource() instanceof ToggleButton ? (ToggleButton) event.getSource() : null;
+        ToggleButton selectedButton = event.getSource() instanceof ToggleButton ? (ToggleButton) event.getSource() : (ToggleButton) viewsToggleGroup.getSelectedToggle();
 
         if (orientation == "expand") {
             // Unselect the currently selected button
@@ -1703,14 +1905,14 @@ public class DBController extends BaseController {
 
             // Determine which VBoxes to show based on the selected view
             switch (selectedView) {
-                case "Interval":
+                case "Status":
+                    statusesPane.setVisible(true);
+                    statusesPaneTwo.setVisible(true);
                     datePickersPane.setVisible(true);
                     latestRightSideVbox = datePickersPane;
                     datePickerOneLabel.setVisible(true);
                     datePickerOneCover.setVisible(true);
                     calendarButtonOne.setVisible(true);
-                    statusesPane.setVisible(true);
-                    statusesPaneTwo.setVisible(true);
                     statusViewToggleGroup.selectToggle(upcomingButton);
                     startHighlightRotation(statusViewToggleGroup);
                     break;
@@ -1722,17 +1924,6 @@ public class DBController extends BaseController {
                     datePickerOneLabel.setVisible(true);
                     datePickerOneCover.setVisible(true);
                     calendarButtonOne.setVisible(true);
-                    break;
-                case "Status":
-                    statusesPane.setVisible(true);
-                    statusesPaneTwo.setVisible(true);
-                    datePickersPane.setVisible(true);
-                    latestRightSideVbox = datePickersPane;
-                    datePickerOneLabel.setVisible(true);
-                    datePickerOneCover.setVisible(true);
-                    calendarButtonOne.setVisible(true);
-                    statusViewToggleGroup.selectToggle(upcomingButton);
-                    startHighlightRotation(statusViewToggleGroup);
                     break;
                 case "Driver":
                     leftSideVboxDriverView.setVisible(true);
@@ -1779,190 +1970,332 @@ public class DBController extends BaseController {
     }
 
 
-
-
-
-
-    private void loadCustomers() {
-        String query = "SELECT customer_id, customer_name, email FROM customers";
-
-        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-
-            ResultSet resultSet = preparedStatement.executeQuery();
-            while (resultSet.next()) {
-                String customerId = resultSet.getString("customer_id");
-                String customer_name = resultSet.getString("customer_name");
-                String email = resultSet.getString("email");
-
-                // Add to the customer list
-                customers.add(new Customer(customerId, customer_name, email));
-            }
-
-            for (Customer customer : customers) {
-                customerComboBox.getItems().add(customer.getCustomerName());
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-
-        }
-    }
-
-
-    private void handleViewSettingSelect (String viewType, String firstSetting) {
+    private void handleViewSettingSelect (String viewType, String status) {
         dbTableView.getColumns().clear();
-        workingDBColumnFactory = new DBColumnFactory(updateRentalButton, serialNumberField, dbTableView, groupedRentals, driverSequenceMap);
-        TableColumn<CustomerRental, String> serialNumberColumn = workingDBColumnFactory.getSerialNumberColumn();
-        TableColumn<CustomerRental, Boolean> statusColumn = workingDBColumnFactory.getStatusColumn();
-        TableColumn<CustomerRental, String> deliveryDateColumn = workingDBColumnFactory.getDeliveryDateColumn();
-        TableColumn<CustomerRental, String> deliveryTimeColumn = workingDBColumnFactory.getDeliveryTimeColumn();
-        TableColumn<CustomerRental, String> addressColumn = workingDBColumnFactory.getAddressColumn();
-        LocalDate firstDate = datePickerOne.getValue();
-        LocalDate secondDate = datePickerTwo.getValue();
 
         dbTableView.getColumns().addAll(statusColumn, addressColumn);
         switch (viewType) {
-            case "Interval":
-                if (firstSetting != null) {
-                    if (firstDate == null && secondDate == null) {
-                        switch (firstSetting) {
-                            case "Active":
-                                dbTableView.getColumns().add(serialNumberColumn);
-                                loadData("Active");
-                                break;
-                            case "Billable":
-                                loadData("Billable");
-                                break;
-                            case "Upcoming":
-                                dbTableView.getColumns().add(deliveryDateColumn);
-                                loadData("Upcoming");
-                                break;
-                            case "Called Off":
-                                loadData("Called Off");
-                                break;
-                            default:
-                                loadData("Open Interval");
-                                break;
-                        }
-                    } else if (firstDate != null && secondDate == null) {
-                        switch (firstSetting) {
-                            case "Active":
-                                dbTableView.getColumns().add(serialNumberColumn);
-                                loadData("One Date Active");
-                                break;
-                            case "Billable":
-                                loadData("One Date Billable");
-                                break;
-                            case "Upcoming":
-                                dbTableView.getColumns().add(deliveryDateColumn);
-                                loadData("One Date Upcoming");
-                                break;
-                            case "Called Off":
-                                loadData("One Date Called Off");
-                                break;
-                            default:
-                                loadData("One Date");
-                                break;
-                        }
-                    } else {
-                        switch (firstSetting) {
-                            case "Active":
-                                dbTableView.getColumns().add(serialNumberColumn);
-                                loadData("Interval Active");
-                                break;
-                            case "Billable":
-                                loadData("Interval Billable");
-                                break;
-                            case "Upcoming":
-                                dbTableView.getColumns().add(deliveryDateColumn);
-                                loadData("Interval Upcoming");
-                                break;
-                            case "Called Off":
-                                loadData("Interval Called Off");
-                                break;
-                            default:
-                                loadData("Interval");
-                                break;
-                        }
-                    }
-                } else {
-                    loadData("Open Interval");
-                }
-                break;
-
-
-            case "Customer":
-                switch (firstSetting) {
+             case "Status":
+                switch (status) {
                     case "Active":
-                        loadData("Customer Active");
+                        dbTableView.getColumns().add(serialNumberColumn);
+                        loadData("Active");
                         break;
                     case "Billable":
-                        loadData("Customer Billable");
+                        dbTableView.getColumns().add(invoiceColumn);
+                        loadData("Billable");
                         break;
                     case "Upcoming":
-                        loadData("Customer Upcoming");
+                        dbTableView.getColumns().add(deliveryDateColumn);
+                        loadData("Upcoming");
                         break;
                     case "Called Off":
-                        loadData("Customer Called Off");
+                        dbTableView.getColumns().addAll(serialNumberColumn, driverColumn);
+                        loadData("Called Off");
+                        break;
+                    case null:
+                        dbTableView.getColumns().addAll(deliveryDateColumn, serialNumberColumn, driverColumn);
+                        loadData("All Rentals");
                         break;
                     default:
-                        loadData("Customer");
+                        dbTableView.getColumns().addAll(deliveryDateColumn, serialNumberColumn, driverColumn);
+                        loadData("All Rentals");
                         break;
                 }
                 break;
-
-
-            case "Status":
-                if (firstSetting != null) {
-                    switch (firstSetting) {
-                        case "Active":
-                            dbTableView.getColumns().add(serialNumberColumn);
-                            loadData("Active");
-                            break;
-                        case "Billable":
-                            loadData("Billable");
-                            break;
-                        case "Upcoming":
-                            dbTableView.getColumns().add(deliveryDateColumn);
-                            loadData("Upcoming");
-                            break;
-                        case "Called Off":
-                            loadData("Called Off");
-                            break;
-                        default:
-                            loadData("Status");
-                            break;
-                    }
-                } else {
-                    loadData("Open Interval");
+            case "Status One Date":
+                switch (status) {
+                    case "Active":
+                        dbTableView.getColumns().add(serialNumberColumn);
+                        loadData("Active One Date");
+                        break;
+                    case "Billable":
+                        dbTableView.getColumns().add(invoiceColumn);
+                        loadData("Billable One Date");
+                        break;
+                    case "Upcoming":
+                        dbTableView.getColumns().add(deliveryDateColumn);
+                        loadData("Upcoming One Date");
+                        break;
+                    case "Called Off":
+                        dbTableView.getColumns().addAll(serialNumberColumn, driverColumn);
+                        loadData("Called Off One Date");
+                        break;
+                    case null:
+                        dbTableView.getColumns().addAll(deliveryDateColumn, serialNumberColumn, driverColumn);
+                        loadData("One Date");
+                        break;
+                    default:
+                        dbTableView.getColumns().addAll(deliveryDateColumn, serialNumberColumn, driverColumn);
+                        loadData("One Date");
+                        break;
                 }
                 break;
-
-
+            case "Status Interval":
+                switch (status) {
+                    case "Active":
+                        dbTableView.getColumns().add(serialNumberColumn);
+                        loadData("Active Interval");
+                        break;
+                    case "Billable":
+                        dbTableView.getColumns().add(invoiceColumn);
+                        loadData("Billable Interval");
+                        break;
+                    case "Upcoming":
+                        dbTableView.getColumns().add(deliveryDateColumn);
+                        loadData("Upcoming Interval");
+                        break;
+                    case "Called Off":
+                        dbTableView.getColumns().addAll(serialNumberColumn, driverColumn);
+                        loadData("Called Off Interval");
+                        break;
+                    case null:
+                        dbTableView.getColumns().addAll(deliveryDateColumn, serialNumberColumn, driverColumn);
+                        loadData("Interval");
+                        break;
+                    default:
+                        dbTableView.getColumns().addAll(deliveryDateColumn, serialNumberColumn, driverColumn);
+                        loadData("Interval");
+                        break;
+                }
+                break;
+            case "Customer":
+                dbTableView.getColumns().add(invoiceColumn);
+                loadData("Customer");
+                break;
+            case "Customer One Date":
+                dbTableView.getColumns().add(invoiceColumn);
+                loadData("Customer One Date");
+                break;
+            case "Customer Interval":
+                dbTableView.getColumns().add(invoiceColumn);
+                loadData("Customer Interval");
+                break;
             case "Driver":
-                dbTableView.getColumns().add(serialNumberColumn);
-                dbTableView.getColumns().add(deliveryTimeColumn);
-                if (firstDate == null && secondDate == null) {
-                    loadData("Driver");
-                } else if (firstDate != null && secondDate == null) {
-                    loadData("Driver One Date");
-                } else {
-                    loadData("Driver Interval");
-                }
+                dbTableView.getColumns().addAll(serialNumberColumn, driverColumn);
+                loadData("Driver");
                 break;
-
-
+            case "Driver One Date":
+                dbTableView.getColumns().addAll(serialNumberColumn, driverColumn);
+                loadData("Driver One Date");
+                break;
+            case "Driver Interval":
+                dbTableView.getColumns().addAll(serialNumberColumn, driverColumn);
+                loadData("Driver Interval");
+                break;
+            case "One Date":
+                dbTableView.getColumns().addAll(deliveryDateColumn, serialNumberColumn, driverColumn);
+                loadData("One Date");
+                break;
+            case "Interval":
+                dbTableView.getColumns().addAll(deliveryDateColumn, serialNumberColumn, driverColumn);
+                loadData("Interval");
+                break;
             default:
-                loadData("Unknown View Type");
+                dbTableView.getColumns().addAll(deliveryDateColumn, serialNumberColumn, driverColumn);
+                loadData("All Rentals");
                 break;
+        }
+        dbTableView.refresh();
+    }
+
+    private String formatPhoneNumber(String phoneNumber) {
+        if (phoneNumber == null || phoneNumber.length() != 10) {
+            throw new IllegalArgumentException("Input must be a 10-digit number.");
+        }
+
+        return "(" + phoneNumber.substring(0, 3) + ")-" + phoneNumber.substring(3, 6) + "-" + phoneNumber.substring(6, 10);
+    }
+
+    private String getDaySuffix(int day) {
+        if (day >= 11 && day <= 13) {
+            return "th";
+        }
+        switch (day % 10) {
+            case 1: return "st";
+            case 2: return "nd";
+            case 3: return "rd";
+            default: return "th";
+        }
+    }
+
+    @FXML
+    private void handleBatchContracts(ActionEvent event) {
+        ObservableList<CustomerRental> selectedRentals = dbTableView.getItems().filtered(CustomerRental::isSelected);
+
+        if (selectedRentals.isEmpty()) {
+            System.out.println("No rentals selected. Cannot compose contracts.");
+            return;
+        }
+
+        String sourceFile = "C:/Users/maxhi/OneDrive/Documents/Quickbooks/QBProgram Development/Composing Contracts/contract template.pdf";
+
+        // List to store generated PDF filenames
+        List<String> createdPdfFiles = new ArrayList<>();
+
+        for (CustomerRental rental : selectedRentals) {
+            String outputFile = "C:/Users/maxhi/OneDrive/Documents/Quickbooks/QBProgram Development/Composing Contracts/contract_" + rental.getRentalItemId() + ".pdf";
+
+            try {
+                // Open the source PDF
+                PdfDocument pdfDoc = new PdfDocument(new PdfReader(sourceFile), new PdfWriter(outputFile));
+                Document document = new Document(pdfDoc);
+
+                // Get page 1 of the PDF
+                PdfCanvas canvas = new PdfCanvas(pdfDoc.getPage(1));
+
+                // Add text to specific coordinates
+                canvas.beginText();
+                canvas.setFontAndSize(com.itextpdf.kernel.font.PdfFontFactory.createFont(), 12);
+
+                String dateString = rental.getDeliveryDate();
+                LocalDate date = LocalDate.parse(dateString, DateTimeFormatter.ISO_LOCAL_DATE);
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM'.' d");
+                String formattedDate = date.format(formatter);
+                int day = date.getDayOfMonth();
+                String suffix = getDaySuffix(day);
+                String formattedDeliveryDate = formattedDate + suffix;
+                canvas.setTextMatrix(435, 711); // Delivery Date
+                canvas.showText(formattedDeliveryDate);
+
+                canvas.setTextMatrix(449, 747); // Delivery Time
+                canvas.showText("P" + String.valueOf(rental.getRentalItemId()));
+
+                canvas.setTextMatrix(355, 631); // Address Block One
+                canvas.showText(rental.getAddressBlockOne());
+
+                canvas.setTextMatrix(346, 613); // Address Block Two
+                canvas.showText(rental.getAddressBlockTwo());
+
+                canvas.setTextMatrix(364, 595); // Address Block Three
+                canvas.showText(rental.getCity());
+
+                if (rental.getSiteContactName() != null) {
+                    canvas.setTextMatrix(371, 577); // Address Block Four
+                    canvas.showText(rental.getSiteContactName());
+                    canvas.setTextMatrix(454, 577); // Address Block Five
+                    canvas.showText(formatPhoneNumber(rental.getSiteContactPhone()));
+                }
+
+                if (rental.getOrderedByName() != null) {
+                    canvas.setTextMatrix(119, 559); // Address Block Four
+                    canvas.showText(rental.getOrderedByName());
+                    canvas.setTextMatrix(76, 577); // Address Block Five
+                    canvas.showText(formatPhoneNumber(rental.getOrderedByPhone()));
+                }
+
+                canvas.setTextMatrix(194, 559); // PO Number
+                canvas.showText(rental.getPoNumber());
+
+                canvas.setTextMatrix(43, 523);
+                canvas.showText(rental.getLocationNotes());
+
+                canvas.setTextMatrix(81, 630); // Name
+                canvas.showText(rental.getName());
+
+                canvas.setTextMatrix(43, 652);
+                canvas.showText(rental.getPreTripInstructions());
+
+                canvas.setTextMatrix(99, 481); // Lift Type
+                canvas.showText(rental.getLiftType());
+
+                canvas.endText();
+
+                // Close the document
+                document.close();
+
+                // Track the generated PDF file
+                createdPdfFiles.add(outputFile);
+
+                System.out.println("Contract created: " + outputFile);
+
+                secondInProcessButton.setVisible(true);
+            } catch (Exception e) {
+                System.out.println("Error creating contract for rental ID " + rental.getRentalItemId() + ": " + e.getMessage());
+                e.printStackTrace();
+            }
         }
 
 
+        // Now, merge the individual PDFs into one file
+        if (!createdPdfFiles.isEmpty()) {
+            // Get today's date for naming the final PDF
+            String todayDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            String finalOutputFile = "C:/Users/maxhi/OneDrive/Documents/Quickbooks/QBProgram Development/Composing Contracts/contracts_" + todayDate + ".pdf";
 
 
+            try {
+                // Create PdfDocument for the final output file
+                PdfDocument finalPdfDoc = new PdfDocument(new PdfWriter(finalOutputFile));
 
 
-        dbTableView.refresh();
+                // Create PdfMerger to merge PDFs
+                PdfMerger merger = new PdfMerger(finalPdfDoc);
+
+
+                // Merge each created PDF into the final document
+                for (String pdfFile : createdPdfFiles) {
+                    PdfDocument docToMerge = new PdfDocument(new PdfReader(pdfFile));
+                    merger.merge(docToMerge, 1, docToMerge.getNumberOfPages());
+                    docToMerge.close();
+                }
+
+
+                // Close the final merged document
+                finalPdfDoc.close();
+
+
+                System.out.println("All contracts merged into: " + finalOutputFile);
+
+
+                // Clean up the individual PDFs after merging
+                for (String pdfFile : createdPdfFiles) {
+                    File file = new File(pdfFile);
+                    if (file.exists()) {
+                        if (file.delete()) {
+                            System.out.println("Deleted temporary file: " + pdfFile);
+                        } else {
+                            System.out.println("Failed to delete temporary file: " + pdfFile);
+                        }
+                    }
+                }
+
+
+                System.out.println("Temporary individual contract files deleted.");
+
+
+            } catch (Exception e) {
+                System.out.println("Error merging PDFs: " + e.getMessage());
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("No contracts were created, so no merge occurred.");
+        }
+
+
+        System.out.println("Batch contracts processing completed.");
+    }
+
+    @FXML
+    private void handleSecondInProcess(ActionEvent event) {
+        // Get today's date to match the final merged PDF filename
+        String todayDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        String finalOutputFile = "C:/Users/maxhi/OneDrive/Documents/Quickbooks/QBProgram Development/Composing Contracts/contracts_" + todayDate + ".pdf";
+
+        // Check if the generated file exists
+        File contractFile = new File(finalOutputFile);
+        if (contractFile.exists()) {
+            try {
+                // Open the file using the default system PDF viewer
+                Desktop.getDesktop().open(contractFile);
+                System.out.println("Opened contract: " + finalOutputFile);
+            } catch (IOException e) {
+                System.out.println("Error opening contract file: " + e.getMessage());
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("Generated contract file not found: " + finalOutputFile);
+        }
     }
 
 

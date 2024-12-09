@@ -6,23 +6,19 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
-import javafx.scene.input.KeyCode;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.TilePane;
 import javafx.scene.paint.Color;
-import javafx.scene.control.Toggle;
-import javafx.scene.control.ToggleGroup;
-import javafx.scene.control.ToggleButton;
+import javafx.scene.shape.Line;
+import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 import okhttp3.*;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.w3c.dom.Text;
 
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -37,13 +33,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ScheduleDeliveryController extends BaseController {
-
-    private static final double INITIAL_SCISSOR_LIFT_HEIGHT = 263; // Initial height of the scissor lift
-    private static final double INITIAL_TABLE_HEIGHT = 50; // Initial height of the TableView (height of one row)
-    private static final double ROW_HEIGHT = 25; // Height of each row in the TableView
-    private double currentHeight = INITIAL_SCISSOR_LIFT_HEIGHT; // Track the current height of the scissor lift
-    private int scheduledCounter = 0;
+public class ExpandController extends BaseController {
 
     private ObservableList<Customer> customers = FXCollections.observableArrayList();
     private Customer selectedCustomer;
@@ -99,6 +89,8 @@ public class ScheduleDeliveryController extends BaseController {
     private ToggleButton twelveMastButton;
     @FXML
     private Button plusButton;
+    @FXML
+    private Line liftTypeUnderLine;
     private int liftCount = 0;
     private List<String> addedLifts = new ArrayList<>();
     @FXML
@@ -156,7 +148,7 @@ public class ScheduleDeliveryController extends BaseController {
     @FXML
     private TextField preTripInstructionsField;
     @FXML
-    private Button scheduleDeliveryButton;
+    private Button updateRentalButton;
     @FXML
     private Label statusLabel; // Reference to the status label
 
@@ -167,11 +159,12 @@ public class ScheduleDeliveryController extends BaseController {
     private ObservableList<String> addressSuggestions = FXCollections.observableArrayList();
     private OkHttpClient client = new OkHttpClient();
 
-    // Initialize method to set up ToggleButtons and the ToggleGroup
-    @FXML
+    private CustomerRental expandedRental;
+
+
     public void initialize() {
         loadCustomers();
-        setDefaultRentalDate();
+        setRentalDate();
 
         customerNameField.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ENTER) {
@@ -196,11 +189,6 @@ public class ScheduleDeliveryController extends BaseController {
             }
         });
 
-        customerNameField.focusedProperty().addListener((obs, oldValue, newValue) -> {
-            if (!newValue) {
-                handleCustomerNameFieldUnfocus();
-            }
-        });
 
         orderedByBox.setOnAction(event -> handleContactSelection(orderedByBox, true));
         siteContactBox.setOnAction(event -> handleContactSelection(siteContactBox, false));
@@ -262,6 +250,7 @@ public class ScheduleDeliveryController extends BaseController {
                 toggleButton.setToggleGroup(liftTypeToggleGroup);  // Add each ToggleButton to the ToggleGroup
             }
         }
+
         prepareLiftTypeButtons();
 
         // Set up ToggleButtons for delivery time
@@ -444,23 +433,9 @@ public class ScheduleDeliveryController extends BaseController {
         setupTextFieldListeners(locationNotesField, locationNotesButton, locationNotesLabel);
         setupTextFieldListeners(preTripInstructionsField, preTripInstructionsButton, preTripInstructionsLabel);
 
-        // Initialize TableView columns
-        customerIdColumn.setCellValueFactory(cellData -> cellData.getValue().customerIdProperty());
-        rentalDateColumn.setCellValueFactory(cellData -> cellData.getValue().orderDateProperty());
-        liftTypeColumn.setCellValueFactory(cellData -> cellData.getValue().nameProperty());
-        deliveryTimeColumn.setCellValueFactory(cellData -> cellData.getValue().deliveryTimeProperty()); // Bind delivery time
-
-        // Initially load scheduled rentals for the current session
-        scheduledRentalsTableView.setItems(rentalsList); // Bind the rentalsList to the TableView
-
-        // Adjust the TableView height to fit one empty row initially
-        adjustTableViewHeight(); // Set initial height of the TableView
-
         // Hide the status label initially
-        statusLabel.setVisible(false);
+       // statusLabel.setVisible(false);
 
-        // Start rotating highlight for lift type toggle buttons
-        startHighlightRotation();
 
         if (MaxReachPro.getUser()[0] == "Byron Chilton") {
             ButtonGroup buttonGroup = new ButtonGroup();
@@ -468,10 +443,10 @@ public class ScheduleDeliveryController extends BaseController {
             buttonGroup.startRandomWalk();
         }
 
+        expandedRental = MaxReachPro.getRentalForExpanding();
+        fillInFields();
     }
 
-
-// Method to load customers from the SQL database
     private void loadCustomers() {
         String query = "SELECT customer_id, customer_name, email FROM customers";
 
@@ -494,9 +469,36 @@ public class ScheduleDeliveryController extends BaseController {
         }
     }
 
+    private void fillInFields() {
+        customerNameField.setText(expandedRental.getName());
+        orderedByField.setText(expandedRental.getOrderedByName());
+        orderedByPhoneField.setText(expandedRental.getOrderedByPhone());
+        siteField.setText(expandedRental.getAddressBlockOne());
+        addressField.setText(expandedRental.getAddressBlockTwo() + ", " + expandedRental.getCity());
+        siteContactField.setText(expandedRental.getSiteContactName());
+        siteContactPhoneField.setText(expandedRental.getSiteContactPhone());
+        POField.setText(expandedRental.getPoNumber());
+        if (expandedRental.getLocationNotes() != null) {
+            locationNotesField.setText(expandedRental.getLocationNotes());
+            locationNotesButton.getStyleClass().add("schedule-delivery-button-has-value");
+        }
+        if (expandedRental.getPreTripInstructions() != null) {
+            preTripInstructionsField.setText(expandedRental.getPreTripInstructions());
+            preTripInstructionsButton.getStyleClass().add("schedule-delivery-button-has-value");
+        }
+        updateWeekdayToggleButtons(LocalDate.parse(expandedRental.getDeliveryDate()));
+        setDeliveryTime(expandedRental.getDeliveryTime());
+        setLiftType(expandedRental.getLiftType(), 1);
+        plusButton.setVisible(true);
+        liftCountLabel.setVisible(true);
+        liftCount++;
+        liftCountLabel.setText(String.valueOf(liftCount));
+    }
+
     private void autoFillCustomerName(String input) {
+        selectedCustomer = null;
+
         if (input.isEmpty()) {
-            selectedCustomer = null; // Clear the selected customer if the input is empty
             orderedByBox.getItems().clear(); // Clear ComboBoxes
             siteContactBox.getItems().clear();
             return;
@@ -550,6 +552,8 @@ public class ScheduleDeliveryController extends BaseController {
             }
         }
     }
+
+
 
     // Method to populate ComboBoxes with contacts for the selected customer
     private void populateComboBoxesForCustomer(String customerId) {
@@ -641,178 +645,30 @@ public class ScheduleDeliveryController extends BaseController {
 
     }
 
-    private void handleCustomerNameFieldUnfocus() {
-        String input = customerNameField.getText();
-        boolean isValidCustomer = false;
 
+    private void setRentalDate(){
 
-        if (!input.isEmpty()) {
-            for (Customer customer : customers) {
-                if (customer.getName().equalsIgnoreCase(input)) {
-                    isValidCustomer = true;
-                    break;
-                }
-            }
-
-
-            if (!isValidCustomer && input != "") {
-                scheduleDeliveryButton.setText("Add New Customer: " + input);
-            } else {
-                scheduleDeliveryButton.setText("Schedule Delivery");
-            }
-        }
     }
 
-
-
-    private boolean isCustomerValid(String customerId) {
-       System.out.println("checking customer " + customerId); // Check if any Customer in the customers list has a matching customerId
-        for (Customer customer : customers) {
-            if (customer.getCustomerId().equals(customerId)) {
-                return true; // Found a matching customerId
-            }
-        }
-        return false; // No matching customerId found
-    }
-
-    private boolean isPhoneNumberValid(String phoneNumber){
-        phoneNumber = phoneNumber.trim(); // Remove leading and trailing whitespace
-        String digitsOnly = phoneNumber.replaceAll("[^0-9]", ""); // Remove all non-numeric characters
-        return digitsOnly.length() == 10;
-    }
-
-    private void setDefaultRentalDate() {
-        // Set rental date to the next weekday (Mon-Fri)
-        LocalDate today = LocalDate.now();
-        LocalDate nextWeekday = today.plusDays(1);
-        while (nextWeekday.getDayOfWeek().getValue() > 5) { // Skip Saturday and Sunday
-            nextWeekday = nextWeekday.plusDays(1);
-        }
-
-        // Update the ToggleButton texts and select the nextWeekday
-        updateWeekdayToggleButtons(nextWeekday);
-    }
-
-    // Method to update the ToggleButtons based on the next weekday
-    private void updateWeekdayToggleButtons(LocalDate nextWeekday) {
-        LocalDate startOfWeek = nextWeekday.with(java.time.temporal.ChronoField.DAY_OF_WEEK, 1); // Monday
-
-        // Update the weekday buttons with the corresponding dates
-        ToggleButton monButton = (ToggleButton) weeksRowTilePane.lookup("#monButton");
-        ToggleButton tueButton = (ToggleButton) weeksRowTilePane.lookup("#tueButton");
-        ToggleButton wedButton = (ToggleButton) weeksRowTilePane.lookup("#wedButton");
-        ToggleButton thuButton = (ToggleButton) weeksRowTilePane.lookup("#thuButton");
-        ToggleButton friButton = (ToggleButton) weeksRowTilePane.lookup("#friButton");
-
-        // Create an array to hold the buttons and their respective dates
-        ToggleButton[] buttons = {monButton, tueButton, wedButton, thuButton, friButton};
-
-        for (int i = 0; i < buttons.length; i++) {
-            LocalDate buttonDate = startOfWeek.plusDays(i); // Calculate the date for this button
-            buttons[i].setText(buttonDate.format(DateTimeFormatter.ofPattern("M/d"))); // Set text to M/d format
-
-            // Select the button representing the nextWeekday
-            if (buttonDate.equals(nextWeekday)) {
-                buttons[i].setSelected(true);
-            } else {
-                buttons[i].setSelected(false);
-            }
-        }
-    }
-
-    public void openCalendar() {
-        datePicker.show();
-        isCalendarExpanded = true;
-        // Hide the calendarCover when the DatePicker is opened
-        /*calendarCover.setVisible(false);
-        for (Toggle toggle : weeksRowToggleGroup.getToggles()) {
-            if (toggle instanceof ToggleButton) {
-                ((ToggleButton) toggle).setVisible(false); // Hide each ToggleButton
-            }
-        }*/
-
-        // Show the DatePicker when the calendar button is clicked
-        //dateSelected = false;
-        //datePicker.setVisible(true);
-        datePicker.requestFocus(); // Focus on the DatePicker
-
-        // When a date is selected, update the hidden buttons and reset the DatePicker
-        datePicker.setOnAction(event -> {
-            LocalDate selectedDate = datePicker.getValue();
-            if (selectedDate != null){
-                dateSelected = true;
-                updateWeekdayToggleButtons(selectedDate);
-                isCalendarExpanded = false;
-            }
-
-        });
-
-        // Optionally hide the DatePicker if the user clicks outside or cancels the operation
-        datePicker.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
-            if (!isNowFocused) {
-                if (!dateSelected) {
-                    closeCalendar();
-                }
-            }
-        });
-    }
-
-    private void closeCalendar() {
-        isCalendarExpanded = false;
-        calendarCover.setVisible(true);
-        for (Toggle toggle : weeksRowToggleGroup.getToggles()) {
-            if (toggle instanceof ToggleButton) {
-                ((ToggleButton) toggle).setVisible(true); // Hide each ToggleButton
-            }
-        }
-    }
-
-
-    private void startHighlightRotation() {
-        for (javafx.scene.Node node : liftTypeTilePane.getChildren()) {
-            node.getStyleClass().removeAll("lift-type-button-stopped");
-            node.getStyleClass().add("lift-type-button-rotating");
-        }
-        isRotating = true; // Set isRotating to true
-
-        rotationTimeline = new Timeline();
-        KeyFrame keyFrame = new KeyFrame(Duration.seconds(1.5), event -> {
-            Toggle selectedToggle = liftTypeToggleGroup.getSelectedToggle();
-            Toggle nextToggle = getNextToggle(selectedToggle);
-            liftTypeToggleGroup.selectToggle(nextToggle);
-        });
-
-        rotationTimeline.getKeyFrames().add(keyFrame);
-        rotationTimeline.setCycleCount(Timeline.INDEFINITE); // Set to repeat indefinitely
-        rotationTimeline.play();
-    }
-
-
-
-    private Toggle getNextToggle(Toggle currentToggle) {
-        Toggle nextToggle = null;
-
-        if (currentToggle == null) {
-            return liftTypeToggleGroup.getToggles().get(0); // If none is selected, return the first
-        }
-
-        int currentIndex = liftTypeToggleGroup.getToggles().indexOf(currentToggle);
-        int nextIndex = (currentIndex + 1) % liftTypeToggleGroup.getToggles().size(); // Wrap around
-        nextToggle = liftTypeToggleGroup.getToggles().get(nextIndex);
-
-        return nextToggle;
-    }
 
     @FXML
     private void handlePlus(){
-        liftCount++;
         ToggleButton selectedLiftTypeButton = (ToggleButton) liftTypeToggleGroup.getSelectedToggle();
-        String liftType = selectedLiftTypeButton.getText();
-        addedLifts.add(liftType);
+        if (selectedLiftTypeButton != null) {
+            String liftType = selectedLiftTypeButton.getText();
+            addedLifts.add(liftType);
+            {
+                statusLabel.setText(addedLifts.toString());
+                statusLabel.setVisible(true);
+            }
+            liftCount++;
+        }
         liftCountLabel.setVisible(true);
         xButton.setVisible(true);
         liftCountLabel.setText(String.valueOf(liftCount));
         liftTypeToggleGroup.selectToggle(twelveMastButton);
+        setLiftType(expandedRental.getLiftType(), 0);
+        startHighlightRotation();
         rotationTimeline.play();
         isRotating = true;
         prepareLiftTypeButtons();
@@ -822,10 +678,18 @@ public class ScheduleDeliveryController extends BaseController {
     @FXML
     private void handleX(){
         liftCount--;
-        addedLifts.remove(addedLifts.size() - 1);
+        if (addedLifts.size() > 0) {
+            addedLifts.remove(addedLifts.size() - 1);
+        }
+            {
+                statusLabel.setText(addedLifts.toString());
+                statusLabel.setVisible(true);
+            }
         liftCountLabel.setText(String.valueOf(liftCount));
         if (liftCount == 0){
             liftCountLabel.setVisible(false);
+        }
+        if (liftCount == 1) {
             xButton.setVisible(false);
         }
         if (isRotating){
@@ -833,6 +697,7 @@ public class ScheduleDeliveryController extends BaseController {
         }
 
     }
+
 
     private void updateSuggestions(String input) {
         System.out.println("updateSuggestions called");
@@ -956,11 +821,6 @@ public class ScheduleDeliveryController extends BaseController {
         return selectedSuggestion; // Return the original suggestion if no comma found
     }
 
-    // Method to adjust the height of the TableView based on the number of entries
-    private void adjustTableViewHeight() {
-        double newHeight = INITIAL_TABLE_HEIGHT + (ROW_HEIGHT * Math.max(0, rentalsList.size()));
-        scheduledRentalsTableView.setPrefHeight(newHeight);
-    }
 
     private Tooltip createCustomTooltip(Button button, double xOffset, double yOffset, Tooltip tooltip) {
         tooltip.setShowDelay(Duration.ZERO);
@@ -979,6 +839,138 @@ public class ScheduleDeliveryController extends BaseController {
         return tooltip;
     }
 
+    private void updateWeekdayToggleButtons(LocalDate date) {
+        LocalDate startOfWeek = date.with(java.time.temporal.ChronoField.DAY_OF_WEEK, 1); // Monday
+
+        // Update the weekday buttons with the corresponding dates
+        ToggleButton monButton = (ToggleButton) weeksRowTilePane.lookup("#monButton");
+        ToggleButton tueButton = (ToggleButton) weeksRowTilePane.lookup("#tueButton");
+        ToggleButton wedButton = (ToggleButton) weeksRowTilePane.lookup("#wedButton");
+        ToggleButton thuButton = (ToggleButton) weeksRowTilePane.lookup("#thuButton");
+        ToggleButton friButton = (ToggleButton) weeksRowTilePane.lookup("#friButton");
+
+        ToggleButton[] buttons = {monButton, tueButton, wedButton, thuButton, friButton};
+
+        for (int i = 0; i < buttons.length; i++) {
+            LocalDate buttonDate = startOfWeek.plusDays(i); // Calculate the date for this button
+            buttons[i].setText(buttonDate.format(DateTimeFormatter.ofPattern("M/d"))); // Set text to M/d format
+
+            // Select the button representing the nextWeekday
+            if (buttonDate.equals(date)) {
+                buttons[i].setSelected(true);
+            } else {
+                buttons[i].setSelected(false);
+            }
+        }
+    }
+
+    private void setDeliveryTime (String time) {
+        for (Toggle toggle : deliveryTimeToggleGroup.getToggles()) {
+            if (toggle instanceof ToggleButton) {
+                ToggleButton button = (ToggleButton) toggle;
+                if (button.getText().equals(time)) {
+                    deliveryTimeToggleGroup.selectToggle(button);
+                    return;
+                }
+            }
+        }
+        deliveryTimeToggleGroup.selectToggle(customButton);
+        hourComboBox.setVisible(true);
+        for (String hour : hourComboBox.getItems()) {
+            if (hour.equals(expandedRental.getDeliveryTime())) {
+                hourComboBox.getSelectionModel().select(hour);
+                break;
+            }
+        }
+    }
+
+    public int getLiftIdFromType(String liftType) {
+        return Config.LIFT_TYPE_MAP.getOrDefault(liftType, -1);
+    }
+
+    private void setLiftType(String liftType, int direction) {
+
+        // Find the corresponding button text
+        String buttonText = Config.LIFT_BUTTON_TEXT_MAP.getOrDefault(liftType, null);
+        if (buttonText == null) {
+            System.err.println("No matching button text for lift type: " + liftType);
+            return;
+        }
+
+        if (direction == 1) {
+            liftTypeUnderLine.setVisible(true);
+        } else {
+            liftTypeUnderLine.setVisible(false);
+        }
+
+        Platform.runLater(() -> {
+            // Iterate through the toggles to match the button text
+            for (Toggle toggle : liftTypeToggleGroup.getToggles()) {
+                if (toggle instanceof ToggleButton) {
+                    ToggleButton button = (ToggleButton) toggle;
+                    if (direction == 0) {
+                        button.setVisible(true);
+                    }
+                    if (button.getText().equals(buttonText)) {
+                        double offsetX = 0;
+                        double offsetY = 0;
+                        if (buttonText == "12' Mast") {
+
+                        } else if (buttonText == "19' Slim" ) {
+                            offsetX = -59;
+                        } else if (buttonText == "26' Slim") {
+                            offsetX = -118;
+                        } else if (buttonText == "26'") {
+                            offsetX = -177;
+                        } else if (buttonText == "32'") {
+                            offsetX = 0;
+                            offsetY = -22;
+                        } else if (buttonText == "40'") {
+                            offsetX = -59;
+                            offsetY = -22;
+                        } else if (buttonText == "33' RT") {
+                            offsetX = -118;
+                            offsetY = -22;
+                        } else if (buttonText == "45' Boom") {
+                            offsetX = -160;
+                            offsetY = -22;
+                        }
+                        offsetX = offsetX * direction;
+                        offsetY = offsetY * direction;
+                        button.translateXProperty().set(offsetX);
+                        button.translateYProperty().set(offsetY);
+                        button.setOnAction(event ->{
+                        if (isRotating) {
+                            rotationTimeline.stop();
+                            isRotating = false; // Set isRotating to false
+                        }
+
+                            button.getStyleClass().removeAll("lift-type-button-rotating");
+                            button.getStyleClass().add("lift-type-button-stopped");
+                            button.setSelected(true);
+                            liftTypeToggleGroup.selectToggle(button); // Ensure the selected button is set
+
+                        plusButton.setVisible(true);
+                        });
+
+                    } else {
+                        if (direction == 1) {
+                            button.setVisible(false);
+                        }
+                    }
+                }
+            }
+        });
+
+        if (direction == 1) {
+            addedLifts.add(buttonText);
+            {
+                statusLabel.setText(addedLifts.toString());
+                statusLabel.setVisible(true);
+            }
+        }
+    }
+
     @FXML
     public void handleOpenCalendar() {
         if (!isCalendarExpanded) {
@@ -987,6 +979,98 @@ public class ScheduleDeliveryController extends BaseController {
             closeCalendar(); // Hide the calendar
         }
          // Toggle the state
+    }
+
+    public void openCalendar() {
+        datePicker.show();
+        isCalendarExpanded = true;
+        // Hide the calendarCover when the DatePicker is opened
+        /*calendarCover.setVisible(false);
+        for (Toggle toggle : weeksRowToggleGroup.getToggles()) {
+            if (toggle instanceof ToggleButton) {
+                ((ToggleButton) toggle).setVisible(false); // Hide each ToggleButton
+            }
+        }*/
+
+        // Show the DatePicker when the calendar button is clicked
+        //dateSelected = false;
+        //datePicker.setVisible(true);
+        datePicker.requestFocus(); // Focus on the DatePicker
+
+        // When a date is selected, update the hidden buttons and reset the DatePicker
+        datePicker.setOnAction(event -> {
+            LocalDate selectedDate = datePicker.getValue();
+            if (selectedDate != null){
+                dateSelected = true;
+                updateWeekdayToggleButtons(selectedDate);
+                isCalendarExpanded = false;
+            }
+
+        });
+
+        // Optionally hide the DatePicker if the user clicks outside or cancels the operation
+        datePicker.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+            if (!isNowFocused) {
+                if (!dateSelected) {
+                    closeCalendar();
+                }
+            }
+        });
+    }
+
+
+    private void closeCalendar() {
+        isCalendarExpanded = false;
+        calendarCover.setVisible(true);
+        for (Toggle toggle : weeksRowToggleGroup.getToggles()) {
+            if (toggle instanceof ToggleButton) {
+                ((ToggleButton) toggle).setVisible(true); // Hide each ToggleButton
+            }
+        }
+    }
+
+
+    private void startHighlightRotation() {
+        for (javafx.scene.Node node : liftTypeTilePane.getChildren()) {
+            node.getStyleClass().removeAll("lift-type-button-stopped");
+            node.getStyleClass().add("lift-type-button-rotating");
+        }
+
+        rotationTimeline = new Timeline();
+        KeyFrame keyFrame = new KeyFrame(Duration.seconds(1.5), event -> {
+            Toggle selectedToggle = liftTypeToggleGroup.getSelectedToggle();
+            if (!isRotating) {
+                System.out.println("not rotatting within a keyFrame called.");
+                rotationTimeline.stop();
+                isRotating = false; // Set isRotating to false
+                for (javafx.scene.Node node : liftTypeTilePane.getChildren()) {
+                    node.getStyleClass().removeAll("lift-type-button-rotating");
+                    node.getStyleClass().add("lift-type-button-stopped");
+                    node.setStyle("-fx-background-color: orange");
+                }
+            }
+            Toggle nextToggle = getNextToggle(selectedToggle);
+            liftTypeToggleGroup.selectToggle(nextToggle);
+        });
+
+        rotationTimeline.getKeyFrames().add(keyFrame);
+        rotationTimeline.setCycleCount(Timeline.INDEFINITE); // Set to repeat indefinitely
+        rotationTimeline.play();
+    }
+
+
+    private Toggle getNextToggle(Toggle currentToggle) {
+        Toggle nextToggle = null;
+
+        if (currentToggle == null) {
+            return liftTypeToggleGroup.getToggles().get(0); // If none is selected, return the first
+        }
+
+        int currentIndex = liftTypeToggleGroup.getToggles().indexOf(currentToggle);
+        int nextIndex = (currentIndex + 1) % liftTypeToggleGroup.getToggles().size(); // Wrap around
+        nextToggle = liftTypeToggleGroup.getToggles().get(nextIndex);
+
+        return nextToggle;
     }
 
     @FXML
@@ -1030,399 +1114,6 @@ public class ScheduleDeliveryController extends BaseController {
         }
     }
 
-    private void setupTextFieldListeners(TextField textField, Button button, Label label) {
-        textField.setOnAction(e -> toggleDedicatedField(button, label, textField));
-        textField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
-            if (!isNowFocused) {
-                toggleDedicatedField(button, label, textField);
-            }
-        });
-    }
-
-    @FXML
-    public void handleScheduleDelivery() {
-        if (!scheduleDeliveryButton.getText().equals("Schedule Delivery")){
-            handleAddNewCustomer();
-            return;
-        }
-
-        ToggleButton selectedLiftTypeButton = (ToggleButton) liftTypeToggleGroup.getSelectedToggle();
-            if (selectedLiftTypeButton == null && liftCount == 0) {
-                statusLabel.setText("Please select a lift type."); // Show error message
-                statusLabel.setTextFill(Color.RED);
-                statusLabel.setVisible(true);
-                return; // Exit the method early
-            }
-
-
-        try {
-            String customerId = selectedCustomer.getCustomerId(); // Get customer ID as String
-            String customerName = selectedCustomer.getName(); // Get customer name
-            // Check if the customerId is in the customers list
-            if (!isCustomerValid(customerId)) {
-                statusLabel.setText("Invalid customer ID. Please select a valid customer."); // Show error message
-                statusLabel.setTextFill(Color.RED);
-                statusLabel.setVisible(true);
-                return; // Exit the method early
-            }
-
-            ToggleButton selectedWeekdayButton = (ToggleButton) weeksRowToggleGroup.getSelectedToggle();
-            if (selectedWeekdayButton == null) {
-                statusLabel.setText("Please select a weekday."); // Show error message
-                statusLabel.setTextFill(Color.RED);
-                statusLabel.setVisible(true);
-                return; // Exit the method early
-            }
-
-            // Get the text of the selected weekday button (e.g., "10/1")
-            String selectedWeekdayText = selectedWeekdayButton.getText();
-            LocalDate selectedDate = LocalDate.now(); // Initialize to today
-            int currentYear = selectedDate.getYear(); // Get the current year
-
-            // Split the text to get month and day
-            String[] parts = selectedWeekdayText.split("/");
-            int month = Integer.parseInt(parts[0]); // Get the month
-            int day = Integer.parseInt(parts[1]); // Get the day
-
-            // Construct the LocalDate with the current month and day
-            selectedDate = LocalDate.of(currentYear, month, day); // Creates a LocalDate object
-
-            // Determine the appropriate year based on the selected date
-            if (selectedDate.isBefore(LocalDate.now())) { // If the selected date is before today
-                selectedDate = selectedDate.plusYears(1); // Move to next year
-            }
-
-            // Check if the selected date falls on a weekend and handle it if needed
-            if (selectedDate.getDayOfWeek() == DayOfWeek.SATURDAY || selectedDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
-                statusLabel.setText("Selected date cannot be on a weekend."); // Show error message
-                statusLabel.setTextFill(Color.RED);
-                statusLabel.setVisible(true);
-                return; // Exit the method early
-            }
-
-            // Format the date to "MMM-dd"
-            String deliveryDate = selectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")); // For database
-            String formattedDate = selectedDate.format(DateTimeFormatter.ofPattern("MMM-dd")); // For display
-
-
-
-             // Get the text of the selected button (lift type)
-
-            // Check if the custom delivery time is selected
-            String deliveryTime;
-            if (customButton.isSelected()) {
-                String selectedHour = hourComboBox.getSelectionModel().getSelectedItem();
-   //             String selectedAmPm = ampmComboBox.getSelectionModel().getSelectedItem();
-                if (selectedHour == null /*|| selectedAmPm == null*/) {
-                    // Update the status label for input error
-                    statusLabel.setText("Please select a custom delivery time."); // Show error message
-                    statusLabel.setTextFill(Color.RED); // Set the text color to red
-                    statusLabel.setVisible(true); // Make the status label visible
-                    return; // Exit the method early
-                }
-                deliveryTime = selectedHour/* + " " + selectedAmPm*/; // Construct delivery time string
-            } else {
-                // Get the selected ToggleButton for delivery time
-                ToggleButton selectedDeliveryTimeButton = (ToggleButton) deliveryTimeToggleGroup.getSelectedToggle();
-                if (selectedDeliveryTimeButton == null) {
-                    // Update the status label for input error
-                    statusLabel.setText("Please select a delivery time."); // Show error message
-                    statusLabel.setTextFill(Color.RED); // Set the text color to red
-                    statusLabel.setVisible(true); // Make the status label visible
-                    return; // Exit the method early
-                }
-                deliveryTime = selectedDeliveryTimeButton.getText(); // Get the selected delivery time
-            }
-
-            LocalDate today = LocalDate.now(); // Get the current date
-            String orderDate = today.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-
-            String site = siteField.getText();
-
-            String address = addressField.getText();
-            String addressParts[] = getAddressParts(address); // Format the address for the database
-            String streetAddress = addressParts[0]; // Get the street address
-            String city = addressParts[1]; // Get the city
-
-            String po = POField.getText();
-
-            currentCustomerRental = new CustomerRental(customerId, customerName, formattedDate, deliveryTime, "", "Upcoming", "99999", rentalsList.size() + 1);
-            currentCustomerRental.setAddressBlockTwo(streetAddress);
-            currentCustomerRental.setAddressBlockThree(city);
-            boolean rentalOrderScheduled = false;
-            if (insertRentalOrder(customerId, deliveryDate, orderDate, site, streetAddress, city, po)) {
-                rentalOrderScheduled = true;
-                // Update the status label for successful scheduling
-                System.out.println("Rental order scheduled successfully!"); // For debugging
-                statusLabel.setText("Rental order scheduled successfully!"); // Show success message
-                statusLabel.setTextFill(Color.GREEN); // Set the text color to green
-                statusLabel.setVisible(true); // Make the status label visible
-
-                // Add the newly scheduled rental to the rentalsList for this session
-                currentCustomerRental.setRentalOrderId(rentalOrderId); // Set the rental_order_id
-
-
-                // Reset fields after successful scheduling
-            } else {
-                statusLabel.setText("Failed to schedule a new Rental Order."); // Show error message
-                    statusLabel.setTextFill(Color.RED); // Set the text color to red
-                    statusLabel.setVisible(true); // Make the status label visible
-                    return;
-            }
-            if (!isRotating){
-                addedLifts.add(selectedLiftTypeButton.getText());
-                liftCount++;
-            }
-            System.out.println("Lift count: " + liftCount);
-            System.out.println("Size of addedLifts is: " + addedLifts.size());
-            System.out.println("Scheduled counter before iteration: " + scheduledCounter);
-            boolean insertedRentalItem = false;
-            for (int i = 0; i < liftCount; i++){
-                System.out.println("iteration number: " + i);
-                String liftType =  addedLifts.get(i); // Get the text of the selected button
-                int liftId = getLiftIdFromType(liftType);
-                currentCustomerRental.setLiftType(liftType);
-                currentCustomerRental.setLiftId(liftId);
-
-                if (insertRentalItem(rentalOrderId, liftId, currentCustomerRental.getOrderDate(), deliveryDate, deliveryTime, po) && rentalOrderScheduled) {
-                    // Update the status label for successful scheduling
-                    System.out.println("Rental item created successfully!"); // For debugging
-                    statusLabel.setText("Rental item created successfully!"); // Show success message
-                    statusLabel.setTextFill(Color.GREEN); // Set the text color to green
-                    statusLabel.setVisible(true); // Make the status label visible
-
-
-                    rentalsList.add(currentCustomerRental);
-
-
-                    scheduledCounter++;
-
-                    adjustTableViewHeight(); // Adjust the TableView height after adding a new entry
-
-                    // Animate the scissor lift down by decrementing its height
-                    //currentHeight -= 50; // Decrease height
-                    //MaxReachPro.getScissorLift().animateTransition(currentHeight + ROW_HEIGHT, currentHeight); // Animate the lift
-
-                    adjustTableViewHeight(); // Adjust the TableView height after adding a new entry
-                    // Reset fields after successful scheduling
-                    insertedRentalItem = true;
-                } else {
-                    System.out.println("Failed to insert rental item for liftId: " + liftId); // For debugging
-                    // Update the status label for rental failure
-                    statusLabel.setText("Failed to create the rental item. Please try again."); // Show error message
-                    statusLabel.setTextFill(Color.RED); // Set the text color to red
-                    statusLabel.setVisible(true); // Make the status label visible
-                }
-            }
-            if (insertedRentalItem){
-                MaxReachPro.getScissorLift().animateTransition(this.getTotalHeight());
-                resetFields();
-                scheduledRentalsTableView.setVisible(true);
-                tableViewTitle.setVisible(true);
-            }
-        } catch (Exception e) {
-            // Update the status label for input error
-            statusLabel.setText("Invalid input: " + e.getMessage()); // Show error message
-            statusLabel.setTextFill(Color.RED); // Set the text color to red
-            statusLabel.setVisible(true); // Make the status label visible
-        }
-
-    }
-
-    private boolean insertRentalOrder(String customerId, String deliveryDate, String orderDate, String site, String streetAddress, String city, String po) {
-        String query = "INSERT INTO rental_orders (customer_id, delivery_date, order_date, site_name, street_address, city, po_number) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-             PreparedStatement preparedStatement = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
-
-            preparedStatement.setString(1, customerId); // Change to setString
-            preparedStatement.setString(2, deliveryDate);
-            preparedStatement.setString(3, orderDate);
-            preparedStatement.setString(4, site);
-            preparedStatement.setString(5, streetAddress);
-            preparedStatement.setString(6, city);
-            preparedStatement.setString(7, po);
-
-            if (preparedStatement.executeUpdate() > 0) {
-                // Get the generated rental_order_id
-                try (ResultSet generatedKeys = preparedStatement.getGeneratedKeys()) {
-                    if (generatedKeys.next()) {
-                        rentalOrderId = generatedKeys.getInt(1);
-                        currentCustomerRental.setRentalOrderId(rentalOrderId);// Retrieve the rental_order_id
-                        System.out.println("Generated rental_order_id: " + rentalOrderId);  // For debugging
-                        currentCustomerRental.setOrderDate(orderDate); // Set the order date
-                    }
-                }
-            }
-
-            return true;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    private boolean insertRentalItem(int localRentalOrderId, int liftId, String orderDate, String deliveryDate, String deliveryTime, String  po) {
-        // First section prepares contact vars
-        String orderedByNameValue = orderedByField.getText();
-        String orderedByNumberValue = orderedByPhoneField.getText();
-        String siteContactNameValue = siteContactField.getText();
-        String siteContactNumberValue = siteContactPhoneField.getText();
-        boolean haveOrderedBy = false;
-        boolean haveSiteContact = false;
-        String orderedByContactId = "";
-        String siteContactId = "";
-        if (isPhoneNumberValid(orderedByNumberValue) && !orderedByNameValue.isEmpty()) {
-            String cleanedNumber = orderedByNumberValue.replaceAll("\\D", "");
-            if (selectedCustomer.isOrderingContactExtant(orderedByNameValue, cleanedNumber)) {
-                orderedByContactId = selectedCustomer.getOrderingContactId(orderedByNameValue);
-            } else {
-                orderedByContactId = insertContactInDB(orderedByNameValue, cleanedNumber, true);
-            }
-            haveOrderedBy = true;
-        }
-        if (isPhoneNumberValid(siteContactNumberValue) && !siteContactNameValue.isEmpty()) {
-            String cleanedNumber = siteContactNumberValue.replaceAll("\\D", "");
-            if (selectedCustomer.isSiteContactExtant(siteContactNameValue, cleanedNumber)) {
-                siteContactId = selectedCustomer.getSiteContactId(siteContactNameValue);
-            } else {
-                siteContactId = insertContactInDB(siteContactNameValue, cleanedNumber, false);
-            }
-            haveSiteContact = true;
-        }
-
-
-        System.out.println("Inserting rental item with lift_id: " + liftId);
-        String query = "INSERT INTO rental_items (rental_order_id, lift_id, ordered_contact_id, site_contact_id, " +
-                "item_order_date, item_delivery_date, delivery_time, customer_ref_number, location_notes, " +
-                "pre_trip_instructions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-            PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-
-            preparedStatement.setInt(1, localRentalOrderId);
-            preparedStatement.setInt(2, liftId);
-            if (haveOrderedBy) {
-                preparedStatement.setString(3, orderedByContactId);
-            } else {
-                preparedStatement.setNull(3, Types.VARCHAR);
-            }
-            if (haveSiteContact) {
-                preparedStatement.setString(4, siteContactId);
-            } else {
-                preparedStatement.setNull(4, Types.VARCHAR);
-            }
-            preparedStatement.setString(5, orderDate);
-            preparedStatement.setString(6, deliveryDate);
-            preparedStatement.setString(7, deliveryTime);
-            preparedStatement.setString(8, po);
-            if (locationNotesButton.getStyleClass().contains("schedule-delivery-button-has-value")) {
-                preparedStatement.setString(9, locationNotesField.getText());
-            } else {
-                preparedStatement.setNull(9, Types.VARCHAR);
-            }
-            if (preTripInstructionsButton.getStyleClass().contains("schedule-delivery-button-has-value")) {
-                preparedStatement.setString(10, preTripInstructionsField.getText());
-            } else {
-                preparedStatement.setNull(10, Types.VARCHAR);
-            }
-
-            // Execute the update
-            int rowsAffected = preparedStatement.executeUpdate();
-
-            // Check if any rows were affected, indicating a successful insert
-            return rowsAffected > 0;
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    private String insertContactInDB(String name, String number, boolean isOrderingContact){
-        System.out.println("Inserting contact in DB with name: " + name + " and number: " + number);
-        String newContactId = null;
-        String query = "INSERT INTO contacts (customer_id, first_name, phone_number, is_ordering_contact, is_site_contact) VALUES (?, ?, ?, ?, ?)";
-        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-             PreparedStatement preparedStatement = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
-
-            preparedStatement.setString(1, selectedCustomer.getCustomerId());
-            preparedStatement.setString(2, name);
-            preparedStatement.setString(3, number);
-            preparedStatement.setBoolean(4, isOrderingContact);
-            preparedStatement.setBoolean(5, !isOrderingContact);
-
-            if (preparedStatement.executeUpdate() > 0) {
-                try (ResultSet generatedKeys = preparedStatement.getGeneratedKeys()) {
-                    if (generatedKeys.next()) {
-                        newContactId = generatedKeys.getString(1);
-                        System.out.println("Generated contact_id: " + newContactId);  // For debugging
-                    }
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return newContactId;
-    }
-
-    public int getLiftIdFromType(String liftType) {
-        return Config.LIFT_TYPE_MAP.getOrDefault(liftType, -1);
-    }
-
-    private String[] getAddressParts(String address) {
-        String[] parts = address.split(",");
-
-        if (parts.length < 2){
-            throw new IllegalArgumentException("address must contain both a street and city separated by a comma");
-        }
-
-        String street = parts[0].trim();
-        String city = parts[1].trim();
-
-        return new String[]{street, city};
-    }
-
-    private void handleAddNewCustomer(){
-        statusLabel.setText("New customer additions currently only supported in Quickbooks");
-        statusLabel.setTextFill(Color.RED);
-        statusLabel.setVisible(true);
-    }
-
-    // Utility method to reset fields
-    private void resetFields() {
-        customerNameField.clear();
-        orderedByField.clear();
-        orderedByPhoneField.clear();
-        liftTypeToggleGroup.selectToggle(twelveMastButton); // Deselect any selected lift type button
-        deliveryTimeToggleGroup.selectToggle(deliveryTime8To10Button); // Re-select the "8-10" delivery time toggle button
-        statusLabel.setText(""); // Clear the status label
-        statusLabel.setVisible(false); // Hide the status label
-        hourComboBox.setVisible(false); // Hide hour ComboBox
-        customButton.setSelected(false);
-        closeCalendar();
-        datePicker.setValue(null);
-        dateSelected = false;// Unselect custom button
-        setDefaultRentalDate();
-        suggestionsBox.setVisible(false);
-        suggestionsBox.getItems().clear();// Restart rotation highlight
-        siteField.clear();
-        addressField.clear();
-        siteContactField.clear();
-        siteContactPhoneField.clear();
-        POField.clear();
-        locationNotesField.clear();
-        preTripInstructionsField.clear();
-        locationNotesButton.getStyleClass().remove("schedule-delivery-button-has-value");
-        preTripInstructionsButton.getStyleClass().remove("schedule-delivery-button-has-value");
-        rotationTimeline.play();
-        isRotating = true;
-        prepareLiftTypeButtons();
-        liftCount = 0;
-        addedLifts.clear();
-        plusButton.setVisible(false);
-        liftCountLabel.setVisible(false);
-        xButton.setVisible(false);
-    }
-
     private void prepareLiftTypeButtons(){
         for (Toggle toggle : liftTypeToggleGroup.getToggles()) {
             if (toggle instanceof ToggleButton) {
@@ -1443,10 +1134,353 @@ public class ScheduleDeliveryController extends BaseController {
         }
     }
 
+
+    private void setupTextFieldListeners(TextField textField, Button button, Label label) {
+        textField.setOnAction(e -> toggleDedicatedField(button, label, textField));
+        textField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+            if (!isNowFocused) {
+                toggleDedicatedField(button, label, textField);
+            }
+        });
+    }
+
+    @FXML
+    private void handleUpdateRental() {
+        // chunk of code for getting page settings
+        ToggleButton selectedWeekdayButton = (ToggleButton) weeksRowToggleGroup.getSelectedToggle();
+            if (selectedWeekdayButton == null) {
+                statusLabel.setText("Please select a weekday."); // Show error message
+                statusLabel.setTextFill(Color.RED);
+                statusLabel.setVisible(true);
+                return; // Exit the method early
+            }
+        String selectedWeekdayText = selectedWeekdayButton.getText();
+        LocalDate selectedDate = LocalDate.now(); // Initialize to today
+        int currentYear = selectedDate.getYear(); // Get the current year
+        String[] parts = selectedWeekdayText.split("/");
+        int month = Integer.parseInt(parts[0]); // Get the month
+        int day = Integer.parseInt(parts[1]); // Get the day
+        selectedDate = LocalDate.of(currentYear, month, day); // Creates a LocalDate object
+        if (selectedDate.isBefore(LocalDate.now())) { // If the selected date is before today
+            selectedDate = selectedDate.plusYears(1); // Move to next year
+        }
+        if (selectedDate.getDayOfWeek() == DayOfWeek.SATURDAY || selectedDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
+            statusLabel.setText("Selected date cannot be on a weekend."); // Show error message
+            statusLabel.setTextFill(Color.RED);
+            statusLabel.setVisible(true);
+            return; // Exit the method early
+        }
+        String deliveryDate = selectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")); // For database
+        String deliveryTime;
+        if (customButton.isSelected()) {
+            String selectedHour = hourComboBox.getSelectionModel().getSelectedItem();
+            if (selectedHour == null /*|| selectedAmPm == null*/) {
+                statusLabel.setText("Please select a custom delivery time."); // Show error message
+                statusLabel.setTextFill(Color.RED); // Set the text color to red
+                statusLabel.setVisible(true); // Make the status label visible
+                return; // Exit the method early
+            }
+            deliveryTime = selectedHour/* + " " + selectedAmPm*/; // Construct delivery time string
+        } else {
+            ToggleButton selectedDeliveryTimeButton = (ToggleButton) deliveryTimeToggleGroup.getSelectedToggle();
+            if (selectedDeliveryTimeButton == null) {
+                statusLabel.setText("Please select a delivery time."); // Show error message
+                statusLabel.setTextFill(Color.RED); // Set the text color to red
+                statusLabel.setVisible(true); // Make the status label visible
+                return; // Exit the method early
+            }
+            deliveryTime = selectedDeliveryTimeButton.getText(); // Get the selected delivery time
+        }
+        int rentalItemId = expandedRental.getRentalItemId();
+        String customerName = customerNameField.getText();
+        String orderedBy = orderedByField.getText();
+        String orderedByPhone = orderedByPhoneField.getText();
+        String site = siteField.getText();
+        String address = addressField.getText();
+        String addressParts[] = getAddressParts(address);
+        String streetAddress = addressParts[0];
+        String city = addressParts[1];
+        String siteContact = siteContactField.getText();
+        String siteContactPhone = siteContactPhoneField.getText();
+        String poNumber = POField.getText();
+        String locationNotes = locationNotesField.getText();
+        String preTripInstructions = preTripInstructionsField.getText();
+
+
+        // Process addedLifts in reverse order
+        while (!addedLifts.isEmpty()) {
+            // Get the last element in addedLifts
+            String latestLift = addedLifts.get(addedLifts.size() - 1);
+
+            // Match the ToggleGroup to the corresponding button text
+            for (Toggle toggle : liftTypeToggleGroup.getToggles()) {
+                if (toggle instanceof ToggleButton) {
+                    ToggleButton button = (ToggleButton) toggle;
+                    if (button.getText().equals(latestLift)) {
+                        liftTypeToggleGroup.selectToggle(button);
+                        break;
+                    }
+                }
+            }
+
+            // Determine if the current lift is the "base" lift
+            boolean isBaseLift = addedLifts.size() == 1;
+
+            // Call handleUpdateRental with the isBaseLift flag
+            rentalItemSQLCalls(isBaseLift, deliveryDate, deliveryTime, rentalItemId, customerName, orderedBy,
+                    orderedByPhone, site, streetAddress, city, siteContact, siteContactPhone, poNumber, locationNotes,
+                    preTripInstructions, address);
+
+            // Remove the last element from addedLifts
+            addedLifts.remove(addedLifts.size() - 1);
+        }
+
+        // Re-add a single element to addedLifts based on the rental's lift type
+        String newLift = Config.LIFT_BUTTON_TEXT_MAP.getOrDefault(expandedRental.getLiftType(), "1");
+        addedLifts.add(newLift);
+    }
+
+
+    private void rentalItemSQLCalls(boolean isBaseLift, String deliveryDate, String deliveryTime, int rentalItemId,
+                                    String customerName, String orderedBy, String orderedByPhone, String site, String streetAddress,
+                                    String city, String siteContact, String siteContactPhone, String poNumber, String locationNotes,
+                                    String preTripInstructions, String address){
+
+        int rentalOrderId = expandedRental.getRentalOrderId();
+
+        String liftType = liftTypeToggleGroup.getSelectedToggle() != null ? ((ToggleButton) liftTypeToggleGroup.getSelectedToggle()).getText() : Config.LIFT_BUTTON_TEXT_MAP.getOrDefault(expandedRental.getLiftType(), "");
+
+        String checkOrdersTableQuery = """
+                SELECT 
+                    ri.*, 
+                    ro.customer_id, ro.po_number, ro.site_name, ro.street_address, ro.city, 
+                    oc.first_name AS ordered_contact_first_name, 
+                    oc.phone_number AS ordered_contact_phone_number, 
+                    sc.first_name AS site_contact_first_name, 
+                    sc.phone_number AS site_contact_phone_number 
+                FROM rental_items ri 
+                INNER JOIN rental_orders ro ON ri.rental_order_id = ro.rental_order_id 
+                LEFT JOIN contacts oc ON ri.ordered_contact_id = oc.contact_id 
+                LEFT JOIN contacts sc ON ri.site_contact_id = sc.contact_id 
+                WHERE ri.rental_item_id = ?
+                """;
+
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+                PreparedStatement preparedStatement = connection.prepareStatement(checkOrdersTableQuery)) {
+
+                preparedStatement.setInt(1, rentalItemId);
+                ResultSet resultSet = preparedStatement.executeQuery();
+                if (resultSet.next()) {
+                    String customerId = safeGetString(resultSet, "customer_id");
+                    String dbPoNumber = safeGetString(resultSet, "po_number");
+                    String dbSiteName = safeGetString(resultSet, "site_name");
+                    String dbStreetAddress = safeGetString(resultSet, "street_address");
+                    String dbCity = safeGetString(resultSet, "city");
+                    String dbFullAddress = (dbStreetAddress + ", " + dbCity).replace(" CO", "");
+
+                    String dbOrderedBy = safeGetString(resultSet, "ordered_contact_first_name");
+                    String dbOrderedByPhone = safeGetString(resultSet, "ordered_contact_phone_number");
+                    String dbSiteContact = safeGetString(resultSet, "site_contact_first_name");
+                    String dbSiteContactPhone = safeGetString(resultSet, "site_contact_phone_number");
+                    String dbLocationNotes = safeGetString(resultSet, "location_notes");
+                    String dbPreTripInstructions = safeGetString(resultSet, "pre_trip_instructions");
+                    String dbDeliveryTime = safeGetString(resultSet, "delivery_time");
+
+                    if (selectedCustomer != null) {
+                        if (!customerId.equals(selectedCustomer.getCustomerId())) {
+                            statusLabel.setText("Customer ID mismatch");
+                            statusLabel.setVisible(true);
+                        }
+                    }
+
+                    boolean customerMatch = true;
+                    boolean anyCustomer = false;
+                    if (selectedCustomer != null) {
+                        System.out.println(String.valueOf(selectedCustomer.getCustomerId() + " " + selectedCustomer.getName()));
+                        if (!selectedCustomer.getCustomerId().equals(customerId)) {
+                            customerMatch = false;
+                        }
+                    } else {
+                        customerMatch = false;
+                        System.out.println(String.valueOf(expandedRental.getCustomerId() + " " + expandedRental.getName()));
+                        for (Customer customer : customers) {
+                            if (customer.getCustomerName().equals(customerName)) {
+                                customerMatch = true;
+                                customer = selectedCustomer;
+                                anyCustomer = true;
+                            }
+                        }
+                        if (!anyCustomer) {
+                            statusLabel.setText("New customer additions currently only supported in Quickbooks");
+                            statusLabel.setVisible(true);
+                            return;
+                        }
+                    }
+
+                    if (!dbPoNumber.equals(poNumber) || !dbSiteName.equals(site) || !dbFullAddress.equals(address) || !customerMatch) {
+                        statusLabel.setText("Order details mismatch");
+                        statusLabel.setVisible(true);
+
+                        String createRentalOrderQuery = """
+                                INSERT INTO rental_orders (customer_id, po_number, site_name, street_address, city, order_date, delivery_date)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)
+                                """;
+                                try (PreparedStatement createOrderStmt = connection.prepareStatement(createRentalOrderQuery, Statement.RETURN_GENERATED_KEYS)) {
+                                    createOrderStmt.setString(1, selectedCustomer.getCustomerId());
+                                    createOrderStmt.setString(2, poNumber);
+                                    createOrderStmt.setString(3, site);
+                                    createOrderStmt.setString(4, streetAddress);
+                                    createOrderStmt.setString(5, city);
+                                    createOrderStmt.setDate(6, Date.valueOf(LocalDate.now()));
+                                    createOrderStmt.setString(7, deliveryDate);
+
+                                    createOrderStmt.executeUpdate();
+
+                                    try (ResultSet generatedKeys = createOrderStmt.getGeneratedKeys()) {
+                                        if (generatedKeys.next()) {
+                                            rentalOrderId = generatedKeys.getInt(1);
+                                            expandedRental.setRentalOrderId(rentalOrderId);
+                                            System.out.println("Generated rental order ID: " + rentalOrderId);
+
+                                            if (isBaseLift) {
+                                                String updateRentalItemQuery = """
+                                                        UPDATE rental_items
+                                                        SET rental_order_id = ?
+                                                        WHERE rental_item_id = ?
+                                                        """;
+                                                try (PreparedStatement updateRentalItemStmt = connection.prepareStatement(updateRentalItemQuery)) {
+                                                    updateRentalItemStmt.setInt(1, rentalOrderId);
+                                                    updateRentalItemStmt.setInt(2, rentalItemId);
+                                                    updateRentalItemStmt.executeUpdate();
+                                                } catch (SQLException e) {
+                                                    e.printStackTrace();
+                                                    statusLabel.setText("Error updating rental item: " + e.getMessage());
+                                                    statusLabel.setVisible(true);
+                                                    return;
+                                                }
+                                            }
+                                        }
+                                    }
+                                } catch (SQLException e) {
+                                    e.printStackTrace();
+                                    statusLabel.setText("Error creating rental order: " + e.getMessage());
+                                    statusLabel.setVisible(true);
+                                    return;
+                                }
+
+                    }
+
+                    if (isBaseLift) {
+                        // just for the base, otherwise insert a new item with the current order id
+                        if (!dbOrderedBy.equals(orderedBy) || !dbOrderedByPhone.equals(orderedByPhone) || !dbSiteContact.equals(siteContact)
+                                || !dbSiteContactPhone.equals(siteContactPhone) || !dbLocationNotes.equals(locationNotes)
+                                || !dbPreTripInstructions.equals(preTripInstructions) || !dbDeliveryTime.equals(deliveryTime)) {
+                            statusLabel.setText("Item mismatch");
+
+                            String updateRentalItemQuery = """
+                            
+                            UPDATE rental_items
+                            SET rental_order_id = ?,
+                                ordered_contact_id = ?,
+                                site_contact_id = ?,
+                                lift_id = ?,
+                                delivery_time = ?,
+                                location_notes = ?,
+                                pre_trip_instructions = ?
+                            WHERE rental_item_id = ?
+                            """;
+
+
+                            try (PreparedStatement updateRentalItemStmt = connection.prepareStatement(updateRentalItemQuery)) {
+                                updateRentalItemStmt.setInt(1, rentalOrderId);
+                                updateRentalItemStmt.setString(2, selectedOrderingContactId);
+                                updateRentalItemStmt.setString(3, selectedSiteContactId);
+                                updateRentalItemStmt.setInt(4, getLiftIdFromType(liftType)); // Adjust index if necessary
+                                updateRentalItemStmt.setString(5, deliveryTime);
+                                updateRentalItemStmt.setString(6, locationNotes);
+                                updateRentalItemStmt.setString(7, preTripInstructions);
+                                updateRentalItemStmt.setInt(8, rentalItemId); // Match the rental_item_id
+
+                                updateRentalItemStmt.executeUpdate();
+                            } catch (SQLException e) {
+                                e.printStackTrace();
+                                statusLabel.setText("Error updating rental item: " + e.getMessage());
+                                statusLabel.setVisible(true);
+                                return;
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+                statusLabel.setText("Error checking orders table: " + e.getMessage());
+                statusLabel.setVisible(true);
+                return;
+            }
+        System.out.println("End of checkpoint 1");
+
+        if (!isBaseLift) {
+            // Insert a whole new rental item if not baseLift
+            String createRentalItemQuery = """
+                    INSERT INTO rental_items (rental_order_id, lift_id, ordered_contact_id, site_contact_id, item_delivery_date, delivery_time, customer_ref_number, location_notes, pre_trip_instructions, item_order_date)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """;
+
+            try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+                 PreparedStatement preparedStatement = connection.prepareStatement(createRentalItemQuery)) {
+
+                // Set the parameters for the prepared statement
+                preparedStatement.setInt(1, rentalOrderId); // rental_order_id
+                preparedStatement.setInt(2, getLiftIdFromType(liftType)); // lift_id
+                preparedStatement.setString(3, selectedOrderingContactId); // ordered_contact_id
+                preparedStatement.setString(4, selectedSiteContactId); // site_contact_id
+                preparedStatement.setString(5, deliveryDate); // item_delivery_date
+                preparedStatement.setString(6, deliveryTime); // delivery_time
+                preparedStatement.setString(7, poNumber); // customer_ref_number
+                preparedStatement.setString(8, locationNotes); // location_notes
+                preparedStatement.setString(9, preTripInstructions); // pre_trip_instructions
+                preparedStatement.setDate(10, new java.sql.Date(System.currentTimeMillis()));
+
+                // Execute the query
+                preparedStatement.executeUpdate();
+                System.out.println("New rental item inserted successfully.");
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+                statusLabel.setText("Error inserting new rental item: " + e.getMessage());
+                statusLabel.setVisible(true);
+                return;
+            }
+        }
+
+    }
+
+    private String[] getAddressParts(String address) {
+        String[] parts = address.split(",");
+
+        if (parts.length < 2){
+            throw new IllegalArgumentException("address must contain both a street and city separated by a comma");
+        }
+
+        String street = parts[0].trim();
+        String city = parts[1].trim();
+
+        return new String[]{street, city};
+    }
+
+    private String safeGetString(ResultSet resultSet, String columnName) throws SQLException {
+        String value = resultSet.getString(columnName);
+        return (value == null) ? "" : value;
+    }
+
     @FXML
     public void handleBack() {
         try {
-            MaxReachPro.goBack("/fxml/schedule_delivery.fxml");
+            MaxReachPro.goBack("/fxml/expand.fxml");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -1454,10 +1488,9 @@ public class ScheduleDeliveryController extends BaseController {
 
     @Override
     public double getTotalHeight() {
-        if (scheduledCounter == 0){
-            return 358;
-        } else {
-            return 358 - 20 - (ROW_HEIGHT * scheduledCounter);
-        }
+        return 350;
     }
+
+
+
 }

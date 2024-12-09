@@ -63,7 +63,7 @@ public class HomeController extends BaseController {
     public double getTotalHeight() {
         boolean hardCode = true;
         if (hardCode) {
-            return 500;
+            return 607;
         } else {
             double totalHeight = 0;
 
@@ -78,7 +78,6 @@ public class HomeController extends BaseController {
 
     @FXML
     private void handleSMMTax(ActionEvent event) {
-        System.out.println("SMM Task button clicked");
         try {
             MaxReachPro.loadScene("/fxml/smm_tax.fxml");
         } catch (Exception e) {
@@ -88,7 +87,6 @@ public class HomeController extends BaseController {
 
     @FXML
     public void handleSyncWithQB() {
-        System.out.println("Sync with QB button clicked");
         try {
             MaxReachPro.loadScene("/fxml/sync_with_qb.fxml");
         } catch (Exception e) {
@@ -98,7 +96,6 @@ public class HomeController extends BaseController {
 
     @FXML
     private void handleDBScene(ActionEvent event) {
-        System.out.println("Database button clicked");
         try {
             MaxReachPro.loadScene("/fxml/db.fxml");
         } catch (Exception e) {
@@ -127,7 +124,6 @@ public class HomeController extends BaseController {
 
     @FXML
     public void handleBack(ActionEvent event) {
-        System.out.println("Back button clicked on HomeController");
         try {
             MaxReachPro.goBack("/fxml/home.fxml");
         } catch (Exception e) {

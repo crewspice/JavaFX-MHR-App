@@ -90,7 +90,6 @@ public class SyncWithQBController extends BaseController {
     }
 
     private void startHighlightRotation(ToggleGroup toggleGroup) {
-        System.out.println("Starting highlight rotation for" + toggleGroup);
         // Start rotation styling for each toggle button in the group
         for (Toggle toggle : toggleGroup.getToggles()) {
             if (toggle instanceof ToggleButton toggleButton) {
@@ -118,7 +117,6 @@ public class SyncWithQBController extends BaseController {
             toggleGroup.selectToggle(selectedSyncableButton); // Make sure it's selected in the toggle group
             rotateSyncablesTimeline = new Timeline();
         }
-        System.out.println("Starting the rotation with button: " + currentToggle.getText());
 
 
         // Define the keyframe to toggle through views
@@ -594,7 +592,6 @@ public class SyncWithQBController extends BaseController {
     // Method to handle back button functionality
     @FXML
     public void handleBack() {
-        System.out.println("Back button clicked on SyncWithQBController");
         try {
             MaxReachPro.goBack("/fxml/sync_with_qb.fxml");
         } catch (Exception e) {

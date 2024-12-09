@@ -10,24 +10,34 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0b9ac3d8-f6e5-4a5c-b803-ea8558abb9f2" name="Changes" comment="newest commit">
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/ButtonGroup.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/Config.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/archive/MaxReachPro_30-Aug-2024.jar" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/ExpandController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/resources/fxml/expand.fxml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/resources/images/auto-term.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/resources/images/details-icon-1406.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/resources/images/file.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/resources/images/location-notes.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/resources/images/pre-trip-instructions.jpg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/resources/images/pre-trip-instructions.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/resources/images/small-expand.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/QBResponse.xml" beforeDir="false" afterPath="$PROJECT_DIR$/QBResponse.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/AppConstants.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/ComposeInvoicesController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/ComposeInvoicesController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/Config.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/Config.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/Customer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/Customer.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/CustomerRental.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/CustomerRental.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/DBColumnFactory.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/DBColumnFactory.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/DBController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/DBController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/LoginController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/LoginController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/HomeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/HomeController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/MaxReachPro.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/MaxReachPro.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/ScheduleDeliveryController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/ScheduleDeliveryController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/ScissorLift.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/ScissorLift.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/SyncWithQBController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/SyncWithQBController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/fxml/create_invoices.fxml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/fxml/compose_invoices.fxml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/utils/StatusNodeFactory.java" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/resources/fxml/db.fxml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/fxml/db.fxml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/resources/fxml/schedule_delivery.fxml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/fxml/schedule_delivery.fxml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/fxml/sync_with_qb.fxml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/fxml/sync_with_qb.fxml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/images/expand.png" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/images/expand.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/images/refresh.png" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/images/refresh.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/resources/styles/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/styles/styles.css" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -63,8 +73,8 @@
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
-        <option value="FxmlFile" />
         <option value="Class" />
+        <option value="FxmlFile" />
       </list>
     </option>
   </component>
@@ -115,9 +125,9 @@
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
     &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
     &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;project.structure.last.edited&quot;: &quot;Artifacts&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
     &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
-    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.52068967&quot;,
     &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   },
@@ -187,6 +197,11 @@
       <workItem from="1730823393031" duration="48656000" />
       <workItem from="1731191975253" duration="48457000" />
       <workItem from="1731525086595" duration="71348000" />
+      <workItem from="1732134851317" duration="44348000" />
+      <workItem from="1732721856418" duration="185290000" />
+      <workItem from="1733188250645" duration="33000" />
+      <workItem from="1733188430781" duration="12460000" />
+      <workItem from="1733527952442" duration="66724000" />
     </task>
     <task id="LOCAL-00001" summary="intial commit">
       <option name="closed" value="true" />
@@ -300,7 +315,15 @@
       <option name="project" value="LOCAL" />
       <updated>1730847698951</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="newest commit">
+      <option name="closed" value="true" />
+      <created>1732135147854</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1732135147855</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

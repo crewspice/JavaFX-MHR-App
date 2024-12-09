@@ -280,15 +280,55 @@
     -fx-pref-height: 30px;
 }
 
-.schedule-delivery-calendar-button {
+.plus-button {
+    -fx-alignment: top-center;
+    -fx-background-color: transparent; /* Remove button background */
+    -fx-border-color: transparent; /* Remove border */
+    -fx-faint-focus-color: gray;
+    -fx-padding: -2 -1 -2 -2;
+    -fx-background-insets: 0;
+    -fx-border-width: 0px;
+}
+
+.plus-button:hover {
+    -fx-background-color: orange; /* Optional hover background */
+    -fx-text-fill: black;
+    -fx-background-insets: 2 2 2 2;
+}
+
+.x-button {
+    -fx-alignment: top-center;
+    -fx-background-color: transparent; /* Remove button background */
+    -fx-border-color: transparent; /* Remove border */
+    -fx-faint-focus-color: gray;
+    -fx-padding: 0 -1 -2 -2;
+    -fx-background-insets: 0;
+    -fx-border-width: 0px;
+}
+
+.x-button:hover {
+    -fx-background-color: orange; /* Optional hover background */
+    -fx-text-fill: black;
+    -fx-background-insets: 2 2 2 2;
+}
+
+.schedule-delivery-button {
     -fx-background-color: transparent; /* Remove button background */
     -fx-border-color: transparent; /* Remove border */
     -fx-padding: 0px; /* Adjust padding */
     -fx-faint-focus-color: gray;
 }
 
-.schedule-delivery-calendar-button:hover {
+.schedule-delivery-button:hover {
     -fx-background-color: orange; /* Optional hover background */
+    -fx-text-fill: black;
+}
+
+.schedule-delivery-button-has-value {
+    -fx-background-color: #FFDEAD; /* Remove button background */
+    -fx-border-color: transparent; /* Remove border */
+    -fx-padding: 0px; /* Adjust padding */
+    -fx-faint-focus-color: gray;
 }
 
 .database-calendar-button {
@@ -324,6 +364,17 @@
 
 .sidebar-button-active:hover {
    -fx-background-color: orange;
+}
+
+.expand-button {
+    -fx-background-color: transparent;
+   -fx-border-color: transparent;
+   -fx-padding: 2px;
+   -fx-faint-focus-color: gray;
+}
+
+.expand-button:hover {
+    -fx-background-color: orange;
 }
 
 /* Tooltip styling */
@@ -430,9 +481,8 @@
     -fx-alignment: center; /* Center the text within the button */
 }
 
-/* Selected state for Lift Type ToggleButtons */
-.lift-type-button-stopped:selected {
-    -fx-background-color: orange; /* Background color when selected */
+.lift-type-button-stopped:focused {
+    -fx-background-color: orange !important; /* Background color when selected */
     -fx-text-fill: black; /* Text color when selected */
 }
 
@@ -537,21 +587,27 @@
     -fx-faint-focus-color: transparent; /* Remove faint focus */
     -fx-highlight-fill: orange; /* Remove highlight when selecting */
     -fx-highlight-text-fill: black; /* Ensure text remains black when selecting */
+    -fx-padding: 4 2 4 2;
+    -fx-alignment: center;
 }
 
 .transparent-text-field:focused {
     -fx-focus-color: transparent; /* Remove focus color */
-    -fx-border-color: transparent; /* Remove border when focused */
-    -fx-border-width: 0; /* Ensure no border width when focused */
+    -fx-border-color: transparent transparent black transparent; /* Remove border when focused */
+    -fx-border-width: 0 0 .5px 0; /* Apply bottom border only */
+    -fx-border-style: none none groove none; /* Dotted bottom border */
 }
 
 /* Class when text is present */
 .transparent-text-field.has-text {
-    -fx-border-width: 0; /* Remove the border (line) when text is entered */
+    -fx-border-color: transparent transparent black transparent; /* Orange bottom border */
+    -fx-border-width: 0 0 .5px 0; /* Apply bottom border only */
+    -fx-border-style: none none groove none; /* Dotted bottom border */
 }
 
 /* Class when the field is empty and not focused */
 .transparent-text-field.empty-unfocused {
+    -fx-border-color: transparent transparent black transparent; /* Orange bottom border */
     -fx-border-style: none none groove none; /* Ensure dotted style is applied */
     -fx-border-width: 0 0 0.5px 0; /* Set a .5px dotted border when empty and not focused */
 }
@@ -564,13 +620,45 @@
     -fx-background-color: #FFDEAD;
 }
 
+.combo-box.suggestions-box {
+    -fx-background-color: #FFDEAD;
+}
+
 .combo-box.suggestions-box .arrow-button {
-    -fx-opacity: 0; /* Hide the arrow */
-    -fx-padding: 0; /* Remove any padding for the arrow */
+    /*-fx-opacity: 0;  Hide the arrow */
+    /*-fx-padding: 0;  Remove any padding for the arrow */
+    -fx-border-width: 1;
+    -fx-border-color: orange;
+    -fx-background-color: transparent;
 }
 
 .suggestions-box .list-view {
-    -fx-background-color: #F4F4F4; /* Background color for the suggestion box */
+    -fx-background-color: #FFDEAD; /* Background color for the suggestion box */
+    -fx-translate-x: -28;
+    -fx-pref-width: 200;
+}
+
+.suggestions-box .list-view .list-cell {
+    -fx-text-fill: black; /* Default text color for items */
+    -fx-background-color: #F4F4F4;
+    -fx-border-color: #FFDEAD;
+    -fx-border-width: 0 0 1 0;
+}
+
+.suggestions-box .list-view .scroll-bar {
+    -fx-opacity: 0; /* Hide the scroll bar */
+    -fx-max-width: 0; /* Hide the scroll bar */
+    -fx-min-width: 0; /* Hide the scroll bar */
+    -fx-max-height: 0; /* Hide the scroll bar */
+    -fx-background-color: transparent; /* Hide the scroll bar */
+}
+
+.suggestions-box .list-view .scroll-bar .track {
+    -fx-background-color: transparent; /* Border color for filled cells */
+}
+
+.suggestions-box .list-view .scroll-bar .thumb {
+    -fx-background-color: transparent; /* Border color for filled cells */
 }
 
 .suggestions-box .list-view .list-cell:hover {
@@ -581,6 +669,16 @@
 .suggestions-box .list-view .list-cell:selected {
     -fx-background-color: #FFDEAD; /* Background color when selected */
     -fx-text-fill: black; /* Ensure text is black when selected */
+}
+
+.suggestions-box .combo-box-popup .list-cell:focused {
+    -fx-background-color: orange;
+    -fx-text-fill: black;
+}
+
+.suggestions-box .combo-box-popup .list-cell:hover {
+    -fx-background-color: orange;
+    -fx-text-fill: black;
 }
 
 /* TilePane Styles */

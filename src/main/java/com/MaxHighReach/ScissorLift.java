@@ -156,10 +156,15 @@ public class ScissorLift extends Pane {
         }
     }
 
-    public void animateTransition(double currentHeight, double newHeight) {
-        double heightDifference = newHeight - currentHeight;
-        double durationInSeconds = 1.0;
+    public void animateTransition(double newHeight) {
+        double measuredHeight = 0;
         Timeline timeline = new Timeline();
+
+        measuredHeight = basket[5].getY() - Config.WINDOW_HEIGHT;
+
+        double heightDifference = measuredHeight + newHeight;
+        double durationInSeconds = 1.0;
+
 
         // Animate the basket
         for (Rectangle rectangle : basket) {
@@ -214,7 +219,12 @@ public class ScissorLift extends Pane {
             timeline.getKeyFrames().addAll(arm1KeyFrame, arm2KeyFrame);
         }
 
+        timeline.setOnFinished(event -> {
+            timeline.getKeyFrames().clear();
+        });
+
         timeline.play();
+
     }
 
 
