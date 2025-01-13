@@ -14,18 +14,25 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.HBox?>
 <AnchorPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.ScheduleDeliveryController">
 
     <Label text="Customer:" layoutX="14" layoutY="14" prefWidth="55" wrapText="true"/>
     <TextField fx:id="customerNameField" layoutX="85" layoutY="14" prefWidth="150" alignment="CENTER" styleClass="transparent-text-field"/>
 
-    <Label text="Ordered by:" layoutX="14" layoutY="43" prefWidth="50" wrapText="true"/>
+    <DatePicker fx:id="datePickerAT" layoutX="103" layoutY="44" styleClass="date-picker"/>
+    <Rectangle fx:id="calendarCoverAT" layoutX="64" layoutY="43" width="225" height="65" fill="#F4F4F4"/>
+
+    <Label fx:id="orderedByLabel" text="Ordered by:" layoutX="14" layoutY="43" prefWidth="50" wrapText="true"/>
     <ComboBox fx:id="orderedByBox" layoutX="111" layoutY="47"  styleClass="suggestions-box"/>
     <TextField fx:id="orderedByField" layoutX="115" layoutY="49" prefWidth="66" styleClass="transparent-text-field"/>
-    <Label text="#:" layoutX="181" layoutY="49" style="-fx-font-size: 16px;"/>
+    <Label fx:id="orderedByNumberLabel" text="#:" layoutX="181" layoutY="49" style="-fx-font-size: 16px;"/>
     <TextField fx:id="orderedByPhoneField" layoutX="195" layoutY="49" prefWidth="77" styleClass="transparent-text-field"/>
 
-    <Button fx:id="autoTermButton" layoutX="278" layoutY="44" onAction="#handleOpenCalendar" styleClass="schedule-delivery-button">
+
+
+    <Button fx:id="autoTermButton" layoutX="278" layoutY="44" onAction="#handleAutoTerm" styleClass="schedule-delivery-button">
        <graphic>
            <ImageView fitWidth="30" fitHeight="30">
                <Image url="@../images/auto-term.png"/>
@@ -33,7 +40,21 @@
        </graphic>
     </Button>
 
-    <Label text="Date:" layoutX="14" layoutY="91" prefWidth="50" wrapText="true"/>
+    <Label fx:id="callOffDateLabel" text="Call Off Date:" layoutX="14" layoutY="47" prefWidth="50" wrapText="true" visible="false"/>
+    <TilePane fx:id="weeksRowTilePaneAT" layoutX="81" layoutY="44" prefColumns="5" prefRows="2" visible="false">
+       <ToggleButton text="Mon" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
+       <ToggleButton text="Tue" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
+       <ToggleButton text="Wed" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
+       <ToggleButton text="Thu" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
+       <ToggleButton text="Fri" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
+       <ToggleButton fx:id="monButtonAT" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
+       <ToggleButton fx:id="tueButtonAT" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
+       <ToggleButton fx:id="wedButtonAT" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
+       <ToggleButton fx:id="thuButtonAT" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
+       <ToggleButton fx:id="friButtonAT" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
+    </TilePane>
+
+    <Label text="Date:" layoutX="14" layoutY="93" prefWidth="50" wrapText="true"/>
     <TextField fx:id="rentalDateField" layoutX="79" layoutY="108"/>
 
     <DatePicker fx:id="datePicker" layoutX="103" layoutY="108" styleClass="date-picker"/>
@@ -64,16 +85,33 @@
 
 
     <Label text="Lift Type:" layoutX="14" layoutY="139"/>
-    <TilePane fx:id="liftTypeTilePane" layoutX="80" layoutY="138" hgap="-1" vgap="0" prefColumns="4" prefRows="2">
-        <ToggleButton text="12' Mast" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button" fx:id="twelveMastButton"/>
-        <ToggleButton text="19' Slim" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
-        <ToggleButton text="26' Slim" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
-        <ToggleButton text="26'" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
-        <ToggleButton text="32'" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
-        <ToggleButton text="40'" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
-        <ToggleButton text="33' RT" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
-        <ToggleButton text="45' Boom" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
-    </TilePane>
+    <StackPane layoutX="80" layoutY="138" >
+        <!-- Labels for Lift Type counts -->
+        <HBox spacing="39" translateX="21">
+            <Label fx:id="label12m" text="0" styleClass="circle-indicator" visible="false"/>
+            <Label fx:id="label19s" text="0" styleClass="circle-indicator" visible="false"/>
+            <Label fx:id="label26s" text="0" styleClass="circle-indicator" visible="false"/>
+            <Label fx:id="label26" text="0" styleClass="circle-indicator" visible="false"/>
+        </HBox>
+        <HBox spacing="39" translateY="47" translateX="21">
+            <Label fx:id="label32" text="0" styleClass="circle-indicator" visible="false"/>
+            <Label fx:id="label40" text="0" styleClass="circle-indicator" visible="false"/>
+            <Label fx:id="label33rt" text="0" styleClass="circle-indicator" visible="false"/>
+            <Label fx:id="label45b" text="0" styleClass="circle-indicator" visible="false"/>
+        </HBox>
+        <!-- TilePane for Lift Type buttons -->
+        <TilePane fx:id="liftTypeTilePane" hgap="-1" vgap="0" prefColumns="4" prefRows="2">
+            <ToggleButton text="12' Mast" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped" fx:id="twelveMastButton"/>
+            <ToggleButton text="19' Slim" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped" fx:id="nineteenSlimButton"/>
+            <ToggleButton text="26' Slim" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped" fx:id="twentySixSlimButton"/>
+            <ToggleButton text="26'" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped" fx:id="twentySixButton"/>
+            <ToggleButton text="32'" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped" fx:id="thirtyTwoButton"/>
+            <ToggleButton text="40'" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped" fx:id="fortyButton"/>
+            <ToggleButton text="33' RT" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped" fx:id="thirtyThreeRTButton"/>
+            <ToggleButton text="45' Boom" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped" fx:id="fortyFiveBoomButton"/>
+        </TilePane>
+    </StackPane>
+
     <Button fx:id="plusButton" text="+" style="-fx-font-size: 17; -fx-margin-left: -3; -fx-margin-right: -3; -fx-margin-top: -9; -fx-margin-bottom: -9;"
             layoutX="14" layoutY="155" minWidth="28" maxWidth="28" visible="false" styleClass="plus-button"
             minHeight="24" maxHeight="24" onAction="#handlePlus"/>
@@ -136,7 +174,7 @@
 
     <Button fx:id="scheduleDeliveryButton" text="Schedule Delivery" layoutX="12" prefWidth="295" layoutY="354" onAction="#handleScheduleDelivery" />
 
-    <Label fx:id="statusLabel" text="" layoutX="20" layoutY="355" style="-fx-font-weight: bold; -fx-font-size: 12; -fx-text-fill: green;" wrapText="true" prefWidth="300" maxHeight="50"/>
+    <Label fx:id="statusLabel" text="" layoutX="20" layoutY="368" style="-fx-font-weight: bold; -fx-font-size: 12; -fx-text-fill: green;" wrapText="true" prefWidth="300" maxHeight="50"/>
     <Button fx:id="backButton" text="Back" layoutX="270" layoutY="5" onAction="#handleBack"/>
 
 
@@ -144,10 +182,9 @@
     <TableView fx:id="scheduledRentalsTableView" layoutX="25" layoutY="375" prefWidth="260" prefHeight="60"
                 styleClass="schedule-delivery-table" visible="false">
         <columns>
-            <TableColumn fx:id="customerIdColumn" text="Customer ID" prefWidth="60"/>
-            <TableColumn fx:id="rentalDateColumn" text="Rental Date" prefWidth="40"/>
-            <TableColumn fx:id="liftTypeColumn" text="Lift Type" prefWidth="50"/>
-            <TableColumn fx:id="deliveryTimeColumn" text="Delivery Time" prefWidth="40"/> <!-- Add Delivery Time column -->
+            <TableColumn fx:id="rentalDateColumn" text="Rental Date" prefWidth="70"/>
+            <TableColumn fx:id="liftTypeColumn" text="Lift Type" prefWidth="123"/>
+            <TableColumn fx:id="deliveryTimeColumn" text="Delivery Time" prefWidth="47"/> <!-- Add Delivery Time column -->
         </columns>
     </TableView>
 

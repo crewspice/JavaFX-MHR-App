@@ -92,7 +92,7 @@ public class SMMTaxController extends BaseController {
     static {
         if (atWork) {
             PREFIX = "C:\\Users\\maxhi\\OneDrive\\Documents\\Max High Reach\\MONTH END\\";
-            SRCDIR = "..\\..\\Quickbooks\\QBProgram Development\\SMM Filing\\";
+            SRCDIR = "..\\..\\MaxReachPro\\SMM Filing\\";
         } else {
             PREFIX = "C:\\Users\\jacks\\OneDrive\\Desktop\\Professional\\Max High Reach\\SMM\\";
             SRCDIR = "Max-High-Reach\\";
@@ -102,7 +102,7 @@ public class SMMTaxController extends BaseController {
         SCRIPT_PATH = PREFIX + SRCDIR + "scripts\\orchestrate_process.py";
         INVOICE_QUERY = PREFIX + SRCDIR + "scripts\\invoice_query.xml";
         SDK_OUTPUT = PREFIX + SRCDIR + "outputs\\QBResponse.xml";
-        SDK_PATH = PREFIX + "..\\..\\Quickbooks\\QBProgram Development\\Intuit Applications\\IDN\\QBSDK16.0\\tools\\SDKTest\\SDKTestPlus3.exe";
+        SDK_PATH = PREFIX + "..\\..\\MaxReachPro\\Intuit Applications\\IDN\\QBSDK16.0\\tools\\SDKTest\\SDKTestPlus3.exe";
     }
 
     private void updateProgressLabel(String message) {
@@ -425,7 +425,7 @@ public class SMMTaxController extends BaseController {
 
     @FXML
     private void handleCopyLink1(MouseEvent event) {
-        String pathToCopy = "C:\\Users\\maxhi\\OneDrive\\Documents\\Quickbooks\\QBProgram Development\\SMM Filing\\scripts\\invoice_query.xml";
+        String pathToCopy = "C:\\Users\\maxhi\\OneDrive\\Documents\\MaxReachPro\\SMM Filing\\scripts\\invoice_query.xml";
 
         // Get the system clipboard
         Clipboard clipboard = Clipboard.getSystemClipboard();
@@ -442,7 +442,7 @@ public class SMMTaxController extends BaseController {
     @FXML
     private void handleCopyLink2(MouseEvent event) {
         // Path for QuickBooks response file
-        String qbResponsePath = "C:\\Users\\maxhi\\OneDrive\\Documents\\Quickbooks\\QBProgram Development\\SMM Filing\\outputs";
+        String qbResponsePath = "C:\\Users\\maxhi\\OneDrive\\Documents\\MaxReachPro\\SMM Filing\\outputs";
 
         // Get the system clipboard
         Clipboard clipboard = Clipboard.getSystemClipboard();

@@ -37,10 +37,10 @@ public class SyncWithQBController extends BaseController {
     @FXML
     private HBox confirmationPrompt;
 
-    private static final String OUTPUT_DIRECTORY = "C:\\Users\\maxhi\\OneDrive\\Documents\\Quickbooks\\QBProgram Development\\Syncing with QB\\";
+    private static final String OUTPUT_DIRECTORY = "C:\\Users\\maxhi\\OneDrive\\Documents\\MaxReachPro\\Syncing with QB\\";
     private static final String SDK_OUTPUT_CUSTOMERS = OUTPUT_DIRECTORY + "Customers Response.xml";
     private static final String SDK_OUTPUT_LIFTS = OUTPUT_DIRECTORY + "Lifts Response.xml";
-    private static final String SDK_PATH = "C:\\Users\\maxhi\\OneDrive\\Documents\\Quickbooks\\QBProgram Development\\Intuit Applications\\IDN\\QBSDK16.0\\tools\\SDKTest\\SDKTestPlus3.exe";
+    private static final String SDK_PATH = "C:\\Users\\maxhi\\OneDrive\\Documents\\MaxReachPro\\Intuit Applications\\IDN\\QBSDK16.0\\tools\\SDKTest\\SDKTestPlus3.exe";
 
     @FXML
     private HBox syncablesTilePane;

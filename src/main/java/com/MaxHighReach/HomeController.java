@@ -5,17 +5,22 @@ import javafx.animation.Timeline;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Region;
+import javafx.scene.paint.Color;
+import javafx.scene.control.ScrollPane;  // Use JavaFX ScrollPane
 import javafx.util.Duration;
 
 import java.awt.*;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.sql.*;
 
 public class HomeController extends BaseController {
 
@@ -40,30 +45,27 @@ public class HomeController extends BaseController {
     private ScissorLift scissorLift;
 
     @FXML
+    private Label utilizationLabel;
+
+    @FXML
     public void initialize() {
-
-       /* // Initialize and add the ScissorLift to the AnchorPane
-        scissorLift = new ScissorLift();
-        anchorPane.getChildren().add(scissorLift);
-
-        // Ensure wheel1 is on top and clickable
-        scissorLift.getWheel1().toFront();
-
-        // Debug event handling on the AnchorPane
-        anchorPane.addEventFilter(MouseEvent.MOUSE_CLICKED, event -> {
-            System.out.println("AnchorPane click detected: " + event);
-            // Uncomment the following line to consume events at the AnchorPane level:
-            // event.consume();
-        }); */
-
         animateSourceCodeLabel();
+        utilizationLabel.setText(utilizationLabel.getText() + countUniqueLiftIds());
+
+        // clear these to opt out of saving the most recent activity view settings
+        MaxReachPro.setSelectedStatusSetting(null);
+        MaxReachPro.setSelectedDriverName(null);
+        MaxReachPro.setSelectedCustomerName(null);
+        MaxReachPro.setActivityDateSelected2(null);
+        MaxReachPro.setActivityDateSelected1(null);
+        MaxReachPro.setSelectedViewSetting(null);
     }
 
     @Override
     public double getTotalHeight() {
         boolean hardCode = true;
         if (hardCode) {
-            return 607;
+            return 547;
         } else {
             double totalHeight = 0;
 
@@ -95,9 +97,9 @@ public class HomeController extends BaseController {
     }
 
     @FXML
-    private void handleDBScene(ActionEvent event) {
+    private void handleActivity(ActionEvent event) {
         try {
-            MaxReachPro.loadScene("/fxml/db.fxml");
+            MaxReachPro.loadScene("/fxml/activity.fxml");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -107,6 +109,15 @@ public class HomeController extends BaseController {
     public void handleScheduleDelivery() {
         try {
             MaxReachPro.loadScene("/fxml/schedule_delivery.fxml");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    private void handleUtilization() {
+        try {
+            MaxReachPro.loadScene("/fxml/utilization.fxml");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -152,4 +163,34 @@ public class HomeController extends BaseController {
         timeline.setCycleCount(1);
         timeline.play();
     }
+
+    private int countUniqueLiftIds() {
+        String query = "SELECT DISTINCT lift_id FROM rental_items WHERE item_status = 'active'";
+        int uniqueCount = 0;
+
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+             PreparedStatement preparedStatement = connection.prepareStatement(query);
+             ResultSet resultSet = preparedStatement.executeQuery()) {
+
+            while (resultSet.next()) {
+                int liftId = resultSet.getInt("lift_id");
+                if (liftId < 1001 || liftId > 1008) {
+                    uniqueCount++;
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error counting unique lift IDs: " + e.getMessage());
+            e.printStackTrace();
+            return -1; // Error indicator
+        }
+
+        return uniqueCount;
+    }
+
+
+
+
+
 }
+
+

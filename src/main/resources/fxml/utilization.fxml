@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<?import javafx.scene.canvas.Canvas?>
+<?import javafx.scene.shape.Rectangle?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.image.Image?>
+<AnchorPane fx:id="anchorPane" xmlns:fx="http://javafx.com/fxml" fx:controller="com.MaxHighReach.UtilizationController">
+   <!-- Adjust layoutX and layoutY to move ScrollPane down by 30 and left by 10 -->
+   <ScrollPane fx:id="scrollPane" layoutX="6" layoutY="38" />
+   <Rectangle layoutX="2" layoutY="20" width="200" height="200" fill="#F4F4F4"/>
+   <HBox fx:id="monthToggler" layoutX="4" layoutY="3" prefHeight="26">
+      <Button onAction="#handleMonthBack" style="-fx-padding: 0 0 0 0" styleClass="sidebar-button-inactive" >
+           <graphic>
+               <ImageView fitHeight="26" fitWidth="19">
+                  <Image url="@/images/left.png"/>
+               </ImageView>
+           </graphic>
+      </Button>
+       <Button onAction="#handleMonthForward" style="-fx-padding: 0 0 0 0" styleClass="sidebar-button-inactive" >
+           <graphic>
+               <ImageView fitHeight="26" fitWidth="19">
+                  <Image url="@/images/right.png"/>
+               </ImageView>
+           </graphic>
+      </Button>
+   </HBox>
+    <Button text="Export a Report" layoutX="91" layoutY="6" minWidth="130" maxWidth="130" minHeight="23"
+            maxHeight="23"  onAction="#handleExportReport"
+        style="-fx-padding: -2 0 0 0; -fx-font-size: 16" styleClass="sidebar-button-inactive"/>
+   <!-- The back button can also be moved if needed -->
+   <Button fx:id="backButton" text="Back" layoutX="270" layoutY="5" onAction="#handleBack"/>
+</AnchorPane>
+
+

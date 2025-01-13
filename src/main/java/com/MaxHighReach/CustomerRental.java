@@ -1,12 +1,25 @@
 package com.MaxHighReach;
 
 import com.mysql.cj.x.protobuf.MysqlxDatatypes;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
+import javafx.application.Platform;
+import javafx.beans.property.*;
+import okhttp3.*;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -17,12 +30,17 @@ public class CustomerRental {
     private final StringProperty orderedByPhone;
     private final StringProperty orderDate;
     private final StringProperty deliveryDate;
+    private final StringProperty callOffDate;
+    private final SimpleBooleanProperty autoTerm;
+    private final SimpleIntegerProperty rentalDuration;
     private final StringProperty pickupDate;
     private final StringProperty deliveryTime;
     private final StringProperty addressBlockOne;
     private final StringProperty addressBlockTwo;
     private final StringProperty addressBlockThree;
     private final StringProperty city;
+    private final DoubleProperty longitude;
+    private final DoubleProperty latitude;
     private final StringProperty siteContactName;
     private final StringProperty siteContactPhone;
     private final StringProperty poNumber;
@@ -36,7 +54,6 @@ public class CustomerRental {
     private final StringProperty liftType;
     private final StringProperty shortLiftType;
     private final StringProperty status;
-    private final StringProperty refNumber;  // Changed to SimpleIntegerProperty
     private boolean selected;
     private boolean isFlagged;
     private SimpleBooleanProperty isContractWritten;
@@ -44,9 +61,11 @@ public class CustomerRental {
     private SimpleBooleanProperty isInvoiceWritten;
     private final SimpleIntegerProperty rentalOrderId;
     private final SimpleIntegerProperty rentalItemId;
+    private final SimpleBooleanProperty singleItemOrder;
 
     // Constructor with all relevant fields
-    public CustomerRental(String customerId, String name, String deliveryDate, String deliveryTime, String driver, String status, String refNumber, int rentalId) {
+    public CustomerRental(String customerId, String name, String deliveryDate, String deliveryTime, String callOffDate,
+                          String driver, String status, String poNumber, int rentalId) {
         this.customerId = new SimpleStringProperty(customerId); // Initialize SimpleIntegerProperty
         this.name = new SimpleStringProperty(name);
         this.orderedByName = new SimpleStringProperty(null);
@@ -55,13 +74,18 @@ public class CustomerRental {
         this.deliveryDate = new SimpleStringProperty(deliveryDate);
         this.pickupDate = new SimpleStringProperty("Unknown");
         this.deliveryTime = new SimpleStringProperty(deliveryTime); // Initialize delivery time
+        this.callOffDate = new SimpleStringProperty(callOffDate);
+        this.autoTerm = new SimpleBooleanProperty(false);
+        this.rentalDuration = new SimpleIntegerProperty(calculateRentalDuration());
         this.addressBlockOne = new SimpleStringProperty("Town of Windsor Fire #8");
         this.addressBlockTwo = new SimpleStringProperty("1283 Hilltop Circle");
         this.addressBlockThree = new SimpleStringProperty("Windsor");
         this.city = new SimpleStringProperty("Windsor");
+        this.longitude = new SimpleDoubleProperty(0.0);
+        this.latitude = new SimpleDoubleProperty(0.0);
         this.siteContactName = new SimpleStringProperty(null);
         this.siteContactPhone = new SimpleStringProperty(null);
-        this.poNumber = new SimpleStringProperty("Unknown");
+        this.poNumber = new SimpleStringProperty(poNumber);
         this.locationNotes = new SimpleStringProperty(null);
         this.preTripInstructions = new SimpleStringProperty(null);
         this.driver = new SimpleStringProperty(driver);
@@ -72,7 +96,6 @@ public class CustomerRental {
         this.liftType = new SimpleStringProperty("Unknown");
         this.shortLiftType = new SimpleStringProperty("Unknown");
         this.status = new SimpleStringProperty(status);
-        this.refNumber = new SimpleStringProperty(refNumber); // Initialize SimpleIntegerProperty
         this.selected = false;
         this.isFlagged = isFlagged;
         this.isContractWritten = new SimpleBooleanProperty(false);
@@ -80,11 +103,52 @@ public class CustomerRental {
         this.isInvoiceWritten = new SimpleBooleanProperty(false);
         this.rentalOrderId = new SimpleIntegerProperty(rentalId);
         this.rentalItemId = new SimpleIntegerProperty(0);
+        this.singleItemOrder = new SimpleBooleanProperty(false);
     }
 
     // Constructor without driver and status
     public CustomerRental(String customerId, String name, String orderDate, String deliveryTime) {
-        this(customerId, name, orderDate, deliveryTime, "", "Unknown", "99999", 0); // Default values
+        this(customerId, name, orderDate, deliveryTime, null, "", "Unknown", "99999", 0); // Default values
+    }
+
+    // this constructor made with utilization data in mind
+    public CustomerRental(String customerId, String name, String deliveryDate, String callOffDate, String poNumber,
+                          String orderedByName, String orderedByPhone, boolean autoTerm, String addressBlockOne,
+                          String addressBlockTwo, String addressBlockThree, int rentalItemId, String serialNumber,
+                          boolean singleItemOrder, int rentalOrderId, String siteContactName, String siteContactPhone) {
+        this.customerId = new SimpleStringProperty(customerId);
+        this.name = new SimpleStringProperty(name);
+        this.orderedByName = new SimpleStringProperty(orderedByName);
+        this.orderedByPhone = new SimpleStringProperty(orderedByPhone);
+        this.orderDate = new SimpleStringProperty("Unknown");
+        this.deliveryDate = new SimpleStringProperty(deliveryDate);
+        this.callOffDate = new SimpleStringProperty(callOffDate);
+        this.autoTerm = new SimpleBooleanProperty(autoTerm);
+        this.rentalDuration = new SimpleIntegerProperty(0);
+        this.pickupDate = new SimpleStringProperty("Unknown");
+        this.deliveryTime = new SimpleStringProperty("Unknown");
+        this.addressBlockOne = new SimpleStringProperty(addressBlockOne);
+        this.addressBlockTwo = new SimpleStringProperty(addressBlockTwo);
+        this.addressBlockThree = new SimpleStringProperty(addressBlockThree);
+        this.city = new SimpleStringProperty(addressBlockThree);
+        this.longitude = new SimpleDoubleProperty(0.0);
+        this.latitude = new SimpleDoubleProperty(0.0);
+        this.siteContactName = new SimpleStringProperty(siteContactName);
+        this.siteContactPhone = new SimpleStringProperty(siteContactPhone);
+        this.poNumber = new SimpleStringProperty(poNumber);
+        this.locationNotes = new SimpleStringProperty("Unknown");
+        this.preTripInstructions = new SimpleStringProperty("Unknown");
+        this.driver = new SimpleStringProperty("Unknown");
+        this.driverInitial = new SimpleStringProperty("Unknown");
+        this.driverNumber = new SimpleIntegerProperty(0);
+        this.serialNumber = new SimpleStringProperty(serialNumber);
+        this.liftId = new SimpleIntegerProperty(0);
+        this.liftType = new SimpleStringProperty("Unknown");
+        this.shortLiftType = new SimpleStringProperty("Unknown");
+        this.status = new SimpleStringProperty("Unknown");
+        this.rentalOrderId = new SimpleIntegerProperty(rentalOrderId);
+        this.rentalItemId = new SimpleIntegerProperty(rentalItemId);
+        this.singleItemOrder = new SimpleBooleanProperty(singleItemOrder);
     }
 
     // Getters and setters
@@ -184,6 +248,114 @@ public class CustomerRental {
         return deliveryTime; // Return the property for binding
     }
 
+    public String getCallOffDate() { return callOffDate.get(); }
+
+    public void setCallOffDate(String callOffDate) {this.callOffDate.set(callOffDate); }
+
+    public StringProperty callOffDateProperty() {return callOffDate; }
+
+    public boolean isAutoTerm() {
+        return autoTerm.get();
+    }
+
+    public void setAutoTerm(boolean autoTerm) {
+        this.autoTerm.set(autoTerm);
+    }
+
+    public int calculateRentalDuration() {
+
+        // Define two date formats with correct locales
+        DateTimeFormatter formatter1 = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        DateTimeFormatter formatter2 = DateTimeFormatter.ofPattern("MMM-dd", Locale.ENGLISH); // Specify Locale
+
+        // Handle null or empty deliveryDate
+        if (deliveryDate.get() == null || deliveryDate.get().isEmpty()) {
+            throw new IllegalArgumentException("Delivery date cannot be null or empty.");
+        }
+
+        String localDeliveryDate = deliveryDate.get();
+
+        LocalDate startDate = null;
+
+        // Mapping month abbreviation to month number
+        Map<String, Integer> monthMap = new HashMap<>();
+        monthMap.put("JAN", 1);
+        monthMap.put("FEB", 2);
+        monthMap.put("MAR", 3);
+        monthMap.put("APR", 4);
+        monthMap.put("MAY", 5);
+        monthMap.put("JUN", 6);
+        monthMap.put("JUL", 7);
+        monthMap.put("AUG", 8);
+        monthMap.put("SEP", 9);
+        monthMap.put("OCT", 10);
+        monthMap.put("NOV", 11);
+        monthMap.put("DEC", 12);
+
+        try {
+            // Try parsing with the first formatter (yyyy-MM-dd)
+            startDate = LocalDate.parse(localDeliveryDate, formatter1);
+        } catch (DateTimeParseException e) {
+
+            // If parsing fails, try the second formatter (MMM-dd) with an uppercase month
+            try {
+                // Split the delivery date by '-'
+                String[] parts = localDeliveryDate.split("-");
+                String month = parts[0].toUpperCase();  // Ensure month abbreviation is uppercase
+                String day = parts[1];
+
+                // Check if the month abbreviation is valid
+                if (monthMap.containsKey(month)) {
+                    // Construct a valid date string
+                    int monthNumber = monthMap.get(month);
+                    String adjustedDate = LocalDate.now().getYear() + "-" + String.format("%02d", monthNumber) + "-" + day;
+
+                    // Try parsing with the adjusted format
+                    startDate = LocalDate.parse(adjustedDate, formatter1); // Use yyyy-MM-dd formatter
+                } else {
+                    throw new IllegalArgumentException("Invalid month abbreviation.");
+                }
+            } catch (DateTimeParseException ex) {
+                throw new IllegalArgumentException("Invalid delivery date format.");
+            }
+        }
+
+        // Handle null or empty callOffDate by using the current date
+        LocalDate endDate = LocalDate.now(); // Default to current date
+        if (callOffDate.get() != null && !callOffDate.get().isEmpty()) {
+            endDate = LocalDate.parse(callOffDate.get(), formatter1);
+        }
+
+        int billableDays = 0;
+
+        // Iterate through the date range
+        LocalDate currentDate = startDate;
+        while (!currentDate.isAfter(endDate)) {
+
+            // Count business days (exclude weekends and company holidays)
+            if (isBusinessDay(currentDate)) {
+                billableDays++;
+            }
+            currentDate = currentDate.plusDays(1);
+        }
+
+        return billableDays > 0 ? billableDays : 1;  // Ensure at least 1 day is billed
+    }
+
+
+    // Helper method to check if a date is a business day
+    private boolean isBusinessDay(LocalDate date) {
+        DayOfWeek day = date.getDayOfWeek();
+        // Exclude weekends and company holidays
+        return day != DayOfWeek.SATURDAY && day != DayOfWeek.SUNDAY && !Config.isHoliday(date);
+    }
+
+    public int getRentalDuration() { return rentalDuration.get(); }
+
+    public void setRentalDuration(int duration) { this.rentalDuration.set(duration); }
+
+    public SimpleIntegerProperty rentalDurationProperty() { return rentalDuration; }
+
     public String getAddressBlockOne() {
         return addressBlockOne.get();
     }
@@ -228,7 +400,7 @@ public class CustomerRental {
 
     public void setAddressBlockThree(String addressBlockThree) {
         this.addressBlockThree.set(addressBlockThree);
-        setCityShort();
+        this.city.set(addressBlockThree);
     }
 
     public StringProperty addressBlockThreeProperty() {
@@ -237,7 +409,8 @@ public class CustomerRental {
 
     public void setCityShort() {
         String str = addressBlockThree.getValue();
-
+       System.out.println("set city short called and addressBlockThree is: "
+            + str);
         if (str == null || str.isEmpty()) {
             city.set(""); // Handle null or empty str strings
             return;
@@ -263,6 +436,93 @@ public class CustomerRental {
     public StringProperty cityProperty() {
         return city;
     }
+
+    public void setLongitude(double longitude) {
+        this.longitude.set(longitude);
+    }
+
+    public double getLongitude(){
+        return longitude.get();
+    }
+
+    public DoubleProperty longitude() {return longitude; }
+
+    public void setLatitude(double latitude) {
+        this.latitude.set(latitude);
+    }
+
+    public double getLatitude(){
+        return latitude.get();
+    }
+
+    public DoubleProperty latitude() {return latitude;}
+
+    public void calculateLongAndLat() {
+        String address = addressBlockTwo.get() != null ? addressBlockTwo.get() : "";
+        if (addressBlockThree.get() != null && !addressBlockThree.get().isEmpty()) {
+            address += ", " + addressBlockThree.get() + ", Colorado, USA";
+        }
+
+        System.out.println("calculating longitude and latitude and the address is: " + address);
+        if (!address.isEmpty()) {
+            fetchCoords(address);
+        }
+    }
+
+    public void fetchCoords(String address) {
+        System.out.println("Fetching coordinates for address: " + address);
+
+
+        OkHttpClient client = new OkHttpClient();
+        String apiKey = "AIzaSyBPqUosXIYsD2XMPYYeWphhDS7XwphdVB0";
+        String url = "https://maps.googleapis.com/maps/api/geocode/json?address=" + URLEncoder.encode(address, StandardCharsets.UTF_8) + "&key=" + apiKey;
+
+
+        Request request = new Request.Builder().url(url).build();
+
+
+        try {
+            // Use execute() for a synchronous request
+            Response response = client.newCall(request).execute(); // This is blocking
+
+
+            if (response.isSuccessful()) {
+                String responseData = response.body().string();
+                JSONObject json = new JSONObject(responseData);
+                String status = json.getString("status");
+                System.out.println("API Response Status: " + status);
+
+
+                if ("OK".equals(status)) {
+                    System.out.println("Parsing location data...");
+                    JSONObject location = json.getJSONArray("results")
+                                               .getJSONObject(0)
+                                               .getJSONObject("geometry")
+                                               .getJSONObject("location");
+
+
+                    double lat = location.getDouble("lat");
+                    double lng = location.getDouble("lng");
+
+
+                    setLatitude(lat);
+                    setLongitude(lng);
+
+
+                    System.out.println("Latitude: " + lat + ", Longitude: " + lng);
+                } else {
+                    System.out.println("No results found for address: " + address);
+                }
+            } else {
+                System.out.println("Request failed with HTTP status code: " + response.code());
+            }
+        } catch (IOException e) {
+            System.out.println("Request failed: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+
 
     public String getSiteContactName() {
         return siteContactName.get();

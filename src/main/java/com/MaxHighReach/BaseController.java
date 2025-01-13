@@ -2,7 +2,10 @@ package com.MaxHighReach;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.control.Button;
+import javafx.scene.control.Control;
 import javafx.scene.layout.AnchorPane;
 
 public abstract class BaseController {
@@ -40,6 +43,29 @@ public abstract class BaseController {
 
     public String getParentFxmlPath() {
         return parentFxmlPath;
+    }
+
+    public void cleanup() {
+        if (anchorPane != null) {
+            clearNode(anchorPane);
+            anchorPane.getChildren().clear();
+        }
+        customCleanup();
+    }
+
+    private void clearNode(Node node) {
+        if (node instanceof Parent parent) {
+            for (Node child : parent.getChildrenUnmodifiable()) {
+                clearNode(child);
+            }
+        }
+        if (node instanceof Control control) {
+            // can set more cleanup down this avenue
+        }
+    }
+
+    protected void customCleanup() {
+        // By default, do nothin. Each controller can override as needed
     }
 
     @FXML

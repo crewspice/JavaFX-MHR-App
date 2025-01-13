@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.collections.FXCollections?>
+<?import java.lang.String?>
+
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.TilePane?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.shape.Rectangle?>
+<?import javafx.scene.shape.Line?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.control.TextField?>
+<AnchorPane fx:id="anchorPane" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.ActivityController">
+
+    <Rectangle fx:id="sideBarHighlighter" layoutX="279" layoutY="37" width="37" height="37" arcWidth="5" arcHeight="5" visible="false" fill="#FFDEAD" />
+
+    <StackPane AnchorPane.leftAnchor="0" AnchorPane.topAnchor="0" prefWidth="320" prefHeight="800">
+
+        <HBox fx:id="datePickersPane" alignment="TOP_LEFT"  visible="false" translateX="100" spacing="-15">
+            <DatePicker fx:id="datePickerOne"  translateX="80" translateY="17" styleClass="date-picker" prefWidth="15" prefHeight="15"/>
+            <DatePicker fx:id="datePickerTwo"  translateX="83" translateY="17" styleClass="date-picker" prefWidth="15" prefHeight="15"/>
+        </HBox>
+
+        <Rectangle fx:id="datePickerOneCover" translateX="-30" translateY="-400" width="100" height="100" fill="F4F4F4"/>
+
+        <Button fx:id="updateRentalButton" text="Update Rental" onAction="#handleUpdateRental" prefWidth="295" translateY="174" translateX="-99"/>
+        <TextField fx:id="serialNumberField" translateY="174" translateX="-180" minWidth="145" maxWidth="145" styleClass="transparent-text-field" visible="false" promptText="     Serial Number"/>
+
+        <Button fx:id="batchButton" text="Batch Contracts" prefWidth="145" translateX="-180"  translateY="174" visible="false"/>
+        <Button fx:id="secondInProcessButton" text="Open Document" onAction="#handleSecondInProcess" prefWidth="145" translateX="-25" translateY="174" visible="false" />
+
+        <TableView fx:id="dbTableView" minHeight="549" maxHeight="549" minWidth="289" maxWidth="289"  translateX="-120" translateY="-118" />
+
+
+        <HBox minHeight="25" maxHeight="25" translateX="22" translateY="-379">
+            <HBox fx:id="viewsTilePane"
+                 translateX="-15" translateY="-3">
+                <ToggleButton text="Status" minWidth="80" maxWidth="80" fx:id="statusButton" styleClass="moving-gradient-button"/>
+                <ToggleButton text="Customer" minWidth="100" maxWidth="100" fx:id="customerButton" styleClass="moving-gradient-button"/>
+                <ToggleButton text="Driver" minWidth="80" maxWidth="80" fx:id="driverButton" styleClass="moving-gradient-button"/>
+            </HBox>
+            <VBox fx:id="statusesPane" visible="false"
+                      translateY="-11" translateX="-202">
+                <ToggleButton text="Upcoming"   minWidth="55" maxWidth="55" fx:id="upcomingButton" styleClass="moving-gradient-button"/>
+                <ToggleButton text="Called Off"  minWidth="55" maxWidth="55" fx:id="calledOffButton" styleClass="moving-gradient-button"/>
+            </VBox>
+            <VBox fx:id="statusesPaneTwo" visible="false" translateY="-11" translateX="-202">
+                <ToggleButton text="Active"  minWidth="45" maxWidth="45" fx:id="activeButton" styleClass="moving-gradient-button"/>
+                <ToggleButton text="Billable"  minWidth="45" maxWidth="45" fx:id="billableButton" styleClass="moving-gradient-button"/>
+            </VBox>
+
+            <HBox fx:id="leftSideVboxCustomerView" visible="false">
+                <ComboBox fx:id="customerComboBox" onAction="#handleViewAndCustomerSelect" minWidth="80" maxWidth="80" translateX="-285" translateY="-5"/>
+            </HBox>
+            <HBox fx:id="leftSideVboxDriverView" visible="false">
+                <ComboBox fx:id="driverComboBox" onAction="#handleViewAndDriverSelect" minWidth="80" maxWidth="80" translateX="-380" translateY="-5"/>
+            </HBox>
+        </HBox>
+
+
+        <Label fx:id="datePickerOneLabel" text="From:" visible="false"  minWidth="30" maxWidth="36" minHeight="25"
+               maxHeight="25" translateX="-55" translateY="-394"/>
+        <Button fx:id="calendarButtonOne" onAction="#handleOpenDatePickerOne" styleClass="database-calendar-button"
+                visible="false" minWidth="30" maxWidth="30" minHeight="25" maxHeight="25" translateX="-55" translateY="-378">
+            <graphic>
+                <ImageView fitWidth="30" fitHeight="25">
+                    <Image url="@../images/calendar.png"/>
+                </ImageView>
+            </graphic>
+        </Button>
+
+        <Label fx:id="datePickerTwoLabel" text="To:" visible="false"  minWidth="30" maxWidth="36" minHeight="25"
+               maxHeight="25" translateX="-15" translateY="-394"/>
+        <Button fx:id="calendarButtonTwo" onAction="#handleOpenDatePickerTwo" styleClass="database-calendar-button"
+                visible="false" minWidth="30" maxWidth="30" minHeight="25" maxHeight="25" translateX="-15" translateY="-378">
+            <graphic>
+                <ImageView fitWidth="30" fitHeight="25">
+                    <Image url="@../images/calendar.png"/>
+                </ImageView>
+            </graphic>
+        </Button>
+
+
+        <VBox fx:id="buttonsVBox" spacing="5" alignment="TOP_LEFT" minWidth="50" maxWidth="50" minHeight="315" maxHeight="315" translateX="56" translateY="-248">
+            <Button fx:id="composeContractsButton" onAction="#handleComposeContracts" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
+                <graphic>
+                    <ImageView fitWidth="28" fitHeight="28">
+                        <Image url="@/images/create-contracts.png"/>
+                    </ImageView>
+                </graphic>
+
+            </Button>
+            <!-- Edit Driver Button with Tooltip -->
+            <Button fx:id="editDriverButton" onAction="#handleAssignDrivers" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
+                <graphic>
+                    <ImageView fitWidth="24" fitHeight="24">
+                        <Image url="@/images/driver-icon.png"/>
+                    </ImageView>
+                </graphic>
+
+            </Button>
+
+            <!-- Dropping Off Button with Tooltip -->
+            <Button fx:id="droppingOffButton" onAction="#handleDroppingOff" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
+                <graphic>
+                    <ImageView fitWidth="28" fitHeight="28">
+                        <Image url="@/images/dropping-off.png"/>
+                    </ImageView>
+                </graphic>
+
+            </Button>
+
+            <Button fx:id="callingOffButton" onAction="#handleCallingOff" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
+                <graphic>
+                    <ImageView fitWidth="25" fitHeight="28">
+                        <Image url="@/images/calling-off.png"/>
+                    </ImageView>
+                </graphic>
+
+            </Button>
+
+            <!-- Picking Up Button with Tooltip -->
+            <Button fx:id="pickingUpButton" onAction="#handlePickingUp" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
+                <graphic>
+                    <ImageView fitWidth="28" fitHeight="29">
+                        <Image url="@/images/picking-up.png"/>
+                    </ImageView>
+                </graphic>
+
+            </Button>
+
+            <!-- Create Invoices Button with Tooltip -->
+            <Button fx:id="composeInvoicesButton" onAction="#handleComposeInvoices" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
+                <graphic>
+                    <ImageView fitWidth="27" fitHeight="27">
+                        <Image url="@/images/create-invoices.png"/>
+                    </ImageView>
+                </graphic>
+
+            </Button>
+
+            <Button fx:id="expandButton" onAction="#handleExpand" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
+                <graphic>
+                    <ImageView fitWidth="27" fitHeight="27">
+                        <Image url="@/images/expand.png"/>
+                    </ImageView>
+                </graphic>
+
+            </Button>
+
+            <!-- Refresh Data Button with Tooltip -->
+            <Button fx:id="refreshDataButton" onAction="#handleRefreshData" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
+                <graphic>
+                    <ImageView fitWidth="27" fitHeight="27">
+                        <Image url="@/images/refresh.png"/>
+                    </ImageView>
+                </graphic>
+            </Button>
+
+            <Button fx:id="deleteButton" onAction="#handleDelete" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
+                <graphic>
+                    <ImageView fitWidth="27" fitHeight="27">
+                        <Image url="@/images/delete.png"/>
+                    </ImageView>
+                </graphic>
+            </Button>
+        </VBox>
+
+
+
+        <Button fx:id="backButton" text="Back" onAction="#handleBack" translateX="34" translateY="-382"/>
+
+
+
+    </StackPane>
+
+
+
+
+ </AnchorPane>

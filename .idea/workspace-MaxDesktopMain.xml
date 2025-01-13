@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ArtifactsWorkspaceSettings">
+    <artifacts-to-build>
+      <artifact name="JavaFX-MHR-App.main:jar" />
+    </artifacts-to-build>
+  </component>
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="0b9ac3d8-f6e5-4a5c-b803-ea8558abb9f2" name="Changes" comment="newest commit">
+      <change beforePath="$PROJECT_DIR$/.idea/sqldialects.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/sqldialects.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/QBResponse.xml" beforeDir="false" afterPath="$PROJECT_DIR$/QBResponse.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/CreateInvoicesController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/CreateInvoicesController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/Customer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/Customer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/DBController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/DBController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/SMMTaxController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/SMMTaxController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/ScheduleDeliveryController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/ScheduleDeliveryController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/SyncWithQBController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/MaxHighReach/SyncWithQBController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/fxml/db.fxml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/fxml/db.fxml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/fxml/schedule_delivery.fxml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/fxml/schedule_delivery.fxml" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ExternalProjectsData">
+    <projectState path="$PROJECT_DIR$">
+      <ProjectState />
+    </projectState>
+  </component>
+  <component name="ExternalProjectsManager">
+    <system id="GRADLE">
+      <state>
+        <task path="$PROJECT_DIR$">
+          <activation />
+        </task>
+        <projects_view>
+          <tree_state>
+            <expand>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="JavaFX-MHR-App" type="f1a62948:ProjectNode" />
+              </path>
+            </expand>
+            <select />
+          </tree_state>
+        </projects_view>
+      </state>
+    </system>
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="FxmlFile" />
+        <option value="Class" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;crewspice&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/crewspice/JavaFX-MHR-App.git&quot;,
+    &quot;accountId&quot;: &quot;65058753-29b7-4887-bbde-a890037e7619&quot;
+  }
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 1
+}</component>
+  <component name="ProjectId" id="2kL4J7hMjq9OypJgxrUtlBTGYOT" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
+    &quot;Application.MaxReachPro.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Build JavaFX-MHR-App.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Build MaxReachPro.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.JavaFX-MHR-App [:Main.main()].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.JavaFX-MHR-App [:MaxReachPro.main()].executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/maxhi/OneDrive/Documents/Quickbooks/QBProgram Development/IdeaProjects/JavaFX-MHR-App/src/main/resources/db&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Artifacts&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  },
+  &quot;keyToStringList&quot;: {
+    &quot;com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File&quot;: [
+      &quot;JAVA&quot;
+    ]
+  }
+}</component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\maxhi\OneDrive\Documents\Quickbooks\QBProgram Development\IdeaProjects\JavaFX-MHR-App\src\main\resources\db" />
+    </key>
+  </component>
+  <component name="RunManager">
+    <configuration name="MaxReachPro" type="Application" factoryName="Application">
+      <option name="ALTERNATIVE_JRE_PATH" value="corretto-21" />
+      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+      <option name="MAIN_CLASS_NAME" value="com.MaxHighReach.Main" />
+      <module name="JavaFX-MHR-App.main" />
+      <option name="VM_PARAMETERS" value="--module-path &quot;C:\Program Files\JavaFX\javafx-sdk-22.0.2\lib&quot; --add-modules javafx.controls,javafx.fxml " />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-9f38398b9061-39b83d9b5494-intellij.indexing.shared.core-IU-241.17890.1" />
+        <option value="bundled-js-predefined-1d06a55b98c1-0b3e54e931b4-JavaScript-IU-241.17890.1" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="0b9ac3d8-f6e5-4a5c-b803-ea8558abb9f2" name="Changes" comment="" />
+      <created>1723049452255</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1723049452255</updated>
+      <workItem from="1723049453229" duration="57562000" />
+      <workItem from="1723165645559" duration="32267000" />
+      <workItem from="1723487556786" duration="1223000" />
+      <workItem from="1723495815594" duration="11979000" />
+      <workItem from="1723738857879" duration="26026000" />
+      <workItem from="1724853422289" duration="42485000" />
+      <workItem from="1726098293415" duration="76953000" />
+      <workItem from="1726778098766" duration="508000" />
+      <workItem from="1726778658512" duration="93000" />
+      <workItem from="1726778767011" duration="76000" />
+      <workItem from="1726778858964" duration="298000" />
+      <workItem from="1726779197266" duration="510000" />
+      <workItem from="1726779727757" duration="316000" />
+      <workItem from="1726780072501" duration="104000" />
+      <workItem from="1726780201025" duration="79029000" />
+      <workItem from="1727400560226" duration="6419000" />
+      <workItem from="1727479505730" duration="21534000" />
+    </task>
+    <task id="LOCAL-00001" summary="intial commit">
+      <option name="closed" value="true" />
+      <created>1723059710040</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1723059710041</updated>
+    </task>
+    <task id="LOCAL-00002" summary="intial commit">
+      <option name="closed" value="true" />
+      <created>1723151334628</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1723151334631</updated>
+    </task>
+    <task id="LOCAL-00003" summary="intial commit">
+      <option name="closed" value="true" />
+      <created>1723176227254</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1723176227255</updated>
+    </task>
+    <task id="LOCAL-00004" summary="newest commit">
+      <option name="closed" value="true" />
+      <created>1724709577969</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1724709577974</updated>
+    </task>
+    <task id="LOCAL-00005" summary="newest commit">
+      <option name="closed" value="true" />
+      <created>1725048187154</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1725048187155</updated>
+    </task>
+    <task id="LOCAL-00006" summary="newest commit">
+      <option name="closed" value="true" />
+      <created>1726416316830</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1726416316830</updated>
+    </task>
+    <task id="LOCAL-00007" summary="newest commit">
+      <option name="closed" value="true" />
+      <created>1726416459991</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1726416459991</updated>
+    </task>
+    <task id="LOCAL-00008" summary="newest commit">
+      <option name="closed" value="true" />
+      <created>1726805582045</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1726805582046</updated>
+    </task>
+    <task id="LOCAL-00009" summary="newest commit">
+      <option name="closed" value="true" />
+      <created>1726894662903</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1726894662905</updated>
+    </task>
+    <task id="LOCAL-00010" summary="newest commit">
+      <option name="closed" value="true" />
+      <created>1727227249107</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1727227249110</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.History.Properties">
+    <option name="COLUMN_ID_ORDER">
+      <list>
+        <option value="Default.Root" />
+        <option value="Default.Author" />
+        <option value="Default.Date" />
+        <option value="Default.Subject" />
+        <option value="GitHub.CommitStatus" />
+      </list>
+    </option>
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
+    <MESSAGE value="intial commit" />
+    <MESSAGE value="newest commit" />
+    <option name="LAST_COMMIT_MESSAGE" value="newest commit" />
+  </component>
+</project>

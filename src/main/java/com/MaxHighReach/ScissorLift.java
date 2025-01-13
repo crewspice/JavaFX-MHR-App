@@ -14,6 +14,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+/* This class represents the graphic scissor lift on the app stage
+*  The Lift class represents the data structure for single object lifts in the MHR inventory. */
 public class ScissorLift extends Pane {
     private static final int ARM_COUNT = 6;
     private static final double WHEEL_RADIUS = 30;

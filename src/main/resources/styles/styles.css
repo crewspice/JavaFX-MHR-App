@@ -269,6 +269,47 @@
     -fx-background-color: #F4F4F4;
 }
 
+/* Set the general style for the vertical scroll bar */
+.scroll-pane .scroll-bar:vertical {
+   -fx-pref-width: 10px; /* Width of the scroll bar */
+   -fx-background-color: transparent; /* Background transparent */
+   -fx-opacity: .5;
+}
+
+/* Set the general style for the horizontal scroll bar */
+.scroll-pane .scroll-bar:horizontal {
+   -fx-pref-height: 10px; /* Height of the scroll bar */
+   -fx-background-color: transparent; /* Background transparent */
+}
+
+/* Track of the vertical scroll bar */
+.scroll-pane .scroll-bar:vertical .track {
+   -fx-background-color: transparent; /* Make track transparent */
+}
+
+/* Track of the horizontal scroll bar */
+.scroll-pane .scroll-bar:horizontal .track {
+   -fx-background-color: transparent; /* Make track transparent */
+}
+
+/* Thumb for the vertical scroll bar */
+.scroll-pane .scroll-bar:vertical .thumb {
+   -fx-background-color: rgba(255, 222, 173, 0.7); /* Semi-transparent color */
+   -fx-background-radius: 5; /* Rounded edges */
+}
+
+/* Thumb for the horizontal scroll bar */
+.scroll-pane .scroll-bar:horizontal .thumb {
+   -fx-background-color: rgba(255, 222, 173, 0.7); /* Semi-transparent color */
+   -fx-background-radius: 5; /* Rounded edges */
+}
+
+/* Arrow buttons for scroll bars */
+.scroll-pane .scroll-bar .increment-button .arrow,
+.scroll-pane .scroll-bar .decrement-button .arrow {
+   -fx-background-color: #F4F4F4; /* Arrow button background */
+}
+
 .table-view .deliveryDateColumn .table-cell {
     -fx-alignment: CENTER; /* Center the text */
     -fx-text-fill: white; /* Adjust text color if necessary */
@@ -324,6 +365,20 @@
     -fx-text-fill: black;
 }
 
+.schedule-delivery-button-dormant {
+    -fx-background-color: transparent; /* Remove button background */
+    -fx-border-color: transparent; /* Remove border */
+    -fx-padding: 0px; /* Adjust padding */
+    -fx-faint-focus-color: gray;
+    -fx-opacity: 0.5;
+}
+
+.schedule-delivery-button-dormant:hover {
+    -fx-text-fill: black;
+    -fx-opacity: 0.5;
+    -fx-background-color: transparent;
+}
+
 .schedule-delivery-button-has-value {
     -fx-background-color: #FFDEAD; /* Remove button background */
     -fx-border-color: transparent; /* Remove border */
@@ -359,6 +414,7 @@
 
 /* Hover effect for sidebar buttons */
 .sidebar-button-inactive:hover {
+    -fx-text-fill: black;
    -fx-background-color: orange;
 }
 
@@ -457,12 +513,45 @@
     -fx-background-color: orange; /* Background color when hovered */
 }
 
+.moving-gradient-button {
+    -fx-border-width: 0px;
+    -fx-background-color: transparent;
+}
+
+.moving-gradient-button:hover {
+    -fx-text-fill: black;
+}
+
 .lift-type-button-stopped {
     -fx-background-color: transparent; /* Default background */
     -fx-text-fill: black; /* Text color */
     -fx-font-size: 12px; /* Adjust font size */
     -fx-padding: 1 0; /* Adjust top and bottom padding */
     -fx-alignment: center; /* Center the text within the button */
+}
+
+.lift-type-button-dormant {
+    -fx-text-fill: gray;
+    -fx-background-color: transparent;
+    -fx-font-size: 12px;
+    -fx-padding: 1 0;
+    -fx-alignment: center;
+}
+
+.lift-type-button-dormant:selected {
+    -fx-text-fill: gray;
+    -fx-background-color: transparent;
+    -fx-font-size: 12px;
+    -fx-padding: 1 0;
+    -fx-alignment: center;
+}
+
+.lift-type-button-dormant:hover {
+    -fx-text-fill: gray;
+    -fx-background-color: transparent;
+    -fx-font-size: 12px;
+    -fx-padding: 1 0;
+    -fx-alignment: center;
 }
 
 .view-type-button-stopped {
@@ -516,12 +605,39 @@
     -fx-background-color: orange; /* Background color when hovered */
 }
 
+.double-clicked-auto-term-button {
+    -fx-background-color: transparent; /* Default background */
+    -fx-text-fill: black; /* Text color */
+    -fx-font-size: 12px; /* Adjust font size */
+    -fx-padding: 1 0; /* Adjust top and bottom padding */
+    -fx-alignment: center; /* Center the text within the button */
+}
+
+.double-clicked-auto-term-button:hover {
+    -fx-background-color: orange;
+}
+
 .view-type-button-stopped:hover {
     -fx-background-color: orange; /* Background color when hovered */
 }
 
 .status-type-button-stopped:hover {
     -fx-background-color: orange; /* Background color when hovered */
+}
+
+.circle-indicator {
+    -fx-background-color: orange;
+    -fx-text-fill: black;
+    -fx-font-size: 9px;
+    -fx-alignment: center;
+    -fx-padding: 0;
+    -fx-shape: "M0,-10a10,10 0 1,0 20,0a10,10 0 1,0 -20,0"; /* Circle shape */
+    -fx-min-width: 13px;
+    -fx-min-height: 13px;
+    -fx-max-width: 13px;
+    -fx-max-height: 13px;
+    -fx-translate-x: 20; /* Adjust to position over the button */
+    -fx-translate-y: -10; /* Adjust to position over the button */
 }
 
 /* Styles for ToggleButtons in the delivery time TilePane */

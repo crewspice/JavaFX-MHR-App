@@ -14,128 +14,213 @@
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.MaxHighReach.ExpandController">
 
-        <Label text="Customer:" layoutX="14" layoutY="14" prefWidth="55" wrapText="true"/>
+    <Label text="Customer:" layoutX="14" layoutY="14" prefWidth="55" wrapText="true"/>
     <TextField fx:id="customerNameField" layoutX="85" layoutY="14" prefWidth="150" alignment="CENTER" styleClass="transparent-text-field"/>
 
-    <Label text="Ordered by:" layoutX="14" layoutY="43" prefWidth="50" wrapText="true"/>
-    <ComboBox fx:id="orderedByBox" layoutX="111" layoutY="47"  styleClass="suggestions-box"/>
-    <TextField fx:id="orderedByField" layoutX="115" layoutY="49" prefWidth="66" styleClass="transparent-text-field"/>
-    <Label text="#:" layoutX="181" layoutY="49" style="-fx-font-size: 16px;"/>
-    <TextField fx:id="orderedByPhoneField" layoutX="195" layoutY="49" prefWidth="77" styleClass="transparent-text-field"/>
+    <Label text="Contract #:" layoutX="14" layoutY="50" prefWidth="65" wrapText="true"/>
+    <TextField fx:id="contractNumberField" layoutX="85" layoutY="50" prefWidth="49" alignment="CENTER" styleClass="transparent-text-field"/>
 
-    <Button fx:id="autoTermButton" layoutX="278" layoutY="44" onAction="#handleOpenCalendar" styleClass="schedule-delivery-button">
-       <graphic>
-           <ImageView fitWidth="30" fitHeight="30">
-               <Image url="@../images/auto-term.png"/>
-           </ImageView>
-       </graphic>
+    <Label text="Status:" layoutX="140" layoutY="50"/>
+    <VBox fx:id="statusPane" layoutX="183" layoutY="47">
+        <HBox >
+            <ToggleButton text="Upcoming" minWidth="62" maxWidth="62" styleClass="lift-type-button-stopped"/>
+            <ToggleButton text="Active" minWidth="62" maxWidth="62" styleClass="lift-type-button-stopped"/>
+        </HBox>
+        <HBox>
+            <ToggleButton text="Called Off" minWidth="62" maxWidth="62" styleClass="lift-type-button-stopped"/>
+            <ToggleButton text="Picked Up" minWidth="62" maxWidth="62" styleClass="lift-type-button-stopped"/>
+        </HBox>
+    </VBox>
+
+   <Label text="Ordered by:" lineSpacing="-3" layoutX="14" layoutY="91" prefWidth="50" wrapText="true"/>
+    <ComboBox fx:id="orderedByBox" layoutX="111" layoutY="95"  styleClass="suggestions-box"/>
+    <TextField fx:id="orderedByField" layoutX="115" layoutY="97" prefWidth="66" styleClass="transparent-text-field"/>
+    <Label text="#:" layoutX="181" layoutY="97" style="-fx-font-size: 16px;"/>
+    <TextField fx:id="orderedByPhoneField" layoutX="195" layoutY="97" prefWidth="77" styleClass="transparent-text-field"/>
+
+
+
+
+    <Button fx:id="autoTermButton" layoutX="278" layoutY="92" onAction="#handleAutoTerm" styleClass="schedule-delivery-button">
+      <graphic>
+          <ImageView fitWidth="30" fitHeight="30">
+              <Image url="@../images/auto-term.png"/>
+          </ImageView>
+      </graphic>
     </Button>
 
-    <Label text="Date:" layoutX="14" layoutY="91" prefWidth="50" wrapText="true"/>
-    <TextField fx:id="rentalDateField" layoutX="79" layoutY="108"/>
 
-    <DatePicker fx:id="datePicker" layoutX="103" layoutY="108" styleClass="date-picker"/>
-    <Rectangle fx:id="calendarCover" layoutX="64" layoutY="103" width="225" height="65" fill="#F4F4F4"/>
 
-    <Button layoutX="278" layoutY="88" onAction="#handleOpenCalendar" styleClass="schedule-delivery-button">
-       <graphic>
-           <ImageView fitWidth="30" fitHeight="30">
-               <Image url="@../images/calendar.png"/>
-           </ImageView>
-       </graphic>
+
+    <Label text="Delivery Date:" lineSpacing="-3" layoutX="14" layoutY="139" prefWidth="50" wrapText="true"/>
+
+
+
+
+    <DatePicker fx:id="datePickerDel" layoutX="103" layoutY="156" styleClass="date-picker"/>
+    <Rectangle fx:id="calendarCoverDel" layoutX="64" layoutY="151" width="225" height="65" fill="#F4F4F4"/>
+
+
+
+
+    <Button fx:id="openCalendarDel" layoutX="278" layoutY="135" onAction="#handleOpenCalendar" styleClass="schedule-delivery-button">
+      <graphic>
+          <ImageView fitWidth="30" fitHeight="30">
+              <Image url="@../images/calendar.png"/>
+          </ImageView>
+      </graphic>
     </Button>
 
 
     <!-- TilePane for displaying the weekdays -->
-    <TilePane fx:id="weeksRowTilePane" layoutX="81" layoutY="86" prefColumns="5" prefRows="2">
-       <ToggleButton text="Mon" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
-       <ToggleButton text="Tue" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
-       <ToggleButton text="Wed" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
-       <ToggleButton text="Thu" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
-       <ToggleButton text="Fri" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
-       <ToggleButton fx:id="monButton" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
-       <ToggleButton fx:id="tueButton" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
-       <ToggleButton fx:id="wedButton" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
-       <ToggleButton fx:id="thuButton" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
-       <ToggleButton fx:id="friButton" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
+    <TilePane fx:id="deliveryWeeksRowTilePane" layoutX="81" layoutY="133" prefColumns="5" prefRows="2">
+      <ToggleButton text="Mon" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
+      <ToggleButton text="Tue" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
+      <ToggleButton text="Wed" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
+      <ToggleButton text="Thu" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
+      <ToggleButton text="Fri" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
+      <ToggleButton fx:id="monButtonDel" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
+      <ToggleButton fx:id="tueButtonDel" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
+      <ToggleButton fx:id="wedButtonDel" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
+      <ToggleButton fx:id="thuButtonDel" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
+      <ToggleButton fx:id="friButtonDel" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
     </TilePane>
 
 
-    <Label text="Lift Type:" layoutX="14" layoutY="139"/>
-    <TilePane fx:id="liftTypeTilePane" layoutX="80" layoutY="138" hgap="-1" vgap="0" prefColumns="4" prefRows="2">
-        <ToggleButton text="12' Mast" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button" fx:id="twelveMastButton"/>
-        <ToggleButton text="19' Slim" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped"/>
-        <ToggleButton text="26' Slim" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
-        <ToggleButton text="26'" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
-        <ToggleButton text="32'" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
-        <ToggleButton text="40'" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
-        <ToggleButton text="33' RT" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
-        <ToggleButton text="45' Boom" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
-    </TilePane>
-    <Button fx:id="plusButton" text="+" style="-fx-font-size: 17; -fx-margin-left: -3; -fx-margin-right: -3; -fx-margin-top: -9; -fx-margin-bottom: -9;"
-            layoutX="14" layoutY="155" minWidth="28" maxWidth="28" visible="false" styleClass="plus-button"
-            minHeight="24" maxHeight="24" onAction="#handlePlus"/>
-    <Label fx:id="liftCountLabel" layoutX="37" layoutY="158" />
-    <Button fx:id="xButton" text="-" style="-fx-font-size: 14; -fx-margin-left: -3; -fx-margin-right: -3; -fx-margin-top: -9; -fx-margin-bottom: -9;"
-            layoutX="41" layoutY="155" minWidth="28" maxWidth="28" visible="false" styleClass="x-button"
-            minHeight="24" maxHeight="24" onAction="#handleX" />
-    <Line  fx:id="liftTypeUnderLine"  startX="80" startY="158" endX="138" endY="158" strokeWidth="0.5" style="-fx-stroke: black; -fx-opacity: 1;"/>
 
 
-    <Label text="Time:" layoutX="14" layoutY="189" prefWidth="55" wrapText="true"/>
-    <TilePane fx:id="deliveryTimeTilePane" layoutX="72" layoutY="189" hgap="-12" vgap="0" prefColumns="4">
-        <ToggleButton fx:id="deliveryTime8To10Button" text="8-10" minWidth="35" maxWidth="35" styleClass="lift-type-button-stopped"/>
-        <ToggleButton text="ASAP" minWidth="35" maxWidth="35" styleClass="lift-type-button-stopped"/>
-        <ToggleButton text="Any" minWidth="35" maxWidth="35" styleClass="lift-type-button-stopped"/>
-        <ToggleButton fx:id="customButton" text="Custom" minWidth="50" maxWidth="50" translateX="5" styleClass="lift-type-button-stopped"/>
-    </TilePane>
+    <Label text="Call Off Date:" lineSpacing="-3" layoutX="14" layoutY="184" prefWidth="50" wrapText="true"/>
 
 
-    <ComboBox fx:id="hourComboBox" layoutX="248" layoutY="186" prefWidth="58" visible="false" styleClass="small-combo-box"/>
 
 
-    <Label text="Site:" layoutX="14" layoutY="221" prefWidth="50" wrapText="true"/>
-    <TextField fx:id="siteField" layoutX="76" layoutY="216" prefWidth="223" styleClass="transparent-text-field"/>
+    <DatePicker fx:id="datePickerEnd" layoutX="103" layoutY="204" styleClass="date-picker"/>
+    <Rectangle fx:id="calendarCoverEnd" layoutX="64" layoutY="199" width="225" height="65" fill="#F4F4F4"/>
 
 
-    <Label text="Address:" layoutX="14" layoutY="253" prefWidth="50" wrapText="true"/>
-    <TextField fx:id="addressField" layoutX="76" layoutY="248" prefWidth="223" styleClass="transparent-text-field"/>
-    <ComboBox fx:id="suggestionsBox" layoutX="299" layoutY="245" visible="false" styleClass="suggestions-box"/>
 
 
-    <Label text="Contact:" layoutX="14" layoutY="285" prefWidth="50" wrapText="true"/>
-    <ComboBox fx:id="siteContactBox" layoutX="105" layoutY="280" styleClass="suggestions-box"/>
-    <TextField fx:id="siteContactField" layoutX="112" layoutY="280" prefWidth="76" styleClass="transparent-text-field"/>
-    <Label text="#:" layoutX="191" layoutY="280" style="-fx-font-size: 16px;"/>
-    <TextField fx:id="siteContactPhoneField" layoutX="205" layoutY="280" prefWidth="95" styleClass="transparent-text-field"/>
-
-
-    <Label fx:id="POLabel"  text="PO#:" layoutX="14" layoutY="320" prefWidth="50" wrapText="true"/>
-    <TextField fx:id="POField" layoutX="76" layoutY="312" prefWidth="120" styleClass="transparent-text-field"/>
-
-    <Button fx:id="locationNotesButton" layoutX="207" layoutY="311" onAction="#handleLocationNotes" styleClass="schedule-delivery-button">
-       <graphic>
-           <ImageView fitWidth="40" fitHeight="32">
-               <Image url="@../images/location-notes.png"/>
-           </ImageView>
-       </graphic>
+    <Button fx:id="openCalendarEnd" layoutX="278" layoutY="181" onAction="#handleOpenCalendar" styleClass="schedule-delivery-button">
+      <graphic>
+          <ImageView fitWidth="30" fitHeight="30">
+              <Image url="@../images/calendar.png"/>
+          </ImageView>
+      </graphic>
     </Button>
-    <Label fx:id="locationNotesLabel" text="Location Notes:" prefWidth="50" layoutX="14" layoutY="307" visible="false" wrapText="true" />
-    <TextField fx:id="locationNotesField" layoutX="76" layoutY="312" prefWidth="223" visible="false" styleClass="transparent-text-field"/>
 
-    <Button fx:id="preTripInstructionsButton" layoutX="258" layoutY="309" onAction="#handlePreTripInstructions" styleClass="schedule-delivery-button">
-       <graphic>
-           <ImageView fitWidth="40" fitHeight="32">
-               <Image url="@../images/pre-trip-instructions.png"/>
-           </ImageView>
-       </graphic>
+
+
+    <TilePane fx:id="callOffWeeksRowTilePane" layoutX="81" layoutY="178" prefColumns="5" prefRows="2">
+      <ToggleButton text="Mon" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
+      <ToggleButton text="Tue" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
+      <ToggleButton text="Wed" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
+      <ToggleButton text="Thu" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
+      <ToggleButton text="Fri" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped" disable="true"/>
+      <ToggleButton fx:id="monButtonEnd" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
+      <ToggleButton fx:id="tueButtonEnd" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
+      <ToggleButton fx:id="wedButtonEnd" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
+      <ToggleButton fx:id="thuButtonEnd" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
+      <ToggleButton fx:id="friButtonEnd" text="fill" minWidth="39" maxWidth="39" styleClass="lift-type-button-stopped"/>
+    </TilePane>
+
+
+
+
+    <Label text="Lift Type:" layoutX="14" layoutY="235"/>
+    <TilePane fx:id="liftTypeTilePane" layoutX="80" layoutY="234" hgap="-1" vgap="0" prefColumns="4" prefRows="2">
+      <ToggleButton text="12' Mast" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button" fx:id="twelveMastButton"/>
+      <ToggleButton text="19' Slim" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped"/>
+      <ToggleButton text="26' Slim" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
+      <ToggleButton text="26'" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
+      <ToggleButton text="32'" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
+      <ToggleButton text="40'" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
+      <ToggleButton text="33' RT" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
+      <ToggleButton text="45' Boom" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button"/>
+    </TilePane>
+
+
+
+
+    <Label text="Time:" layoutX="14" layoutY="285" prefWidth="55" wrapText="true"/>
+    <TilePane fx:id="deliveryTimeTilePane" layoutX="72" layoutY="285" hgap="-12" vgap="0" prefColumns="4">
+      <ToggleButton fx:id="deliveryTime8To10Button" text="8-10" minWidth="35" maxWidth="35" styleClass="lift-type-button-stopped"/>
+      <ToggleButton text="ASAP" minWidth="35" maxWidth="35" styleClass="lift-type-button-stopped"/>
+      <ToggleButton text="Any" minWidth="35" maxWidth="35" styleClass="lift-type-button-stopped"/>
+      <ToggleButton fx:id="customButton" text="Custom" minWidth="50" maxWidth="50" translateX="5" styleClass="lift-type-button-stopped"/>
+    </TilePane>
+
+
+
+
+    <ComboBox fx:id="hourComboBox" layoutX="248" layoutY="282" prefWidth="58" visible="false" styleClass="small-combo-box"/>
+
+
+
+
+    <Label text="Site:" layoutX="14" layoutY="315" prefWidth="50" wrapText="true"/>
+    <TextField fx:id="siteField" layoutX="76" layoutY="310" prefWidth="223" styleClass="transparent-text-field"/>
+
+
+
+
+    <Label text="Address:" layoutX="14" layoutY="347" prefWidth="50" wrapText="true"/>
+    <TextField fx:id="addressField" layoutX="76" layoutY="342" prefWidth="223" styleClass="transparent-text-field"/>
+    <ComboBox fx:id="suggestionsBox" layoutX="299" layoutY="339" visible="false" styleClass="suggestions-box"/>
+
+
+
+
+    <Label text="Contact:" layoutX="14" layoutY="379" prefWidth="50" wrapText="true"/>
+    <ComboBox fx:id="siteContactBox" layoutX="105" layoutY="374" styleClass="suggestions-box"/>
+    <TextField fx:id="siteContactField" layoutX="112" layoutY="374" prefWidth="76" styleClass="transparent-text-field"/>
+    <Label text="#:" layoutX="191" layoutY="374" style="-fx-font-size: 16px;"/>
+    <TextField fx:id="siteContactPhoneField" layoutX="205" layoutY="374" prefWidth="95" styleClass="transparent-text-field"/>
+
+    <Label fx:id="POLabel" text="PO#:" layoutX="14" layoutY="410" prefWidth="50" wrapText="true"/>
+    <TextField fx:id="POField" layoutX="76" layoutY="408" prefWidth="120" styleClass="transparent-text-field"/>
+
+    <Button fx:id="locationNotesButton" layoutX="207" layoutY="403" onAction="#handleLocationNotes" styleClass="schedule-delivery-button">
+     <graphic>
+         <ImageView fitWidth="40" fitHeight="32">
+             <Image url="@../images/location-notes.png"/>
+         </ImageView>
+     </graphic>
     </Button>
-    <Label fx:id="preTripInstructionsLabel" text="Pre-trip Instructions:" prefWidth="65" layoutX="14" layoutY="307" visible="false" wrapText="true" />
-    <TextField fx:id="preTripInstructionsField" layoutX="91" layoutY="312" prefWidth="208" visible="false" styleClass="transparent-text-field"/>
+    <Label fx:id="locationNotesLabel" text="Location Notes:" prefWidth="50" lineSpacing="-3" layoutX="14" layoutY="401" visible="false" wrapText="true" />
+    <TextField fx:id="locationNotesField" layoutX="76" layoutY="408" prefWidth="223" visible="false" styleClass="transparent-text-field"/>
 
-    <Button fx:id="updateRentalButton" text="Update Rental" layoutX="12" prefWidth="295" layoutY="354" onAction="#handleUpdateRental" />
+    <Button fx:id="preTripInstructionsButton" layoutX="258" layoutY="401" onAction="#handlePreTripInstructions" styleClass="schedule-delivery-button">
+     <graphic>
+         <ImageView fitWidth="40" fitHeight="32">
+             <Image url="@../images/pre-trip-instructions.png"/>
+         </ImageView>
+     </graphic>
+    </Button>
+    <Label fx:id="preTripInstructionsLabel" text="Pre-trip Instructions:" lineSpacing="-3" prefWidth="65" layoutX="14" layoutY="401" visible="false" wrapText="true" />
+    <TextField fx:id="preTripInstructionsField" layoutX="91" layoutY="408" prefWidth="208" visible="false" styleClass="transparent-text-field"/>
 
-    <Label fx:id="statusLabel" text="status label" layoutX="20" layoutY="380" style="-fx-font-weight: bold; -fx-font-size: 12; -fx-text-fill: green;" wrapText="true" prefWidth="300" maxHeight="50"/>
+    <Label fx:id="serialNumberLabel" text="Serial Number: " layoutX="14" layoutY="435" wrapText="true" prefWidth="50" lineSpacing="-3"/>
+    <TextField fx:id="serialNumberField" layoutX="76" layoutY="440" styleClass="transparent-text-field" prefWidth="66" />
+    <HBox fx:id="invoiceBox" layoutY="440" layoutX="167" visible="true" style="-fx-background-color: transparent; -fx-background-radius: 5;" prefHeight="32" prefWidth="120"/>
+    <Button fx:id="switchInvoiceButton" onAction="#handleSwitchInvoice" layoutY="440" layoutX="167" visible="false"
+            prefHeight="32" prefWidth="120" style="-fx-background-color: #F4F4F4;"
+             styleClass="schedule-delivery-button" alignment="CENTER">
+        <graphic>
+            <VBox fx:id="switchInvoiceLabelBox" />
+        </graphic>
+    </Button>
+
+
+    <Button fx:id="updateRentalButton" text="Update Rental" layoutX="12" prefWidth="295" layoutY="483" onAction="#handleUpdateRental" />
+
+
+
+
+    <Label fx:id="statusLabel" text="status label" layoutX="20" layoutY="510" style="-fx-font-weight: bold;
+    -fx-font-size: 12; -fx-text-fill: green;" wrapText="true" prefWidth="300" maxHeight="50" visible="false"/>
+
+
     <Button fx:id="backButton" text="Back" layoutX="270" layoutY="5" onAction="#handleBack"/>
+
 
 </AnchorPane>

@@ -10,6 +10,7 @@ import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
+import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.TilePane;
@@ -32,10 +33,9 @@ import java.sql.Connection;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ScheduleDeliveryController extends BaseController {
 
@@ -47,7 +47,8 @@ public class ScheduleDeliveryController extends BaseController {
 
     private ObservableList<Customer> customers = FXCollections.observableArrayList();
     private Customer selectedCustomer;
-    private boolean dateSelected = false;
+    private AtomicBoolean dateSelected = new AtomicBoolean(false);
+    private AtomicBoolean dateSelectedAT = new AtomicBoolean(false);
     private int rentalOrderId;
     private CustomerRental currentCustomerRental;
 
@@ -55,8 +56,6 @@ public class ScheduleDeliveryController extends BaseController {
     private Label tableViewTitle;
     @FXML
     private TableView<CustomerRental> scheduledRentalsTableView;  // TableView for rentals
-    @FXML
-    private TableColumn<CustomerRental, String> customerIdColumn;  // Column for Customer ID
     @FXML
     private TableColumn<CustomerRental, String> rentalDateColumn;   // Column for Rental Date
     @FXML
@@ -69,7 +68,11 @@ public class ScheduleDeliveryController extends BaseController {
     @FXML
     private TextField customerNameField;
     @FXML
+    private Label orderedByLabel;
+    @FXML
     private TextField orderedByField;
+    @FXML
+    private Label orderedByNumberLabel;
     @FXML
     private TextField orderedByPhoneField;
     @FXML
@@ -80,23 +83,46 @@ public class ScheduleDeliveryController extends BaseController {
     private Button autoTermButton;
     private final Tooltip autoTermTooltip = new Tooltip("Auto-term");
     @FXML
+    private Label callOffDateLabel;
+    private ToggleButton selectedCallOffDate;
+    @FXML
     private TextField rentalDateField; // Hidden text field for rental date
     @FXML
     private DatePicker datePicker; // For the calendar view
     @FXML
-    private TilePane weekViewTilePane; // To show the week view
-    @FXML
-    private Label[] dayLabels; // Array to hold the day labels for week view
-
-    private boolean isCalendarExpanded = false;
+    private DatePicker datePickerAT;
+    private AtomicBoolean isCalendarExpanded = new AtomicBoolean(false);
+    private AtomicBoolean isATCalendarExpanded = new AtomicBoolean(false);
     @FXML
     private TilePane weeksRowTilePane;
     @FXML
+    private TilePane weeksRowTilePaneAT;
+    @FXML
     private Rectangle calendarCover;
+    @FXML
+    private Rectangle calendarCoverAT;
     @FXML
     private TilePane liftTypeTilePane;  // TilePane containing the lift type toggle buttons
     @FXML
     private ToggleButton twelveMastButton;
+    @FXML
+    private ToggleButton nineteenSlimButton;
+    @FXML
+    private ToggleButton twentySixSlimButton;
+    @FXML
+    private ToggleButton twentySixButton;
+    @FXML
+    private ToggleButton thirtyTwoButton;
+    @FXML
+    private ToggleButton fortyButton;
+    @FXML
+    private ToggleButton thirtyThreeRTButton;
+    @FXML
+    private ToggleButton fortyFiveBoomButton;
+    private List<ToggleButton> liftTypeToggleButtons = new ArrayList<>();
+    @FXML
+    private Label label12m, label19s, label26s, label26, label32, label40, label33rt, label45b;
+    private Map<ToggleButton, Integer> liftTypeCounts = new HashMap<>();
     @FXML
     private Button plusButton;
     private int liftCount = 0;
@@ -107,12 +133,10 @@ public class ScheduleDeliveryController extends BaseController {
     private Label liftCountLabel;
     @FXML
     private TilePane deliveryTimeTilePane;  // TilePane for delivery time toggle buttons
-
     private ToggleGroup liftTypeToggleGroup;  // To ensure only one lift type can be selected at a time
     private ToggleGroup deliveryTimeToggleGroup;  // To ensure only one delivery time can be selected at a time
     private ToggleGroup weeksRowToggleGroup;
-
-
+    private ToggleGroup weeksRowToggleGroupAT;
     @FXML
     private ToggleButton deliveryTime8To10Button; // Reference to the "8-10" toggle button
     @FXML
@@ -121,8 +145,6 @@ public class ScheduleDeliveryController extends BaseController {
     private ToggleButton customButton;
     @FXML
     private ComboBox<String> hourComboBox;
- //   @FXML
- //   private ComboBox<String> ampmComboBox; // Reference to the AM/PM ComboBox
     @FXML
     private TextField siteField;
     @FXML
@@ -170,8 +192,8 @@ public class ScheduleDeliveryController extends BaseController {
     // Initialize method to set up ToggleButtons and the ToggleGroup
     @FXML
     public void initialize() {
-        loadCustomers();
-        setDefaultRentalDate();
+        customers = MaxReachPro.getCustomers();
+
 
         customerNameField.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ENTER) {
@@ -199,6 +221,13 @@ public class ScheduleDeliveryController extends BaseController {
         customerNameField.focusedProperty().addListener((obs, oldValue, newValue) -> {
             if (!newValue) {
                 handleCustomerNameFieldUnfocus();
+
+            }
+        });
+
+        customerNameField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+            if (isNowFocused) {
+                resetOrderedByElements();
             }
         });
 
@@ -212,6 +241,7 @@ public class ScheduleDeliveryController extends BaseController {
         createCustomTooltip(autoTermButton, 38, 10, autoTermTooltip);
 
         weeksRowToggleGroup = new ToggleGroup();  // Create the ToggleGroup for weeks
+        weeksRowToggleGroupAT = new ToggleGroup();
         liftTypeToggleGroup = new ToggleGroup();  // Create the ToggleGroup for lift types
         deliveryTimeToggleGroup = new ToggleGroup();  // Create the ToggleGroup for delivery times
 
@@ -226,13 +256,32 @@ public class ScheduleDeliveryController extends BaseController {
         // Event listener for DatePicker
         datePicker.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
             if (isNowFocused) {
-                openCalendar(); // Call openCalendar when DatePicker is focused
-            } else if (!dateSelected) {
-                closeCalendar(); // Call closeCalendar when focus is lost
+                openCalendar(datePicker); // Call openCalendar when DatePicker is focused
+            } else if (!dateSelected.get()) {
+                closeCalendar(datePicker); // Call closeCalendar when focus is lost
             }
         });
 
         datePicker.setDayCellFactory(picker -> new DateCell() {
+            @Override
+            public void updateItem(LocalDate item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item != null && (item.getDayOfWeek() == DayOfWeek.SATURDAY || item.getDayOfWeek() == DayOfWeek.SUNDAY)) {
+                    setDisable(true); // Disable weekends
+                    setStyle("-fx-background-color: lightgrey;"); // Optional: change background color for disabled dates
+                }
+            }
+        });
+
+        datePickerAT.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+            if (isNowFocused) {
+                openCalendar(datePickerAT); // Call openCalendar when DatePicker is focused
+            } else if (!dateSelectedAT.get()) {
+                closeCalendar(datePickerAT); // Call closeCalendar when focus is lost
+            }
+        });
+
+        datePickerAT.setDayCellFactory(picker -> new DateCell() {
             @Override
             public void updateItem(LocalDate item, boolean empty) {
                 super.updateItem(item, empty);
@@ -256,13 +305,51 @@ public class ScheduleDeliveryController extends BaseController {
             }
         }
 
+        for (javafx.scene.Node node : weeksRowTilePaneAT.getChildren()) {
+            if (node instanceof ToggleButton) {
+                ToggleButton toggleButton = (ToggleButton) node;
+                toggleButton.setToggleGroup(weeksRowToggleGroupAT);
+                toggleButton.setOnAction(event -> {
+                    if (toggleButton == selectedCallOffDate) {
+                        weeksRowToggleGroupAT.selectToggle(null);
+                        toggleButton.getStyleClass().remove("lift-type-button-stopped");
+                        toggleButton.getStyleClass().add("double-clicked-auto-term-button");
+                        selectedCallOffDate = null;
+                        event.consume();
+                    } else {
+                        weeksRowToggleGroupAT.selectToggle(toggleButton);
+                        toggleButton.getStyleClass().remove("double-clicked-auto-term-button");
+                        if (!toggleButton.getStyleClass().contains("lift-type-button-stopped")) {
+                            toggleButton.getStyleClass().add("lift-type-button-stopped");
+                        }
+                        weeksRowToggleGroupAT.selectToggle(toggleButton);
+                        selectedCallOffDate = toggleButton;
+                    }
+                });
+            }
+        }
+
+        setDefaultRentalDate("");
+        setDefaultRentalDate("AT");
+
         for (javafx.scene.Node node : liftTypeTilePane.getChildren()) {
             if (node instanceof ToggleButton) {
                 ToggleButton toggleButton = (ToggleButton) node;
                 toggleButton.setToggleGroup(liftTypeToggleGroup);  // Add each ToggleButton to the ToggleGroup
+                liftTypeToggleButtons.add(toggleButton);
+
             }
         }
         prepareLiftTypeButtons();
+
+        liftTypeCounts.put(twelveMastButton, 0);
+        liftTypeCounts.put(nineteenSlimButton, 0);
+        liftTypeCounts.put(twentySixSlimButton, 0);
+        liftTypeCounts.put(twentySixButton, 0);
+        liftTypeCounts.put(thirtyTwoButton, 0);
+        liftTypeCounts.put(fortyButton, 0);
+        liftTypeCounts.put(thirtyThreeRTButton, 0);
+        liftTypeCounts.put(fortyFiveBoomButton, 0);
 
         // Set up ToggleButtons for delivery time
         for (javafx.scene.Node node : deliveryTimeTilePane.getChildren()) {
@@ -276,6 +363,11 @@ public class ScheduleDeliveryController extends BaseController {
                         hourComboBox.setVisible(false);
   //                      ampmComboBox.setVisible(false);
                         customButton.setSelected(false); // Unselect custom button
+                    }
+                });
+                toggleButton.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+                    if (isNowFocused) {
+                        resetOrderedByElements();
                     }
                 });
             }
@@ -317,6 +409,7 @@ public class ScheduleDeliveryController extends BaseController {
         siteField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
             if (isNowFocused) {
                 siteField.getStyleClass().remove("empty-unfocused"); // Remove empty style when focused
+                resetOrderedByElements();
             } else if (siteField.getText().isEmpty()) {
                 siteField.getStyleClass().add("empty-unfocused"); // Add empty style when focus is lost
             }
@@ -361,6 +454,7 @@ public class ScheduleDeliveryController extends BaseController {
          //   suggestionsBox.setVisible(false);
             if (isNowFocused) {
                 addressField.getStyleClass().remove("empty-unfocused"); // Remove empty style when focused
+                resetOrderedByElements();
                 //System.out.println("");
             } else if (addressField.getText().isEmpty()) {
                 addressField.getStyleClass().add("empty-unfocused"); // Add empty style when focus is lost
@@ -416,6 +510,18 @@ public class ScheduleDeliveryController extends BaseController {
         siteContactBox.setMinWidth(1);
         siteContactBox.setMaxWidth(1);
 
+        siteContactField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+            if (isNowFocused) {
+                resetOrderedByElements();
+            }
+        });
+
+        siteContactPhoneField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+            if (isNowFocused) {
+                resetOrderedByElements();
+            }
+        });
+
          POField.textProperty().addListener((observable, oldValue, newValue) -> {
                         // Check if there's text in the field and update the style accordingly
             if (newValue.isEmpty()) {
@@ -433,6 +539,7 @@ public class ScheduleDeliveryController extends BaseController {
         POField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
             if (isNowFocused) {
                 POField.getStyleClass().remove("empty-unfocused"); // Remove empty style when focused
+                resetOrderedByElements();
             } else if (POField.getText().isEmpty()) {
                 POField.getStyleClass().add("empty-unfocused"); // Add empty style when focus is lost
             }
@@ -445,7 +552,6 @@ public class ScheduleDeliveryController extends BaseController {
         setupTextFieldListeners(preTripInstructionsField, preTripInstructionsButton, preTripInstructionsLabel);
 
         // Initialize TableView columns
-        customerIdColumn.setCellValueFactory(cellData -> cellData.getValue().customerIdProperty());
         rentalDateColumn.setCellValueFactory(cellData -> cellData.getValue().orderDateProperty());
         liftTypeColumn.setCellValueFactory(cellData -> cellData.getValue().nameProperty());
         deliveryTimeColumn.setCellValueFactory(cellData -> cellData.getValue().deliveryTimeProperty()); // Bind delivery time
@@ -460,7 +566,6 @@ public class ScheduleDeliveryController extends BaseController {
         statusLabel.setVisible(false);
 
         // Start rotating highlight for lift type toggle buttons
-        startHighlightRotation();
 
         if (MaxReachPro.getUser()[0] == "Byron Chilton") {
             ButtonGroup buttonGroup = new ButtonGroup();
@@ -468,30 +573,6 @@ public class ScheduleDeliveryController extends BaseController {
             buttonGroup.startRandomWalk();
         }
 
-    }
-
-
-// Method to load customers from the SQL database
-    private void loadCustomers() {
-        String query = "SELECT customer_id, customer_name, email FROM customers";
-
-        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-
-            ResultSet resultSet = preparedStatement.executeQuery();
-            while (resultSet.next()) {
-                String customerId = resultSet.getString("customer_id");
-                String customer_name = resultSet.getString("customer_name");
-                String email = resultSet.getString("email");
-
-                // Add to the customer list
-                customers.add(new Customer(customerId, customer_name, email));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            statusLabel.setText("Error loading customers: " + e.getMessage());
-            statusLabel.setVisible(true);
-        }
     }
 
     private void autoFillCustomerName(String input) {
@@ -681,7 +762,7 @@ public class ScheduleDeliveryController extends BaseController {
         return digitsOnly.length() == 10;
     }
 
-    private void setDefaultRentalDate() {
+    private void setDefaultRentalDate(String suffix) {
         // Set rental date to the next weekday (Mon-Fri)
         LocalDate today = LocalDate.now();
         LocalDate nextWeekday = today.plusDays(1);
@@ -689,20 +770,27 @@ public class ScheduleDeliveryController extends BaseController {
             nextWeekday = nextWeekday.plusDays(1);
         }
 
-        // Update the ToggleButton texts and select the nextWeekday
-        updateWeekdayToggleButtons(nextWeekday);
+        if (suffix.equals("")) {
+            updateWeekdayToggleButtons(nextWeekday, suffix, weeksRowTilePane);
+        } else {
+            updateWeekdayToggleButtons(nextWeekday, suffix, weeksRowTilePaneAT);
+            weeksRowToggleGroupAT.selectToggle(null);
+            selectedCallOffDate = null;
+        }
     }
 
     // Method to update the ToggleButtons based on the next weekday
-    private void updateWeekdayToggleButtons(LocalDate nextWeekday) {
-        LocalDate startOfWeek = nextWeekday.with(java.time.temporal.ChronoField.DAY_OF_WEEK, 1); // Monday
+    private void updateWeekdayToggleButtons(LocalDate day, String suffix, TilePane tilePane) {
+        System.out.println("update weekday toggles called wit day: " +
+                 day + ", suffix: " + suffix);
+        LocalDate startOfWeek = day.with(java.time.temporal.ChronoField.DAY_OF_WEEK, 1); // Monday
 
         // Update the weekday buttons with the corresponding dates
-        ToggleButton monButton = (ToggleButton) weeksRowTilePane.lookup("#monButton");
-        ToggleButton tueButton = (ToggleButton) weeksRowTilePane.lookup("#tueButton");
-        ToggleButton wedButton = (ToggleButton) weeksRowTilePane.lookup("#wedButton");
-        ToggleButton thuButton = (ToggleButton) weeksRowTilePane.lookup("#thuButton");
-        ToggleButton friButton = (ToggleButton) weeksRowTilePane.lookup("#friButton");
+        ToggleButton monButton = (ToggleButton) tilePane.lookup("#monButton" + suffix);
+        ToggleButton tueButton = (ToggleButton) tilePane.lookup("#tueButton" + suffix);
+        ToggleButton wedButton = (ToggleButton) tilePane.lookup("#wedButton" + suffix);
+        ToggleButton thuButton = (ToggleButton) tilePane.lookup("#thuButton" + suffix);
+        ToggleButton friButton = (ToggleButton) tilePane.lookup("#friButton" + suffix);
 
         // Create an array to hold the buttons and their respective dates
         ToggleButton[] buttons = {monButton, tueButton, wedButton, thuButton, friButton};
@@ -712,55 +800,156 @@ public class ScheduleDeliveryController extends BaseController {
             buttons[i].setText(buttonDate.format(DateTimeFormatter.ofPattern("M/d"))); // Set text to M/d format
 
             // Select the button representing the nextWeekday
-            if (buttonDate.equals(nextWeekday)) {
+            if (buttonDate.equals(day)) {
                 buttons[i].setSelected(true);
+                if (suffix.equals("AT")) {
+                    selectedCallOffDate = buttons[i];
+                }
             } else {
                 buttons[i].setSelected(false);
             }
+
+            if (suffix.isEmpty()) {
+                buttons[i].focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+                    if (isNowFocused) {
+                        resetOrderedByElements();
+                    }
+                });
+            }
+        }
+
+
+    }
+
+    private void openCalendar(DatePicker picker) {
+        if (picker==datePicker) {
+            picker.show();
+            isCalendarExpanded.set(true);
+            picker.requestFocus(); // Focus on the DatePicker
+
+            // When a date is selected, update the hidden buttons and reset the DatePicker
+            picker.setOnAction(event -> {
+                LocalDate selectedDate = picker.getValue();
+                    dateSelected.set(true);
+                    updateWeekdayToggleButtons(selectedDate, "", weeksRowTilePane);
+                    isCalendarExpanded.set(false);
+
+            });
+
+            // Optionally hide the DatePicker if the user clicks outside or cancels the operation
+            picker.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+                if (!isNowFocused) {
+                    if (!dateSelected.get()) {
+                        closeCalendar(picker);
+                    }
+                }
+            });
+        } else {
+            picker.show();
+            isATCalendarExpanded.set(true);
+            picker.requestFocus(); // Focus on the DatePicker
+
+            // When a date is selected, update the hidden buttons and reset the DatePicker
+            picker.setOnAction(event -> {
+                LocalDate selectedDate = picker.getValue();
+                    dateSelectedAT.set(true);
+                    updateWeekdayToggleButtons(selectedDate, "AT", weeksRowTilePaneAT);
+                    isATCalendarExpanded.set(false);
+
+            });
+
+            // Optionally hide the DatePicker if the user clicks outside or cancels the operation
+            picker.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+                if (!isNowFocused) {
+                    if (!dateSelectedAT.get()) {
+                        closeCalendar(picker);
+                        autoTermButton.setOnAction(event -> {
+                            handleOpenCalendarAT();
+                            autoTermButton.setOnAction(e -> {
+                                closeCalendar(datePickerAT);
+                            });
+                        });
+                    }
+                }
+            });
         }
     }
 
-    public void openCalendar() {
-        datePicker.show();
-        isCalendarExpanded = true;
+    /*
+    public void openCalendar(DatePicker picker) {
+        AtomicBoolean expandedBoolean;
+        Rectangle cover;
+        ToggleGroup group;
+        AtomicBoolean selection;
+        TilePane pane;
+        if (picker==datePicker) {
+            expandedBoolean = isCalendarExpanded;
+            cover = calendarCover;
+            group = weeksRowToggleGroup;
+            selection = dateSelected;
+            pane = weeksRowTilePane;
+        } else {
+            expandedBoolean = isATCalendarExpanded;
+            cover = calendarCoverAT;
+            group = weeksRowToggleGroupAT;
+            selection = dateSelectedAT;
+            pane = weeksRowTilePaneAT;
+        }
+
+        picker.show();
+        expandedBoolean.set(true);
         // Hide the calendarCover when the DatePicker is opened
-        /*calendarCover.setVisible(false);
+        calendarCover.setVisible(false);
         for (Toggle toggle : weeksRowToggleGroup.getToggles()) {
             if (toggle instanceof ToggleButton) {
                 ((ToggleButton) toggle).setVisible(false); // Hide each ToggleButton
             }
-        }*/
+        }
 
         // Show the DatePicker when the calendar button is clicked
         //dateSelected = false;
         //datePicker.setVisible(true);
-        datePicker.requestFocus(); // Focus on the DatePicker
+        picker.requestFocus(); // Focus on the DatePicker
 
         // When a date is selected, update the hidden buttons and reset the DatePicker
-        datePicker.setOnAction(event -> {
-            LocalDate selectedDate = datePicker.getValue();
-            if (selectedDate != null){
-                dateSelected = true;
-                updateWeekdayToggleButtons(selectedDate);
-                isCalendarExpanded = false;
-            }
+        picker.setOnAction(event -> {
+            LocalDate selectedDate = picker.getValue();
+                selection.set(true);
+                updateWeekdayToggleButtons(selectedDate, "", pane);
+                expandedBoolean.set(false);
 
         });
 
         // Optionally hide the DatePicker if the user clicks outside or cancels the operation
-        datePicker.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+        picker.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
             if (!isNowFocused) {
-                if (!dateSelected) {
-                    closeCalendar();
+                if (!selection.get()) {
+                    closeCalendar(picker);
                 }
             }
         });
     }
+*/
 
-    private void closeCalendar() {
-        isCalendarExpanded = false;
-        calendarCover.setVisible(true);
-        for (Toggle toggle : weeksRowToggleGroup.getToggles()) {
+    private void closeCalendar(DatePicker picker) {
+        AtomicBoolean expandedBoolean;
+        Rectangle cover;
+        ToggleGroup group;
+        if (picker==datePicker) {
+            expandedBoolean = isCalendarExpanded;
+            cover = calendarCover;
+            group = weeksRowToggleGroup;
+        } else {
+            expandedBoolean = isATCalendarExpanded;
+            cover = calendarCoverAT;
+            group = weeksRowToggleGroupAT;
+            autoTermButton.setOnAction(e3 -> {
+                handleAutoTerm();
+            });
+        }
+        expandedBoolean.set(false);
+        cover.setVisible(true);
+        for (Toggle toggle : group.getToggles()) {
             if (toggle instanceof ToggleButton) {
                 ((ToggleButton) toggle).setVisible(true); // Hide each ToggleButton
             }
@@ -804,7 +993,7 @@ public class ScheduleDeliveryController extends BaseController {
     }
 
     @FXML
-    private void handlePlus(){
+    private void handlePlus() {
         liftCount++;
         ToggleButton selectedLiftTypeButton = (ToggleButton) liftTypeToggleGroup.getSelectedToggle();
         String liftType = selectedLiftTypeButton.getText();
@@ -812,27 +1001,135 @@ public class ScheduleDeliveryController extends BaseController {
         liftCountLabel.setVisible(true);
         xButton.setVisible(true);
         liftCountLabel.setText(String.valueOf(liftCount));
-        liftTypeToggleGroup.selectToggle(twelveMastButton);
-        rotationTimeline.play();
-        isRotating = true;
         prepareLiftTypeButtons();
         plusButton.setVisible(false);
+        liftTypeCounts.put(selectedLiftTypeButton, liftTypeCounts.getOrDefault(selectedLiftTypeButton, 0) + 1);
+        updateCountIndicator(selectedLiftTypeButton);
+    }
+
+    private void updateCountIndicator(ToggleButton button) {
+        // Find the corresponding label for the button
+        String buttonText = button.getText();
+        Label countLabel = null;
+
+
+        switch (buttonText) {
+            case "12' Mast":
+                countLabel = label12m;
+                break;
+            case "19' Slim":
+                countLabel = label19s;
+                break;
+            case "26' Slim":
+                countLabel = label26s;
+                break;
+            case "26'":
+                countLabel = label26;
+                break;
+            case "32'":
+                countLabel = label32;
+                break;
+            case "40'":
+                countLabel = label40;
+                break;
+            case "33' RT":
+                countLabel = label33rt;
+                break;
+            case "45' Boom":
+                countLabel = label45b;
+                break;
+        }
+
+
+        if (countLabel != null) {
+            int count = liftTypeCounts.getOrDefault(button, 0);
+
+            // Set the count in the circle indicator
+            countLabel.setText(String.valueOf(count));
+
+            // If the count is greater than 0, make the label visible
+            if (count > 0) {
+                countLabel.setVisible(true);
+            } else {
+                // Otherwise, hide the label
+                countLabel.setVisible(false);
+            }
+        }
     }
 
     @FXML
-    private void handleX(){
+    private void handleX() {
+        // Ensure there's something to remove
+        if (addedLifts.isEmpty()) {
+            return;
+        }
+
+
+        // Decrease the total lift count
         liftCount--;
-        addedLifts.remove(addedLifts.size() - 1);
         liftCountLabel.setText(String.valueOf(liftCount));
-        if (liftCount == 0){
+
+
+        // Get the last added lift type and remove it from the list
+        String removedLiftType = addedLifts.remove(addedLifts.size() - 1);
+
+
+        // Find the ToggleButton associated with the removed lift type
+        ToggleButton removedLiftButton = getLiftButtonByText(removedLiftType);
+
+
+        // Decrement the count for the removed lift type
+        if (removedLiftButton != null) {
+            liftTypeCounts.put(removedLiftButton, liftTypeCounts.getOrDefault(removedLiftButton, 0) - 1);
+            // Update the count indicator for that lift type
+            updateCountIndicator(removedLiftButton);
+        }
+
+
+        // Hide the lift count label if there are no lifts remaining
+        if (liftCount == 0) {
             liftCountLabel.setVisible(false);
             xButton.setVisible(false);
         }
-        if (isRotating){
-            plusButton.setVisible(false);
+
+
+        // If no more lifts are selected, hide the plus button
+        if (addedLifts.isEmpty()) {
+            plusButton.setVisible(true); // Show the plus button again for new additions
         }
 
+
+        // If rotating, hide the plus button (if it's not already hidden)
+        if (isRotating) {
+            plusButton.setVisible(false);
+        }
     }
+
+
+    // Helper method to find the corresponding ToggleButton by lift type text
+    private ToggleButton getLiftButtonByText(String liftType) {
+        switch (liftType) {
+            case "12' Mast":
+                return twelveMastButton;
+            case "19' Slim":
+                return nineteenSlimButton;
+            case "26' Slim":
+                return twentySixSlimButton;
+            case "26'":
+                return twentySixButton;
+            case "32'":
+                return thirtyTwoButton;
+            case "40'":
+                return fortyButton;
+            case "33' RT":
+                return thirtyThreeRTButton;
+            case "45' Boom":
+                return fortyFiveBoomButton;
+            default:
+                return null;
+        }
+    }
+
 
     private void updateSuggestions(String input) {
         System.out.println("updateSuggestions called");
@@ -980,61 +1277,139 @@ public class ScheduleDeliveryController extends BaseController {
     }
 
     @FXML
-    public void handleOpenCalendar() {
-        if (!isCalendarExpanded) {
-            openCalendar(); // Show the calendar
+    private void handleAutoTerm() {
+        toggleDedicatedField(autoTermButton, callOffDateLabel, null, weeksRowTilePaneAT, orderedByLabel,
+                orderedByField, orderedByNumberLabel, orderedByPhoneField, orderedByBox);
+        Image calendarImage = new Image(getClass().getResourceAsStream("/images/calendar.png"));
+        ImageView calendarImageView = new ImageView(calendarImage);
+        autoTermButton.setGraphic(calendarImageView);
+        calendarImageView.setFitWidth(30);
+        calendarImageView.setFitHeight(30);
+        autoTermButton.setOnAction(event -> {
+            handleOpenCalendarAT();
+            autoTermButton.setOnAction(e -> {
+                closeCalendar(datePickerAT);
+            });
+        });
+    }
+
+    private void resetOrderedByElements() {
+        if (!orderedByField.isVisible()) {
+            toggleDedicatedField(autoTermButton, callOffDateLabel, null, weeksRowTilePaneAT, orderedByLabel,
+                orderedByField, orderedByNumberLabel, orderedByPhoneField, orderedByBox);
+            Image autoImage = new Image(getClass().getResourceAsStream("/images/auto-term.png"));
+            ImageView autoImageView = new ImageView(autoImage);
+            autoTermButton.setGraphic(autoImageView);
+            autoImageView.setFitWidth(30);
+            autoImageView.setFitHeight(30);
+            autoTermButton.setOnAction(event -> {
+                handleAutoTerm();
+            });
+            if (selectedCallOffDate != null) {
+                autoTermButton.getStyleClass().removeAll(autoTermButton.getStyleClass());
+                autoTermButton.getStyleClass().add("schedule-delivery-button");
+                autoTermButton.getStyleClass().add("schedule-delivery-button-has-value");
+            } else {
+                autoTermButton.getStyleClass().removeAll(autoTermButton.getStyleClass());
+                autoTermButton.getStyleClass().add("schedule-delivery-button");
+            }
+        }
+
+    }
+
+    private void handleOpenCalendarAT() {
+        if (!isATCalendarExpanded.get()) {
+            openCalendar(datePickerAT); // Show the calendar
         } else {
-            closeCalendar(); // Hide the calendar
+            closeCalendar(datePickerAT); // Hide the calendar
+        }
+    }
+
+    @FXML
+    public void handleOpenCalendar() {
+        if (!isCalendarExpanded.get()) {
+            openCalendar(datePicker); // Show the calendar
+        } else {
+            closeCalendar(datePicker); // Hide the calendar
         }
          // Toggle the state
     }
 
     @FXML
     private void handleLocationNotes(){
-        toggleDedicatedField(locationNotesButton, locationNotesLabel, locationNotesField);
+        toggleDedicatedField(locationNotesButton, locationNotesLabel, locationNotesField, null, POLabel, POField, null, null, null);
         POLabel.setVisible(false);
+        resetOrderedByElements();
     }
 
     @FXML
     private void handlePreTripInstructions(){
-        toggleDedicatedField(preTripInstructionsButton, preTripInstructionsLabel, preTripInstructionsField);
+        toggleDedicatedField(preTripInstructionsButton, preTripInstructionsLabel, preTripInstructionsField, null, POLabel, POField, null, null, null);
         POLabel.setVisible(false);
+        resetOrderedByElements();
     }
 
-    private void toggleDedicatedField(Button button, Label label, TextField textField){
-        boolean isDedicatedFieldVisible = textField.isVisible();
+    private void toggleDedicatedField(Button button, Label label, TextField textField, TilePane tilePane,
+                                      Label anchorLabel, TextField anchorField, Label anchorLabel2, TextField anchorField2, ComboBox anchorComboBox) {
+        boolean isDedicatedFieldVisible = !anchorField.isVisible();
+        boolean isOrderedByLineToggle = anchorLabel == orderedByLabel;
 
-        POLabel.setVisible(isDedicatedFieldVisible);
-        POField.setVisible(isDedicatedFieldVisible);
-        locationNotesButton.setVisible(isDedicatedFieldVisible && button != locationNotesButton);
-        preTripInstructionsButton.setVisible(isDedicatedFieldVisible && button != preTripInstructionsButton);
+        anchorLabel.setVisible(isDedicatedFieldVisible);
+        anchorField.setVisible(isDedicatedFieldVisible);
+        if (anchorLabel2 != null) {
+            anchorLabel2.setVisible(isDedicatedFieldVisible);
+            anchorField2.setVisible(isDedicatedFieldVisible);
+            anchorComboBox.setVisible(isDedicatedFieldVisible);
+        }
 
         label.setVisible(!isDedicatedFieldVisible);
-        textField.setVisible(!isDedicatedFieldVisible);
 
-        if (!isDedicatedFieldVisible){
-           // button.setLayoutX(14);
-            textField.requestFocus();
-            if (!textField.getText().isEmpty()) {
-                textField.positionCaret(textField.getText().length());
-            }
-        } else {
-           // button.setLayoutX(button == locationNotesButton ? 207 : 258);
-            if (!textField.getText().isEmpty()) {
-                button.getStyleClass().add("schedule-delivery-button-has-value");
+        if (selectedCallOffDate != null) {
+                    button.getStyleClass().add("schedule-delivery-button-has-value");
+                } else {
+                    button.getStyleClass().remove("schedule-delivery-button-has-value");
+                }
+
+        if (isOrderedByLineToggle) {
+            weeksRowTilePaneAT.setVisible(!isDedicatedFieldVisible);
+
+
+
+            if (isDedicatedFieldVisible) {
+
             } else {
-                button.getStyleClass().remove("schedule-delivery-button-has-value");
+
             }
-            preTripInstructionsButton.setVisible(true);
-            locationNotesButton.setVisible(true);
+
+        } else {
+            locationNotesButton.setVisible(isDedicatedFieldVisible && button != locationNotesButton);
+            preTripInstructionsButton.setVisible(isDedicatedFieldVisible && button != preTripInstructionsButton);
+            textField.setVisible(!isDedicatedFieldVisible);
+
+            if (!isDedicatedFieldVisible) {
+                // button.setLayoutX(14);
+                textField.requestFocus();
+                if (!textField.getText().isEmpty()) {
+                    textField.positionCaret(textField.getText().length());
+                }
+            } else {
+                // button.setLayoutX(button == locationNotesButton ? 207 : 258);
+                if (!textField.getText().isEmpty()) {
+                    button.getStyleClass().add("schedule-delivery-button-has-value");
+                } else {
+                    button.getStyleClass().remove("schedule-delivery-button-has-value");
+                }
+                preTripInstructionsButton.setVisible(true);
+                locationNotesButton.setVisible(true);
+            }
         }
     }
 
     private void setupTextFieldListeners(TextField textField, Button button, Label label) {
-        textField.setOnAction(e -> toggleDedicatedField(button, label, textField));
+        textField.setOnAction(e -> toggleDedicatedField(button, label, textField, null, POLabel, POField, null, null, null));
         textField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
             if (!isNowFocused) {
-                toggleDedicatedField(button, label, textField);
+                toggleDedicatedField(button, label, textField, null, POLabel, POField, null, null, null);
             }
         });
     }
@@ -1066,48 +1441,23 @@ public class ScheduleDeliveryController extends BaseController {
                 return; // Exit the method early
             }
 
-            ToggleButton selectedWeekdayButton = (ToggleButton) weeksRowToggleGroup.getSelectedToggle();
-            if (selectedWeekdayButton == null) {
-                statusLabel.setText("Please select a weekday."); // Show error message
-                statusLabel.setTextFill(Color.RED);
-                statusLabel.setVisible(true);
-                return; // Exit the method early
+            LocalDate selectedDeliveryDate = getSelectedDate(weeksRowToggleGroup);
+            String dbDeliveryDate = null;
+            String deliveryDate = null;
+            if (selectedDeliveryDate != null) {
+                dbDeliveryDate = selectedDeliveryDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                deliveryDate = selectedDeliveryDate.format(DateTimeFormatter.ofPattern("MMM-dd", Locale.ENGLISH));
             }
+            System.out.println("delivery date is: " + deliveryDate);
 
-            // Get the text of the selected weekday button (e.g., "10/1")
-            String selectedWeekdayText = selectedWeekdayButton.getText();
-            LocalDate selectedDate = LocalDate.now(); // Initialize to today
-            int currentYear = selectedDate.getYear(); // Get the current year
-
-            // Split the text to get month and day
-            String[] parts = selectedWeekdayText.split("/");
-            int month = Integer.parseInt(parts[0]); // Get the month
-            int day = Integer.parseInt(parts[1]); // Get the day
-
-            // Construct the LocalDate with the current month and day
-            selectedDate = LocalDate.of(currentYear, month, day); // Creates a LocalDate object
-
-            // Determine the appropriate year based on the selected date
-            if (selectedDate.isBefore(LocalDate.now())) { // If the selected date is before today
-                selectedDate = selectedDate.plusYears(1); // Move to next year
+            LocalDate coDate;
+            String dbCallOffDate = null;
+            String callOffDate = null;
+            if (selectedCallOffDate != null) {
+                coDate = getSelectedDate(weeksRowToggleGroupAT);
+                dbCallOffDate = coDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                callOffDate = coDate.format(DateTimeFormatter.ofPattern("MMM-dd", Locale.ENGLISH));
             }
-
-            // Check if the selected date falls on a weekend and handle it if needed
-            if (selectedDate.getDayOfWeek() == DayOfWeek.SATURDAY || selectedDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
-                statusLabel.setText("Selected date cannot be on a weekend."); // Show error message
-                statusLabel.setTextFill(Color.RED);
-                statusLabel.setVisible(true);
-                return; // Exit the method early
-            }
-
-            // Format the date to "MMM-dd"
-            String deliveryDate = selectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")); // For database
-            String formattedDate = selectedDate.format(DateTimeFormatter.ofPattern("MMM-dd")); // For display
-
-
-
-             // Get the text of the selected button (lift type)
-
             // Check if the custom delivery time is selected
             String deliveryTime;
             if (customButton.isSelected()) {
@@ -1146,11 +1496,13 @@ public class ScheduleDeliveryController extends BaseController {
 
             String po = POField.getText();
 
-            currentCustomerRental = new CustomerRental(customerId, customerName, formattedDate, deliveryTime, "", "Upcoming", "99999", rentalsList.size() + 1);
+
+            currentCustomerRental = new CustomerRental(customerId, customerName, deliveryDate, deliveryTime, null, "", "Upcoming", "99999", rentalsList.size() + 1);
             currentCustomerRental.setAddressBlockTwo(streetAddress);
             currentCustomerRental.setAddressBlockThree(city);
+            currentCustomerRental.setCallOffDate(callOffDate);
             boolean rentalOrderScheduled = false;
-            if (insertRentalOrder(customerId, deliveryDate, orderDate, site, streetAddress, city, po)) {
+            if (insertRentalOrder(customerId, dbDeliveryDate, orderDate, site, streetAddress, city, po)) {
                 rentalOrderScheduled = true;
                 // Update the status label for successful scheduling
                 System.out.println("Rental order scheduled successfully!"); // For debugging
@@ -1184,7 +1536,9 @@ public class ScheduleDeliveryController extends BaseController {
                 currentCustomerRental.setLiftType(liftType);
                 currentCustomerRental.setLiftId(liftId);
 
-                if (insertRentalItem(rentalOrderId, liftId, currentCustomerRental.getOrderDate(), deliveryDate, deliveryTime, po) && rentalOrderScheduled) {
+
+
+                if (insertRentalItem(rentalOrderId, liftId, currentCustomerRental.getOrderDate(), dbDeliveryDate, dbCallOffDate, deliveryTime, po) && rentalOrderScheduled) {
                     // Update the status label for successful scheduling
                     System.out.println("Rental item created successfully!"); // For debugging
                     statusLabel.setText("Rental item created successfully!"); // Show success message
@@ -1225,6 +1579,7 @@ public class ScheduleDeliveryController extends BaseController {
             statusLabel.setText("Invalid input: " + e.getMessage()); // Show error message
             statusLabel.setTextFill(Color.RED); // Set the text color to red
             statusLabel.setVisible(true); // Make the status label visible
+            System.out.println(e.getMessage());
         }
 
     }
@@ -1233,6 +1588,7 @@ public class ScheduleDeliveryController extends BaseController {
         String query = "INSERT INTO rental_orders (customer_id, delivery_date, order_date, site_name, street_address, city, po_number) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
              PreparedStatement preparedStatement = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
+
 
             preparedStatement.setString(1, customerId); // Change to setString
             preparedStatement.setString(2, deliveryDate);
@@ -1261,7 +1617,12 @@ public class ScheduleDeliveryController extends BaseController {
         }
     }
 
-    private boolean insertRentalItem(int localRentalOrderId, int liftId, String orderDate, String deliveryDate, String deliveryTime, String  po) {
+    private boolean insertRentalItem(int localRentalOrderId, int liftId, String orderDate, String deliveryDate, String callOffDate, String deliveryTime, String  po) {
+        int autoTerm = 0;
+        if (callOffDate != null) {
+            autoTerm = 1;
+        }
+
         // First section prepares contact vars
         String orderedByNameValue = orderedByField.getText();
         String orderedByNumberValue = orderedByPhoneField.getText();
@@ -1293,8 +1654,8 @@ public class ScheduleDeliveryController extends BaseController {
 
         System.out.println("Inserting rental item with lift_id: " + liftId);
         String query = "INSERT INTO rental_items (rental_order_id, lift_id, ordered_contact_id, site_contact_id, " +
-                "item_order_date, item_delivery_date, delivery_time, customer_ref_number, location_notes, " +
-                "pre_trip_instructions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                "item_order_date, item_delivery_date, item_call_off_date, auto_term, delivery_time, customer_ref_number, location_notes, " +
+                "pre_trip_instructions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
 
@@ -1312,17 +1673,19 @@ public class ScheduleDeliveryController extends BaseController {
             }
             preparedStatement.setString(5, orderDate);
             preparedStatement.setString(6, deliveryDate);
-            preparedStatement.setString(7, deliveryTime);
-            preparedStatement.setString(8, po);
+            preparedStatement.setString(7, callOffDate);
+            preparedStatement.setInt(8, autoTerm);
+            preparedStatement.setString(9, deliveryTime);
+            preparedStatement.setString(10, po);
             if (locationNotesButton.getStyleClass().contains("schedule-delivery-button-has-value")) {
-                preparedStatement.setString(9, locationNotesField.getText());
+                preparedStatement.setString(11, locationNotesField.getText());
             } else {
-                preparedStatement.setNull(9, Types.VARCHAR);
+                preparedStatement.setNull(11, Types.VARCHAR);
             }
             if (preTripInstructionsButton.getStyleClass().contains("schedule-delivery-button-has-value")) {
-                preparedStatement.setString(10, preTripInstructionsField.getText());
+                preparedStatement.setString(12, preTripInstructionsField.getText());
             } else {
-                preparedStatement.setNull(10, Types.VARCHAR);
+                preparedStatement.setNull(12, Types.VARCHAR);
             }
 
             // Execute the update
@@ -1364,6 +1727,73 @@ public class ScheduleDeliveryController extends BaseController {
         return newContactId;
     }
 
+    public LocalDate getSelectedDate (ToggleGroup toggleGroup) {
+        System.out.println("get selected date called");
+        LocalDate date = LocalDate.now();
+        // Ensure a ToggleButton is selected
+        ToggleButton selectedWeekdayButton = (ToggleButton) toggleGroup.getSelectedToggle();
+        System.out.println("Selected weekday button is: " + selectedWeekdayButton);
+        if (selectedWeekdayButton == null) {
+            statusLabel.setText("Please select a weekday."); // Show error message
+            statusLabel.setTextFill(Color.RED);
+            statusLabel.setVisible(true);
+            return null; // Exit the method early
+        }
+
+// Get the text of the selected weekday button (e.g., "12/17")
+        String selectedWeekdayText = selectedWeekdayButton.getText().trim();
+
+// Split the text
+        String[] parts = selectedWeekdayText.split("/");
+        if (parts.length != 2) {
+            statusLabel.setText("Invalid date format. Use MM/DD format.");
+            statusLabel.setTextFill(Color.RED);
+            statusLabel.setVisible(true);
+            return null; // Exit early
+        }
+
+// Parse month and day safely
+        int month, day;
+        try {
+            month = Integer.parseInt(parts[0].trim());
+            day = Integer.parseInt(parts[1].trim());
+        } catch (NumberFormatException e) {
+            statusLabel.setText("Invalid date input. Use numeric MM/DD format.");
+            statusLabel.setTextFill(Color.RED);
+            statusLabel.setVisible(true);
+            return null;
+        }
+
+        LocalDate selectedDateThisYear = LocalDate.of(date.getYear(), month, day);
+        LocalDate selectedDateNextYear = selectedDateThisYear.plusYears(1);
+        System.out.println("selected date this year is: " + selectedDateThisYear +
+                ". and selected date next year: " + selectedDateNextYear);
+
+        if (Math.abs(ChronoUnit.DAYS.between(date, selectedDateThisYear))
+                <= Math.abs(ChronoUnit.DAYS.between(date, selectedDateNextYear))) {
+            date = selectedDateThisYear;
+        } else {
+            date = selectedDateNextYear;
+        }
+
+// Adjust year if selected date is in the past
+        if (date.isBefore(LocalDate.now())) {
+            date = date.plusYears(1);
+        }
+
+// Check if the date falls on a weekend
+        if (date.getDayOfWeek() == DayOfWeek.SATURDAY || date.getDayOfWeek() == DayOfWeek.SUNDAY) {
+            statusLabel.setText("Selected date cannot be on a weekend.");
+            statusLabel.setTextFill(Color.RED);
+            statusLabel.setVisible(true);
+            return null;
+        }
+
+
+
+        return date;
+    }
+
     public int getLiftIdFromType(String liftType) {
         return Config.LIFT_TYPE_MAP.getOrDefault(liftType, -1);
     }
@@ -1393,15 +1823,24 @@ public class ScheduleDeliveryController extends BaseController {
         orderedByField.clear();
         orderedByPhoneField.clear();
         liftTypeToggleGroup.selectToggle(twelveMastButton); // Deselect any selected lift type button
+        Label[] labels = {label12m, label19s, label26s, label26, label32, label40, label33rt, label45b};
+        for (Label label : labels) {
+            label.setVisible(false);
+        }
         deliveryTimeToggleGroup.selectToggle(deliveryTime8To10Button); // Re-select the "8-10" delivery time toggle button
         statusLabel.setText(""); // Clear the status label
         statusLabel.setVisible(false); // Hide the status label
         hourComboBox.setVisible(false); // Hide hour ComboBox
         customButton.setSelected(false);
-        closeCalendar();
+        closeCalendar(datePicker);
+        closeCalendar(datePickerAT);
         datePicker.setValue(null);
-        dateSelected = false;// Unselect custom button
-        setDefaultRentalDate();
+        dateSelected.set(false);
+        dateSelectedAT.set(false);
+        setDefaultRentalDate("");
+        setDefaultRentalDate("AT");
+        autoTermButton.getStyleClass().removeAll(autoTermButton.getStyleClass());
+        autoTermButton.getStyleClass().add("schedule-delivery-button");
         suggestionsBox.setVisible(false);
         suggestionsBox.getItems().clear();// Restart rotation highlight
         siteField.clear();
@@ -1413,8 +1852,6 @@ public class ScheduleDeliveryController extends BaseController {
         preTripInstructionsField.clear();
         locationNotesButton.getStyleClass().remove("schedule-delivery-button-has-value");
         preTripInstructionsButton.getStyleClass().remove("schedule-delivery-button-has-value");
-        rotationTimeline.play();
-        isRotating = true;
         prepareLiftTypeButtons();
         liftCount = 0;
         addedLifts.clear();
@@ -1424,29 +1861,47 @@ public class ScheduleDeliveryController extends BaseController {
     }
 
     private void prepareLiftTypeButtons(){
+        liftTypeToggleGroup.selectToggle(null);
         for (Toggle toggle : liftTypeToggleGroup.getToggles()) {
             if (toggle instanceof ToggleButton) {
                 ToggleButton toggleButton = (ToggleButton) toggle;
-                toggleButton.getStyleClass().removeAll("lift-type-button-stopped");
-                toggleButton.getStyleClass().add("lift-type-button-rotating");
+               // toggleButton.getStyleClass().remove(toggleButton.getStyleClass());
+              //  toggleButton.setStyle("-fx-background-color: transparent; -fx-text-fill: black; " +
+              //          "-fx-font-size: 12; -fx-padding: 1 0; -fx-alignment: center;");
                 toggleButton.setOnAction(event ->{
-                    if (isRotating) {
-                        rotationTimeline.stop();
-                        isRotating = false; // Set isRotating to false
-                    }
-                    toggleButton.getStyleClass().removeAll("lift-type-button-rotating");
-                    toggleButton.getStyleClass().add("lift-type-button-stopped");
                     liftTypeToggleGroup.selectToggle(toggleButton); // Ensure the selected button is set
+              //      toggleButton.getStyleClass().add("lift-type-button-stopped");
                     plusButton.setVisible(true);
+                    GradientAnimator.stopAllAnimations();
+                    for (Toggle tog : liftTypeToggleGroup.getToggles()) {
+                        ToggleButton button = (ToggleButton) tog;
+                        button.getStyleClass().removeAll(button.getStyleClass());
+                        button.getStyleClass().add("lift-type-button-stopped");
+                        /*button.setOnMouseEntered(e -> {
+                            button.getStyleClass().remove("lift-type-button-stopped");
+                            button.getStyleClass().add("lift-type-button-stopped:hover");
+                        });
+                        button.setOnMouseExited(e -> {
+                            button.getStyleClass().remove("lift-type-button-stopped:hover");
+                            button.getStyleClass().add("lift-type-button-stopped");
+                        });*/
+                        button.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+                        if (isNowFocused) {
+                                resetOrderedByElements();
+                            }
+                        });
+                    }
                 });
             }
         }
+        GradientAnimator.applySequentialGradientAnimationToggles(liftTypeToggleButtons, 2, "lift-type-button-stopped");
     }
 
     @FXML
     public void handleBack() {
         try {
             MaxReachPro.goBack("/fxml/schedule_delivery.fxml");
+            GradientAnimator.initialize();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
