@@ -54,7 +54,7 @@ import java.sql.*;
 
 import javafx.scene.text.FontWeight;
 import javafx.util.Duration;
-import org.jetbrains.annotations.NotNull;
+// import org.jetbrains.annotations.NotNull;
 
 import java.time.LocalDate;
 import java.time.Month;
@@ -84,7 +84,7 @@ public class UtilizationController extends BaseController {
     private List<Lift> validLifts = new ArrayList<>();
 
     // List to hold CustomerRental data
-    private List<CustomerRental> customerRentals;
+    private List<Rental> customerRentals;
     private Map<Integer, Integer> rentalDayCounts;
     private Map<String, Integer> liftTypeCounts = new HashMap<>();
     private Map<String, Integer> serialCounts = new HashMap<>();
@@ -388,7 +388,7 @@ public class UtilizationController extends BaseController {
                 String siteContactPhone = rs.getString("site_contact_phone");
 
                 // Create CustomerRental objects for each row and add them to the list
-                customerRentals.add(new CustomerRental(customerId, name, deliveryDate, callOffDate, poNumber,
+                customerRentals.add(new Rental(customerId, name, deliveryDate, callOffDate, poNumber,
                         orderedByName, orderedByPhone, autoTerm, addressBlockOne, addressBlockTwo,
                         addressBlockThree, rentalItemId, serialNumber, singleItemOrder, rentalOrderId,
                         siteContactName, siteContactPhone));
@@ -398,7 +398,7 @@ public class UtilizationController extends BaseController {
         }
     }
 
-    private void drawUtilization(@NotNull GraphicsContext gc, int year, Month month) {
+    private void drawUtilization(/*@NotNull*/ GraphicsContext gc, int year, Month month) {
         // Define circle size and margins
         final double circleSize = 7;  // Smaller circle size to fit all
         final double margin = 1.5;  // Margin between circles

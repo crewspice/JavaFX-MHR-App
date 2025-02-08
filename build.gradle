@@ -1,123 +1,123 @@
 plugins {
-   id 'application'
-   id 'org.openjfx.javafxplugin' version '0.0.13'
-   id 'org.jetbrains.gradle.plugin.idea-ext' version '1.1.8' // For IDEA support (optional)
-   id 'java'
-   id 'com.github.johnrengelman.shadow' version '8.1.1' // For creating a fat JAR
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.0.13'
+    id 'org.jetbrains.gradle.plugin.idea-ext' version '1.1.8' // Optional: IDEA support
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1' // Fat JAR creation
 }
-
 
 repositories {
-   mavenCentral() // Maven Central is more reliable
+    mavenCentral()
 }
-
 
 dependencies {
-   // JavaFX dependencies
-   implementation 'org.openjfx:javafx-controls:23.0.1'
-   implementation 'org.openjfx:javafx-fxml:23.0.1'
+    // JavaFX
+    implementation 'org.openjfx:javafx-controls:17.0.14'
+    implementation 'org.openjfx:javafx-fxml:17.0.14'
 
+    // HTTP Client
+    implementation 'com.squareup.okhttp3:okhttp:4.9.3'
 
-   // HTTP client
-   implementation 'com.squareup.okhttp3:okhttp:4.9.3'
+    // JSON Processing
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.0'
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'org.json:json:20210307'
 
+    // PDF Generation
+    implementation 'com.itextpdf:kernel:8.0.5'
+    implementation 'com.itextpdf:layout:8.0.5'
 
-   // JSON and Jackson
-   implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.0'
-   implementation 'com.google.code.gson:gson:2.10.1'
-   implementation 'org.json:json:20210307'
-
-
-   // iText dependencies
-   implementation 'com.itextpdf:kernel:8.0.5'
-   implementation 'com.itextpdf:layout:8.0.5'
-
-
-   // MySQL connector
-   implementation 'mysql:mysql-connector-java:8.0.31'
-
-
-   // Optional: Additional local dependency (only if needed)
-   implementation files("C:/Program Files/MySQL/mysql-connector-j-9.0.0/mysql-connector-java-9.0.0.jar")
+    // MySQL Connector
+    implementation 'mysql:mysql-connector-java:8.0.31'
 }
-
 
 javafx {
-   version = "23.0.1"
-   modules = [ 'javafx.controls', 'javafx.fxml' ]
+    version = "17.0.14"
+    modules = ['javafx.controls', 'javafx.fxml']
 }
-
 
 application {
-   mainClass.set('com.MaxHighReach.Main') // Your main class
-   applicationDefaultJvmArgs = [
-           '--module-path', 'C:/Program Files/JavaFX/javafx-sdk-23.0.1/lib',
-           '--add-modules', 'javafx.controls,javafx.fxml'
-   ]
+    mainClass.set('com.MaxHighReach.Main')
+    applicationDefaultJvmArgs = [
+        '--module-path', 'C:/Users/offic/OneDrive/Documents/MaxReachPro/program_files/javafx-sdk-17.0.14/lib',
+        '--add-modules', 'javafx.controls,javafx.fxml',
+    //    '--enable-preview',
+    //    '-Dprism.order=sw',         // Use software rendering (OpenGL fallback)
+    //    '-Dprism.verbose=true'      // Enable JavaFX rendering verbose logging
+    ]
 }
-
 
 java {
-   modularity.inferModulePath = true
-   sourceCompatibility = JavaVersion.VERSION_21
-   targetCompatibility = JavaVersion.VERSION_21
+    modularity.inferModulePath = true
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17)) // Ensures Java 17 is used
+    }
 }
 
+// tasks.withType(JavaCompile).configureEach {
+//     options.compilerArgs.add("--enable-preview")
+// }
+
+// tasks.withType(JavaExec).configureEach {
+//     jvmArgs += '--enable-preview'
+//     // Add OpenGL fallback and verbose logging here too
+//     jvmArgs += '-Dprism.order=sw'
+//     jvmArgs += '-Dprism.verbose=true'
+// }
 
 shadowJar {
-   archiveClassifier.set('all') // Creates a fat JAR with all dependencies
+    archiveClassifier.set('all') // Creates a fat JAR with all dependencies
 }
-
 
 tasks.withType(JavaExec) {
-   doFirst {
-       jvmArgs = [
-           '--module-path', 'C:/Program Files/JavaFX/javafx-sdk-23.0.1/lib',
-           '--add-modules', 'javafx.controls,javafx.fxml',
-           '-Dprism.maxvram=26',
-           '-Dprism.order=d3d'
-       ]
-   }
+    doFirst {
+        jvmArgs = [
+            '--module-path', 'C:/Users/offic/OneDrive/Documents/MaxReachPro/program_files/javafx-sdk-17.0.14/lib',
+            '--add-modules', 'javafx.controls,javafx.fxml',
+     //       '-Dprism.maxvram=26',
+     //       '-Dprism.order=d3d',   // Direct3D rendering fallback
+     //       '--enable-preview'
+        ]
+    }
 }
-
 
 jar {
-   manifest {
-       attributes(
-           'Main-Class': 'com.MaxHighReach.Main' // Set your main class here
-       )
-   }
-   archiveFileName.set('MaxReachPro.jar') // Name of the JAR file
-   destinationDirectory.set(file('build/libs')) // Directory where the JAR will be created
+    manifest {
+        attributes(
+            'Main-Class': 'com.MaxHighReach.Main'
+        )
+    }
+    archiveFileName.set('MaxReachPro.jar')
+    destinationDirectory.set(file('build/libs'))
 }
-
 
 task customDist(type: Zip) {
-   from sourceSets.main.output
-   archiveFileName.set('MaxReachPro-distribution.zip')// Name of the ZIP file
-   destinationDirectory.set(file('build'))// Directory where the ZIP will be created
+    from sourceSets.main.output
+    archiveFileName.set('MaxReachPro-distribution.zip')
+    destinationDirectory.set(file('build'))
 }
 
-
 task jpackage(type: Exec) {
-   dependsOn build
+    dependsOn build
 
+    doFirst {
+        def jpackageCmd = "jpackage"
+        def mainJarName = "MaxReachPro-all.jar"
+        def mainClass = 'com.MaxHighReach.Main'
+        def outputDir = "C:/Users/offic/OneDrive/Documents/MaxReachPro/MaxReachPro App/build/installer"
+        def jarInputDir = "$buildDir/libs"
 
-   doFirst {
-       def jpackageCmd = "jpackage" // Ensure this command is in your PATH
-       def mainJarName = "MaxReachPro-all.jar" // Name of your fat JAR file
-       def mainClass = 'com.MaxHighReach.Main'
-       def outputDir = "C:/Users/maxhi/OneDrive/Documents/MaxReachPro/MaxReachPro App/build/installer" // Output directory for installer
-       def jarInputDir = "$buildDir/libs" // Directory where the JAR file is located
-
-
-       commandLine jpackageCmd,
-           '--type', 'exe', // Or 'app-image' for a distributable folder
-           '--name', 'MaxReachPro',
-           '--input', jarInputDir,
-           '--main-class', mainClass,
-           '--main-jar', mainJarName, // Use the JAR file name
-           '--dest', outputDir, // Specify the output directory
-           '--java-options', '--module-path=C:/Program Files/JavaFX/javafx-sdk-23.0.1/lib --add-modules=javafx.controls,javafx.fxml'
-   }
+        commandLine jpackageCmd,
+            '--type', 'exe',
+            '--name', 'MaxReachPro',
+            '--input', jarInputDir,
+            '--main-class', mainClass,
+            '--main-jar', mainJarName,
+            '--dest', outputDir,
+        //    '--java-options', '--module-path=C:/Users/offic/OneDrive/Documents/MaxReachPro/program_files/javafx-sdk-17.0.14/lib --add-modules=javafx.controls,javafx.fxml --enable-preview'
+            '--java-options', '--module-path=C:/Users/offic/OneDrive/Documents/MaxReachPro/program_files/javafx-sdk-17.0.14/lib --add-modules=javafx.controls,javafx.fxml'
+    }
 }

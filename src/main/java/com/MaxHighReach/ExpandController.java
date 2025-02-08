@@ -24,10 +24,10 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
-import okhttp3.*;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
+// import okhttp3.*;
+// import org.json.JSONArray;
+// import org.json.JSONException;
+// import org.json.JSONObject;
 
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -52,23 +52,23 @@ public class ExpandController extends BaseController {
     private Lift selectedLift;
     private boolean dateSelected = false;
     private int rentalOrderId;
-    private CustomerRental currentCustomerRental;
+    private Rental currentCustomerRental;
     private boolean noCallOffMemory = false;
 
     @FXML
     private Label tableViewTitle;
     @FXML
-    private TableView<CustomerRental> scheduledRentalsTableView;  // TableView for rentals
+    private TableView<Rental> scheduledRentalsTableView;  // TableView for rentals
     @FXML
-    private TableColumn<CustomerRental, String> customerIdColumn;  // Column for Customer ID
+    private TableColumn<Rental, String> customerIdColumn;  // Column for Customer ID
     @FXML
-    private TableColumn<CustomerRental, String> rentalDateColumn;   // Column for Rental Date
+    private TableColumn<Rental, String> rentalDateColumn;   // Column for Rental Date
     @FXML
-    private TableColumn<CustomerRental, String> liftTypeColumn;     // Column for Lift Type
+    private TableColumn<Rental, String> liftTypeColumn;     // Column for Lift Type
     @FXML
-    private TableColumn<CustomerRental, String> deliveryTimeColumn;  // Column for Delivery Time
+    private TableColumn<Rental, String> deliveryTimeColumn;  // Column for Delivery Time
 
-    private ObservableList<CustomerRental> rentalsList = FXCollections.observableArrayList(); // List to hold rentals
+    private ObservableList<Rental> rentalsList = FXCollections.observableArrayList(); // List to hold rentals
 
     @FXML
     private TextField customerNameField;
@@ -180,9 +180,9 @@ public class ExpandController extends BaseController {
     private boolean suggestionMuter = false;// Flag to track rotation state
     private int addressTypeCounter = 0;
     private ObservableList<String> addressSuggestions = FXCollections.observableArrayList();
-    private OkHttpClient client = new OkHttpClient();
+    // private OkHttpClient client = new OkHttpClient();
 
-    private CustomerRental expandedRental;
+    private Rental expandedRental;
 
 
     public void initialize() {
@@ -367,7 +367,7 @@ public class ExpandController extends BaseController {
 
             // Update suggestions based on input, unless it was a backspace
             if (!isBackspace) {
-                updateSuggestions(newValue);
+                // updateSuggestions(newValue);
                 addressTypeCounter++; // Only increment if it wasn't a backspace
             }
 
@@ -808,114 +808,114 @@ public class ExpandController extends BaseController {
     }
 
 
-    private void updateSuggestions(String input) {
-        addressSuggestions.clear(); // Clear previous suggestions
+    // private void updateSuggestions(String input) {
+    //     addressSuggestions.clear(); // Clear previous suggestions
 
-        // Only make the request if the input is sufficiently long
-        if (input.length() < 3) {
-            suggestionsBox.getItems().setAll(addressSuggestions);
-        //    suggestionsBox.setVisible(false);
-            return;
-        }
+    //     // Only make the request if the input is sufficiently long
+    //     if (input.length() < 3) {
+    //         suggestionsBox.getItems().setAll(addressSuggestions);
+    //     //    suggestionsBox.setVisible(false);
+    //         return;
+    //     }
 
-        String apiKey = "AIzaSyBN9kWbuL3QuZzONJfWKPX1-o0LG7eNisQ"; // Replace with your actual Google Places API key
-        double latitude = 39.7392;  // Example: Denver, CO latitude
-        double longitude = -104.9903;  // Example: Denver, CO longitude
-        int radius = 50000;  // Bias within 50 km radius
+    //     String apiKey = "AIzaSyBN9kWbuL3QuZzONJfWKPX1-o0LG7eNisQ"; // Replace with your actual Google Places API key
+    //     double latitude = 39.7392;  // Example: Denver, CO latitude
+    //     double longitude = -104.9903;  // Example: Denver, CO longitude
+    //     int radius = 50000;  // Bias within 50 km radius
 
-        String url = "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=" +
-        URLEncoder.encode(input, StandardCharsets.UTF_8) +
-        "&key=" + apiKey +
-        "&location=" + latitude + "," + longitude +
-        "&radius=" + radius;
-
-
-        Request request = new Request.Builder().url(url).build();
-
-        client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                e.printStackTrace();
-            //    Platform.runLater(() -> suggestionsBox.setVisible(false)); // Hide suggestions on failure
-            }
-
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                if (response.isSuccessful()) {
-                    String jsonData = response.body().string();
-                    // Parse the JSON response to extract suggestions
-                    parseAddressSuggestions(jsonData);
-
-                    // Update the suggestions box on the JavaFX Application Thread
-                    Platform.runLater(() -> {
-                        suggestionsBox.getItems().setAll(addressSuggestions);
-                        if (addressTypeCounter > 3) {
-                            suggestionsBox.setVisible(!addressSuggestions.isEmpty()); // Show suggestions if not empty
-                            System.out.println("Suggestions Box visibility set to " + suggestionsBox.isVisible());
-                            System.out.println("Number of suggestions: " + addressSuggestions.size());
-                        }
-                    });
-                } else {
-                 //   Platform.runLater(() -> suggestionsBox.setVisible(false)); // Hide suggestions on error
-                }
-            }
-        });
-    }
-
-    private void parseAddressSuggestions(String jsonData) {
-        try {
-            JSONObject jsonObject = new JSONObject(jsonData);
-            JSONArray predictions = jsonObject.getJSONArray("predictions");
+    //     String url = "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=" +
+    //     URLEncoder.encode(input, StandardCharsets.UTF_8) +
+    //     "&key=" + apiKey +
+    //     "&location=" + latitude + "," + longitude +
+    //     "&radius=" + radius;
 
 
-            // Map of replacements (longer terms to shorter abbreviations)
-            Map<String, String> replacements = new HashMap<>();
-            replacements.put("Street", "St");
-            replacements.put("Avenue", "Ave");
-            replacements.put("Boulevard", "Blvd");
-            replacements.put("Road", "Rd");
-            replacements.put("Lane", "Ln");
-            replacements.put("Court", "Ct");
-            replacements.put("Place", "Pl");
-            replacements.put("Square", "Sq");
-            replacements.put("Drive", "Dr");
-            replacements.put("Parkway", "Pkwy");
-            replacements.put("Highway", "Hwy");
-            replacements.put("Trail", "Trl");
-            replacements.put("Way", "Way");
-            replacements.put("Terrace", "Ter");
-            replacements.put("Expressway", "Exp");
-            replacements.put("Center", "Ctr");
-            replacements.put("County", "Cty");
-            replacements.put("North", "N");
-            replacements.put("South", "S");
-            replacements.put("East", "E");
-            replacements.put("West", "W");
+    //     Request request = new Request.Builder().url(url).build();
+
+    //     client.newCall(request).enqueue(new Callback() {
+    //         @Override
+    //         public void onFailure(Call call, IOException e) {
+    //             e.printStackTrace();
+    //         //    Platform.runLater(() -> suggestionsBox.setVisible(false)); // Hide suggestions on failure
+    //         }
+
+    //         @Override
+    //         public void onResponse(Call call, Response response) throws IOException {
+    //             if (response.isSuccessful()) {
+    //                 String jsonData = response.body().string();
+    //                 // Parse the JSON response to extract suggestions
+    //                 parseAddressSuggestions(jsonData);
+
+    //                 // Update the suggestions box on the JavaFX Application Thread
+    //                 Platform.runLater(() -> {
+    //                     suggestionsBox.getItems().setAll(addressSuggestions);
+    //                     if (addressTypeCounter > 3) {
+    //                         suggestionsBox.setVisible(!addressSuggestions.isEmpty()); // Show suggestions if not empty
+    //                         System.out.println("Suggestions Box visibility set to " + suggestionsBox.isVisible());
+    //                         System.out.println("Number of suggestions: " + addressSuggestions.size());
+    //                     }
+    //                 });
+    //             } else {
+    //              //   Platform.runLater(() -> suggestionsBox.setVisible(false)); // Hide suggestions on error
+    //             }
+    //         }
+    //     });
+    // }
+
+    // private void parseAddressSuggestions(String jsonData) {
+    //     try {
+    //         JSONObject jsonObject = new JSONObject(jsonData);
+    //         JSONArray predictions = jsonObject.getJSONArray("predictions");
 
 
-            for (int i = 0; i < predictions.length(); i++) {
-                JSONObject prediction = predictions.getJSONObject(i);
-                String suggestion = prediction.getString("description");
+    //         // Map of replacements (longer terms to shorter abbreviations)
+    //         Map<String, String> replacements = new HashMap<>();
+    //         replacements.put("Street", "St");
+    //         replacements.put("Avenue", "Ave");
+    //         replacements.put("Boulevard", "Blvd");
+    //         replacements.put("Road", "Rd");
+    //         replacements.put("Lane", "Ln");
+    //         replacements.put("Court", "Ct");
+    //         replacements.put("Place", "Pl");
+    //         replacements.put("Square", "Sq");
+    //         replacements.put("Drive", "Dr");
+    //         replacements.put("Parkway", "Pkwy");
+    //         replacements.put("Highway", "Hwy");
+    //         replacements.put("Trail", "Trl");
+    //         replacements.put("Way", "Way");
+    //         replacements.put("Terrace", "Ter");
+    //         replacements.put("Expressway", "Exp");
+    //         replacements.put("Center", "Ctr");
+    //         replacements.put("County", "Cty");
+    //         replacements.put("North", "N");
+    //         replacements.put("South", "S");
+    //         replacements.put("East", "E");
+    //         replacements.put("West", "W");
 
 
-                // Remove ", USA" if it exists
-                if (suggestion.endsWith(", CO, USA")) {
-                    suggestion = suggestion.substring(0, suggestion.length() - 9); // Remove last 5 characters
-                }
+    //         for (int i = 0; i < predictions.length(); i++) {
+    //             JSONObject prediction = predictions.getJSONObject(i);
+    //             String suggestion = prediction.getString("description");
 
 
-                // Replace long strings with their abbreviated forms
-                for (Map.Entry<String, String> entry : replacements.entrySet()) {
-                    suggestion = suggestion.replace(entry.getKey(), entry.getValue());
-                }
+    //             // Remove ", USA" if it exists
+    //             if (suggestion.endsWith(", CO, USA")) {
+    //                 suggestion = suggestion.substring(0, suggestion.length() - 9); // Remove last 5 characters
+    //             }
 
 
-                addressSuggestions.add(suggestion); // Add modified suggestion to the list
-            }
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-    }
+    //             // Replace long strings with their abbreviated forms
+    //             for (Map.Entry<String, String> entry : replacements.entrySet()) {
+    //                 suggestion = suggestion.replace(entry.getKey(), entry.getValue());
+    //             }
+
+
+    //             addressSuggestions.add(suggestion); // Add modified suggestion to the list
+    //         }
+    //     } catch (JSONException e) {
+    //         e.printStackTrace();
+    //     }
+    // }
 
 
 

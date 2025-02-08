@@ -32,14 +32,10 @@ public class Config {
     public static final String DB_PSWD = "SQL3225422!a123";
     public static final String DB_NAME = "dispatch";
 
-    // Local database configuration (optional switch)
-    /*
-    public static final String DB_URL = "jdbc:mysql://localhost:3306/practice_db";
-    public static final String DB_USR = "root";
-    public static final String DB_PSWD = "SQL3225422!a";
-    */
-
-    public static final String SDK_PATH = "C:\\Users\\maxhi\\OneDrive\\Documents\\MaxReachPro\\Intuit Applications\\IDN\\QBSDK16.0\\tools\\SDKTest\\SDKTestPlus3.exe";
+    // --------------------------------------------------
+    // SDK Path (Using PathConfig)
+    // --------------------------------------------------
+    public static final String SDK_PATH = PathConfig.getPrefix() + "\\Intuit Applications\\IDN\\QBSDK16.0\\tools\\SDKTest\\SDKTestPlus3.exe";
 
     // --------------------------------------------------
     // Employee Data
@@ -100,7 +96,6 @@ public class Config {
         COMPANY_HOLIDAYS.add(LocalDate.of(2025, 7, 4));
         COMPANY_HOLIDAYS.add(LocalDate.of(2025, 12, 25));
         COMPANY_HOLIDAYS.add(LocalDate.of(2026, 1, 1));
-        // Add more holidays as needed
     }
 
     // Utility method to check if a date is a holiday
@@ -115,6 +110,3 @@ public class Config {
 
     public static final LocalTime CUT_OFF_TIME = LocalTime.of(10, 30);
 }
-
-
-
