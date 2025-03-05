@@ -3,6 +3,7 @@ package com.MaxHighReach;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -16,9 +17,6 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.TilePane;
 import javafx.scene.paint.Color;
-import javafx.scene.control.Toggle;
-import javafx.scene.control.ToggleGroup;
-import javafx.scene.control.ToggleButton;
 import javafx.util.Duration;
 import okhttp3.*;
 import org.json.JSONArray;
@@ -26,16 +24,27 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.w3c.dom.Text;
 
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfReader;
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
+import com.itextpdf.kernel.utils.PdfMerger;
+import com.itextpdf.layout.Document;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.sql.*;
 import java.sql.Connection;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.Month;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAccessor;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -189,7 +198,9 @@ public class ScheduleDeliveryController extends BaseController {
 	private Button scheduleDeliveryButton;
 	@FXML
 	private Label statusLabel; // Reference to the status label
-
+	@FXML
+	private Button printButton;
+	private final Tooltip printTooltip = new Tooltip("Print Contracts");
 
 	private Timeline rotationTimeline; // Timeline for rotating highlight
 	private boolean isRotating = false;
@@ -197,7 +208,30 @@ public class ScheduleDeliveryController extends BaseController {
 	private int addressTypeCounter = 0;
 	private ObservableList<String> addressSuggestions = FXCollections.observableArrayList();
 	private OkHttpClient client = new OkHttpClient();
-
+	private double LAT_MIN = 39.391122;
+	private double LAT_MAX = 40.1234847;
+	private double LON_MIN = -105.57661;
+	private double LON_MAX = -104.4526;
+	private List<GridCell> greaterGridCells = new ArrayList<>();
+	private List<GridCell> lesserGridCells = new ArrayList<>();
+	private Set<String> dominantLesserCells = Set.of(
+        	"10", "11", "12", "40", "41", "42",
+        	"69", "70", "71", "72", "97", "98", "99", "100", "101", "102", "103",
+        	"127", "128", "129", "130", "131", "132", "133", "134", "135", "136", "137", "138", "139", "140",
+        	"159", "160", "161", "162", "163", "164", "165", "166", "167", "168", "169", "170",
+        	"189", "190", "191", "192", "193", "194", "195", "196", "197", "198",
+        	"219", "220", "221", "222", "223", "224", "225", "226",
+        	"248", "249", "250", "251", "252", "253", "254", "255", "256", "257", "258", "259", "260",
+        	"275", "276", "277", "278", "279", "280", "281", "282", "283", "284", "285", "286", "287", "288", "289", "290", "291",
+        	"304", "305", "306", "307", "308", "309", "310", "311", "312", "313", "314", "315", "316", "317", "318", "319", "320", "321",
+        	"335", "336", "337", "338", "339", "340", "341", "342", "343", "344", "345", "346", "347", "348", "349", "350", "351",
+        	"365", "366", "367", "368", "369", "370", "371", "372", "373", "374", "375", "376", "377", "378", "379", "380", "381",
+        	"403", "404", "405", "406", "407", "408", "409", "410", "411",
+        	"432", "436", "439", "440", "441",
+        	"466", "467", "468", "469", "470",
+        	"496", "497", "498", "499",
+        	"527", "528"
+	);
 
 	// Initialize method to set up ToggleButtons and the ToggleGroup
 	@FXML
@@ -605,7 +639,7 @@ public class ScheduleDeliveryController extends BaseController {
 
     	createCustomTooltip(locationNotesButton, 38, 10, locationNotesTooltip);
     	createCustomTooltip(preTripInstructionsButton, 38, 10, preTripInstructionsTooltip);
-
+		createCustomTooltip(printButton, 38, 10, printTooltip);
 
     	setupTextFieldListeners(locationNotesField, locationNotesButton, locationNotesLabel);
     	setupTextFieldListeners(preTripInstructionsField, preTripInstructionsButton, preTripInstructionsLabel);
@@ -623,6 +657,7 @@ public class ScheduleDeliveryController extends BaseController {
 
     	// Adjust the TableView height to fit one empty row initially
     	adjustTableViewHeight(); // Set initial height of the TableView
+		printButton.setVisible(false);
 
 
     	// Hide the status label initially
@@ -1444,8 +1479,166 @@ public class ScheduleDeliveryController extends BaseController {
 	private void adjustTableViewHeight() {
     	double newHeight = INITIAL_TABLE_HEIGHT + (ROW_HEIGHT * Math.max(0, rentalsList.size()));
     	scheduledRentalsTableView.setPrefHeight(newHeight);
+		TranslateTransition buttonTransition = new TranslateTransition(Duration.millis(500), printButton);
+		buttonTransition.setToY(newHeight/* - printButton.getLayoutY()*/ - 50);
+		buttonTransition.play();
+		printButton.setVisible(true);
 	}
 
+
+	@FXML
+	private void handlePrint () {
+
+		if (rentalsList.isEmpty()) {
+			return;
+		}
+
+		String sourceFile = Paths.get(PathConfig.CONTRACTS_DIR, "contract template.pdf").toString();
+		List<String> createdPdfFiles = new ArrayList<>();
+
+
+		for (Rental rental : rentalsList) {
+			String outputFile = Paths.get(PathConfig.CONTRACTS_DIR, "contract_" + rental.getRentalItemId() + ".pdf").toString();
+			double latitude = rental.getLatitude();
+			double longitude = rental.getLongitude();
+			String mapPage = getGridNameFromCoords(latitude, longitude);
+
+
+			try {
+				// Open the source PDF
+				PdfDocument pdfDoc = new PdfDocument(new PdfReader(sourceFile), new PdfWriter(outputFile));
+				Document document = new Document(pdfDoc);
+
+
+				// Get page 1 of the PDF
+				PdfCanvas canvas = new PdfCanvas(pdfDoc.getPage(1));
+
+
+				// Add text to specific coordinates
+				canvas.beginText();
+				canvas.setFontAndSize(com.itextpdf.kernel.font.PdfFontFactory.createFont(), 12);
+
+
+				String dateString = rental.getDeliveryDate();
+				DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("MMM-d");
+				TemporalAccessor parsedDate = inputFormatter.parse(dateString);
+
+				int month = parsedDate.get(ChronoField.MONTH_OF_YEAR);
+				int day = parsedDate.get(ChronoField.DAY_OF_MONTH);
+
+				LocalDate date = resolveDateWithYear(month, day);
+
+				DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM'.' d");
+				String formattedDate = date.format(formatter);
+				String suffix = getDaySuffix(day);
+				String formattedDeliveryDate = formattedDate + suffix;
+				canvas.setTextMatrix(435, 711); // Delivery Date
+				canvas.showText(formattedDeliveryDate);
+
+
+				// Additional fields
+				canvas.setTextMatrix(440 ,747); // Delivery Time
+				canvas.showText("P" + rental.getRentalItemId());
+				canvas.setTextMatrix(355, 631); // Address Block One
+				canvas.showText(rental.getAddressBlockOne());
+				canvas.setTextMatrix(346, 613); // Address Block Two
+				canvas.showText(rental.getAddressBlockTwo());
+				canvas.setTextMatrix(364, 595); // Address Block Three
+				canvas.showText(rental.getAddressBlockThree());
+				canvas.setTextMatrix(454, 559);
+				canvas.showText(mapPage);
+
+
+				if (rental.getSiteContactName() != null) {
+					canvas.setTextMatrix(371, 577); // Address Block Four
+					canvas.showText(rental.getSiteContactName());
+					canvas.setTextMatrix(454, 577); // Address Block Five
+					canvas.showText(formatPhoneNumber(rental.getSiteContactPhone()));
+				}
+
+
+				if (rental.getOrderedByName() != null) {
+					canvas.setTextMatrix(119, 559); // Address Block Four
+					canvas.showText(rental.getOrderedByName());
+					canvas.setTextMatrix(76, 577); // Address Block Five
+					canvas.showText(formatPhoneNumber(rental.getOrderedByPhone()));
+				}
+
+
+				canvas.setTextMatrix(194, 559); // PO Number
+				canvas.showText(rental.getPoNumber());
+				canvas.setTextMatrix(43, 523);
+				canvas.showText(rental.getLocationNotes());
+				canvas.setTextMatrix(81, 630); // Name
+				canvas.showText(rental.getName());
+				canvas.setTextMatrix(43, 652);
+				canvas.showText(rental.getPreTripInstructions());
+				canvas.setTextMatrix(99, 481); // Lift Type
+				canvas.showText(rental.getLiftType());
+
+
+				canvas.endText();
+
+
+				// Close the document
+				document.close();
+
+
+				// Track the generated PDF file
+				createdPdfFiles.add(outputFile);
+
+
+
+
+			} catch (Exception e) {
+				System.out.println("Error creating contract for rental ID " + rental.getRentalItemId() + ": " + e.getMessage());
+				e.printStackTrace();
+			}
+		}
+
+
+		// Merge individual PDFs into one file
+		if (!createdPdfFiles.isEmpty()) {
+			String todayDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+			String finalOutputFile = Paths.get(PathConfig.CONTRACTS_DIR, "contracts_" + todayDate + ".pdf").toString();
+
+
+			try {
+				PdfDocument finalPdfDoc = new PdfDocument(new PdfWriter(finalOutputFile));
+				PdfMerger merger = new PdfMerger(finalPdfDoc);
+
+
+				for (String pdfFile : createdPdfFiles) {
+					PdfDocument docToMerge = new PdfDocument(new PdfReader(pdfFile));
+					merger.merge(docToMerge, 1, docToMerge.getNumberOfPages());
+					docToMerge.close();
+				}
+
+
+				finalPdfDoc.close();
+
+
+
+
+				// Clean up individual PDFs
+				for (String pdfFile : createdPdfFiles) {
+					File file = new File(pdfFile);
+					if (file.exists() && file.delete()) {
+					}
+				}
+
+
+			} catch (Exception e) {
+				System.out.println("Error merging PDFs: " + e.getMessage());
+				e.printStackTrace();
+			}
+		} else {
+			System.out.println("No contracts were created, so no merge occurred.");
+		}
+
+
+			
+	}
 
 	private Tooltip createCustomTooltip(Button button, double xOffset, double yOffset, Tooltip tooltip) {
     	tooltip.setShowDelay(Duration.ZERO);
@@ -1721,13 +1914,18 @@ public class ScheduleDeliveryController extends BaseController {
 
 
         	currentCustomerRental = new Rental(customerId, customerName, deliveryDate, deliveryTime,
-            	null, "", "Upcoming", "99999", rentalsList.size() + 1,
+            	null, "", 0, "Upcoming", po, rentalsList.size() + 1,
              	false, null);
         	currentCustomerRental.setAddressBlockTwo(streetAddress);
         	currentCustomerRental.setAddressBlockThree(city);
         	currentCustomerRental.setCallOffDate(callOffDate);
+			double[] coords = calculateLongAndLat(streetAddress, city);
+			currentCustomerRental.setLatitude(coords[0]);
+			currentCustomerRental.setLongitude(coords[1]);
+			double latitude = currentCustomerRental.getLatitude();
+			double longitude = currentCustomerRental.getLongitude();
         	boolean rentalOrderScheduled = false;
-        	if (insertRentalOrder(customerId, dbDeliveryDate, orderDate, site, streetAddress, city, po)) {
+        	if (insertRentalOrder(customerId, dbDeliveryDate, orderDate, site, streetAddress, city, po, latitude, longitude)) {
             	rentalOrderScheduled = true;
             	// Update the status label for successful scheduling
             	System.out.println("Rental order scheduled successfully!"); // For debugging
@@ -1769,7 +1967,7 @@ public class ScheduleDeliveryController extends BaseController {
 
 
 
-            	if (insertRentalItem(rentalOrderId, liftId, currentCustomerRental.getOrderDate(), dbDeliveryDate, dbCallOffDate, deliveryTime, po) && rentalOrderScheduled) {
+            	if (insertRentalItem(currentCustomerRental, rentalOrderId, liftId, currentCustomerRental.getOrderDate(), dbDeliveryDate, dbCallOffDate, deliveryTime, po) && rentalOrderScheduled) {
                 	// Update the status label for successful scheduling
                 	System.out.println("Rental item created successfully!"); // For debugging
                 	statusLabel.setText("Rental item created successfully!"); // Show success message
@@ -1788,7 +1986,7 @@ public class ScheduleDeliveryController extends BaseController {
 
 
                 	adjustTableViewHeight(); // Adjust the TableView height after adding a new entry
-
+					
 
                 	// Animate the scissor lift down by decrementing its height
                 	//currentHeight -= 50; // Decrease height
@@ -1824,134 +2022,138 @@ public class ScheduleDeliveryController extends BaseController {
 	}
 
 
-	private boolean insertRentalOrder(String customerId, String deliveryDate, String orderDate, String site, String streetAddress, String city, String po) {
-    	String query = "INSERT INTO rental_orders (customer_id, delivery_date, order_date, site_name, street_address, city, po_number) VALUES (?, ?, ?, ?, ?, ?, ?)";
-    	try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-         	PreparedStatement preparedStatement = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
+	private boolean insertRentalOrder(String customerId, String deliveryDate, String orderDate,
+									String site, String streetAddress, String city, String po,
+									double latitude, double longitude) {
+		String query = "INSERT INTO rental_orders (customer_id, delivery_date, order_date, site_name, street_address, city, po_number, latitude, longitude) " +
+					"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+		
+		try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+			PreparedStatement preparedStatement = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
 
+			preparedStatement.setString(1, customerId);
+			preparedStatement.setString(2, deliveryDate);
+			preparedStatement.setString(3, orderDate);
+			preparedStatement.setString(4, site);
+			preparedStatement.setString(5, streetAddress);
+			preparedStatement.setString(6, city);
+			preparedStatement.setString(7, po);
+			preparedStatement.setDouble(8, latitude);
+			preparedStatement.setDouble(9, longitude);
 
-
-
-        	preparedStatement.setString(1, customerId); // Change to setString
-        	preparedStatement.setString(2, deliveryDate);
-        	preparedStatement.setString(3, orderDate);
-        	preparedStatement.setString(4, site);
-        	preparedStatement.setString(5, streetAddress);
-        	preparedStatement.setString(6, city);
-        	preparedStatement.setString(7, po);
-
-
-        	if (preparedStatement.executeUpdate() > 0) {
-            	// Get the generated rental_order_id
-            	try (ResultSet generatedKeys = preparedStatement.getGeneratedKeys()) {
-                	if (generatedKeys.next()) {
-                    	rentalOrderId = generatedKeys.getInt(1);
-                    	currentCustomerRental.setRentalOrderId(rentalOrderId);// Retrieve the rental_order_id
-                    	System.out.println("Generated rental_order_id: " + rentalOrderId);  // For debugging
-                    	currentCustomerRental.setOrderDate(orderDate); // Set the order date
-                	}
-            	}
-        	}
-
-
-        	return true;
-    	} catch (Exception e) {
-        	e.printStackTrace();
-        	return false;
-    	}
+			if (preparedStatement.executeUpdate() > 0) {
+				// Get the generated rental_order_id
+				try (ResultSet generatedKeys = preparedStatement.getGeneratedKeys()) {
+					if (generatedKeys.next()) {
+						rentalOrderId = generatedKeys.getInt(1);
+						currentCustomerRental.setRentalOrderId(rentalOrderId); // Retrieve the rental_order_id
+						System.out.println("Generated rental_order_id: " + rentalOrderId); // For debugging
+						currentCustomerRental.setOrderDate(orderDate); // Set the order date
+					}
+				}
+			}
+			return true;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
 	}
 
 
-	private boolean insertRentalItem(int localRentalOrderId, int liftId, String orderDate, String deliveryDate, String callOffDate, String deliveryTime, String  po) {
-    	int autoTerm = 0;
-    	if (callOffDate != null) {
-        	autoTerm = 1;
-    	}
-
-
-    	// First section prepares contact vars
-    	String orderedByNameValue = orderedByField.getText();
-    	String orderedByNumberValue = orderedByPhoneField.getText();
-    	String siteContactNameValue = siteContactField.getText();
-    	String siteContactNumberValue = siteContactPhoneField.getText();
-    	boolean haveOrderedBy = false;
-    	boolean haveSiteContact = false;
-    	String orderedByContactId = "";
-    	String siteContactId = "";
-    	if (isPhoneNumberValid(orderedByNumberValue) && !orderedByNameValue.isEmpty()) {
-        	String cleanedNumber = orderedByNumberValue.replaceAll("\\D", "");
-        	if (selectedCustomer.isOrderingContactExtant(orderedByNameValue, cleanedNumber)) {
-            	orderedByContactId = selectedCustomer.getOrderingContactId(orderedByNameValue);
-        	} else {
-            	orderedByContactId = insertContactInDB(orderedByNameValue, cleanedNumber, true);
-        	}
-        	haveOrderedBy = true;
-    	}
-    	if (isPhoneNumberValid(siteContactNumberValue) && !siteContactNameValue.isEmpty()) {
-        	String cleanedNumber = siteContactNumberValue.replaceAll("\\D", "");
-        	if (selectedCustomer.isSiteContactExtant(siteContactNameValue, cleanedNumber)) {
-            	siteContactId = selectedCustomer.getSiteContactId(siteContactNameValue);
-        	} else {
-            	siteContactId = insertContactInDB(siteContactNameValue, cleanedNumber, false);
-        	}
-        	haveSiteContact = true;
-    	}
-
-
-
-
-    	System.out.println("Inserting rental item with lift_id: " + liftId);
-    	String query = "INSERT INTO rental_items (rental_order_id, lift_id, ordered_contact_id, site_contact_id, " +
-            	"item_order_date, item_delivery_date, item_call_off_date, auto_term, delivery_time, customer_ref_number, location_notes, " +
-            	"pre_trip_instructions, item_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    	try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-         	PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-
-
-        	preparedStatement.setInt(1, localRentalOrderId);
-        	preparedStatement.setInt(2, liftId);
-        	if (haveOrderedBy) {
-            	preparedStatement.setString(3, orderedByContactId);
-        	} else {
-            	preparedStatement.setNull(3, Types.VARCHAR);
-        	}
-        	if (haveSiteContact) {
-            	preparedStatement.setString(4, siteContactId);
-        	} else {
-            	preparedStatement.setNull(4, Types.VARCHAR);
-        	}
-        	preparedStatement.setString(5, orderDate);
-        	preparedStatement.setString(6, deliveryDate);
-        	preparedStatement.setString(7, callOffDate);
-        	preparedStatement.setInt(8, autoTerm);
-        	preparedStatement.setString(9, deliveryTime);
-        	preparedStatement.setString(10, po);
-        	if (locationNotesButton.getStyleClass().contains("schedule-delivery-button-has-value")) {
-            	preparedStatement.setString(11, locationNotesField.getText());
-        	} else {
-            	preparedStatement.setNull(11, Types.VARCHAR);
-        	}
-        	if (preTripInstructionsButton.getStyleClass().contains("schedule-delivery-button-has-value")) {
-            	preparedStatement.setString(12, preTripInstructionsField.getText());
-        	} else {
-            	preparedStatement.setNull(12, Types.VARCHAR);
-        	}
-        	preparedStatement.setString(13, "Upcoming");
-
-
-        	// Execute the update
-        	int rowsAffected = preparedStatement.executeUpdate();
-
-
-        	// Check if any rows were affected, indicating a successful insert
-        	return rowsAffected > 0;
-
-
-    	} catch (Exception e) {
-        	e.printStackTrace();
-        	return false;
-    	}
+	private boolean insertRentalItem(Rental rental, int localRentalOrderId, int liftId, String orderDate, String deliveryDate, String callOffDate, String deliveryTime, String po) {
+		int autoTerm = (callOffDate != null) ? 1 : 0;
+	
+		// First section prepares contact vars
+		String orderedByNameValue = orderedByField.getText();
+		String orderedByNumberValue = orderedByPhoneField.getText();
+		String siteContactNameValue = siteContactField.getText();
+		String siteContactNumberValue = siteContactPhoneField.getText();
+		boolean haveOrderedBy = false, haveSiteContact = false;
+		String orderedByContactId = "", siteContactId = "";
+	
+		if (isPhoneNumberValid(orderedByNumberValue) && !orderedByNameValue.isEmpty()) {
+			String cleanedNumber = orderedByNumberValue.replaceAll("\\D", "");
+			if (selectedCustomer.isOrderingContactExtant(orderedByNameValue, cleanedNumber)) {
+				orderedByContactId = selectedCustomer.getOrderingContactId(orderedByNameValue);
+			} else {
+				orderedByContactId = insertContactInDB(orderedByNameValue, cleanedNumber, true);
+			}
+			haveOrderedBy = true;
+		}
+	
+		if (isPhoneNumberValid(siteContactNumberValue) && !siteContactNameValue.isEmpty()) {
+			String cleanedNumber = siteContactNumberValue.replaceAll("\\D", "");
+			if (selectedCustomer.isSiteContactExtant(siteContactNameValue, cleanedNumber)) {
+				siteContactId = selectedCustomer.getSiteContactId(siteContactNameValue);
+			} else {
+				siteContactId = insertContactInDB(siteContactNameValue, cleanedNumber, false);
+			}
+			haveSiteContact = true;
+		}
+	
+		System.out.println("Inserting rental item with lift_id: " + liftId);
+	
+		String query = "INSERT INTO rental_items (rental_order_id, lift_id, ordered_contact_id, site_contact_id, " +
+					   "item_order_date, item_delivery_date, item_call_off_date, auto_term, delivery_time, customer_ref_number, location_notes, " +
+					   "pre_trip_instructions, item_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+	
+		try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+			 PreparedStatement preparedStatement = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
+	
+			preparedStatement.setInt(1, localRentalOrderId);
+			preparedStatement.setInt(2, liftId);
+			if (haveOrderedBy) {
+				preparedStatement.setString(3, orderedByContactId);
+			} else {
+				preparedStatement.setNull(3, Types.VARCHAR);
+			}
+			if (haveSiteContact) {
+				preparedStatement.setString(4, siteContactId);
+			} else {
+				preparedStatement.setNull(4, Types.VARCHAR);
+			}
+			preparedStatement.setString(5, orderDate);
+			preparedStatement.setString(6, deliveryDate);
+			preparedStatement.setString(7, callOffDate);
+			preparedStatement.setInt(8, autoTerm);
+			preparedStatement.setString(9, deliveryTime);
+			preparedStatement.setString(10, po);
+			if (locationNotesButton.getStyleClass().contains("schedule-delivery-button-has-value")) {
+				preparedStatement.setString(11, locationNotesField.getText());
+			} else {
+				preparedStatement.setNull(11, Types.VARCHAR);
+			}
+			if (preTripInstructionsButton.getStyleClass().contains("schedule-delivery-button-has-value")) {
+				preparedStatement.setString(12, preTripInstructionsField.getText());
+			} else {
+				preparedStatement.setNull(12, Types.VARCHAR);
+			}
+			preparedStatement.setString(13, "Upcoming");
+	
+			// Execute the update
+			int rowsAffected = preparedStatement.executeUpdate();
+	
+			// Retrieve the generated rental_item_id
+			try (ResultSet generatedKeys = preparedStatement.getGeneratedKeys()) {
+				if (generatedKeys.next()) {
+					int rentalItemId = generatedKeys.getInt(1);
+					rental.setRentalItemId(rentalItemId);  // Set rental_item_id to rental object
+					System.out.println("Generated rental_item_id: " + rentalItemId);
+				} else {
+					System.err.println("Failed to retrieve generated rental_item_id.");
+					return false;
+				}
+			}
+	
+			// Check if any rows were affected, indicating a successful insert
+			return rowsAffected > 0;
+	
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
 	}
+	
 
 
 	private String insertContactInDB(String name, String number, boolean isOrderingContact){
@@ -2025,24 +2227,7 @@ public class ScheduleDeliveryController extends BaseController {
     	}
 
 
-    	LocalDate selectedDateThisYear = LocalDate.of(date.getYear(), month, day);
-    	LocalDate selectedDateNextYear = selectedDateThisYear.plusYears(1);
-    	System.out.println("selected date this year is: " + selectedDateThisYear +
-            	". and selected date next year: " + selectedDateNextYear);
-
-
-    	if (Math.abs(ChronoUnit.DAYS.between(date, selectedDateThisYear))
-            	<= Math.abs(ChronoUnit.DAYS.between(date, selectedDateNextYear))) {
-        	date = selectedDateThisYear;
-    	} else {
-        	date = selectedDateNextYear;
-    	}
-
-
-// Adjust year if selected date is in the past
-    	if (date.isBefore(LocalDate.now())) {
-        	date = date.plusYears(1);
-    	}
+    	date = resolveDateWithYear(month, day);
 
 
 // Check if the date falls on a weekend
@@ -2052,12 +2237,6 @@ public class ScheduleDeliveryController extends BaseController {
         	statusLabel.setVisible(true);
         	return null;
     	}
-
-
-
-
-
-
     	return date;
 	}
 
@@ -2083,6 +2262,64 @@ public class ScheduleDeliveryController extends BaseController {
     	return new String[]{street, city};
 	}
 
+
+	public double[] calculateLongAndLat(String streetAddress, String city) {
+		if ((streetAddress == null || streetAddress.isEmpty()) && (city == null || city.isEmpty())) {
+			System.out.println("Invalid address: Both street address and city are empty.");
+			return new double[]{0.0, 0.0}; // Default or error value
+		}
+	
+		String address = streetAddress != null ? streetAddress : "";
+		if (city != null && !city.isEmpty()) {
+			address += ", " + city + ", Colorado, USA";
+		}
+	
+		System.out.println("Calculating longitude and latitude for address: " + address);
+		return fetchCoords(address);
+	}
+	
+	public double[] fetchCoords(String address) {
+		System.out.println("Fetching coordinates for address: " + address);
+	
+		OkHttpClient client = new OkHttpClient();
+		String apiKey = "AIzaSyBN9kWbuL3QuZzONJfWKPX1-o0LG7eNisQ"; // Replace with actual API key
+		String url = "https://maps.googleapis.com/maps/api/geocode/json?address=" + URLEncoder.encode(address, StandardCharsets.UTF_8) + "&key=" + apiKey;
+	
+		Request request = new Request.Builder().url(url).build();
+	
+		try (Response response = client.newCall(request).execute()) {
+			if (response.isSuccessful() && response.body() != null) {
+				String responseData = response.body().string();
+				JSONObject json = new JSONObject(responseData);
+				String status = json.optString("status", "ERROR");
+	
+				System.out.println("API Response Status: " + status);
+	
+				if ("OK".equals(status)) {
+					JSONObject location = json.getJSONArray("results")
+							.getJSONObject(0)
+							.getJSONObject("geometry")
+							.getJSONObject("location");
+	
+					double lat = location.getDouble("lat");
+					double lng = location.getDouble("lng");
+	
+					System.out.println("Latitude: " + lat + ", Longitude: " + lng);
+					return new double[]{lat, lng};
+				} else {
+					System.out.println("No results found for address: " + address);
+				}
+			} else {
+				System.out.println("Request failed with HTTP status code: " + response.code());
+			}
+		} catch (IOException e) {
+			System.out.println("Request failed: " + e.getMessage());
+			e.printStackTrace();
+		}
+	
+		return new double[]{0.0, 0.0}; // Return default values on failure
+	}
+	
 
 	private void handleAddNewCustomer(){
     	statusLabel.setText("New customer additions currently only supported in Quickbooks");
@@ -2171,6 +2408,65 @@ public class ScheduleDeliveryController extends BaseController {
     	}
     	GradientAnimator.applySequentialGradientAnimationToggles(liftTypeToggleButtons, 2, "lift-type-button-stopped");
 	}
+
+	private LocalDate resolveDateWithYear(int month, int day) {
+		LocalDate today = LocalDate.now();
+		int currentYear = today.getYear();
+	
+		LocalDate selectedDateThisYear = LocalDate.of(currentYear, month, day);
+		LocalDate selectedDateNextYear = selectedDateThisYear.plusYears(1);
+	
+		return Math.abs(ChronoUnit.DAYS.between(today, selectedDateThisYear)) <= 
+			   Math.abs(ChronoUnit.DAYS.between(today, selectedDateNextYear)) 
+			   ? selectedDateThisYear 
+			   : selectedDateNextYear;
+	}
+	
+
+
+	private String getGridNameFromCoords(double latitude, double longitude) {
+    	for (GridCell lesserCell : lesserGridCells) {
+        	if (lesserCell.contains(latitude, longitude)) {
+            	if (lesserCell.isDominant()) {
+                	return lesserCell.getCellName();
+            	}
+            	break;
+        	}
+    	}
+
+
+    	for (GridCell greaterCell : greaterGridCells) {
+        	if (greaterCell.contains(latitude, longitude)) {
+            	return greaterCell.getCellName();
+        	}
+    	}
+    	return "Uncharted";
+	}
+
+	private String getDaySuffix(int day) {
+    	if (day >= 11 && day <= 13) {
+        	return "th";
+    	}
+    	switch (day % 10) {
+        	case 1: return "st";
+        	case 2: return "nd";
+        	case 3: return "rd";
+        	default: return "th";
+    	}
+	}
+
+
+	
+	private String formatPhoneNumber(String phoneNumber) {
+    	if (phoneNumber == null || phoneNumber.length() != 10) {
+        	throw new IllegalArgumentException("Input must be a 10-digit number.");
+    	}
+
+
+    	return "(" + phoneNumber.substring(0, 3) + ")-" + phoneNumber.substring(3, 6) + "-" + phoneNumber.substring(6, 10);
+	}
+
+
 
 
 	@FXML

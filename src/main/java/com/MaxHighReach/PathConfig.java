@@ -8,17 +8,30 @@ public class PathConfig {
     // --------------------------------------------------
     private static final String USER_HOME = System.getProperty("user.home");
 
+    private static final boolean atWork = true;
+
+    
+
     public static final String BASE_DIR = Paths.get(USER_HOME, "OneDrive", "Documents", "MaxReachPro").toString();
     public static final String CONTRACTS_DIR = Paths.get(BASE_DIR, "Composing Contracts").toString();
     public static final String INVOICES_DIR = Paths.get(BASE_DIR, "Composing Invoices").toString();
+    public static final String SYNC_DIR = Paths.get(BASE_DIR, "Syncing with QB").toString();
     
     // --------------------------------------------------
     // Original Paths (Reorganized)
     // --------------------------------------------------
-    private static final String PREFIX = Paths.get(USER_HOME, "OneDrive", "Documents", "Max High Reach", "MONTH END").toString();
-    private static final String SRCDIR = Paths.get(BASE_DIR, "Composing Invoices").toString();
+    public static final String PREFIX = atWork
+            ? Paths.get(USER_HOME, "OneDrive", "Documents", "Max High Reach", "MONTH END").toString()
+            : Paths.get(USER_HOME, "OneDrive", "Desktop", "Professional", "Max High Reach", "SMM").toString();
+    public static final String SRCDIR = atWork
+            ? Paths.get(USER_HOME, "OneDrive", "Documents", "MaxReachPro", "SMM Filing").toString()
+            : Paths.get(USER_HOME, "OneDrive", "Desktop", "Professional", "Max High Reach", "Max-High-Reach").toString();
 
-    public static final String INVOICE_QUERY = Paths.get(PREFIX, "scripts", "invoice_batch.xml").toString();
+    public static final String OUTPUT_DIRECTORY = PREFIX;
+    public static final String TEMPLATE_PATH = Paths.get(PREFIX, "SMM template 2020.xlsx").toString();
+    public static final String SCRIPT_PATH = Paths.get(SRCDIR, "scripts", "orchestrate_process.py").toString();
+    public static final String INVOICE_QUERY = Paths.get(SRCDIR, "scripts", "invoice_query.xml").toString();
+    public static final String SDK_OUTPUT = Paths.get(SRCDIR, "outputs", "QBResponse.xml").toString();
     public static final String SDK_PATH = Paths.get(BASE_DIR, "Intuit Applications", "IDN", "QBSDK16.0", 
                                                      "tools", "SDKTest", "SDKTestPlus3.exe").toString();
 
@@ -48,5 +61,21 @@ public class PathConfig {
 
     public static String getInvoiceQuery() {
         return INVOICE_QUERY;
+    }
+
+    public static String getSdkPath() {
+        return SDK_PATH;
+    }
+
+    public static String getBaseDir() {
+        return BASE_DIR;
+    }
+
+    public static String getContractsDir() {
+        return CONTRACTS_DIR;
+    }
+
+    public static String getInvoicesDir() {
+        return INVOICES_DIR;
     }
 }

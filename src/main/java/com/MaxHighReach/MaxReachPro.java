@@ -9,18 +9,23 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.stage.StageStyle;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.*;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
-
+import java.net.URL;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -37,7 +42,7 @@ public class MaxReachPro extends Application {
     private static ScissorLift scissorLift;
     private static boolean isFirstScene = true;
     private static Map<String, String> sceneHierarchy = new HashMap<>();
-    private static Stage primaryStage;
+    private static Stage primaryStage = new Stage();
     private static String[] user;
     private static Rental rentalForExpanding;
     private static String sceneBeforeExpandName;
@@ -50,7 +55,8 @@ public class MaxReachPro extends Application {
     private static String selectedDriverName;
     private static ObservableList<Customer> customers = FXCollections.observableArrayList();
     private static ObservableList<Lift> lifts = FXCollections.observableArrayList();
-
+    private static AnchorPane map2Root;
+    private static StackPane map2Pane;
 
     private static final double SCISSOR_DRAW_HEIGHT = 50;
     private static final double SCISSOR_INITIAL_HEIGHT = Config.SCISSOR_LIFT_INITIAL_HEIGHT;
@@ -63,29 +69,41 @@ public class MaxReachPro extends Application {
     public void start(Stage stage) throws Exception {
         primaryStage = stage;
         primaryStage.setResizable(false);
+        primaryStage.initStyle(StageStyle.TRANSPARENT); // Makes the entire window transparent!
+
         mainLayout = new StackPane();
 
+        // Create lavender background
+        double insetMargin = 0;
+        Rectangle lavenderRect = new Rectangle(
+            Config.WINDOW_WIDTH - 2 * insetMargin, 
+            Config.WINDOW_HEIGHT - 2 * insetMargin
+        );
+        lavenderRect.setFill(Color.LAVENDER);
+        lavenderRect.setArcWidth(30); // Rounded corners (optional)
+        lavenderRect.setArcHeight(30);
 
+        Pane lavenderPane = new Pane(lavenderRect);
+        lavenderPane.setPickOnBounds(false); // Allow clicks to pass through
 
-
-        // Add the diagonal shifting gradient background
-        StackPane animatedBackground = createDiagonalShiftingGradient();
-        // mainLayout.getChildren().add(animatedBackground);
-
-
-
-
-        // Add the scissor lift layer
+        // Create scissor lift layer
         AnchorPane scissorLiftPane = new AnchorPane();
         scissorLift = new ScissorLift(SCISSOR_DRAW_HEIGHT);
         AnchorPane.setBottomAnchor(scissorLift, 0.0);
         AnchorPane.setLeftAnchor(scissorLift, 0.0);
         AnchorPane.setRightAnchor(scissorLift, 0.0);
         scissorLiftPane.getChildren().add(scissorLift);
-        mainLayout.getChildren().add(scissorLiftPane);
+        scissorLiftPane.setStyle("-fx-background-color: transparent;");
 
 
+        // Set scissorLiftPane to not intercept mouse events
+        scissorLiftPane.setPickOnBounds(false);
 
+        // Add lavenderPane (which now includes scissorLiftPane and topBar) to the main layout
+        lavenderPane.getChildren().add(scissorLiftPane);
+
+        // Add lavenderPane to the main layout
+        mainLayout.getChildren().add(lavenderPane);
 
         // Define scene hierarchy
         sceneHierarchy.put("/fxml/home.fxml", "/fxml/login.fxml");
@@ -97,37 +115,66 @@ public class MaxReachPro extends Application {
         sceneHierarchy.put("/fxml/utilization.fxml", "/fxml/home.fxml");
         sceneHierarchy.put("/fxml/expand_imaginary.fxml", "/fxml/utilization.fxml");
 
-
         // Load the initial scene
         loadScene("/fxml/login.fxml");
 
-
-
-
+        // Create and set scene
         Scene scene = new Scene(mainLayout, Config.WINDOW_WIDTH, Config.WINDOW_HEIGHT);
+        scene.setFill(Color.TRANSPARENT); // Makes the scene transparent
         scene.getStylesheets().add(getClass().getResource("/styles/styles.css").toExternalForm());
 
+        mainLayout.setStyle("-fx-background-color: transparent;");
 
-
-
-        // Set application icon
-        //primaryStage.getIcons().add(new javafx.scene.image.Image(getClass().getResourceAsStream("/.ico/IMG_0628.ico")));
-
-
-
-
+        // Set application title and show
         stage.setTitle("MaxReachPro");
         stage.setScene(scene);
         stage.show();
 
-
-
-
+        // Animate scissor lift transition
         scissorLift.animateTransition(SCISSOR_INITIAL_HEIGHT);
     }
 
+    public void expandStage() {
+        primaryStage = (Stage) primaryStage.getScene().getWindow();
+        double currentWidth = primaryStage.getWidth();
+        double newWidth = currentWidth + 800;
+        primaryStage.setWidth(newWidth);
+    
+        // Load the new map2 scene for the expanded space
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/map2.fxml"));
+            map2Root = loader.load();
+    
+            // Get the root and cast it to StackPane (or appropriate type)
+            Parent root = primaryStage.getScene().getRoot();
+            if (root instanceof StackPane) {
+                map2Pane = (StackPane) root;
+                map2Pane.setStyle("-fx-background-color: transparent;");
+                map2Pane.getChildren().add(map2Root); // Add the map2 scene
+            } else {
+                System.out.println("Root is not of type StackPane");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
-
+    public void resetStage() {
+        primaryStage = (Stage) map2Pane.getScene().getWindow();
+        double currentWidth = primaryStage.getWidth();
+        double newWidth = currentWidth - 800;
+        primaryStage.setWidth(newWidth);
+    
+        if (map2Root != null) {
+            Parent root = primaryStage.getScene().getRoot();
+            if (root instanceof StackPane) {
+                StackPane stackPaneRoot = (StackPane) root;
+                stackPaneRoot.getChildren().remove(map2Root);
+                map2Root = null; // Clear reference after removal
+            }
+        }
+    }
+    
 
     private StackPane createDiagonalShiftingGradient() {
         StackPane backgroundPane = new StackPane();
@@ -199,45 +246,45 @@ public class MaxReachPro extends Application {
 
 
     public static void loadScene(String fxmlPath) throws Exception {
+    
+
+            // Check if the mainLayout has a previous root node
+            if (mainLayout.getChildren().size() > 1) {
+                Parent currentRoot = (Parent) mainLayout.getChildren().get(1);
+                BaseController currentController = (BaseController) currentRoot.getProperties().get("controller");
+                if (currentController != null) {
+                    currentController.cleanup();
+                }
 
 
-        // Check if the mainLayout has a previous root node
-        if (mainLayout.getChildren().size() > 1) {
-            Parent currentRoot = (Parent) mainLayout.getChildren().get(1);
-            BaseController currentController = (BaseController) currentRoot.getProperties().get("controller");
-            if (currentController != null) {
-                currentController.cleanup();
             }
+    
 
-
-        }
-
-
-        if (mainLayout.getChildren().size() > 1) {
-            mainLayout.getChildren().remove(1);
+            if (mainLayout.getChildren().size() > 1) {
+                mainLayout.getChildren().remove(1);
         }
 
 
         FXMLLoader loader = new FXMLLoader(MaxReachPro.class.getResource(fxmlPath));
-        Parent newRoot = loader.load();
-        BaseController newController = loader.getController();
-        double newHeight = newController.getTotalHeight();
+            Parent newRoot = loader.load();
+            BaseController newController = loader.getController();
+            double newHeight = newController.getTotalHeight();
+    
 
+            newRoot.getProperties().put("controller", newController);
+            newController.setFXMLPath(fxmlPath);
+            StackPane.setAlignment(newRoot, javafx.geometry.Pos.TOP_LEFT);
+    
 
-        newRoot.getProperties().put("controller", newController);
-        newController.setFXMLPath(fxmlPath);
-        StackPane.setAlignment(newRoot, javafx.geometry.Pos.TOP_LEFT);
-
-
-        if (isFirstScene) {
-            mainLayout.getChildren().add(newRoot);
-            isFirstScene = false;
-        } else {
-            scissorLift.animateTransition(newHeight);
-            mainLayout.getChildren().add(newRoot);
-        }
-
-
+            if (isFirstScene) {
+                mainLayout.getChildren().add(newRoot);
+                isFirstScene = false;
+            } else {
+                scissorLift.animateTransition(newHeight);
+                mainLayout.getChildren().add(newRoot);
+            }
+    
+    
         System.out.println("Scene loaded: " + fxmlPath + " | New scene height: " + newHeight);
     }
 
@@ -400,6 +447,10 @@ public class MaxReachPro extends Application {
             System.out.println("No parent scene found for " + previousScene);
         }
     }
+
+
+
+    
 }
 
 

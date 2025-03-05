@@ -8,6 +8,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
 
 import java.util.Arrays;
 import java.util.List;
@@ -25,6 +27,9 @@ public class LoginController extends BaseController {
     private Button loginButton;
 
     @FXML
+    private Rectangle dragArea2;
+
+    @FXML
     private ListView<String> suggestionsList;
 
     private static final List<String> EMPLOYEE_NAMES = Arrays.asList(
@@ -34,6 +39,9 @@ public class LoginController extends BaseController {
 
     @FXML
     public void initialize() {
+        super.initialize(dragArea2);
+        System.out.println("Controller class: " + this.getClass());
+
         nameField.textProperty().addListener((observable, oldValue, newValue) -> {
             updateSuggestions(newValue);
         });

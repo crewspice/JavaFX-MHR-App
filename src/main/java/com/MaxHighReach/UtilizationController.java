@@ -351,7 +351,7 @@ public class UtilizationController extends BaseController {
             SELECT ro.customer_id, c.customer_name, ri.item_delivery_date, ri.item_call_off_date, ro.po_number,
                    ordered_contacts.first_name AS ordered_contact_name, ordered_contacts.phone_number AS ordered_contact_phone,
                    ri.auto_term, ro.site_name, ro.street_address, ro.city, ri.rental_item_id,
-                   l.serial_number, ro.single_item_order, ri.rental_order_id,
+                   l.serial_number, ro.single_item_order, ri.rental_order_id, ro.longitude, ro.latitude,
                    site_contacts.first_name AS site_contact_name, site_contacts.phone_number AS site_contact_phone
             FROM customers c
             JOIN rental_orders ro ON c.customer_id = ro.customer_id  -- Ensure this is correct
@@ -386,12 +386,14 @@ public class UtilizationController extends BaseController {
                 int rentalOrderId = rs.getInt("rental_order_id");
                 String siteContactName = rs.getString("site_contact_name");
                 String siteContactPhone = rs.getString("site_contact_phone");
+                double latitude = rs.getLong("latitude");
+                double longitude = rs.getLong("longitude");
 
                 // Create CustomerRental objects for each row and add them to the list
                 customerRentals.add(new Rental(customerId, name, deliveryDate, callOffDate, poNumber,
                         orderedByName, orderedByPhone, autoTerm, addressBlockOne, addressBlockTwo,
                         addressBlockThree, rentalItemId, serialNumber, singleItemOrder, rentalOrderId,
-                        siteContactName, siteContactPhone));
+                        siteContactName, siteContactPhone, latitude, longitude));
             }
         } catch (SQLException e) {
             throw new RuntimeException("Error loading customer rental data", e);

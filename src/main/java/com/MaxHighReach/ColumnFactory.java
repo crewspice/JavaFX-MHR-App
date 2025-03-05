@@ -36,6 +36,8 @@ import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.sql.SQLException;
 import java.time.Month;
 import java.time.format.TextStyle;
@@ -85,6 +87,8 @@ public class ColumnFactory {
 	private final TableView<Rental> dbTableView;
 	private Map<String, List<Rental>> groupedRentals = new HashMap<>();
 	private Map<String, Integer> driverSequenceMap = new HashMap<>();
+	private Set<String> existingDrivers = new HashSet<>();
+	private boolean isDriverCacheLoaded = false;
 	private boolean shouldShowCheckboxes = false;
 	private final ObservableList<String> driverInitials = FXCollections.observableArrayList("A", "J", "I", "B", "JC", "K");
 	private String driverComboBoxOpenOrClosed = "";
@@ -867,6 +871,7 @@ public class ColumnFactory {
                             	updateGroupedRentals(selectedDriver, currentRental);
                             	commitEdit(selectedDriver);
                             	dbTableView.refresh();
+								loadExistingDrivers();
                         	}
                     	}
                 	}
@@ -1259,7 +1264,6 @@ public class ColumnFactory {
 
                     for (Rental rental : selectedRentals) {
                         String outputFile = Paths.get(PathConfig.CONTRACTS_DIR, "contract_" + rental.getRentalItemId() + ".pdf").toString();
-                    	rental.calculateLongAndLat();
                     	double latitude = rental.getLatitude();
                     	double longitude = rental.getLongitude();
                     	String mapPage = getGridNameFromCoords(latitude, longitude);
@@ -1562,70 +1566,74 @@ public class ColumnFactory {
 
 
 	private Set<String> calculatePotentialDrivers(Rental rental) {
-    	// Initialize a set to hold potential drivers.
-    	Set<String> potentialDrivers = new HashSet<>();
-
-
-    	// Add the "x" option for clearing the driver.
-    	potentialDrivers.add("x");
-
-
-    	// Get the current driver assigned to this rental.
-    	String currentDriver = rental.getDriver();
-    	String currentDriverInitial = currentDriver.replaceAll("[^A-Za-z]", "");
-    	String currentDriverNumber = currentDriver.replaceAll("[^0-9]", "");
-
-
-    	driverSequenceMap.clear();
-
-
-    	// Count existing drivers by their initials.
-    	for (Rental r : dbTableView.getItems()) {
-        	String driver = r.getDriver();
-
-
-        	if (driver != null && !driver.equals("x")) {
-            	// Extract letters (initials) part only, assuming initials are the letters at the start
-            	String initial = driver.replaceAll("[^A-Za-z]", "");
-
-
-            	// Increment the sequence for the extracted initial
-            	int newSequence = driverSequenceMap.getOrDefault(initial, 0) + 1;
-            	driverSequenceMap.put(initial, newSequence);
-        	}
-    	}
-
-
-    	// Add potential drivers based on the initials and count
-    	for (String driverInitial : driverInitials) {
-        	// Count of existing drivers for this initial
-        	int count = driverSequenceMap.getOrDefault(driverInitial, 0);
-
-
-        	// Adding the current driver without increment
-        	if (driverInitial.equals(currentDriverInitial)) {
-            	for (int i = 1; i <= count; i++) {
-                	String potentialDriver = driverInitial + i; // Append the count
-                	potentialDrivers.add(potentialDriver);
-            	}
-        	} else {
-            	// Adding initial with a sequence number
-            	for (int i = 1; i <= count + 1; i++) {
-                	String potentialDriver = driverInitial + i; // Append the count
-                	potentialDrivers.add(potentialDriver);
-            	}
-
-
-            	// If there are no existing rentals for this initial, we still want to add the first option
-            	if (count == 0) {
-                	potentialDrivers.add(driverInitial + "1");
-            	}
-        	}
-    	}
-
-
-    	return potentialDrivers;
+		Set<String> potentialDrivers = new HashSet<>();
+	
+		// Add the "x" option for clearing the driver.
+		potentialDrivers.add("x");
+	
+		// Get the current driver assigned to this rental.
+		String currentDriver = rental.getDriver();
+		String[] extractedDriverVars = extractDriverInitialsAndNumber(currentDriver);
+		String currentDriverInitial = extractedDriverVars[0];
+		String currentDriverNumber = extractedDriverVars[1];
+	
+		// Initialize a map to count the sequences of drivers by their initials.
+		Map<String, Integer> driverSequenceMap = new HashMap<>();
+	
+		// Populate the sequence map with the existing drivers
+		for (String driver : existingDrivers) {
+			if (driver != null && !driver.equals("x")) {
+				String initial = driver.replaceAll("[^A-Za-z]", "");
+				int newSequence = driverSequenceMap.getOrDefault(initial, 0) + 1;
+				driverSequenceMap.put(initial, newSequence);
+			}
+		}
+	
+		// Add potential drivers based on the initials and count
+		for (String driverInitial : driverInitials) {
+			int count = driverSequenceMap.getOrDefault(driverInitial, 0);
+	
+			// Adding the current driver without increment
+			if (driverInitial.equals(currentDriverInitial)) {
+				for (int i = 1; i <= count; i++) {
+					String potentialDriver = driverInitial + i; // Append the count
+					potentialDrivers.add(potentialDriver);
+				}
+			} else {
+				// Adding initial with a sequence number
+				for (int i = 1; i <= count + 1; i++) {
+					String potentialDriver = driverInitial + i; // Append the count
+					potentialDrivers.add(potentialDriver);
+				}
+	
+				// If there are no existing rentals for this initial, we still want to add the first option
+				if (count == 0) {
+					potentialDrivers.add(driverInitial + "1");
+				}
+			}
+		}
+	
+		return potentialDrivers;
 	}
+	
+
+	public void loadExistingDrivers() {
+		String query = "SELECT driver FROM rental_items WHERE driver IS NOT NULL AND driver != 'x';";
+		try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+			 PreparedStatement preparedStatement = connection.prepareStatement(query);
+			 ResultSet resultSet = preparedStatement.executeQuery()) {
+	
+			while (resultSet.next()) {
+				String driver = resultSet.getString("driver");
+				existingDrivers.add(driver);
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		System.out.println("Loaded existing driver assignments and got: " + existingDrivers);
+	}
+	
+
 
 
 	private void updateGroupedRentals(String driverValue, Rental rental) {
@@ -1759,45 +1767,39 @@ public class ColumnFactory {
 
 
 	private void updateDriverInDatabase(int rentalItemId, String newDriver) {
-    	// Extract initials from the newDriver argument
-    	String driverInitials = extractDriverInitials(newDriver);
-
-
-    	// Update both the driver and driver_initial columns
-    	String updateQuery = "UPDATE rental_items SET driver = ?, driver_initial = ? WHERE rental_item_id = ?";
-
-
-    	try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-         	PreparedStatement preparedStatement = connection.prepareStatement(updateQuery)) {
-
-
-        	// Set parameters for the prepared statement
-        	preparedStatement.setString(1, newDriver);
-        	preparedStatement.setString(2, driverInitials);
-        	preparedStatement.setInt(3, rentalItemId);
-
-
-        	// Execute the update
-        	preparedStatement.executeUpdate();
-
-
-    	} catch (SQLException e) {
-        	e.printStackTrace();
-    	}
+		// Extract initials and number from the newDriver argument
+		String[] driverParts = extractDriverInitialsAndNumber(newDriver);
+	
+		// Update the driver, driver_initial, and driver_number columns
+		String updateQuery = "UPDATE rental_items SET driver = ?, driver_initial = ?, driver_number = ? WHERE rental_item_id = ?";
+	
+		try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+			 PreparedStatement preparedStatement = connection.prepareStatement(updateQuery)) {
+	
+			// Set parameters for the prepared statement
+			preparedStatement.setString(1, newDriver);
+			preparedStatement.setString(2, driverParts[0]);
+			preparedStatement.setInt(3, Integer.parseInt(driverParts[1])); // Convert the number part to int
+			preparedStatement.setInt(4, rentalItemId);
+	
+			// Execute the update
+			preparedStatement.executeUpdate();
+	
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
 	}
+	
 
 
-	private String extractDriverInitials(String driverName) {
-    	// Split the driverName into parts and concatenate the first letter of each part
-    	StringBuilder initials = new StringBuilder();
-    	String[] parts = driverName.split("\\s+"); // Split by whitespace
-    	for (String part : parts) {
-        	if (!part.isEmpty()) {
-            	initials.append(part.charAt(0));
-        	}
-    	}
-    	return initials.toString().toUpperCase(); // Convert to uppercase for consistency
+	private String[] extractDriverInitialsAndNumber(String driverName) {
+		// Use a regular expression to separate the letters and numbers
+		String initials = driverName.replaceAll("\\d", ""); // Remove all digits to get initials
+		String number = driverName.replaceAll("\\D", ""); // Remove all non-digits to get the number
+		
+		return new String[] { initials.toUpperCase(), number };
 	}
+	
 
 
 	private String getDaySuffix(int day) {

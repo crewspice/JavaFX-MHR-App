@@ -19,6 +19,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -36,11 +37,6 @@ public class SyncWithQBController extends BaseController {
     private Button syncButton;
     @FXML
     private HBox confirmationPrompt;
-
-    private static final String OUTPUT_DIRECTORY = "C:\\Users\\maxhi\\OneDrive\\Documents\\MaxReachPro\\Syncing with QB\\";
-    private static final String SDK_OUTPUT_CUSTOMERS = OUTPUT_DIRECTORY + "Customers Response.xml";
-    private static final String SDK_OUTPUT_LIFTS = OUTPUT_DIRECTORY + "Lifts Response.xml";
-    private static final String SDK_PATH = "C:\\Users\\maxhi\\OneDrive\\Documents\\MaxReachPro\\Intuit Applications\\IDN\\QBSDK16.0\\tools\\SDKTest\\SDKTestPlus3.exe";
 
     @FXML
     private HBox syncablesTilePane;
@@ -156,12 +152,13 @@ public class SyncWithQBController extends BaseController {
     }
 
     private void runSDKTool() {
-        System.out.println("SDK Path: " + SDK_PATH);
+        String sdkPath = PathConfig.SDK_PATH;  // Retrieve SDK_PATH from PathConfig
+        System.out.println("SDK Path: " + sdkPath);
 
-        File sdkToolFile = new File(SDK_PATH);
+        File sdkToolFile = new File(sdkPath);
         if (!sdkToolFile.exists()) {
             Platform.runLater(() -> {
-                statusLabel.setText("File does not exist: " + SDK_PATH);
+                statusLabel.setText("File does not exist: " + sdkPath);
             });
             return;
         }
@@ -189,7 +186,7 @@ public class SyncWithQBController extends BaseController {
 
         new Thread(() -> {
             try {
-                ProcessBuilder processBuilder = new ProcessBuilder(SDK_PATH);
+                ProcessBuilder processBuilder = new ProcessBuilder(sdkPath);
                 processBuilder.redirectErrorStream(true);
                 Process process = processBuilder.start();
 
@@ -227,6 +224,7 @@ public class SyncWithQBController extends BaseController {
         }).start();
     }
 
+
     @FXML
     public void handleConfirmationYes() {
         System.out.println("Confirmation Yes button clicked");
@@ -236,10 +234,10 @@ public class SyncWithQBController extends BaseController {
         } else {
             if (selectedSyncableButton == customersButton) {
                 System.out.println("Parsing customer data...");
-                parseResponseFile(new File(SDK_OUTPUT_CUSTOMERS));
+                parseResponseFile(new File(Paths.get(PathConfig.SYNC_DIR, "Customers Response.xml").toString()));
             } else if (selectedSyncableButton == salesItemsButton) {
                 System.out.println("Parsing lift data...");
-                parseResponseFile(new File(SDK_OUTPUT_LIFTS));
+                parseResponseFile(new File(Paths.get(PathConfig.SYNC_DIR, "Lifts.xml").toString()));
             }
         }
     }
@@ -273,10 +271,10 @@ public class SyncWithQBController extends BaseController {
 
 
             // Determine which table to populate based on the response file
-            if (responseFile.getAbsolutePath().equals(SDK_OUTPUT_CUSTOMERS)) {
+            if (responseFile.getAbsolutePath().equals(Paths.get(PathConfig.SYNC_DIR, "Customers Response.xml").toString())) {
                 System.out.println("Parsing customer data...");
                 parseCustomerData(doc);
-            } else if (responseFile.getAbsolutePath().equals(SDK_OUTPUT_LIFTS)) {
+            } else if (responseFile.getAbsolutePath().equals(Paths.get(PathConfig.SYNC_DIR, "Lifts Response.xml").toString())) {
                 System.out.println("Parsing lift data...");
                 parseLiftData(doc);
             }
@@ -293,48 +291,56 @@ public class SyncWithQBController extends BaseController {
     private void parseCustomerData(Document doc) {
         NodeList customerNodes = doc.getElementsByTagName("CustomerRet");
         System.out.println("Number of customers found: " + customerNodes.getLength());
-
-
+    
         try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD)) {
-            String query = "INSERT INTO customers (customer_id, customer_name, name_with_codes, email, price_schedule, contact_method, po_required) " +
-                           "VALUES (?, ?, ?, ?, ?, ?, ?) " +
-                           "ON DUPLICATE KEY UPDATE customer_name=?, email=?, price_schedule=?, contact_method=?, po_required=?";
-            try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            // Step 1: Reset all customers to inactive
+            String resetActiveQuery = "UPDATE customers SET active = 0";
+            try (PreparedStatement resetActiveStmt = connection.prepareStatement(resetActiveQuery)) {
+                int resetCount = resetActiveStmt.executeUpdate();
+                System.out.println("Marked " + resetCount + " customers as inactive.");
+            }
+    
+            // Step 2: Prepare queries for updates and insertions
+            String updateQuery = "UPDATE customers SET customer_name=?, name_with_codes=?, email=?, " +
+                                 "price_schedule=?, contact_method=?, po_required=?, active=1 WHERE customer_id=?";
+            String insertQuery = "INSERT INTO customers (customer_id, customer_name, name_with_codes, email, " +
+                                 "price_schedule, contact_method, po_required, active) " +
+                                 "VALUES (?, ?, ?, ?, ?, ?, ?, 1)";
+    
+            try (PreparedStatement updateStmt = connection.prepareStatement(updateQuery);
+                 PreparedStatement insertStmt = connection.prepareStatement(insertQuery)) {
+    
                 for (int i = 0; i < customerNodes.getLength(); i++) {
                     System.out.println("Processing entry " + (i + 1));
-
+    
                     Element customerElement = (Element) customerNodes.item(i);
-
-
+    
                     // Extract customer details
                     String customerId = getElementTextContent(customerElement, "ListID");
                     System.out.println("Customer ID: " + (customerId != null ? customerId : "NULL"));
-
+    
                     String fullName = getElementTextContent(customerElement, "FullName");
                     System.out.println("Full Name: " + (fullName != null ? fullName : "NULL"));
-
+    
                     String email = getElementTextContent(customerElement, "Email");
                     System.out.println("Email: " + (email != null ? email : "NULL"));
-
-
+    
                     // Initialize default values
                     String priceSchedule = "SPR"; // Default pricing scheme
                     String contactMethod = "E"; // Default contact method
                     int poRequired = 0; // Default: PO not required
-
-
-                    // Split the full name to extract the customer name, price schedule, and contact method
+    
+                    // Split the full name to extract customer name, price schedule, and contact method
+                    String customerName = fullName;
                     if (fullName != null) {
                         String[] parts = fullName.split(" - ");
-                        String customerName = parts[0].trim();
+                        customerName = parts[0].trim();
                         System.out.println("Extracted Customer Name: " + customerName);
-
-
+    
                         if (parts.length > 1) {
                             priceSchedule = parts[1].trim();
                             System.out.println("Extracted Price Schedule: " + priceSchedule);
-
-
+    
                             if (parts.length > 2) {
                                 if (parts[2].equalsIgnoreCase("PO")) {
                                     poRequired = 1;
@@ -345,34 +351,41 @@ public class SyncWithQBController extends BaseController {
                                 }
                             }
                         }
-
-
-                        // Insert or update customer in the database
-                        if (customerId != null && email != null) {
-                            preparedStatement.setString(1, customerId);
-                            preparedStatement.setString(2, customerName);
-                            preparedStatement.setString(3, fullName);
-                            preparedStatement.setString(4, email);
-                            preparedStatement.setString(5, priceSchedule);
-                            preparedStatement.setString(6, contactMethod);
-                            preparedStatement.setInt(7, poRequired);
-                            preparedStatement.setString(8, customerName);
-                            preparedStatement.setString(9, email);
-                            preparedStatement.setString(10, priceSchedule);
-                            preparedStatement.setString(11, contactMethod);
-                            preparedStatement.setInt(12, poRequired);
-
-                            int rowsAffected = preparedStatement.executeUpdate();
-                            System.out.println("Inserted/Updated customer: " + customerId + " | Rows affected: " + rowsAffected);
+                    }
+    
+                    if (customerId != null && email != null) {
+                        // Step 3: Try updating the customer first
+                        updateStmt.setString(1, customerName);
+                        updateStmt.setString(2, fullName);
+                        updateStmt.setString(3, email);
+                        updateStmt.setString(4, priceSchedule);
+                        updateStmt.setString(5, contactMethod);
+                        updateStmt.setInt(6, poRequired);
+                        updateStmt.setString(7, customerId);
+    
+                        int updatedRows = updateStmt.executeUpdate();
+                        if (updatedRows > 0) {
+                            System.out.println("Updated customer: " + customerId);
                         } else {
-                            updateStatusLabel("Missing customer data for entry: " + (i + 1));
-                            System.out.println("Error: Missing customer data for entry " + (i + 1));
+                            // If update didn't affect any rows, insert the customer
+                            insertStmt.setString(1, customerId);
+                            insertStmt.setString(2, customerName);
+                            insertStmt.setString(3, fullName);
+                            insertStmt.setString(4, email);
+                            insertStmt.setString(5, priceSchedule);
+                            insertStmt.setString(6, contactMethod);
+                            insertStmt.setInt(7, poRequired);
+    
+                            int insertedRows = insertStmt.executeUpdate();
+                            System.out.println("Inserted new customer: " + customerId + " | Rows affected: " + insertedRows);
                         }
                     } else {
-                        System.out.println("Error: Full name is null for entry " + (i + 1));
+                        updateStatusLabel("Missing customer data for entry: " + (i + 1));
+                        System.out.println("Error: Missing customer data for entry " + (i + 1));
                     }
                 }
             }
+    
             updateStatusLabel("Customers updated successfully.");
         } catch (Exception e) {
             e.printStackTrace();
@@ -380,6 +393,7 @@ public class SyncWithQBController extends BaseController {
             System.out.println("Error updating customers: " + e.getMessage());
         }
     }
+    
 
 
 
@@ -569,7 +583,8 @@ public class SyncWithQBController extends BaseController {
 
     // Method to validate the price schedule
     private boolean isValidPriceSchedule(String priceSchedule) {
-        String[] validSchedules = {"SPR", "1", "2", "3", "4", "5", "SCR", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9"};
+        String[] validSchedules = {"SPR", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
+            "SCR", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9"};
         for (String valid : validSchedules) {
             if (valid.equals(priceSchedule)) {
                 return true;

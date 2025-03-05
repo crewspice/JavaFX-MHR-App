@@ -6,7 +6,6 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
-import javafx.scene.control.Hyperlink;
 import javafx.scene.control.*;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -72,38 +71,22 @@ public class SMMTaxController extends BaseController {
     @FXML
     private HBox confirmationPrompt;
 
-    private static final String OUTPUT_DIRECTORY;
-    private static final String TEMPLATE_PATH;
-    private static final String SCRIPT_PATH;
-    private static final String INVOICE_QUERY;
-    private static final String SDK_OUTPUT;
-    private static final String PREFIX;
-    private static final String SRCDIR;
-    private static final String SDK_PATH;
+    
+    private static final String OUTPUT_DIRECTORY = PathConfig.OUTPUT_DIRECTORY;
+    private static final String TEMPLATE_PATH = PathConfig.TEMPLATE_PATH;
+    private static final String SCRIPT_PATH = PathConfig.SCRIPT_PATH;
+    private static final String INVOICE_QUERY = PathConfig.INVOICE_QUERY;
+    private static final String SDK_OUTPUT = PathConfig.SDK_OUTPUT;
+    private static final String SDK_PATH = PathConfig.SDK_PATH;
 
     public void initialize(){
-        super.initialize();
+        super.initialize(null);
         linkOne.setVisible(false);
         linkTwo.setVisible(false);
     }
 
     private static boolean atWork = true;
 
-    static {
-        if (atWork) {
-            PREFIX = "C:\\Users\\maxhi\\OneDrive\\Documents\\Max High Reach\\MONTH END\\";
-            SRCDIR = "..\\..\\MaxReachPro\\SMM Filing\\";
-        } else {
-            PREFIX = "C:\\Users\\jacks\\OneDrive\\Desktop\\Professional\\Max High Reach\\SMM\\";
-            SRCDIR = "Max-High-Reach\\";
-        }
-        OUTPUT_DIRECTORY = PREFIX;
-        TEMPLATE_PATH = PREFIX + "SMM template 2020.xlsx";
-        SCRIPT_PATH = PREFIX + SRCDIR + "scripts\\orchestrate_process.py";
-        INVOICE_QUERY = PREFIX + SRCDIR + "scripts\\invoice_query.xml";
-        SDK_OUTPUT = PREFIX + SRCDIR + "outputs\\QBResponse.xml";
-        SDK_PATH = PREFIX + "..\\..\\MaxReachPro\\Intuit Applications\\IDN\\QBSDK16.0\\tools\\SDKTest\\SDKTestPlus3.exe";
-    }
 
     private void updateProgressLabel(String message) {
         Platform.runLater(() -> progressLabel.setText(message));

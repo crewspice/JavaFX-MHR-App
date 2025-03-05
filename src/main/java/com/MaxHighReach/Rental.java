@@ -70,7 +70,7 @@ public class Rental {
    
     // Constructor with all relevant fields
     public Rental(String customerId, String name, String deliveryDate, String deliveryTime, String callOffDate,
-                          String driver, String status, String poNumber, int rentalId, boolean needsInvoice,
+                          String driver, int driverNumber, String status, String poNumber, int rentalId, boolean needsInvoice,
                           String latestBilledDate) {
         this.customerId = new SimpleStringProperty(customerId); // Initialize SimpleIntegerProperty
         this.name = new SimpleStringProperty(name);
@@ -96,7 +96,7 @@ public class Rental {
         this.preTripInstructions = new SimpleStringProperty(null);
         this.driver = new SimpleStringProperty(driver);
         this.driverInitial = new SimpleStringProperty(driver);
-        this.driverNumber = new SimpleIntegerProperty(0);
+        this.driverNumber = new SimpleIntegerProperty(driverNumber);
         this.serialNumber = new SimpleStringProperty("118280");
         this.liftId = new SimpleIntegerProperty(0);
         this.liftType = new SimpleStringProperty("Unknown");
@@ -116,15 +116,16 @@ public class Rental {
    
     // Constructor without driver and status
     public Rental(String customerId, String name, String orderDate, String deliveryTime) {
-        this(customerId, name, orderDate, deliveryTime, null, "", "Unknown", "99999", 0, false, "Unknown"); // Default values
+        this(customerId, name, orderDate, deliveryTime, null, "", 0, "Unknown", "99999", 0, false, "Unknown"); // Default values
     }
 
 
-    // this constructor made with utilization data in mind
+    // this constructor made with utilization and map data in mind
     public Rental(String customerId, String name, String deliveryDate, String callOffDate, String poNumber,
                           String orderedByName, String orderedByPhone, boolean autoTerm, String addressBlockOne,
                           String addressBlockTwo, String addressBlockThree, int rentalItemId, String serialNumber,
-                          boolean singleItemOrder, int rentalOrderId, String siteContactName, String siteContactPhone) {
+                          boolean singleItemOrder, int rentalOrderId, String siteContactName, String siteContactPhone, 
+                          double latitude, double longitude) {
         this.customerId = new SimpleStringProperty(customerId);
         this.name = new SimpleStringProperty(name);
         this.orderedByName = new SimpleStringProperty(orderedByName);
@@ -140,8 +141,8 @@ public class Rental {
         this.addressBlockTwo = new SimpleStringProperty(addressBlockTwo);
         this.addressBlockThree = new SimpleStringProperty(addressBlockThree);
         this.city = new SimpleStringProperty(addressBlockThree);
-        this.longitude = new SimpleDoubleProperty(0.0);
-        this.latitude = new SimpleDoubleProperty(0.0);
+        this.longitude = new SimpleDoubleProperty(longitude);
+        this.latitude = new SimpleDoubleProperty(latitude);
         this.siteContactName = new SimpleStringProperty(siteContactName);
         this.siteContactPhone = new SimpleStringProperty(siteContactPhone);
         this.poNumber = new SimpleStringProperty(poNumber);
@@ -520,114 +521,21 @@ public class Rental {
         this.longitude.set(longitude);
     }
 
-
     public double getLongitude(){
         return longitude.get();
     }
 
-
     public DoubleProperty longitude() {return longitude; }
-
 
     public void setLatitude(double latitude) {
         this.latitude.set(latitude);
     }
 
-
     public double getLatitude(){
         return latitude.get();
     }
 
-
     public DoubleProperty latitude() {return latitude;}
-
-
-    public void calculateLongAndLat() {
-        String address = addressBlockTwo.get() != null ? addressBlockTwo.get() : "";
-        if (addressBlockThree.get() != null && !addressBlockThree.get().isEmpty()) {
-            address += ", " + addressBlockThree.get() + ", Colorado, USA";
-        }
-
-
-        System.out.println("calculating longitude and latitude and the address is: " + address);
-        if (!address.isEmpty()) {
-            fetchCoords(address);
-        }
-    }
-
-
-    public void fetchCoords(String address) {
-        System.out.println("Fetching coordinates for address: " + address);
-
-
-
-
-        OkHttpClient client = new OkHttpClient();
-        String apiKey = "AIzaSyBPqUosXIYsD2XMPYYeWphhDS7XwphdVB0";
-        String url = "https://maps.googleapis.com/maps/api/geocode/json?address=" + URLEncoder.encode(address, StandardCharsets.UTF_8) + "&key=" + apiKey;
-
-
-
-
-        Request request = new Request.Builder().url(url).build();
-
-
-
-
-        try {
-            // Use execute() for a synchronous request
-            Response response = client.newCall(request).execute(); // This is blocking
-
-
-
-
-            if (response.isSuccessful()) {
-                String responseData = response.body().string();
-                JSONObject json = new JSONObject(responseData);
-                String status = json.getString("status");
-                System.out.println("API Response Status: " + status);
-
-
-
-
-                if ("OK".equals(status)) {
-                    System.out.println("Parsing location data...");
-                    JSONObject location = json.getJSONArray("results")
-                            .getJSONObject(0)
-                            .getJSONObject("geometry")
-                            .getJSONObject("location");
-
-
-
-
-                    double lat = location.getDouble("lat");
-                    double lng = location.getDouble("lng");
-
-
-
-
-                    setLatitude(lat);
-                    setLongitude(lng);
-
-
-
-
-                    System.out.println("Latitude: " + lat + ", Longitude: " + lng);
-                } else {
-                    System.out.println("No results found for address: " + address);
-                }
-            } else {
-                System.out.println("Request failed with HTTP status code: " + response.code());
-            }
-        } catch (IOException e) {
-            System.out.println("Request failed: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-
-
-
 
 
     public String getSiteContactName() {
