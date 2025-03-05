@@ -3,6 +3,8 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.shape.Rectangle?>
+
 
 <AnchorPane fx:id="anchorPane" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.HomeController">
     <Label fx:id="utilizationLabel" text="Lifts on Rent: " layoutX="100" layoutY="30"/>
@@ -13,5 +15,10 @@
     <Button fx:id="utilization" text="Utilization" onAction="#handleUtilization" layoutX="50" layoutY="150"/>
     <Label fx:id="sourceCodeLabel" text="Source Code" layoutX="200" layoutY="597" onMouseClicked="#handleSourceCodeClick"
        styleClass="source-code-label"/>
+    <Button fx:id="mapButton" text="Map" layoutX="160" layoutY="150" onAction="#handleMap"/>
+    <Button fx:id='map2Button' text="Map2" layoutX="210" layoutY="150" onAction="#handleMap2"/>
     <Button fx:id="backButton" text="Back" layoutX="270" layoutY="5" onAction="#handleBack"/>
+    <Button fx:id="closeButton" text="x" layoutX="200" layoutY="4" onAction="#handleClose"/>
+    <Button fx:id="minimizeButton" text="—" layoutX="160" layoutY="4" onAction="#handleMinimize" onMouseDragged="#handlePressMin"/>
+    <Rectangle fx:id="dragArea2" width="500" height="10" fill="orange" MouseTransparent="false" />
 </AnchorPane>

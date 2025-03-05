@@ -40,33 +40,18 @@ application {
     mainClass.set('com.MaxHighReach.Main')
     applicationDefaultJvmArgs = [
         '--module-path', 'C:/Users/offic/OneDrive/Documents/MaxReachPro/program_files/javafx-sdk-17.0.14/lib',
-        '--add-modules', 'javafx.controls,javafx.fxml',
-    //    '--enable-preview',
-    //    '-Dprism.order=sw',         // Use software rendering (OpenGL fallback)
-    //    '-Dprism.verbose=true'      // Enable JavaFX rendering verbose logging
+        '--add-modules', 'javafx.controls,javafx.fxml'
     ]
 }
 
 java {
-    modularity.inferModulePath = true
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
-
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17)) // Ensures Java 17 is used
-    }
 }
 
-// tasks.withType(JavaCompile).configureEach {
-//     options.compilerArgs.add("--enable-preview")
-// }
-
-// tasks.withType(JavaExec).configureEach {
-//     jvmArgs += '--enable-preview'
-//     // Add OpenGL fallback and verbose logging here too
-//     jvmArgs += '-Dprism.order=sw'
-//     jvmArgs += '-Dprism.verbose=true'
-// }
 
 shadowJar {
     archiveClassifier.set('all') // Creates a fat JAR with all dependencies
@@ -76,10 +61,7 @@ tasks.withType(JavaExec) {
     doFirst {
         jvmArgs = [
             '--module-path', 'C:/Users/offic/OneDrive/Documents/MaxReachPro/program_files/javafx-sdk-17.0.14/lib',
-            '--add-modules', 'javafx.controls,javafx.fxml',
-     //       '-Dprism.maxvram=26',
-     //       '-Dprism.order=d3d',   // Direct3D rendering fallback
-     //       '--enable-preview'
+            '--add-modules', 'javafx.controls,javafx.fxml'
         ]
     }
 }
@@ -117,7 +99,6 @@ task jpackage(type: Exec) {
             '--main-class', mainClass,
             '--main-jar', mainJarName,
             '--dest', outputDir,
-        //    '--java-options', '--module-path=C:/Users/offic/OneDrive/Documents/MaxReachPro/program_files/javafx-sdk-17.0.14/lib --add-modules=javafx.controls,javafx.fxml --enable-preview'
             '--java-options', '--module-path=C:/Users/offic/OneDrive/Documents/MaxReachPro/program_files/javafx-sdk-17.0.14/lib --add-modules=javafx.controls,javafx.fxml'
     }
 }

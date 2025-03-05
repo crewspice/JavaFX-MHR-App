@@ -1,2 +1,3 @@
 Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run """C:\Users\maxhi\OneDrive\Documents\MaxReachPro\MaxReachPro App\run_MaxReachPro.bat""", 0, False
+batFile = WshShell.ExpandEnvironmentStrings("%USERPROFILE%\OneDrive\Documents\MaxReachPro\Max Reach Pro\run_MaxReachPro.bat")
+WshShell.Run """" & batFile & """", 0, False

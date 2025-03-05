@@ -179,7 +179,7 @@
 
 
     <!-- TableView for displaying scheduled rentals -->
-    <TableView fx:id="scheduledRentalsTableView" layoutX="25" layoutY="375" prefWidth="260" prefHeight="60"
+    <TableView fx:id="scheduledRentalsTableView" layoutX="14" layoutY="375" prefWidth="260" prefHeight="60"
                 styleClass="schedule-delivery-table" visible="false">
         <columns>
             <TableColumn fx:id="rentalDateColumn" text="Rental Date" prefWidth="70"/>
@@ -187,6 +187,14 @@
             <TableColumn fx:id="deliveryTimeColumn" text="Delivery Time" prefWidth="47"/> <!-- Add Delivery Time column -->
         </columns>
     </TableView>
+
+    <Button fx:id="printButton" layoutX="268" layoutY="375" onAction="#handlePrint" styleClass="schedule-delivery-button" visible="false">
+        <graphic>
+            <ImageView fitWidth="30" fitHeight="30">
+                <Image url="@../images/print.png" />
+            </ImageView>
+        </graphic>
+    </Button>
 
     <!-- Label for Scheduled Deliveries -->
     <Label fx:id="tableViewTitle" text="Deliveries You Have Scheduled:" layoutX="28" layoutY="360" translateY="27"
