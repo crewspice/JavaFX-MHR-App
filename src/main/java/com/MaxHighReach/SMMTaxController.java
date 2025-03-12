@@ -13,6 +13,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.Rectangle;
 import javafx.stage.FileChooser;
 
 import java.io.BufferedReader;
@@ -40,6 +41,9 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
 public class SMMTaxController extends BaseController {
+
+    @FXML
+    private Rectangle dragArea;
 
     @FXML
     private Button openSDKButton;
@@ -80,7 +84,7 @@ public class SMMTaxController extends BaseController {
     private static final String SDK_PATH = PathConfig.SDK_PATH;
 
     public void initialize(){
-        super.initialize(null);
+        super.initialize(dragArea);
         linkOne.setVisible(false);
         linkTwo.setVisible(false);
     }

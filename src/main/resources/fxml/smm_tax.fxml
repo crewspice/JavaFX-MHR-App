@@ -9,6 +9,8 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.control.TextArea?>
 <?import javafx.geometry.Pos?>
+<?import javafx.scene.shape.Rectangle?>
+
 
 <?import javafx.scene.control.Hyperlink?>
 <AnchorPane fx:id="anchorPane" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.SMMTaxController">
@@ -34,4 +36,5 @@
     <Button fx:id="backButton" text="Back" layoutX="270" layoutY="5" onAction="#handleBack"/>
     <Hyperlink fx:id="linkOne" text="a. Click here to copy this address" onMouseClicked="#handleCopyLink1" layoutX="30" layoutY="116"/>
     <Hyperlink fx:id="linkTwo" text="a. Click here to copy this address" onMouseClicked="#handleCopyLink2" layoutX="30" layoutY="287"/>
+    <Rectangle fx:id="dragArea"/>
 </AnchorPane>

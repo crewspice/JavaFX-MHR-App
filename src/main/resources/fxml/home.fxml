@@ -13,12 +13,9 @@
     <Button fx:id="dbButton" text="Activity" layoutX="50" layoutY="100" onAction="#handleActivity"/>
     <Button fx:id="scheduleDelivery" text="Schedule Delivery" onAction="#handleScheduleDelivery" layoutX="160" layoutY="100"/>
     <Button fx:id="utilization" text="Utilization" onAction="#handleUtilization" layoutX="50" layoutY="150"/>
+    <Button fx:id="mapButton" text="Map" layoutX="160" layoutY="150" onAction="#handleMap"/>
     <Label fx:id="sourceCodeLabel" text="Source Code" layoutX="200" layoutY="597" onMouseClicked="#handleSourceCodeClick"
        styleClass="source-code-label"/>
-    <Button fx:id="mapButton" text="Map" layoutX="160" layoutY="150" onAction="#handleMap"/>
-    <Button fx:id='map2Button' text="Map2" layoutX="210" layoutY="150" onAction="#handleMap2"/>
     <Button fx:id="backButton" text="Back" layoutX="270" layoutY="5" onAction="#handleBack"/>
-    <Button fx:id="closeButton" text="x" layoutX="200" layoutY="4" onAction="#handleClose"/>
-    <Button fx:id="minimizeButton" text="—" layoutX="160" layoutY="4" onAction="#handleMinimize" onMouseDragged="#handlePressMin"/>
-    <Rectangle fx:id="dragArea2" width="500" height="10" fill="orange" MouseTransparent="false" />
+    <Rectangle fx:id="dragArea"/>
 </AnchorPane>

@@ -6,6 +6,7 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
+import javafx.scene.shape.Rectangle;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -30,6 +31,8 @@ import java.util.regex.Pattern;
 public class SyncWithQBController extends BaseController {
 
     @FXML
+    private Rectangle dragArea;
+    @FXML
     private Label statusLabel;
     @FXML
     private Label progressLabel;
@@ -52,6 +55,7 @@ public class SyncWithQBController extends BaseController {
 
     @FXML
     public void initialize() {
+        super.initialize(dragArea);
         for (javafx.scene.Node node : syncablesTilePane.getChildren()) {
             node.getStyleClass().add("view-type-button-rotating");
             if (node instanceof ToggleButton toggleButton) {

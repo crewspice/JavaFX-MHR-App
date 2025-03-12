@@ -33,7 +33,7 @@ import java.util.List;
 public class HomeController extends BaseController {
 
     @FXML
-    private Button smmButton;
+    private Button smmTaxButton;
 
     @FXML
     private Button syncWithQBButton;
@@ -45,7 +45,7 @@ public class HomeController extends BaseController {
     private Button backButton;
 
     @FXML
-    private Rectangle dragArea2;
+    private Rectangle dragArea;
 
     @FXML
     private Label sourceCodeLabel;
@@ -69,7 +69,7 @@ public class HomeController extends BaseController {
     @FXML
     public void initialize() {
         System.out.println("checkpoint 1");
-        super.initialize(dragArea2);
+        super.initialize(dragArea);
         animateSourceCodeLabel();
         utilizationLabel.setText(utilizationLabel.getText() + countUniqueLiftIds());
 
@@ -146,78 +146,7 @@ public class HomeController extends BaseController {
 
     @FXML
     private void handleMap() {
-        Platform.runLater(() -> {
-            try {
-                closeAllWindows(); // Close all other windows
-
-                // Load the FXML for the map scene
-                FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/map.fxml"));
-                Parent mapRoot = loader.load();
-                Scene mapScene = new Scene(mapRoot, 800, 800);
-
-                // Create a new Stage for the map scene
-                Stage mapStage = new Stage();
-                mapStage.setScene(mapScene);
-                mapStage.initStyle(StageStyle.UNDECORATED);
-                mapStage.setAlwaysOnTop(true);
-
-                // Get the primary stage center
-                Stage primaryStage = (Stage) anchorPane.getScene().getWindow();
-                double centerX = primaryStage.getX() + primaryStage.getWidth() / 2;
-                double centerY = primaryStage.getY() + primaryStage.getHeight() / 2;
-
-                // Create a Timeline to animate the width and other properties
-                Timeline timeline = new Timeline();
-                timeline.setCycleCount(1);  // Only play through once
-
-                // Loop to create and animate stages
-                for (int i = 0; i < 100; i++) {
-                    final int frame = i;
-
-                    // Keyframe to animate the current stage properties
-                    KeyFrame keyFrame = new KeyFrame(Duration.millis(frame * 100),
-                            event -> {
-                                if (frame > 0) {
-                                    // Close the previous stage if not the first frame
-                                    Stage previousStage = stages.get(frame - 1);
-                                    if (previousStage != null) {
-                                        previousStage.close();
-                                    }
-                                }
-
-                                // Create a new stage with the updated width
-                                Stage newStage = new Stage();
-                                newStage.setScene(mapScene);
-                                newStage.initStyle(StageStyle.UNDECORATED);
-                                newStage.setAlwaysOnTop(true);
-
-                                // Set the properties for the new stage
-                                newStage.setWidth((frame + 1) * 8); // Increasing width
-                                newStage.setHeight(800);
-                                newStage.setX(centerX - (frame * 4)); // Adjust position slightly for each frame
-                                newStage.setY(centerY - 400);
-                                newStage.show();
-
-                                // Store the new stage in the list (to manage future closures)
-                                stages.add(newStage);
-                            }
-                    );
-                    timeline.getKeyFrames().add(keyFrame);
-                }
-
-                // Start the animation
-                timeline.play();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        });
-    }
-
-    @FXML
-    private void handleMap2 () {
-        MaxReachPro maxReachPro = new MaxReachPro();
-        maxReachPro.expandStage();
-
+        MaxReachPro.getInstance().expandStage();
     }
 
     @FXML
@@ -284,29 +213,4 @@ public class HomeController extends BaseController {
         return uniqueCount;
     }
 
-    // Method to close all open windows
-    private void closeAllWindows() {
-        if (!stages.isEmpty()) {
-            stages.forEach(stage -> {
-                if (stage != null && stage.isShowing()) {
-                    stage.close(); // Close previous windows if they're still open
-                }
-            });
-            stages.clear(); // Clear the list of stages to start fresh
-        }
-    }
-
-    // Method to open a new window with specific FXML
-    private void openWindow(String fxmlPath) {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
-            Parent root = loader.load();
-            Scene scene = new Scene(root);
-            Stage newStage = new Stage();
-            newStage.setScene(scene);
-            newStage.show();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 }

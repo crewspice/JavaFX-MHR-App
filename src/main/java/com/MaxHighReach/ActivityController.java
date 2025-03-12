@@ -18,12 +18,16 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.effect.Glow;
+import javafx.scene.image.ImageView;
+import javafx.scene.image.Image;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.lang.String;
+import java.nio.file.Paths;
 
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
@@ -52,6 +56,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ActivityController extends BaseController {
 
+    private String IMAGE_PATH_BASE = Paths.get(PathConfig.IMAGES_DIR).toString();
+    private String IMAGE_PATH_INV_SUFFIX = "-inv.png";
     @FXML
     private Button backButton;
     @FXML
@@ -96,6 +102,8 @@ public class ActivityController extends BaseController {
     private final Tooltip deleteTooltip = new Tooltip("Delete Rental");
     @FXML
     private AnchorPane anchorPane;
+    @FXML
+    private Rectangle dragArea;
     @FXML
     private TableView<Rental> dbTableView;
     private ColumnFactory workingColumnFactory;
@@ -205,7 +213,7 @@ public class ActivityController extends BaseController {
 
     @FXML
     public void initialize() {
-        super.initialize(null);
+        super.initialize(dragArea);
 
         dbTableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 
@@ -546,8 +554,8 @@ public class ActivityController extends BaseController {
 
 
         // Add LIMIT clause at the end
-        query += " LIMIT 200";
-        System.out.println(query);
+       // query += " LIMIT 1000";
+        //System.out.println(query);
 
         try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
              Statement statement = connection.createStatement();
@@ -606,11 +614,14 @@ public class ActivityController extends BaseController {
                 rental.setPreTripInstructions(preTripInstructions);
                 rental.setSerialNumber(serialNumber);
                 rental.setInvoiceWritten(isInvoiceWritten != 0);
-                if (isWithinBusinessDays(deliveryDate, 40) ||
-                    isWithinBusinessDays(callOffDate, 40) ||
-                    isWithinBusinessDays(lastBilledDate, 40)) {
+                boolean deliveryCheck = isWithinBusinessDays(deliveryDate, 40);
+                boolean callOffCheck = isWithinBusinessDays(callOffDate, 40);
+                boolean lastBilledCheck = isWithinBusinessDays(lastBilledDate, 40);
+        
+                if (deliveryCheck || callOffCheck || lastBilledCheck) {
                     ordersList.add(rental);
                 }
+                
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -693,11 +704,11 @@ public class ActivityController extends BaseController {
                    glowTimelines[i] = new Timeline(
                            new KeyFrame(Duration.ZERO,
                                    new KeyValue(glowEffect.colorProperty(),
-                                           timelineFlagger ? Color.web("#FFDEAD", 0.5) : Color.web("#FFDEAD", 0.5))
+                                           timelineFlagger ? Color.web(Config.getSecondaryColor(), 0.5) : Color.web(Config.getSecondaryColor(), 0.5))
                            ),
                            new KeyFrame(Duration.seconds(1),
                                    new KeyValue(glowEffect.colorProperty(),
-                                           timelineFlagger ? Color.web("#000000", 0.0) : Color.web("#FF7F00", 1.0))
+                                           timelineFlagger ? Color.web("#000000", 0.0) : Color.web(Config.getPrimaryColor(), 1.0))
                            )
                    );
 
@@ -874,7 +885,49 @@ public class ActivityController extends BaseController {
         }
     }
 
+    @FXML
+    private void handleButtonMouseEntered(MouseEvent event) {
+        Button hoveredButton = (Button) event.getSource();
+        String imageUrl = getImageUrl(hoveredButton, true); // true to use inverted image
+        updateButtonImage(hoveredButton, imageUrl);
+    }
 
+    @FXML
+    private void sidebarButtonMouseExited(MouseEvent event) {
+        Button hoveredButton = (Button) event.getSource();
+        String imageUrl = getImageUrl(hoveredButton, false); // false to use original image
+        updateButtonImage(hoveredButton, imageUrl);
+    }
+
+    private String getImageUrl(Button button, boolean isInverted) {
+        String imageUrl = "";
+        if (button == composeContractsButton) {
+            imageUrl = isInverted ? IMAGE_PATH_BASE + "create-contracts" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "create-contracts.png";
+        } else if (button == editDriverButton) {
+            imageUrl = isInverted ? IMAGE_PATH_BASE + "driver-icon" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "driver-icon.png";
+        } else if (button == droppingOffButton) {
+            imageUrl = isInverted ? IMAGE_PATH_BASE + "dropping-off" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "dropping-off.png";
+        } else if (button == callingOffButton) {
+            imageUrl = isInverted ? IMAGE_PATH_BASE + "calling-off" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "calling-off.png";
+        } else if (button == pickingUpButton) {
+            imageUrl = isInverted ? IMAGE_PATH_BASE + "picking-up" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "picking-up.png";
+        } else if (button == composeInvoicesButton) {
+            imageUrl = isInverted ? IMAGE_PATH_BASE + "create-invoices" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "create-invoices.png";
+        } else if (button == expandButton) {
+            imageUrl = isInverted ? IMAGE_PATH_BASE + "expand" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "expand.png";
+        } else if (button == refreshDataButton) {
+            imageUrl = isInverted ? IMAGE_PATH_BASE + "refresh" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "refresh.png";
+        } else if (button == deleteButton) {
+            imageUrl = isInverted ? IMAGE_PATH_BASE + "delete" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "delete.png";
+        }
+        return imageUrl;
+    }
+
+    private void updateButtonImage(Button button, String imageUrl) {
+        Image image = new Image(getClass().getResource(imageUrl).toExternalForm());
+        ImageView imageView = new ImageView(image);
+        button.setGraphic(imageView); // Update the button's graphic
+    }
 
     @FXML
     private void handleViewAndDriverSelect(){

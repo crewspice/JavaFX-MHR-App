@@ -31,6 +31,7 @@ import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import com.itextpdf.kernel.utils.PdfMerger;
 import com.itextpdf.layout.Document;
 
+import java.awt.Desktop;
 import java.io.File;
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -51,6 +52,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ScheduleDeliveryController extends BaseController {
 
+	@FXML
+	private Rectangle dragArea;
 
 	private static final double INITIAL_SCISSOR_LIFT_HEIGHT = 263; // Initial height of the scissor lift
 	private static final double INITIAL_TABLE_HEIGHT = 50; // Initial height of the TableView (height of one row)
@@ -236,6 +239,7 @@ public class ScheduleDeliveryController extends BaseController {
 	// Initialize method to set up ToggleButtons and the ToggleGroup
 	@FXML
 	public void initialize() {
+		super.initialize(dragArea);
     	customers = MaxReachPro.getCustomers();
 
 
@@ -1343,7 +1347,7 @@ public class ScheduleDeliveryController extends BaseController {
     	}
 
 
-    	String apiKey = "AIzaSyBN9kWbuL3QuZzONJfWKPX1-o0LG7eNisQ"; // Replace with your actual Google Places API key
+    	String apiKey = Config.GOOGLE_KEY; // Replace with your actual Google Places API key
     	double latitude = 39.7392;  // Example: Denver, CO latitude
     	double longitude = -104.9903;  // Example: Denver, CO longitude
     	int radius = 50000;  // Bias within 50 km radius
@@ -1617,8 +1621,15 @@ public class ScheduleDeliveryController extends BaseController {
 
 				finalPdfDoc.close();
 
-
-
+				File finalPdfFile = new File(finalOutputFile);
+				if (Desktop.isDesktopSupported()) {
+					Desktop desktop = Desktop.getDesktop();
+					if (finalPdfFile.exists()) {
+						desktop.open(finalPdfFile); // This opens the PDF with the default viewer
+					} else {
+						System.out.println("The final PDF file does not exist.");
+					}
+				}
 
 				// Clean up individual PDFs
 				for (String pdfFile : createdPdfFiles) {
@@ -2282,8 +2293,7 @@ public class ScheduleDeliveryController extends BaseController {
 		System.out.println("Fetching coordinates for address: " + address);
 	
 		OkHttpClient client = new OkHttpClient();
-		String apiKey = "AIzaSyBN9kWbuL3QuZzONJfWKPX1-o0LG7eNisQ"; // Replace with actual API key
-		String url = "https://maps.googleapis.com/maps/api/geocode/json?address=" + URLEncoder.encode(address, StandardCharsets.UTF_8) + "&key=" + apiKey;
+		String url = "https://maps.googleapis.com/maps/api/geocode/json?address=" + URLEncoder.encode(address, StandardCharsets.UTF_8) + "&key=" + Config.GOOGLE_KEY;
 	
 		Request request = new Request.Builder().url(url).build();
 	

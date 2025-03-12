@@ -4,7 +4,7 @@ plugins {
     id 'org.jetbrains.gradle.plugin.idea-ext' version '1.1.8' // Optional: IDEA support
     id 'java'
     id 'com.github.johnrengelman.shadow' version '8.1.1' // Fat JAR creation
-}
+} 
 
 repositories {
     mavenCentral()
@@ -29,6 +29,10 @@ dependencies {
 
     // MySQL Connector
     implementation 'mysql:mysql-connector-java:8.0.31'
+
+    
+    // Google Routing
+    // implementation 'com.google.maps:maps-routing:2.0.0'
 }
 
 javafx {

@@ -46,6 +46,9 @@ import static com.itextpdf.kernel.pdf.PdfName.Event;
 
 public class ExpandController extends BaseController {
 
+    @FXML
+    private Rectangle dragArea;
+
     private ObservableList<Customer> customers = FXCollections.observableArrayList();
     private ObservableList<Lift> lifts = FXCollections.observableArrayList();
     private Customer selectedCustomer;
@@ -186,6 +189,7 @@ public class ExpandController extends BaseController {
 
 
     public void initialize() {
+        super.initialize(dragArea);
         lifts = MaxReachPro.getLifts();
         customers = MaxReachPro.getCustomers();
         setRentalDate();

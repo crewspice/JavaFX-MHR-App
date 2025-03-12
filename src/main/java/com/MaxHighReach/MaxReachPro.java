@@ -19,12 +19,19 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.*;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -37,8 +44,11 @@ import java.util.Map;
 
 public class MaxReachPro extends Application {
 
-
-    private static StackPane mainLayout;
+    private static MaxReachPro instance;
+    private static StackPane mainPane;
+    private static StackPane mapPane;
+    private static HBox rootLayout;
+    private static Scene scene;
     private static ScissorLift scissorLift;
     private static boolean isFirstScene = true;
     private static Map<String, String> sceneHierarchy = new HashMap<>();
@@ -55,55 +65,16 @@ public class MaxReachPro extends Application {
     private static String selectedDriverName;
     private static ObservableList<Customer> customers = FXCollections.observableArrayList();
     private static ObservableList<Lift> lifts = FXCollections.observableArrayList();
-    private static AnchorPane map2Root;
-    private static StackPane map2Pane;
 
     private static final double SCISSOR_DRAW_HEIGHT = 50;
     private static final double SCISSOR_INITIAL_HEIGHT = Config.SCISSOR_LIFT_INITIAL_HEIGHT;
 
-
- 
-
-
     @Override
     public void start(Stage stage) throws Exception {
-        primaryStage = stage;
+        instance = this;
+        this.primaryStage = stage;
         primaryStage.setResizable(false);
         primaryStage.initStyle(StageStyle.TRANSPARENT); // Makes the entire window transparent!
-
-        mainLayout = new StackPane();
-
-        // Create lavender background
-        double insetMargin = 0;
-        Rectangle lavenderRect = new Rectangle(
-            Config.WINDOW_WIDTH - 2 * insetMargin, 
-            Config.WINDOW_HEIGHT - 2 * insetMargin
-        );
-        lavenderRect.setFill(Color.LAVENDER);
-        lavenderRect.setArcWidth(30); // Rounded corners (optional)
-        lavenderRect.setArcHeight(30);
-
-        Pane lavenderPane = new Pane(lavenderRect);
-        lavenderPane.setPickOnBounds(false); // Allow clicks to pass through
-
-        // Create scissor lift layer
-        AnchorPane scissorLiftPane = new AnchorPane();
-        scissorLift = new ScissorLift(SCISSOR_DRAW_HEIGHT);
-        AnchorPane.setBottomAnchor(scissorLift, 0.0);
-        AnchorPane.setLeftAnchor(scissorLift, 0.0);
-        AnchorPane.setRightAnchor(scissorLift, 0.0);
-        scissorLiftPane.getChildren().add(scissorLift);
-        scissorLiftPane.setStyle("-fx-background-color: transparent;");
-
-
-        // Set scissorLiftPane to not intercept mouse events
-        scissorLiftPane.setPickOnBounds(false);
-
-        // Add lavenderPane (which now includes scissorLiftPane and topBar) to the main layout
-        lavenderPane.getChildren().add(scissorLiftPane);
-
-        // Add lavenderPane to the main layout
-        mainLayout.getChildren().add(lavenderPane);
 
         // Define scene hierarchy
         sceneHierarchy.put("/fxml/home.fxml", "/fxml/login.fxml");
@@ -116,14 +87,18 @@ public class MaxReachPro extends Application {
         sceneHierarchy.put("/fxml/expand_imaginary.fxml", "/fxml/utilization.fxml");
 
         // Load the initial scene
+        // Now includes calls to makeMainPane() and makeMapPane()
         loadScene("/fxml/login.fxml");
 
+        rootLayout = new HBox(mainPane, mapPane);
+        rootLayout.setStyle("-fx-background-color: transparent;");
+        rootLayout.setHgrow(mapPane, Priority.ALWAYS);
+
         // Create and set scene
-        Scene scene = new Scene(mainLayout, Config.WINDOW_WIDTH, Config.WINDOW_HEIGHT);
+        scene = new Scene(rootLayout, Config.WINDOW_WIDTH + 1300, Config.WINDOW_HEIGHT + 18);
         scene.setFill(Color.TRANSPARENT); // Makes the scene transparent
         scene.getStylesheets().add(getClass().getResource("/styles/styles.css").toExternalForm());
 
-        mainLayout.setStyle("-fx-background-color: transparent;");
 
         // Set application title and show
         stage.setTitle("MaxReachPro");
@@ -135,159 +110,130 @@ public class MaxReachPro extends Application {
     }
 
     public void expandStage() {
-        primaryStage = (Stage) primaryStage.getScene().getWindow();
-        double currentWidth = primaryStage.getWidth();
-        double newWidth = currentWidth + 800;
-        primaryStage.setWidth(newWidth);
-    
-        // Load the new map2 scene for the expanded space
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/map2.fxml"));
-            map2Root = loader.load();
-    
-            // Get the root and cast it to StackPane (or appropriate type)
-            Parent root = primaryStage.getScene().getRoot();
-            if (root instanceof StackPane) {
-                map2Pane = (StackPane) root;
-                map2Pane.setStyle("-fx-background-color: transparent;");
-                map2Pane.getChildren().add(map2Root); // Add the map2 scene
-            } else {
-                System.out.println("Root is not of type StackPane");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+        System.out.println("Expand stage triggered");
 
-    public void resetStage() {
-        primaryStage = (Stage) map2Pane.getScene().getWindow();
-        double currentWidth = primaryStage.getWidth();
-        double newWidth = currentWidth - 800;
-        primaryStage.setWidth(newWidth);
-    
-        if (map2Root != null) {
-            Parent root = primaryStage.getScene().getRoot();
-            if (root instanceof StackPane) {
-                StackPane stackPaneRoot = (StackPane) root;
-                stackPaneRoot.getChildren().remove(map2Root);
-                map2Root = null; // Clear reference after removal
+        if (mapPane.getChildren().isEmpty()) {
+            try {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/map.fxml"));
+                Parent mapContent = loader.load();
+                mapPane.getChildren().add(mapContent);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
-    }
     
+        // Expand the mapPane
+        mapPane.setMinWidth(600);
+        mapPane.setMaxWidth(600);
+        HBox.setHgrow(mapPane, Priority.ALWAYS);
 
-    private StackPane createDiagonalShiftingGradient() {
-        StackPane backgroundPane = new StackPane();
-
-
-        // Create a Rectangle for the gradient
-        Rectangle gradientRect = new Rectangle(Config.WINDOW_WIDTH, Config.WINDOW_HEIGHT);
-
-
-        // Define the initial gradient stops
-        Stop[] stops = new Stop[]{
-                new Stop(0, Color.ORANGE),
-                new Stop(0.5, Color.web("#FFDEAD")), // Navajo White
-                new Stop(1, Color.HOTPINK)
-        };
-
-
-        // Mutable array for transitioning stops
-        double[] offsets = {0.0, 0.5, 1.0}; // Initial offsets
-
-
-        LinearGradient initialGradient = new LinearGradient(
-                0, 0, 1, 1, true, CycleMethod.REPEAT, stops
-        );
-
-
-        gradientRect.setFill(initialGradient);
-
-
-        // Animation Timeline for smooth transitions
-        Timeline gradientAnimation = new Timeline(
-                new KeyFrame(Duration.ZERO, new EventHandler<ActionEvent>() {
-                    @Override
-                    public void handle(ActionEvent event) {
-                        // Shift each offset slightly for smooth transition
-                        for (int i = 0; i < offsets.length; i++) {
-                            offsets[i] += 0.002; // Smoothly increment offset
-                            if (offsets[i] > 1.0) offsets[i] -= 1.0; // Wrap around
-                        }
-
-
-                        // Update gradient stops with new offsets
-                        Stop[] updatedStops = new Stop[stops.length];
-                        for (int i = 0; i < stops.length; i++) {
-                            updatedStops[i] = new Stop(offsets[i], stops[i].getColor());
-                        }
-
-
-                        // Apply new gradient
-                        LinearGradient updatedGradient = new LinearGradient(
-                                0, 0, 1, 1, true, CycleMethod.REPEAT, updatedStops
-                        );
-                        gradientRect.setFill(updatedGradient);
-                    }
-                }),
-                new KeyFrame(Duration.millis(100)) // Smooth update interval
-        );
-
-
-        gradientAnimation.setCycleCount(Timeline.INDEFINITE);
-        gradientAnimation.play();
-
-
-        backgroundPane.getChildren().add(gradientRect);
-        return backgroundPane;
     }
 
-
-
+    public void collapseStage() {
+        mapPane.setMinWidth(0);
+        mapPane.setMaxWidth(0);
+        mapPane.getChildren().removeAll(mapPane.getChildren());
+    }
 
     public static void loadScene(String fxmlPath) throws Exception {
     
-
+        if (mainPane != null) {
             // Check if the mainLayout has a previous root node
-            if (mainLayout.getChildren().size() > 1) {
-                Parent currentRoot = (Parent) mainLayout.getChildren().get(1);
+            if (mainPane.getChildren().size() > 1) {
+                Parent currentRoot = (Parent) mainPane.getChildren().get(1);
                 BaseController currentController = (BaseController) currentRoot.getProperties().get("controller");
                 if (currentController != null) {
                     currentController.cleanup();
                 }
-
-
             }
-    
 
-            if (mainLayout.getChildren().size() > 1) {
-                mainLayout.getChildren().remove(1);
+            if (mainPane.getChildren().size() > 1) {
+                mainPane.getChildren().remove(1);
+            }
         }
 
-
         FXMLLoader loader = new FXMLLoader(MaxReachPro.class.getResource(fxmlPath));
-            Parent newRoot = loader.load();
-            BaseController newController = loader.getController();
-            double newHeight = newController.getTotalHeight();
-    
+        Parent newRoot = loader.load();
+        BaseController newController = loader.getController();
+        double newHeight = newController.getTotalHeight();
 
-            newRoot.getProperties().put("controller", newController);
-            newController.setFXMLPath(fxmlPath);
-            StackPane.setAlignment(newRoot, javafx.geometry.Pos.TOP_LEFT);
-    
+        newRoot.getProperties().put("controller", newController);
+        newController.setFXMLPath(fxmlPath);
+        StackPane.setAlignment(newRoot, javafx.geometry.Pos.TOP_LEFT);
 
-            if (isFirstScene) {
-                mainLayout.getChildren().add(newRoot);
-                isFirstScene = false;
-            } else {
-                scissorLift.animateTransition(newHeight);
-                mainLayout.getChildren().add(newRoot);
-            }
-    
-    
+
+        if (isFirstScene) {
+            MaxReachPro instance = getInstance();
+            mainPane = instance.makeMainPane(newRoot);
+            mapPane = instance.makeMapPane();
+            isFirstScene = false;
+        } else {
+            scissorLift.animateTransition(newHeight);
+        }
+        if (mainPane.getChildren().contains(newRoot)) {
+            mainPane.getChildren().remove(newRoot); // Removes any previous scene content
+        }
+        mainPane.getChildren().add(newRoot);
+
         System.out.println("Scene loaded: " + fxmlPath + " | New scene height: " + newHeight);
     }
 
+    public static StackPane makeMainPane(Parent root) {
+        mainPane = new StackPane(root);
+
+        double insetMargin = 0;
+        Rectangle backgroundRect = new Rectangle(
+            Config.WINDOW_WIDTH - 2, 
+            Config.WINDOW_HEIGHT + 20
+        );
+        backgroundRect.setFill(Color.web("#F4F4F4"));
+        backgroundRect.setArcWidth(45); // Rounded corners (optional)
+        backgroundRect.setArcHeight(45);
+
+        Pane lavenderPane = new Pane(backgroundRect);
+        backgroundRect.setTranslateY(-25);
+        lavenderPane.setPickOnBounds(false); // Allow clicks to pass through
+        
+        // Create scissor lift layer
+        AnchorPane scissorLiftPane = new AnchorPane();
+        scissorLift = new ScissorLift(SCISSOR_DRAW_HEIGHT);
+        AnchorPane.setBottomAnchor(scissorLift, 0.0);
+        AnchorPane.setLeftAnchor(scissorLift, 0.0);
+        AnchorPane.setRightAnchor(scissorLift, 0.0);
+        scissorLiftPane.getChildren().add(scissorLift);
+        scissorLiftPane.setStyle("-fx-background-color: transparent;");
+
+        // Set scissorLiftPane to not intercept mouse events
+        scissorLiftPane.setPickOnBounds(false);
+
+        // Add lavenderPane (which now includes scissorLiftPane and topBar) to the main layout
+        lavenderPane.getChildren().add(scissorLiftPane);
+
+        mainPane.getChildren().add(lavenderPane);
+        mainPane.setMinWidth(Config.WINDOW_WIDTH);
+        mainPane.setMaxWidth(Config.WINDOW_WIDTH);
+        mainPane.setStyle("-fx-background-color: transparent;");
+        mainPane.setTranslateY(20);
+
+        return mainPane;
+    }
+
+    public static StackPane makeMapPane() {
+        mapPane = new StackPane();
+        
+        mapPane = new StackPane();
+        mapPane.setMinWidth(30);  // Start hidden
+        mapPane.setMaxWidth(30);
+        mapPane.setTranslateX(0);
+        mapPane.setStyle("-fx-background-color: transparent;");
+        
+        return mapPane;
+    }
+
+
+    public static MaxReachPro getInstance() {
+        return instance;
+    }
 
     public static ScissorLift getScissorLift() {
         return scissorLift;
@@ -305,6 +251,68 @@ public class MaxReachPro extends Application {
             return new String[]{"", "", ""};
         }
         return user;
+    }
+
+    public static void updateColorCSS(String colorPrimary, String colorSecondary) {
+        // If the colors are null, use the default colors from Config
+        if (colorPrimary == null) {
+            colorPrimary = Config.getPrimaryColor();
+        }
+    
+        if (colorSecondary == null) {
+            colorSecondary = Config.getSecondaryColor();
+        }
+    
+        // Ensure the scene is not null before proceeding
+        if (scene == null) return;
+    
+        // Get the previous colors from Config
+        String oldPrimaryColor = Config.getPreviousPrimaryColor();
+        String oldSecondaryColor = Config.getPreviousSecondaryColor();
+    
+        // Load the CSS file as a string
+        String css = loadCssFile("/styles/styles.css");
+    
+        // Replace old colors with the new ones
+        css = css.replace("orange", colorPrimary)
+                .replace("#FFDEAD", colorSecondary);
+
+        // Set up best text colors for the background colors
+        int textColorCode = Config.COLOR_TEXT_MAP.getOrDefault(colorPrimary, 0);
+        if (textColorCode == 2 || (textColorCode == 0 && checkTooDark(colorPrimary))) {
+            css = checkTooDark(colorPrimary) ? css.replace("#000000", "white") : css;
+        }
+        // Save the updated CSS string for applying
+        String updatedCss = css;
+    
+        // Clear existing stylesheets from the scene
+        ObservableList<String> stylesheets = scene.getStylesheets();
+        stylesheets.clear();
+    
+        // Create a temporary CSS file with updated styles (in-memory update)
+        File tempCssFile = createTempCssFile(updatedCss);
+    
+        // Apply the new stylesheet from the temporary CSS file
+        scene.getStylesheets().add(tempCssFile.toURI().toString());
+    
+    }
+    
+    public static boolean checkTooDark(String colorHex) {
+        // Ensure the color starts with '#'
+        if (!colorHex.startsWith("#") || colorHex.length() != 7) {
+            throw new IllegalArgumentException("Invalid color format. Use #RRGGBB.");
+        }
+
+        // Parse RGB values from the hex string
+        int red = Integer.parseInt(colorHex.substring(1, 3), 16);
+        int green = Integer.parseInt(colorHex.substring(3, 5), 16);
+        int blue = Integer.parseInt(colorHex.substring(5, 7), 16);
+
+        // Calculate luminance using the standard formula
+        double luminance = (0.299 * red) + (0.587 * green) + (0.114 * blue);
+
+        // Return true if the color is too dark (threshold = 128)
+        return luminance < 128;
     }
 
 
@@ -436,7 +444,34 @@ public class MaxReachPro extends Application {
         return customers;
     }
 
+    // This method loads the CSS file as a string (helper method)
+    private static String loadCssFile(String path) {
+        StringBuilder content = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(MaxReachPro.class.getResourceAsStream(path)))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                content.append(line).append("\n");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return content.toString();
+    }
 
+    // This method creates a temporary CSS file with the updated CSS content
+    private static File createTempCssFile(String cssContent) {
+        try {
+            // Create a temporary file to hold the updated CSS
+            File tempFile = File.createTempFile("styles", ".css");
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
+                writer.write(cssContent);
+            }
+            return tempFile;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 
 
     public static void goBack(String previousScene) throws Exception {

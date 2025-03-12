@@ -23,6 +23,7 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
+import javafx.scene.text.TextAlignment;
 import javafx.util.Duration;
 
 
@@ -197,11 +198,11 @@ public class ColumnFactory {
             	Timeline glowTimeline = new Timeline(
                     	new KeyFrame(Duration.ZERO,
                             	new KeyValue(glowEffect.radiusProperty(), 10),
-                            	new KeyValue(glowEffect.colorProperty(), Color.web("#FFDEAD", 0.5))
+                            	new KeyValue(glowEffect.colorProperty(), Color.web(Config.getPrimaryColor(), 0.3))
                     	),
                     	new KeyFrame(Duration.seconds(2),
                             	new KeyValue(glowEffect.radiusProperty(), 10),
-                            	new KeyValue(glowEffect.colorProperty(), Color.web("#FF7F00", 1.0))
+                            	new KeyValue(glowEffect.colorProperty(), Color.web(Config.getPrimaryColor(), 0.8))
                     	)
             	);
             	glowTimeline.setCycleCount(Timeline.INDEFINITE);
@@ -335,8 +336,13 @@ public class ColumnFactory {
                             	circle.setFill(Color.web("#F4F471"));
                             	tooltip.setStyle("-fx-background-color: #F4F471; -fx-text-fill: black;");
                         	} else {
-                            	circle.setFill(Color.ORANGE);
-                            	tooltip.setStyle("-fx-background-color: orange; -fx-text-fill: black;");
+                            	circle.setFill(Color.web(Config.getPrimaryColor()));
+								int textColorCode = Config.COLOR_TEXT_MAP.getOrDefault(Config.getPrimaryColor(), 0);
+								String textFill = "black";
+								if (textColorCode == 2) {
+									textFill = "white";
+								}
+								tooltip.setStyle("-fx-background-color: " + Config.getPrimaryColor() + "; -fx-text-fill: " + textFill + ";");
                         	}
                     	} else if (status.equals("Active")) {
                         	circle.setFill(Color.GREEN);
@@ -723,15 +729,18 @@ public class ColumnFactory {
         	private final Image image = getCachedImage(imagePath);
         	private final ImageView imageView = new ImageView(image);
         	{
-            	vBox.setSpacing(25);
-            	vBox.setAlignment(Pos.BOTTOM_CENTER);
-
+            	vBox.setSpacing(-2);
+            	vBox.setAlignment(Pos.TOP_CENTER);
+				
 
             	vBox2.setAlignment(Pos.BOTTOM_CENTER);
 
 
             	imageView.setFitHeight(19);
             	imageView.setFitWidth(19);
+				imageView.setTranslateY(9);
+
+				topLabel.setTranslateY(14);
         	}
 
 
@@ -753,14 +762,32 @@ public class ColumnFactory {
                 	setPrefHeight(Config.DB_ROW_HEIGHT);
 
 
-                	Rental currentRental = getCurrentRental();
-                	if ("po-number".equals(type)) {
-                    	topLabel.setText(currentRental.getPoNumber());
-                	} else if ("interval".equals(type)) {
-                    	topLabel.textProperty().bind(
-                            	Bindings.concat(currentRental.rentalDurationProperty().asString(), " days")
-                    	);
-                	}
+					// Create or get the label to be displayed
+					Rental currentRental = getCurrentRental();
+					if ("po-number".equals(type)) {
+						topLabel.setText(currentRental.getPoNumber());
+					} else if ("interval".equals(type)) {
+						topLabel.textProperty().bind(
+								Bindings.concat(currentRental.rentalDurationProperty().asString(), " days")
+						);
+					}
+
+					// Enable line wrapping for the label
+					topLabel.setWrapText(true);
+
+					// Set the max width for the label to control when it wraps
+					topLabel.setMaxWidth(60); // Adjust this value as needed
+
+					// Keep the text centered both horizontally and vertically
+					topLabel.setTextAlignment(TextAlignment.CENTER);
+					topLabel.setAlignment(Pos.CENTER);
+					topLabel.setLineSpacing(-3);
+
+					// Apply VBox constraints
+					vBox.setVgrow(topLabel, Priority.NEVER); // Don't let the label expand vertically
+
+					// Optionally, apply Vgrow to other elements that shouldn't be pushed upward
+					vBox.setVgrow(vBox2, Priority.ALWAYS); // Ensure the other elements use the available space properly
 
 
                 	if ("x".equals(item)) {
@@ -802,12 +829,13 @@ public class ColumnFactory {
                 	Label initialsLabel = new Label(driverInitials);
                 	initialsLabel.setTextFill(Color.BLACK); // Ensure text is visible
                 	initialsLabel.setTranslateX(3);
+					initialsLabel.setTranslateY(8);
 
 
 
 
                 	hBox.getChildren().addAll(initialsLabel, imageView);  // Add both to VBox
-                	vBox.getChildren().addAll(topLabel, hBox);
+                	vBox.getChildren().addAll(hBox, topLabel);
                 	setGraphic(vBox);
             	} catch (Exception e) {
                 	e.printStackTrace(); // Print the stack trace for debugging
@@ -847,13 +875,15 @@ public class ColumnFactory {
     	driverColumn.setCellFactory(column -> new TableCell<Rental, String>() {
         	private final ComboBox<String> comboBox = new ComboBox<>();
         	private final Label poLabel = new Label(); // Reuse Label
-        	private final VBox vBox = new VBox(poLabel, comboBox);
+        	private final VBox vBox = new VBox(comboBox, poLabel);
 
 
         	{
-            	vBox.setSpacing(5);
-            	vBox.setAlignment(Pos.BOTTOM_CENTER);
+            	vBox.setSpacing(2);
+            	vBox.setAlignment(Pos.TOP_CENTER);
 
+				comboBox.setTranslateY(7);
+				poLabel.setTranslateY(3);
 
             	comboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
                 	if (comboBox.isFocused()) {
@@ -913,6 +943,26 @@ public class ColumnFactory {
                 	} else {
                     	poLabel.setText(null);
                 	}
+
+					// Enable line wrapping for the label
+					poLabel.setWrapText(true);
+
+					// Set the max width for the label to control when it wraps
+					poLabel.setMaxWidth(60); // Adjust this value as needed
+
+					// Keep the text centered both horizontally and vertically
+					poLabel.setTextAlignment(TextAlignment.CENTER);
+					poLabel.setAlignment(Pos.CENTER);
+					poLabel.setLineSpacing(-3);
+
+					// Apply VBox constraints
+					vBox.setVgrow(poLabel, Priority.NEVER); // Don't let the label expand vertically
+
+					// Optionally, apply Vgrow to other elements that shouldn't be pushed upward
+					vBox.setVgrow(comboBox, Priority.ALWAYS); // Ensure the other elements use the available space properly
+
+
+
             	}
 
 

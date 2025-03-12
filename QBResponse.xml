@@ -569,7 +569,7 @@
          <InvoiceRet>
             <TxnID>1CB01A-1738619658</TxnID>
             <TimeCreated>2025-02-03T14:54:18-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-07T16:08:15-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129323</TxnNumber>
             <CustomerRef>
@@ -624,9 +624,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>7.75</SalesTaxPercentage>
             <SalesTaxTotal>21.32</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>300.36</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-300.36</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -2811,7 +2811,7 @@
          <InvoiceRet>
             <TxnID>1CB2C3-1738773737</TxnID>
             <TimeCreated>2025-02-05T09:42:17-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-04T13:34:33-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129354</TxnNumber>
             <CustomerRef>
@@ -2866,9 +2866,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>7.50</SalesTaxPercentage>
             <SalesTaxTotal>10.14</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>149.18</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-149.18</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -4493,7 +4493,7 @@
          <InvoiceRet>
             <TxnID>1CB720-1738860003</TxnID>
             <TimeCreated>2025-02-06T09:40:03-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-04T13:34:33-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129381</TxnNumber>
             <CustomerRef>
@@ -4548,9 +4548,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>2.90</SalesTaxPercentage>
             <SalesTaxTotal>3.92</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>142.96</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-142.96</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -4634,7 +4634,7 @@
          <InvoiceRet>
             <TxnID>1CB72A-1738860059</TxnID>
             <TimeCreated>2025-02-06T09:40:59-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-04T13:34:33-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129382</TxnNumber>
             <CustomerRef>
@@ -4689,9 +4689,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>6.90</SalesTaxPercentage>
             <SalesTaxTotal>9.32</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>148.36</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-148.36</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -5198,7 +5198,7 @@
          <InvoiceRet>
             <TxnID>1CB755-1738860360</TxnID>
             <TimeCreated>2025-02-06T09:46:00-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-06T09:55:14-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129386</TxnNumber>
             <CustomerRef>
@@ -5253,9 +5253,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>7.01</SalesTaxPercentage>
             <SalesTaxTotal>19.28</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>298.32</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-298.32</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -5635,7 +5635,7 @@
          <InvoiceRet>
             <TxnID>1CB777-1738860606</TxnID>
             <TimeCreated>2025-02-06T09:50:06-07:00</TimeCreated>
-            <TimeModified>2025-02-06T11:14:14-07:00</TimeModified>
+            <TimeModified>2025-03-04T13:31:25-07:00</TimeModified>
             <EditSequence>1738860646</EditSequence>
             <TxnNumber>129389</TxnNumber>
             <CustomerRef>
@@ -5690,9 +5690,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>9.15</SalesTaxPercentage>
             <SalesTaxTotal>41.18</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>506.47</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-506.47</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -6058,7 +6058,7 @@
          <InvoiceRet>
             <TxnID>1CB802-1738861329</TxnID>
             <TimeCreated>2025-02-06T10:02:09-07:00</TimeCreated>
-            <TimeModified>2025-02-14T14:39:50-07:00</TimeModified>
+            <TimeModified>2025-03-10T13:14:22-07:00</TimeModified>
             <EditSequence>1739569190</EditSequence>
             <TxnNumber>129394</TxnNumber>
             <CustomerRef>
@@ -6112,9 +6112,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>8.00</SalesTaxPercentage>
             <SalesTaxTotal>240.00</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>3390.00</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-3390.00</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000033-1714075994</ListID>
                <FullName>JC - Lift Still On Rent</FullName>
@@ -6369,7 +6369,7 @@
          <InvoiceRet>
             <TxnID>1CB81B-1738862022</TxnID>
             <TimeCreated>2025-02-06T10:13:42-07:00</TimeCreated>
-            <TimeModified>2025-02-06T11:14:14-07:00</TimeModified>
+            <TimeModified>2025-03-04T13:31:25-07:00</TimeModified>
             <EditSequence>1738862022</EditSequence>
             <TxnNumber>129396</TxnNumber>
             <CustomerRef>
@@ -6424,9 +6424,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>8.35</SalesTaxPercentage>
             <SalesTaxTotal>33.40</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>453.40</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-453.40</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000033-1714075994</ListID>
                <FullName>JC - Lift Still On Rent</FullName>
@@ -8384,7 +8384,7 @@
          <InvoiceRet>
             <TxnID>1CBA91-1739164394</TxnID>
             <TimeCreated>2025-02-09T22:13:14-07:00</TimeCreated>
-            <TimeModified>2025-02-09T22:27:08-07:00</TimeModified>
+            <TimeModified>2025-03-10T10:13:26-07:00</TimeModified>
             <EditSequence>1739165205</EditSequence>
             <TxnNumber>129419</TxnNumber>
             <CustomerRef>
@@ -8439,9 +8439,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>8.00</SalesTaxPercentage>
             <SalesTaxTotal>66.41</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>930.70</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-930.70</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -9480,7 +9480,7 @@
          <InvoiceRet>
             <TxnID>1CC375-1739294292</TxnID>
             <TimeCreated>2025-02-11T10:18:12-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-06T09:55:14-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129442</TxnNumber>
             <CustomerRef>
@@ -9903,7 +9903,7 @@
          <InvoiceRet>
             <TxnID>1CC398-1739320465</TxnID>
             <TimeCreated>2025-02-11T17:34:25-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-06T09:55:14-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129445</TxnNumber>
             <CustomerRef>
@@ -9958,9 +9958,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>9.045</SalesTaxPercentage>
             <SalesTaxTotal>12.22</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>151.26</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-151.26</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -11172,7 +11172,7 @@
          <InvoiceRet>
             <TxnID>1CC400-1739320944</TxnID>
             <TimeCreated>2025-02-11T17:42:24-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-06T09:55:14-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129454</TxnNumber>
             <CustomerRef>
@@ -11225,9 +11225,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>7.65</SalesTaxPercentage>
             <SalesTaxTotal>10.33</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>149.37</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-149.37</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -11452,7 +11452,7 @@
          <InvoiceRet>
             <TxnID>1CC416-1739321066</TxnID>
             <TimeCreated>2025-02-11T17:44:26-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-06T09:55:14-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129456</TxnNumber>
             <CustomerRef>
@@ -11594,7 +11594,7 @@
          <InvoiceRet>
             <TxnID>1CC422-1739321117</TxnID>
             <TimeCreated>2025-02-11T17:45:17-07:00</TimeCreated>
-            <TimeModified>2025-02-11T17:51:39-07:00</TimeModified>
+            <TimeModified>2025-03-10T10:13:26-07:00</TimeModified>
             <EditSequence>1739321117</EditSequence>
             <TxnNumber>129457</TxnNumber>
             <CustomerRef>
@@ -11649,9 +11649,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>4.75</SalesTaxPercentage>
             <SalesTaxTotal>14.25</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>322.04</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-322.04</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -12966,7 +12966,7 @@
          <InvoiceRet>
             <TxnID>1CC53B-1739380917</TxnID>
             <TimeCreated>2025-02-12T10:21:57-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-06T09:55:14-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129476</TxnNumber>
             <CustomerRef>
@@ -13021,9 +13021,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>8.00</SalesTaxPercentage>
             <SalesTaxTotal>10.81</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>149.85</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-149.85</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -13389,7 +13389,7 @@
          <InvoiceRet>
             <TxnID>1CC55F-1739381062</TxnID>
             <TimeCreated>2025-02-12T10:24:22-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-04T13:34:33-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129479</TxnNumber>
             <CustomerRef>
@@ -13444,9 +13444,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>5.185</SalesTaxPercentage>
             <SalesTaxTotal>7.01</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>146.05</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-146.05</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -14092,7 +14092,7 @@
          <InvoiceRet>
             <TxnID>1CC5E3-1739382458</TxnID>
             <TimeCreated>2025-02-12T10:47:38-07:00</TimeCreated>
-            <TimeModified>2025-02-14T15:22:04-07:00</TimeModified>
+            <TimeModified>2025-03-10T10:20:02-07:00</TimeModified>
             <EditSequence>1739571724</EditSequence>
             <TxnNumber>129504</TxnNumber>
             <CustomerRef>
@@ -14145,9 +14145,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>9.15</SalesTaxPercentage>
             <SalesTaxTotal>38.43</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>473.72</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-473.72</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -14763,7 +14763,7 @@
          <InvoiceRet>
             <TxnID>1CC6DE-1739389251</TxnID>
             <TimeCreated>2025-02-12T12:40:51-07:00</TimeCreated>
-            <TimeModified>2025-02-14T15:27:54-07:00</TimeModified>
+            <TimeModified>2025-03-06T10:27:40-07:00</TimeModified>
             <EditSequence>1739572074</EditSequence>
             <TxnNumber>129528</TxnNumber>
             <CustomerRef>
@@ -14820,9 +14820,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>9.25</SalesTaxPercentage>
             <SalesTaxTotal>143.38</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>1763.67</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-1763.67</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -15688,7 +15688,7 @@
          <InvoiceRet>
             <TxnID>1CC880-1739391034</TxnID>
             <TimeCreated>2025-02-12T13:10:34-07:00</TimeCreated>
-            <TimeModified>2025-02-12T13:18:48-07:00</TimeModified>
+            <TimeModified>2025-03-10T10:13:26-07:00</TimeModified>
             <EditSequence>1739391034</EditSequence>
             <TxnNumber>129536</TxnNumber>
             <CustomerRef>
@@ -15743,9 +15743,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>7.50</SalesTaxPercentage>
             <SalesTaxTotal>48.75</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>724.04</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-724.04</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000033-1714075994</ListID>
                <FullName>JC - Lift Still On Rent</FullName>
@@ -15994,7 +15994,7 @@
          <InvoiceRet>
             <TxnID>1CC89E-1739391288</TxnID>
             <TimeCreated>2025-02-12T13:14:48-07:00</TimeCreated>
-            <TimeModified>2025-02-14T15:22:04-07:00</TimeModified>
+            <TimeModified>2025-03-10T10:20:02-07:00</TimeModified>
             <EditSequence>1739571724</EditSequence>
             <TxnNumber>129539</TxnNumber>
             <CustomerRef>
@@ -16047,9 +16047,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>9.15</SalesTaxPercentage>
             <SalesTaxTotal>27.45</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>342.45</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-342.45</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000033-1714075994</ListID>
                <FullName>JC - Lift Still On Rent</FullName>
@@ -17253,7 +17253,7 @@
          <InvoiceRet>
             <TxnID>1CC906-1739466589</TxnID>
             <TimeCreated>2025-02-13T10:09:49-07:00</TimeCreated>
-            <TimeModified>2025-02-14T14:23:23-07:00</TimeModified>
+            <TimeModified>2025-03-06T10:29:26-07:00</TimeModified>
             <EditSequence>1739568203</EditSequence>
             <TxnNumber>129548</TxnNumber>
             <CustomerRef>
@@ -17308,9 +17308,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>8.10</SalesTaxPercentage>
             <SalesTaxTotal>89.91</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>1248.20</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-1248.20</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -18220,7 +18220,7 @@
          <InvoiceRet>
             <TxnID>1CCA15-1739555562</TxnID>
             <TimeCreated>2025-02-14T10:52:42-07:00</TimeCreated>
-            <TimeModified>2025-02-14T10:56:12-07:00</TimeModified>
+            <TimeModified>2025-03-10T10:13:27-07:00</TimeModified>
             <EditSequence>1739555562</EditSequence>
             <TxnNumber>129562</TxnNumber>
             <CustomerRef>
@@ -18275,9 +18275,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>4.50</SalesTaxPercentage>
             <SalesTaxTotal>13.50</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>321.29</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-321.29</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -18785,7 +18785,7 @@
          <InvoiceRet>
             <TxnID>1CCBE8-1739849519</TxnID>
             <TimeCreated>2025-02-17T20:31:59-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-04T13:34:33-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129577</TxnNumber>
             <CustomerRef>
@@ -18840,9 +18840,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>8.00</SalesTaxPercentage>
             <SalesTaxTotal>2.40</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>32.69</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-32.69</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -19067,7 +19067,7 @@
          <InvoiceRet>
             <TxnID>1CCBFF-1739849639</TxnID>
             <TimeCreated>2025-02-17T20:33:59-07:00</TimeCreated>
-            <TimeModified>2025-02-17T20:50:55-07:00</TimeModified>
+            <TimeModified>2025-03-10T12:21:45-07:00</TimeModified>
             <EditSequence>1739850655</EditSequence>
             <TxnNumber>129579</TxnNumber>
             <CustomerRef>
@@ -19124,9 +19124,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>8.21</SalesTaxPercentage>
             <SalesTaxTotal>21.35</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>287.14</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-287.14</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -19210,7 +19210,7 @@
          <InvoiceRet>
             <TxnID>1CCC0B-1739849706</TxnID>
             <TimeCreated>2025-02-17T20:35:06-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-06T09:55:14-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129580</TxnNumber>
             <CustomerRef>
@@ -19265,9 +19265,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>7.01</SalesTaxPercentage>
             <SalesTaxTotal>19.28</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>298.32</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-298.32</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -19631,7 +19631,7 @@
          <InvoiceRet>
             <TxnID>1CCC2D-1739849902</TxnID>
             <TimeCreated>2025-02-17T20:38:22-07:00</TimeCreated>
-            <TimeModified>2025-02-17T20:50:04-07:00</TimeModified>
+            <TimeModified>2025-03-06T10:29:55-07:00</TimeModified>
             <EditSequence>1739850604</EditSequence>
             <TxnNumber>129583</TxnNumber>
             <CustomerRef>
@@ -19686,9 +19686,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>9.15</SalesTaxPercentage>
             <SalesTaxTotal>21.78</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>264.47</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-264.47</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -19772,7 +19772,7 @@
          <InvoiceRet>
             <TxnID>1CCC38-1739849962</TxnID>
             <TimeCreated>2025-02-17T20:39:22-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-06T09:55:14-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129584</TxnNumber>
             <CustomerRef>
@@ -19827,9 +19827,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>7.50</SalesTaxPercentage>
             <SalesTaxTotal>15.75</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>233.54</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-233.54</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -20937,7 +20937,7 @@
          <InvoiceRet>
             <TxnID>1CCED3-1739977280</TxnID>
             <TimeCreated>2025-02-19T08:01:20-07:00</TimeCreated>
-            <TimeModified>2025-02-23T17:49:19-07:00</TimeModified>
+            <TimeModified>2025-03-04T15:35:23-07:00</TimeModified>
             <EditSequence>1740358160</EditSequence>
             <TxnNumber>129631</TxnNumber>
             <CustomerRef>
@@ -20992,9 +20992,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>8.00</SalesTaxPercentage>
             <SalesTaxTotal>20.80</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>286.59</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-286.59</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -21619,7 +21619,7 @@
          <InvoiceRet>
             <TxnID>1CCF0C-1739977685</TxnID>
             <TimeCreated>2025-02-19T08:08:05-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-04T13:34:33-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129636</TxnNumber>
             <CustomerRef>
@@ -21674,9 +21674,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>5.00</SalesTaxPercentage>
             <SalesTaxTotal>6.27</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>134.81</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-134.81</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -22610,7 +22610,7 @@
          <InvoiceRet>
             <TxnID>1CCF5C-1739984382</TxnID>
             <TimeCreated>2025-02-19T09:59:42-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-04T13:34:33-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129643</TxnNumber>
             <CustomerRef>
@@ -22665,9 +22665,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>7.96</SalesTaxPercentage>
             <SalesTaxTotal>2.39</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>32.68</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-32.68</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -23423,7 +23423,7 @@
          <InvoiceRet>
             <TxnID>1CD269-1740071636</TxnID>
             <TimeCreated>2025-02-20T10:13:56-07:00</TimeCreated>
-            <TimeModified>2025-02-20T10:48:31-07:00</TimeModified>
+            <TimeModified>2025-03-10T10:20:36-07:00</TimeModified>
             <EditSequence>1740071636</EditSequence>
             <TxnNumber>129669</TxnNumber>
             <CustomerRef>
@@ -23478,9 +23478,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>8.35</SalesTaxPercentage>
             <SalesTaxTotal>36.74</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>498.74</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-498.74</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -23819,7 +23819,7 @@
          <InvoiceRet>
             <TxnID>1CD289-1740072004</TxnID>
             <TimeCreated>2025-02-20T10:20:04-07:00</TimeCreated>
-            <TimeModified>2025-02-23T17:49:19-07:00</TimeModified>
+            <TimeModified>2025-03-04T15:35:23-07:00</TimeModified>
             <EditSequence>1740358159</EditSequence>
             <TxnNumber>129672</TxnNumber>
             <CustomerRef>
@@ -23874,9 +23874,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>9.25</SalesTaxPercentage>
             <SalesTaxTotal>13.88</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>169.17</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-169.17</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -24948,7 +24948,7 @@
          <InvoiceRet>
             <TxnID>1CD2E7-1740072790</TxnID>
             <TimeCreated>2025-02-20T10:33:10-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-04T13:34:33-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129680</TxnNumber>
             <CustomerRef>
@@ -25003,9 +25003,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>8.50</SalesTaxPercentage>
             <SalesTaxTotal>11.48</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>150.52</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-150.52</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -25653,7 +25653,7 @@
          <InvoiceRet>
             <TxnID>1CD4FE-1740356863</TxnID>
             <TimeCreated>2025-02-23T17:27:43-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-04T13:34:33-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129706</TxnNumber>
             <CustomerRef>
@@ -25708,9 +25708,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>8.00</SalesTaxPercentage>
             <SalesTaxTotal>2.41</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>32.70</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-32.70</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -25794,7 +25794,7 @@
          <InvoiceRet>
             <TxnID>1CD50A-1740357022</TxnID>
             <TimeCreated>2025-02-23T17:30:22-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-06T09:55:14-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129707</TxnNumber>
             <CustomerRef>
@@ -25849,9 +25849,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>9.045</SalesTaxPercentage>
             <SalesTaxTotal>2.72</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>33.01</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-33.01</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -26216,7 +26216,7 @@
          <InvoiceRet>
             <TxnID>1CD52E-1740357278</TxnID>
             <TimeCreated>2025-02-23T17:34:38-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-06T09:55:14-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129710</TxnNumber>
             <CustomerRef>
@@ -26271,9 +26271,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>7.01</SalesTaxPercentage>
             <SalesTaxTotal>19.28</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>298.32</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-298.32</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -26357,7 +26357,7 @@
          <InvoiceRet>
             <TxnID>1CD538-1740357351</TxnID>
             <TimeCreated>2025-02-23T17:35:51-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-06T09:55:14-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129711</TxnNumber>
             <CustomerRef>
@@ -26412,9 +26412,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>7.01</SalesTaxPercentage>
             <SalesTaxTotal>19.28</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>298.32</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-298.32</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -26498,7 +26498,7 @@
          <InvoiceRet>
             <TxnID>1CD542-1740357416</TxnID>
             <TimeCreated>2025-02-23T17:36:56-07:00</TimeCreated>
-            <TimeModified>2025-02-23T17:43:30-07:00</TimeModified>
+            <TimeModified>2025-03-10T10:13:27-07:00</TimeModified>
             <EditSequence>1740357416</EditSequence>
             <TxnNumber>129712</TxnNumber>
             <CustomerRef>
@@ -26553,9 +26553,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>7.50</SalesTaxPercentage>
             <SalesTaxTotal>19.50</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>285.29</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-285.29</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -27062,7 +27062,7 @@
          <InvoiceRet>
             <TxnID>1CD572-1740357711</TxnID>
             <TimeCreated>2025-02-23T17:41:51-07:00</TimeCreated>
-            <TimeModified>2025-02-23T17:43:30-07:00</TimeModified>
+            <TimeModified>2025-03-10T10:13:27-07:00</TimeModified>
             <EditSequence>1740357734</EditSequence>
             <TxnNumber>129716</TxnNumber>
             <CustomerRef>
@@ -27117,9 +27117,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>7.50</SalesTaxPercentage>
             <SalesTaxTotal>24.75</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>371.25</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-371.25</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -27304,7 +27304,7 @@
          <InvoiceRet>
             <TxnID>1CDA9F-1740434410</TxnID>
             <TimeCreated>2025-02-24T15:00:10-07:00</TimeCreated>
-            <TimeModified>2025-02-24T16:07:25-07:00</TimeModified>
+            <TimeModified>2025-03-10T10:18:25-07:00</TimeModified>
             <EditSequence>1740438445</EditSequence>
             <TxnNumber>129748</TxnNumber>
             <CustomerRef>
@@ -27357,9 +27357,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>9.15</SalesTaxPercentage>
             <SalesTaxTotal>27.45</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>335.24</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-335.24</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>60000-0</ListID>
                <FullName>Lift Picked Up</FullName>
@@ -27582,7 +27582,7 @@
          <InvoiceRet>
             <TxnID>1CDAB6-1740434664</TxnID>
             <TimeCreated>2025-02-24T15:04:24-07:00</TimeCreated>
-            <TimeModified>2025-02-25T13:13:50-07:00</TimeModified>
+            <TimeModified>2025-03-10T10:20:36-07:00</TimeModified>
             <EditSequence>1740514430</EditSequence>
             <TxnNumber>129750</TxnNumber>
             <CustomerRef>
@@ -27635,9 +27635,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>4.75</SalesTaxPercentage>
             <SalesTaxTotal>12.35</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>278.14</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-278.14</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>60000-0</ListID>
                <FullName>Lift Picked Up</FullName>
@@ -28003,8 +28003,8 @@
          <InvoiceRet>
             <TxnID>1CDAD6-1740435188</TxnID>
             <TimeCreated>2025-02-24T15:13:08-07:00</TimeCreated>
-            <TimeModified>2025-02-24T15:13:08-07:00</TimeModified>
-            <EditSequence>1740435188</EditSequence>
+            <TimeModified>2025-03-06T10:47:49-07:00</TimeModified>
+            <EditSequence>1741280757</EditSequence>
             <TxnNumber>129753</TxnNumber>
             <CustomerRef>
                <ListID>6FD0001-0</ListID>
@@ -28058,9 +28058,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>7.01</SalesTaxPercentage>
             <SalesTaxTotal>29.80</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>466.34</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-466.34</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -28567,7 +28567,7 @@
          <InvoiceRet>
             <TxnID>1CDB04-1740436313</TxnID>
             <TimeCreated>2025-02-24T15:31:53-07:00</TimeCreated>
-            <TimeModified>2025-02-24T16:08:57-07:00</TimeModified>
+            <TimeModified>2025-03-11T10:29:31-07:00</TimeModified>
             <EditSequence>1740436323</EditSequence>
             <TxnNumber>129757</TxnNumber>
             <CustomerRef>
@@ -28620,9 +28620,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>9.15</SalesTaxPercentage>
             <SalesTaxTotal>23.79</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>289.58</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-289.58</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>60000-0</ListID>
                <FullName>Lift Picked Up</FullName>
@@ -29269,7 +29269,7 @@
          <InvoiceRet>
             <TxnID>1CDB3F-1740500183</TxnID>
             <TimeCreated>2025-02-25T09:16:23-07:00</TimeCreated>
-            <TimeModified>2025-02-25T09:37:56-07:00</TimeModified>
+            <TimeModified>2025-03-07T09:58:46-07:00</TimeModified>
             <EditSequence>1740501476</EditSequence>
             <TxnNumber>129762</TxnNumber>
             <CustomerRef>
@@ -29324,9 +29324,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>9.15</SalesTaxPercentage>
             <SalesTaxTotal>68.63</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>856.13</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-856.13</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -29382,7 +29382,7 @@
          <InvoiceRet>
             <TxnID>1CDB48-1740500264</TxnID>
             <TimeCreated>2025-02-25T09:17:44-07:00</TimeCreated>
-            <TimeModified>2025-02-25T09:37:55-07:00</TimeModified>
+            <TimeModified>2025-03-07T09:58:46-07:00</TimeModified>
             <EditSequence>1740501476</EditSequence>
             <TxnNumber>129763</TxnNumber>
             <CustomerRef>
@@ -29437,9 +29437,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>9.15</SalesTaxPercentage>
             <SalesTaxTotal>23.79</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>289.58</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-289.58</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -29803,7 +29803,7 @@
          <InvoiceRet>
             <TxnID>1CDB68-1740500661</TxnID>
             <TimeCreated>2025-02-25T09:24:21-07:00</TimeCreated>
-            <TimeModified>2025-02-25T09:37:58-07:00</TimeModified>
+            <TimeModified>2025-03-07T09:58:46-07:00</TimeModified>
             <EditSequence>1740501478</EditSequence>
             <TxnNumber>129766</TxnNumber>
             <CustomerRef>
@@ -29856,9 +29856,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>8.15</SalesTaxPercentage>
             <SalesTaxTotal>51.35</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>705.64</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-705.64</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -29942,7 +29942,7 @@
          <InvoiceRet>
             <TxnID>1CDB73-1740500867</TxnID>
             <TimeCreated>2025-02-25T09:27:47-07:00</TimeCreated>
-            <TimeModified>2025-02-25T09:37:57-07:00</TimeModified>
+            <TimeModified>2025-03-07T09:58:46-07:00</TimeModified>
             <EditSequence>1740501477</EditSequence>
             <TxnNumber>129767</TxnNumber>
             <CustomerRef>
@@ -29998,9 +29998,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>9.15</SalesTaxPercentage>
             <SalesTaxTotal>57.65</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>711.94</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-711.94</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -30084,7 +30084,7 @@
          <InvoiceRet>
             <TxnID>1CDB7E-1740500945</TxnID>
             <TimeCreated>2025-02-25T09:29:05-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-04T13:34:33-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129768</TxnNumber>
             <CustomerRef>
@@ -30139,9 +30139,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>9.15</SalesTaxPercentage>
             <SalesTaxTotal>12.36</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>151.40</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-151.40</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -30479,7 +30479,7 @@
          <InvoiceRet>
             <TxnID>1CDB9F-1740501286</TxnID>
             <TimeCreated>2025-02-25T09:34:46-07:00</TimeCreated>
-            <TimeModified>2025-02-25T09:36:56-07:00</TimeModified>
+            <TimeModified>2025-03-10T10:20:19-07:00</TimeModified>
             <EditSequence>1740501286</EditSequence>
             <TxnNumber>129771</TxnNumber>
             <CustomerRef>
@@ -30530,9 +30530,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>9.15</SalesTaxPercentage>
             <SalesTaxTotal>32.03</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>399.53</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-399.53</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -31153,7 +31153,7 @@
          <InvoiceRet>
             <TxnID>1CDC6F-1740588465</TxnID>
             <TimeCreated>2025-02-26T09:47:45-07:00</TimeCreated>
-            <TimeModified>2025-02-26T12:17:56-07:00</TimeModified>
+            <TimeModified>2025-03-11T10:29:32-07:00</TimeModified>
             <EditSequence>1740588465</EditSequence>
             <TxnNumber>129777</TxnNumber>
             <CustomerRef>
@@ -31208,9 +31208,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>6.40</SalesTaxPercentage>
             <SalesTaxTotal>16.00</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>271.29</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-271.29</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -31294,7 +31294,7 @@
          <InvoiceRet>
             <TxnID>1CDC79-1740588847</TxnID>
             <TimeCreated>2025-02-26T09:54:07-07:00</TimeCreated>
-            <TimeModified>2025-02-26T12:17:56-07:00</TimeModified>
+            <TimeModified>2025-03-10T10:13:27-07:00</TimeModified>
             <EditSequence>1740588847</EditSequence>
             <TxnNumber>129778</TxnNumber>
             <CustomerRef>
@@ -31349,9 +31349,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>5.00</SalesTaxPercentage>
             <SalesTaxTotal>13.00</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>278.79</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-278.79</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -32841,119 +32841,6 @@
             </InvoiceLineRet>
          </InvoiceRet>
          <InvoiceRet>
-            <TxnID>1CDD20-1740591145</TxnID>
-            <TimeCreated>2025-02-26T10:32:25-07:00</TimeCreated>
-            <TimeModified>2025-02-26T12:21:02-07:00</TimeModified>
-            <EditSequence>1740597662</EditSequence>
-            <TxnNumber>129790</TxnNumber>
-            <CustomerRef>
-               <ListID>B6E0000-0</ListID>
-               <FullName>Capital Electric - 2 - E</FullName>
-            </CustomerRef>
-            <ARAccountRef>
-               <ListID>430000-0</ListID>
-               <FullName>Accounts Receivable</FullName>
-            </ARAccountRef>
-            <TemplateRef>
-               <ListID>80000010-1651262377</ListID>
-               <FullName>Max High Reach</FullName>
-            </TemplateRef>
-            <TxnDate>2025-02-26</TxnDate>
-            <RefNumber>62734</RefNumber>
-            <BillAddress>
-               <Addr1>Capital Electric</Addr1>
-               <Addr2>17150 E. Ohio Dr</Addr2>
-               <City>Aurora</City>
-               <State>CO</State>
-               <PostalCode>80017</PostalCode>
-            </BillAddress>
-            <BillAddressBlock>
-               <Addr1>Capital Electric</Addr1>
-               <Addr2>17150 E. Ohio Dr</Addr2>
-               <Addr3>Aurora CO 80017</Addr3>
-            </BillAddressBlock>
-            <ShipAddress>
-               <Addr1>Olive and Finch</Addr1>
-               <Addr2>1000 W 14th St</Addr2>
-               <City>Denver</City>
-            </ShipAddress>
-            <ShipAddressBlock>
-               <Addr1>Olive and Finch</Addr1>
-               <Addr2>1000 W 14th St</Addr2>
-               <Addr3>Denver</Addr3>
-            </ShipAddressBlock>
-            <IsPending>false</IsPending>
-            <IsFinanceCharge>false</IsFinanceCharge>
-            <PONumber>Conlin</PONumber>
-            <TermsRef>
-               <ListID>40000-0</ListID>
-               <FullName>Due on receipt</FullName>
-            </TermsRef>
-            <DueDate>2025-02-26</DueDate>
-            <ShipDate>2025-02-26</ShipDate>
-            <Subtotal>630.00</Subtotal>
-            <ItemSalesTaxRef>
-               <ListID>590000-0</ListID>
-               <FullName>01-0006</FullName>
-            </ItemSalesTaxRef>
-            <SalesTaxPercentage>9.15</SalesTaxPercentage>
-            <SalesTaxTotal>54.90</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>684.90</BalanceRemaining>
-            <IsPaid>false</IsPaid>
-            <CustomerMsgRef>
-               <ListID>80000033-1714075994</ListID>
-               <FullName>JC - Lift Still On Rent</FullName>
-            </CustomerMsgRef>
-            <IsToBePrinted>false</IsToBePrinted>
-            <IsToBeEmailed>false</IsToBeEmailed>
-            <CustomerSalesTaxCodeRef>
-               <ListID>10000-0</ListID>
-               <FullName>Tax</FullName>
-            </CustomerSalesTaxCodeRef>
-            <Other>62204</Other>
-            <InvoiceLineRet>
-               <TxnLineID>1CDD22-1740591145</TxnLineID>
-               <ItemRef>
-                  <ListID>1550001-0</ListID>
-                  <FullName>169949 - 19S</FullName>
-               </ItemRef>
-               <Desc>19&apos; Scissor Lift</Desc>
-               <Rate>600</Rate>
-               <Amount>600.00</Amount>
-               <SalesTaxCodeRef>
-                  <ListID>10000-0</ListID>
-                  <FullName>Tax</FullName>
-               </SalesTaxCodeRef>
-               <Other1>4 weeks</Other1>
-               <Other2>1/27 - 2/21</Other2>
-            </InvoiceLineRet>
-            <InvoiceLineRet>
-               <TxnLineID>1CDD23-1740591145</TxnLineID>
-               <ItemRef>
-                  <ListID>550000-0</ListID>
-                  <FullName>SMM Denver</FullName>
-               </ItemRef>
-               <Desc>2% SMM Fee - Denver County</Desc>
-               <RatePercent>2.00</RatePercent>
-               <Amount>12.00</Amount>
-            </InvoiceLineRet>
-            <InvoiceLineRet>
-               <TxnLineID>1CDD24-1740591145</TxnLineID>
-               <ItemRef>
-                  <ListID>16E0000-0</ListID>
-                  <FullName>Environmental Fee</FullName>
-               </ItemRef>
-               <Desc>Environment Fee</Desc>
-               <RatePercent>3.00</RatePercent>
-               <Amount>18.00</Amount>
-               <SalesTaxCodeRef>
-                  <ListID>20000-0</ListID>
-                  <FullName>Non</FullName>
-               </SalesTaxCodeRef>
-            </InvoiceLineRet>
-         </InvoiceRet>
-         <InvoiceRet>
             <TxnID>1CDD29-1740591739</TxnID>
             <TimeCreated>2025-02-26T10:42:19-07:00</TimeCreated>
             <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
@@ -33068,7 +32955,7 @@
          <InvoiceRet>
             <TxnID>1CDD32-1740592112</TxnID>
             <TimeCreated>2025-02-26T10:48:32-07:00</TimeCreated>
-            <TimeModified>2025-02-26T12:20:13-07:00</TimeModified>
+            <TimeModified>2025-03-07T09:58:46-07:00</TimeModified>
             <EditSequence>1740597613</EditSequence>
             <TxnNumber>129792</TxnNumber>
             <CustomerRef>
@@ -33123,9 +33010,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>9.15</SalesTaxPercentage>
             <SalesTaxTotal>137.25</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>1712.25</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-1712.25</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000033-1714075994</ListID>
                <FullName>JC - Lift Still On Rent</FullName>
@@ -34805,7 +34692,7 @@
          <InvoiceRet>
             <TxnID>1CDEDD-1740681129</TxnID>
             <TimeCreated>2025-02-27T11:32:09-07:00</TimeCreated>
-            <TimeModified>2025-02-27T11:38:55-07:00</TimeModified>
+            <TimeModified>2025-03-10T10:20:56-07:00</TimeModified>
             <EditSequence>1740681129</EditSequence>
             <TxnNumber>129818</TxnNumber>
             <CustomerRef>
@@ -34860,9 +34747,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>6.75</SalesTaxPercentage>
             <SalesTaxTotal>24.98</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>406.27</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-406.27</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -35369,7 +35256,7 @@
          <InvoiceRet>
             <TxnID>1CDF18-1740681358</TxnID>
             <TimeCreated>2025-02-27T11:35:58-07:00</TimeCreated>
-            <TimeModified>2025-03-03T09:59:33-07:00</TimeModified>
+            <TimeModified>2025-03-07T16:08:15-07:00</TimeModified>
             <EditSequence>1741021173</EditSequence>
             <TxnNumber>129823</TxnNumber>
             <CustomerRef>
@@ -35424,9 +35311,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>4.50</SalesTaxPercentage>
             <SalesTaxTotal>8.55</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>205.34</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-205.34</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>
@@ -35792,7 +35679,7 @@
          <InvoiceRet>
             <TxnID>1CDF4A-1740694395</TxnID>
             <TimeCreated>2025-02-27T15:13:15-07:00</TimeCreated>
-            <TimeModified>2025-02-27T15:14:20-07:00</TimeModified>
+            <TimeModified>2025-03-07T09:56:25-07:00</TimeModified>
             <EditSequence>1740694460</EditSequence>
             <TxnNumber>129831</TxnNumber>
             <CustomerRef>
@@ -35847,9 +35734,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>6.75</SalesTaxPercentage>
             <SalesTaxTotal>19.58</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>316.87</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-316.87</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>60000-0</ListID>
                <FullName>Lift Picked Up</FullName>
@@ -36639,7 +36526,7 @@
          <InvoiceRet>
             <TxnID>1CE00A-1740764738</TxnID>
             <TimeCreated>2025-02-28T10:45:38-07:00</TimeCreated>
-            <TimeModified>2025-02-28T10:52:10-07:00</TimeModified>
+            <TimeModified>2025-03-07T09:58:46-07:00</TimeModified>
             <EditSequence>1740765131</EditSequence>
             <TxnNumber>129844</TxnNumber>
             <CustomerRef>
@@ -36694,9 +36581,9 @@
             </ItemSalesTaxRef>
             <SalesTaxPercentage>9.25</SalesTaxPercentage>
             <SalesTaxTotal>24.05</SalesTaxTotal>
-            <AppliedAmount>0.00</AppliedAmount>
-            <BalanceRemaining>289.84</BalanceRemaining>
-            <IsPaid>false</IsPaid>
+            <AppliedAmount>-289.84</AppliedAmount>
+            <BalanceRemaining>0.00</BalanceRemaining>
+            <IsPaid>true</IsPaid>
             <CustomerMsgRef>
                <ListID>80000032-1713985806</ListID>
                <FullName>J-Lift Picked Up</FullName>

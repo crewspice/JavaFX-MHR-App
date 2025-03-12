@@ -23,6 +23,10 @@ public class ScissorLift extends Pane {
     private Line[] arm1, arm2;
     private Line[] arm1Borders, arm2Borders; // Add references for borders
     private Rectangle[] basket;
+    private Color primaryColor = Color.web(Config.getPrimaryColor());
+    private Color secondaryColor = Color.web(Config.getSecondaryColor());
+    private Rectangle base;
+
 
     public ScissorLift() {
         drawLift(-100);
@@ -51,9 +55,9 @@ public class ScissorLift extends Pane {
         wheel2.setCenterY(Config.WINDOW_HEIGHT - Config.PADDING - WHEEL_RADIUS);
 
         double rectYCoordinate = WHEEL_RADIUS * 2.7;
-        Rectangle base = new Rectangle(Config.PADDING, Config.WINDOW_HEIGHT - rectYCoordinate,
+        base = new Rectangle(Config.PADDING, Config.WINDOW_HEIGHT - rectYCoordinate,
                 Config.SCISSOR_LIFT_WIDTH - (Config.PADDING * 2), WHEEL_RADIUS * 1.8);
-        base.setFill(Color.ORANGE);
+        base.setFill(primaryColor);
 
         arm1 = new Line[ARM_COUNT];
         arm2 = new Line[ARM_COUNT];
@@ -85,14 +89,14 @@ public class ScissorLift extends Pane {
             // Create arm1 (actual line with color)
             arm1[i] = new Line(Config.PADDING + 15, lastArm,
                                width - Config.PADDING - 15, lastArm - armSpacing);
-            arm1[i].setStroke(Color.web("#FFDEAD"));
+            arm1[i].setStroke(secondaryColor);
             arm1[i].setStrokeWidth(armWidth);
 
 
             // Create arm2 (actual line with color)
             arm2[i] = new Line(Config.PADDING + 15, lastArm - armSpacing,
                                width - Config.PADDING - 15, lastArm);
-            arm2[i].setStroke(Color.web("#FFDEAD"));
+            arm2[i].setStroke(secondaryColor);
             arm2[i].setStrokeWidth(armWidth);
 
 
@@ -113,30 +117,30 @@ public class ScissorLift extends Pane {
 
         Rectangle platform = new Rectangle(Config.PADDING, lastArm,
                 width - (Config.PADDING * 2), Config.PADDING * 2);
-        platform.setFill(Color.ORANGE);
+        platform.setFill(primaryColor);
 
         double railHeight = 30;
         double railWidth = 5;
 
         Rectangle verticalRail1 = new Rectangle(Config.PADDING, lastArm - (railHeight * 2),
                 railWidth, railHeight * 2);
-        verticalRail1.setFill(Color.ORANGE);
+        verticalRail1.setFill(primaryColor);
 
         Rectangle verticalRail2 = new Rectangle(width / 2 - 5, lastArm - (railHeight * 2),
                 railWidth, railHeight * 2);
-        verticalRail2.setFill(Color.ORANGE);
+        verticalRail2.setFill(primaryColor);
 
         Rectangle verticalRail3 = new Rectangle(Config.WINDOW_WIDTH - Config.PADDING - railWidth,
                 lastArm - (railHeight * 2), railWidth, railHeight * 2);
-        verticalRail3.setFill(Color.ORANGE);
+        verticalRail3.setFill(primaryColor);
 
         Rectangle horizontalRail1 = new Rectangle(Config.PADDING, lastArm - railHeight,
                 width - (Config.PADDING * 2), railWidth);
-        horizontalRail1.setFill(Color.ORANGE);
+        horizontalRail1.setFill(primaryColor);
 
         Rectangle horizontalRail2 = new Rectangle(Config.PADDING, lastArm - (railHeight * 2),
                 width - (Config.PADDING * 2), railWidth);
-        horizontalRail2.setFill(Color.ORANGE);
+        horizontalRail2.setFill(primaryColor);
 
         basket = new Rectangle[]{verticalRail1, verticalRail2, verticalRail3, horizontalRail1, horizontalRail2,
                 platform};
@@ -227,6 +231,20 @@ public class ScissorLift extends Pane {
 
         timeline.play();
 
+    }
+
+    public void updateColors(Color newColorPrimary, Color newColorSecondary) {
+        // Update the fill colors of all relevant elements (arms, borders, rails, etc.)
+        for (int i = 0; i < ARM_COUNT; i++) {
+            arm1[i].setStroke(newColorSecondary);
+            arm2[i].setStroke(newColorSecondary);
+        }
+        for (Rectangle r : basket) {
+            if (r != null) {
+                r.setFill(newColorPrimary);
+            }
+        }
+        base.setFill(newColorPrimary);
     }
 
 }

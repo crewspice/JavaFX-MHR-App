@@ -12,6 +12,8 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
+
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.geom.PageSize;
@@ -20,7 +22,8 @@ import com.itextpdf.layout.element.Image;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileOutputStream; import java.io.IOException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 import com.itextpdf.kernel.geom.PageSize;
 import com.itextpdf.kernel.pdf.PdfWriter;
@@ -65,6 +68,8 @@ public class UtilizationController extends BaseController {
 
     @FXML
     private AnchorPane anchorPane;
+    @FXML
+    private Rectangle dragArea;
     private VBox currentLayout;
     @FXML
     private ScrollPane scrollPane;
@@ -96,6 +101,7 @@ public class UtilizationController extends BaseController {
 
     @FXML
     public void initialize() {
+        super.initialize(dragArea);
         sortLifts();
         rentalDayCounts = new HashMap<>();
         loadCustomerRentalData();

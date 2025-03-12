@@ -8,7 +8,7 @@
 
 .button:hover {
     -fx-background-color: orange;
-    -fx-text-fill: white;
+    -fx-text-fill: #ffffff;
 }
 
 /* Make the DatePicker TextField invisible */
@@ -68,24 +68,24 @@
 }
 
 .small-combo-box .list-view .list-cell:hover {
-    -fx-background-color: #FFDEAD; /* Change background color on hover */
-    -fx-text-fill: black; /* Ensure text remains black when hovered */
+    -fx-background-color: orange; /* Change background color on hover */
+    -fx-text-fill: #000000; /* Ensure text remains black when hovered */
 }
 
 .small-combo-box .list-view .list-cell:selected {
-    -fx-background-color: #FFDEAD; /* Background color when selected */
-    -fx-text-fill: black; /* Ensure text is black when selected */
+    -fx-background-color: orange; /* Background color when selected */
+    -fx-text-fill: #000000; /* Ensure text is black when selected */
 }
 
 .small-combo-box .list-view .list-cell:focused {
-    -fx-background-color: #FFDEAD; /* Background color for focused item */
-    -fx-text-fill: black; /* Ensure text is black for focused item */
+    -fx-background-color: orange; /* Background color for focused item */
+    -fx-text-fill: #000000; /* Ensure text is black for focused item */
 }
 
 /* Other styles */
 .list-cell:focused {
-    -fx-background-color: #FFDEAD;
-    -fx-text-fill: black;
+    -fx-background-color: orange;
+    -fx-text-fill: #000000;
 }
 
 /* Specific style for liftTypeColumn cells */
@@ -98,12 +98,12 @@
 
 /* TextField highlight */
 .text-field {
-    -fx-border-color: #FFDEAD;
+    -fx-border-color: orange;
     -fx-border-width: 2px;
 }
 
 .text-field:focused {
-    -fx-border-color: #FFDEAD;
+    -fx-border-color: orange;
 }
 
 /* Source code label styles */
@@ -219,7 +219,7 @@
 }
 
 .table-view .table-row-cell:filled {
-    -fx-border-color: #FFDEAD; /* Add bottom border color for horizontal lines */
+    -fx-border-color: orange; /* Add bottom border color for horizontal lines */
     -fx-border-width: 0 0 0 0; /* Keep horizontal lines */
 }
 
@@ -333,7 +333,7 @@
 
 .plus-button:hover {
     -fx-background-color: orange; /* Optional hover background */
-    -fx-text-fill: black;
+    -fx-text-fill: #000000;
     -fx-background-insets: 2 2 2 2;
 }
 
@@ -349,7 +349,7 @@
 
 .x-button:hover {
     -fx-background-color: orange; /* Optional hover background */
-    -fx-text-fill: black;
+    -fx-text-fill: #000000;
     -fx-background-insets: 2 2 2 2;
 }
 
@@ -362,7 +362,7 @@
 
 .schedule-delivery-button:hover {
     -fx-background-color: orange; /* Optional hover background */
-    -fx-text-fill: black;
+    -fx-text-fill: #000000;
 }
 
 .schedule-delivery-button-dormant {
@@ -380,7 +380,7 @@
 }
 
 .schedule-delivery-button-has-value {
-    -fx-background-color: #FFDEAD; /* Remove button background */
+    -fx-background-color: orange; /* Remove button background */
     -fx-border-color: transparent; /* Remove border */
     -fx-padding: 0px; /* Adjust padding */
     -fx-faint-focus-color: gray;
@@ -406,7 +406,7 @@
 }
 
 .sidebar-button-active {
-   -fx-background-color: #FFDEAD;
+   -fx-background-color: orange;
    -fx-border-color: transparent;
    -fx-padding: 5px;
    -fx-faint-focus-color: gray;
@@ -414,7 +414,7 @@
 
 /* Hover effect for sidebar buttons */
 .sidebar-button-inactive:hover {
-    -fx-text-fill: black;
+    -fx-text-fill: #000000;
    -fx-background-color: orange;
 }
 
@@ -435,8 +435,8 @@
 
 /* Tooltip styling */
 .tooltip {
-    -fx-background-color: #FFDEAD; /* Semi-transparent background */
-    -fx-text-fill: black;
+    -fx-background-color: orange; /* Semi-transparent background */
+    -fx-text-fill: #000000;
     -fx-font-size: 12px;
     -fx-padding: 3;
     -fx-background-radius: 4;
@@ -445,8 +445,8 @@
 
 /* Flourish pane styling */
 .flourish-pane {
-    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #FFA500, #FFFFFF); /* Orange to white gradient */
-    -fx-border-color: #FFA500;
+    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, orange, #FFFFFF); /* Orange to white gradient */
+    -fx-border-color: orange;
     -fx-border-width: 5px;
     -fx-border-radius: 10px;
     -fx-background-radius: 10px;
@@ -486,18 +486,18 @@
 
 /* Selected state for Lift Type ToggleButtons */
 .lift-type-button-rotating:selected {
-    -fx-background-color: #FFDEAD; /* Background color when selected */
-    -fx-text-fill: black; /* Text color when selected */
+    -fx-background-color: orange; /* Background color when selected */
+    -fx-text-fill: #000000; /* Text color when selected */
 }
 
 .view-type-button-rotating:selected {
-    -fx-background-color: #FFDEAD; /* Background color when selected */
-    -fx-text-fill: black; /* Text color when selected */
+    -fx-background-color: orange; /* Background color when selected */
+    -fx-text-fill: #000000; /* Text color when selected */
 }
 
 .status-type-button-rotating:selected {
-    -fx-background-color: #FFDEAD; /* Background color when selected */
-    -fx-text-fill: black; /* Text color when selected */
+    -fx-background-color: orange; /* Background color when selected */
+    -fx-text-fill: #000000; /* Text color when selected */
 }
 
 /* Hover state for Lift Type ToggleButtons */
@@ -572,37 +572,38 @@
 
 .lift-type-button-stopped:focused {
     -fx-background-color: orange !important; /* Background color when selected */
-    -fx-text-fill: black; /* Text color when selected */
+    -fx-text-fill: #000000; /* Text color when selected */
 }
 
 .view-type-button-stopped:selected {
     -fx-background-color: orange; /* Background color when selected */
-    -fx-text-fill: black; /* Text color when selected */
+    -fx-text-fill: #000000; /* Text color when selected */
 }
 
 .status-type-button-stopped:selected {
     -fx-background-color: orange; /* Background color when selected */
-    -fx-text-fill: black; /* Text color when selected */
+    -fx-text-fill: #000000; /* Text color when selected */
 }
 
 .lift-type-button-stopped:selected {
     -fx-background-color: orange; /* Background color when selected */
-    -fx-text-fill: black; /* Text color when selected */
+    -fx-text-fill: #000000; /* Text color when selected */
 }
 
 .view-type-button-stopped:selected {
     -fx-background-color: orange; /* Background color when selected */
-    -fx-text-fill: black; /* Text color when selected */
+    -fx-text-fill: #000000; /* Text color when selected */
 }
 
 .status-type-button-stopped:selected {
     -fx-background-color: orange; /* Background color when selected */
-    -fx-text-fill: black; /* Text color when selected */
+    -fx-text-fill: #000000; /* Text color when selected */
 }
 
 /* Hover state for Lift Type ToggleButtons */
 .lift-type-button-stopped:hover {
     -fx-background-color: orange; /* Background color when hovered */
+    -fx-text-fill: #000000;
 }
 
 .double-clicked-auto-term-button {
@@ -619,15 +620,17 @@
 
 .view-type-button-stopped:hover {
     -fx-background-color: orange; /* Background color when hovered */
+    -fx-text-fill: #000000;
 }
 
 .status-type-button-stopped:hover {
     -fx-background-color: orange; /* Background color when hovered */
+    -fx-text-fill: #000000;
 }
 
 .circle-indicator {
     -fx-background-color: orange;
-    -fx-text-fill: black;
+    -fx-text-fill: #000000;
     -fx-font-size: 9px;
     -fx-alignment: center;
     -fx-padding: 0;
@@ -673,28 +676,30 @@
 /* Selected state for Delivery Time ToggleButtons */
 .delivery-time-button:selected {
     -fx-background-color: orange; /* Background color when selected */
-    -fx-text-fill: black; /* Text color when selected */
+    -fx-text-fill: #000000; /* Text color when selected */
 }
 
 /* Hover state for Delivery Time ToggleButtons */
 .delivery-time-button:hover {
     -fx-background-color: orange !important; /* Background color when hovered */
+    -fx-text-fill: #000000;
 }
 
 /* Selected state for Delivery Time ToggleButtons */
 .delivery-time-button-reverse:selected {
     -fx-background-color: orange; /* Background color when selected */
-    -fx-text-fill: black; /* Text color when selected */
+    -fx-text-fill: #000000; /* Text color when selected */
 }
 
 /* Hover state for Delivery Time ToggleButtons */
 .delivery-time-button-reverse:hover {
     -fx-background-color: orange; /* Background color when hovered */
+    -fx-text-fill: #000000;
 }
 
 .transparent-text-field {
     -fx-background-color: transparent; /* Make background transparent */
-    -fx-border-color: transparent transparent black transparent; /* Orange bottom border */
+    -fx-border-color: transparent transparent black transparent; /* var(--dynamic-primary-color) bottom border */
     -fx-border-width: 0 0 .5px 0; /* Apply bottom border only */
     -fx-border-style: none none groove none; /* Dotted bottom border */
     -fx-text-fill: black; /* Set text color to black */
@@ -702,7 +707,7 @@
     -fx-focus-color: transparent; /* Remove focus color */
     -fx-faint-focus-color: transparent; /* Remove faint focus */
     -fx-highlight-fill: orange; /* Remove highlight when selecting */
-    -fx-highlight-text-fill: black; /* Ensure text remains black when selecting */
+    -fx-highlight-text-fill: #000000; /* Ensure text remains black when selecting */
     -fx-padding: 4 2 4 2;
     -fx-alignment: center;
 }
@@ -729,15 +734,15 @@
 }
 
 .combo-box {
-    -fx-background-color: #FFDEAD;
+    -fx-background-color: orange;
 }
 
 .combo-box .arrow-button {
-    -fx-background-color: #FFDEAD;
+    -fx-background-color: orange;
 }
 
 .combo-box.suggestions-box {
-    -fx-background-color: #FFDEAD;
+    -fx-background-color: orange;
 }
 
 .combo-box.suggestions-box .arrow-button {
@@ -749,7 +754,7 @@
 }
 
 .suggestions-box .list-view {
-    -fx-background-color: #FFDEAD; /* Background color for the suggestion box */
+    -fx-background-color: orange; /* Background color for the suggestion box */
     -fx-translate-x: -28;
     -fx-pref-width: 200;
 }
@@ -757,7 +762,7 @@
 .suggestions-box .list-view .list-cell {
     -fx-text-fill: black; /* Default text color for items */
     -fx-background-color: #F4F4F4;
-    -fx-border-color: #FFDEAD;
+    -fx-border-color: orange;
     -fx-border-width: 0 0 1 0;
 }
 
@@ -778,23 +783,23 @@
 }
 
 .suggestions-box .list-view .list-cell:hover {
-    -fx-background-color: #FFDEAD;
-    -fx-text-fill: black;/* Set hover color */
+    -fx-background-color: orange;
+    -fx-text-fill: #000000;/* Set hover color */
 }
 
 .suggestions-box .list-view .list-cell:selected {
-    -fx-background-color: #FFDEAD; /* Background color when selected */
-    -fx-text-fill: black; /* Ensure text is black when selected */
+    -fx-background-color: orange; /* Background color when selected */
+    -fx-text-fill: "#000000"; /* Ensure text is black when selected */
 }
 
 .suggestions-box .combo-box-popup .list-cell:focused {
     -fx-background-color: orange;
-    -fx-text-fill: black;
+    -fx-text-fill: #000000;
 }
 
 .suggestions-box .combo-box-popup .list-cell:hover {
     -fx-background-color: orange;
-    -fx-text-fill: black;
+    -fx-text-fill: #000000;
 }
 
 /* TilePane Styles */
@@ -838,3 +843,23 @@
 .schedule-delivery-table .column-header {
     -fx-opacity: 0; /* Hides the header text */
 }
+
+.popup-card {
+    -fx-background-color: transparent; /* VBox itself is transparent */
+    -fx-border-color: transparent; /* Remove default borders */
+    -fx-padding: 10;
+}
+
+.popup-card::background {
+    -fx-background-color: white;
+    -fx-background-radius: 12;
+    -fx-border-color: black;
+    -fx-border-width: 1;
+    -fx-border-radius: 12;
+}
+
+.popup-title {
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+}
+

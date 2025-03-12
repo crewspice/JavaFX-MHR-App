@@ -87,14 +87,22 @@ public class GradientAnimator {
            double[] bounds = calculateGradientBounds(offset);
            KeyFrame keyFrame = new KeyFrame(Duration.seconds(bounds[0] * ANIMATION_DURATION), event -> {
                // Only animate the button if it's the current button being animated
-
+        
 
                if (button == currentButton[setIndex]) {
+                    if (hoveredButton == button && Config.COLOR_TEXT_MAP.get(Config.getPrimaryColor()) == 2) {
+                        button.setTextFill(Color.valueOf("white"));
+                    } else {
+                        button.setTextFill(Color.valueOf("black"));
+                    }
+
+
+
                    Background background;
                    if (bounds[1] >= .94){
                        background = createGradientBackground(
                                bounds[0], 1,
-                               hoveredButton == button ? Color.ORANGE : Color.web("#F4F4F4"),
+                               hoveredButton == button ? Color.web(Config.getPrimaryColor()) : Color.web("#F4F4F4"),
                                interpolateColor(1 - (((bounds[0] - 1) * -1) / (COLORED_BAND_WIDTH / 2)) ,
                                        currentButton[setIndex] == hoveredButton)
                        );
@@ -102,16 +110,16 @@ public class GradientAnimator {
                                0, bounds[1] - 1, bounds[2] - 1,
                                interpolateColor((bounds[1] - 1) / (COLORED_BAND_WIDTH / 2),
                                        nextButton == hoveredButton),
-                               Color.web("#FFDEAD"),
-                               hoveredButton == nextButton ? Color.ORANGE : Color.web("#F4F4F4")
+                               Color.web(Config.getSecondaryColor()),
+                               hoveredButton == nextButton ? Color.web(Config.getPrimaryColor()) : Color.web("#F4F4F4")
                        );
                        assert nextButton != null;
                        nextButton.setBackground(nextBackground);
                    } else if (bounds[2] >= 1){
                        background = createGradientBackground(
                                bounds[0], bounds[1], 1,
-                               hoveredButton == button ? Color.ORANGE : Color.web("#F4F4F4"),
-                               Color.web("#FFDEAD"),
+                               hoveredButton == button ? Color.web(Config.getPrimaryColor()) : Color.web("#F4F4F4"),
+                               Color.web(Config.getSecondaryColor()),
                                interpolateColor(((bounds[1] - 1) * -1) / (COLORED_BAND_WIDTH / 2),
                                        currentButton[setIndex] == hoveredButton)
                        );
@@ -119,16 +127,16 @@ public class GradientAnimator {
                                0, bounds[2] - 1,
                                interpolateColor(1 - ((bounds[2] - 1) / (COLORED_BAND_WIDTH / 2)),
                                        nextButton == hoveredButton),
-                               hoveredButton == nextButton ? Color.ORANGE : Color.web("#F4F4F4")
+                               hoveredButton == nextButton ? Color.web(Config.getPrimaryColor()) : Color.web("#F4F4F4")
                        );
                        assert nextButton != null;
                        nextButton.setBackground(nextBackground);
                    } else {
                        background = createGradientBackground(
                                bounds[0], bounds[1], bounds[2],
-                               hoveredButton == button ? Color.ORANGE : Color.web("#F4F4F4"),
-                               Color.web("#FFDEAD"),
-                               hoveredButton == button ? Color.ORANGE : Color.web("#F4F4F4")
+                               hoveredButton == button ? Color.web(Config.getPrimaryColor()) : Color.web("#F4F4F4"),
+                               Color.web(Config.getSecondaryColor()),
+                               hoveredButton == button ? Color.web(Config.getPrimaryColor()) : Color.web("#F4F4F4")
                        );
                    }
 
@@ -194,11 +202,18 @@ public class GradientAnimator {
 
 
                if (button == currentToggleButton[setIndex]) {
+                    if ((hoveredToggleButton == button) && (Config.COLOR_TEXT_MAP.get(Config.getPrimaryColor())) == 2) {
+                        button.setTextFill(Color.valueOf("white"));
+                    } else {
+                        button.setTextFill(Color.valueOf("black"));
+                    }
+
+
                    Background background;
                    if (bounds[1] >= .94){
                        background = createGradientBackground(
                                bounds[0], 1,
-                               hoveredToggleButton == button ? Color.ORANGE : Color.web("#F4F4F4"),
+                               hoveredToggleButton == button ? Color.web(Config.getPrimaryColor()) : Color.web("#F4F4F4"),
                                interpolateColor(1 - (((bounds[0] - 1) * -1) / (COLORED_BAND_WIDTH / 2)) ,
                                        currentToggleButton[setIndex] == hoveredToggleButton)
                        );
@@ -207,15 +222,15 @@ public class GradientAnimator {
                                0, bounds[1] - 1, bounds[2] - 1,
                                interpolateColor((bounds[1] - 1) / (COLORED_BAND_WIDTH / 2),
                                        nextToggleButton == hoveredToggleButton),
-                               Color.web("#FFDEAD"),
-                               hoveredToggleButton == nextToggleButton ? Color.ORANGE : Color.web("#F4F4F4")
+                               Color.web(Config.getSecondaryColor()),
+                               hoveredToggleButton == nextToggleButton ? Color.web(Config.getPrimaryColor()) : Color.web("#F4F4F4")
                        );
                        nextToggleButton.setBackground(nextBackground);
                    } else if (bounds[2] >= 1){
                        background = createGradientBackground(
                                bounds[0], bounds[1], 1,
-                               hoveredToggleButton == button ? Color.ORANGE : Color.web("#F4F4F4"),
-                               Color.web("#FFDEAD"),
+                               hoveredToggleButton == button ? Color.web(Config.getPrimaryColor()) : Color.web("#F4F4F4"),
+                               Color.web(Config.getSecondaryColor()),
                                interpolateColor(((bounds[1] - 1) * -1) / (COLORED_BAND_WIDTH / 2),
                                        currentToggleButton[setIndex] == hoveredToggleButton)
                        );
@@ -224,15 +239,15 @@ public class GradientAnimator {
                                0, bounds[2] - 1,
                                interpolateColor(1 - ((bounds[2] - 1) / (COLORED_BAND_WIDTH / 2)),
                                        nextToggleButton == hoveredToggleButton),
-                               hoveredToggleButton == nextToggleButton ? Color.ORANGE : Color.web("#F4F4F4")
+                               hoveredToggleButton == nextToggleButton ? Color.web(Config.getPrimaryColor()) : Color.web("#F4F4F4")
                        );
                        nextToggleButton.setBackground(nextBackground);
                    } else {
                        background = createGradientBackground(
                                bounds[0], bounds[1], bounds[2],
-                               hoveredToggleButton == button ? Color.ORANGE : Color.web("#F4F4F4"),
-                               Color.web("#FFDEAD"),
-                               hoveredToggleButton == button ? Color.ORANGE : Color.web("#F4F4F4")
+                               hoveredToggleButton == button ? Color.web(Config.getPrimaryColor()) : Color.web("#F4F4F4"),
+                               Color.web(Config.getSecondaryColor()),
+                               hoveredToggleButton == button ? Color.web(Config.getPrimaryColor()) : Color.web("#F4F4F4")
                        );
                    }
 
@@ -254,7 +269,7 @@ public class GradientAnimator {
                    if (currentToggleButton[setIndex] == hoveredToggleButton) {
                        currentToggleButton[setIndex].setBackground(new Background(
                                new BackgroundFill(
-                                       Color.ORANGE, // Full orange fill
+                                    Color.web(Config.getPrimaryColor()), // Full orange fill
                                        CornerRadii.EMPTY,
                                        null
                                )
@@ -542,8 +557,8 @@ public class GradientAnimator {
 
 
        // Define the start and end colors based on the hovered state
-       Color startColor = Color.web("#FFDEAD");
-       Color endColor = hovered ? Color.ORANGE : Color.web("#F4F4F4");
+       Color startColor = Color.web(Config.getSecondaryColor());
+       Color endColor = hovered ? Color.web(Config.getPrimaryColor()) : Color.web("#F4F4F4");
 
 
        // Extract RGBA components of the start and end colors

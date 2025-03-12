@@ -16,6 +16,7 @@ public class PathConfig {
     public static final String CONTRACTS_DIR = Paths.get(BASE_DIR, "Composing Contracts").toString();
     public static final String INVOICES_DIR = Paths.get(BASE_DIR, "Composing Invoices").toString();
     public static final String SYNC_DIR = Paths.get(BASE_DIR, "Syncing with QB").toString();
+    public static final String IMAGES_DIR = Paths.get(BASE_DIR, "Max Reach Pro", "src", "main", "resources", "images").toString();
     
     // --------------------------------------------------
     // Original Paths (Reorganized)

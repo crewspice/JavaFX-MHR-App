@@ -186,6 +186,6 @@
     </StackPane>
 
 
-
+    <Rectangle fx:id="dragArea"/>
 
  </AnchorPane>

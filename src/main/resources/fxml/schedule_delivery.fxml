@@ -191,7 +191,7 @@
     <Button fx:id="printButton" layoutX="268" layoutY="375" onAction="#handlePrint" styleClass="schedule-delivery-button" visible="false">
         <graphic>
             <ImageView fitWidth="30" fitHeight="30">
-                <Image url="@../images/print.png" />
+                <Image url="@../images/create-contracts.png" />
             </ImageView>
         </graphic>
     </Button>
@@ -199,4 +199,7 @@
     <!-- Label for Scheduled Deliveries -->
     <Label fx:id="tableViewTitle" text="Deliveries You Have Scheduled:" layoutX="28" layoutY="360" translateY="27"
            style="-fx-font-weight: bold; -fx-font-size: 14;" visible="false"/>
+
+    <Rectangle fx:id="dragArea"/>
+
 </AnchorPane>
