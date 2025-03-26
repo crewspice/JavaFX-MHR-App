@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javafx.scene.paint.Color;
+
 public class Config {
     // --------------------------------------------------
     // Window and UI Dimensions
@@ -201,16 +203,18 @@ public class Config {
         Map.entry(PLUM, 2), Map.entry(PLUM_PURPLE, 2), Map.entry(MAUVE, 2), Map.entry(AMETHYST, 2), 
         Map.entry(INDIGO, 2), Map.entry(VIOLET, 2), Map.entry(DEEP_PURPLE, 2), Map.entry(CHOCOLATE, 2), 
         Map.entry(SANDY_BROWN, 2), Map.entry(DARK_SIENNA, 2), Map.entry(BRONZE, 2), Map.entry(DARK_OLIVE, 2), 
-        Map.entry(ORANGE_TWO, 2), Map.entry(CHARCOAL_GRAY, 2), Map.entry(MIDNIGHT_BLUE, 2), Map.entry(NAVY_BLUE, 2)
+        Map.entry(ORANGE_TWO, 1), Map.entry(CHARCOAL_GRAY, 2), Map.entry(MIDNIGHT_BLUE, 2), Map.entry(NAVY_BLUE, 2)
     );
 
 
     // Default UI Colors (User Changeable)
     private static String PRIMARY_COLOR = ORANGE;
     private static String SECONDARY_COLOR = PALE_TAN;
+    private static String TERTIARY_COLOR = getTertiaryColor(); // dark grey
 
     private static String PREVIOUS_PRIMARY_COLOR = PRIMARY_COLOR;
     private static String PREVIOUS_SECONDARY_COLOR = SECONDARY_COLOR;
+    private static String PREVIOUS_TERTIARY_COLOR = TERTIARY_COLOR;
 
     private static String[] user = null;
 
@@ -231,6 +235,10 @@ public class Config {
         return SECONDARY_COLOR;
     }
 
+    public static String getTertiaryColor() {
+        return getTertiaryColorFromPrimary();
+    }
+
     public static String getPreviousPrimaryColor() {
         return PREVIOUS_PRIMARY_COLOR;
     }
@@ -239,14 +247,39 @@ public class Config {
         return PREVIOUS_SECONDARY_COLOR;
     }
 
+    public static String getPreviousTertiaryColor() {
+        return PREVIOUS_TERTIARY_COLOR;
+    }
+
+    public static String getTertiaryColorFromPrimary() {
+        Color primary = Color.web(PRIMARY_COLOR);
+
+        // Interpolate halfway between primary and black
+        Color tertiary = primary.interpolate(Color.BLACK, 0.7);
+
+        // Convert interpolated color back to hex
+        TERTIARY_COLOR = String.format("#%02X%02X%02X",
+                (int) (tertiary.getRed() * 255),
+                (int) (tertiary.getGreen() * 255),
+                (int) (tertiary.getBlue() * 255));
+
+        return TERTIARY_COLOR;
+    }
+
     public static void setPrimaryColor(String newColor) {
         PREVIOUS_PRIMARY_COLOR = PRIMARY_COLOR;
         PRIMARY_COLOR = newColor;
+        String tertiary = getTertiaryColorFromPrimary();
     }
 
     public static void setSecondaryColor(String newColor) {
         PREVIOUS_SECONDARY_COLOR = SECONDARY_COLOR;
         SECONDARY_COLOR = newColor;
+    }
+
+    public static void setTertiaryColor(String newColor) {
+        PREVIOUS_TERTIARY_COLOR = TERTIARY_COLOR;
+        TERTIARY_COLOR = newColor;
     }
 
     public static void setUser(String fullName) {
@@ -256,6 +289,16 @@ public class Config {
                 break;
             }
         }
+    }
+
+    public static String getAbbreviatedLiftType(String value) {
+        // Iterate through the map to find the key corresponding to the given value
+        for (Map.Entry<String, String> entry : LIFT_BUTTON_TEXT_MAP.entrySet()) {
+            if (entry.getValue().equals(value)) {
+                return entry.getKey(); // Return the key
+            }
+        }
+        return null; // Return null if value is not found
     }
 
     public static String[] getUser() {

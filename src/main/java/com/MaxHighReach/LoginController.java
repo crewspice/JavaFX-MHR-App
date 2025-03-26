@@ -6,6 +6,8 @@ import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.AnchorPane;
@@ -16,6 +18,7 @@ import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.Group;
 
+import java.awt.Desktop.Action;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -43,6 +46,9 @@ public class LoginController extends BaseController {
 
     @FXML
     private ListView<String> suggestionsList;
+
+    @FXML
+    private Button paintbrushButton;
 
     @FXML
     public void initialize() {
@@ -74,8 +80,7 @@ public class LoginController extends BaseController {
             }
         });
 
-        drawColorSettingElements();
-        drawColorSettingElementsForSecondWheel();
+        setupPaintbrushButton();
     }
     
     private void drawColorSettingElements() {
@@ -114,8 +119,8 @@ public class LoginController extends BaseController {
             hex.setOnMouseClicked(e -> {
                 Config.setPrimaryColor(color);
                 MaxReachPro.getInstance().updateColorCSS(color, null);
+                MaxReachPro.getInstance().updateTopBarColors();
                 MaxReachPro.getInstance().getScissorLift().updateColors(Color.web(Config.getPrimaryColor()), Color.web(Config.getSecondaryColor()));
-                refreshUIElements();  // Refresh UI after selection
                 String[] user = Config.getUser();
                 if (user != null) {
                     updateColorInDB(Config.getUser()[0], Config.getPrimaryColor());
@@ -168,8 +173,8 @@ public class LoginController extends BaseController {
             hex.setOnMouseClicked(e -> {
                 Config.setSecondaryColor(color);
                 MaxReachPro.getInstance().updateColorCSS(null, color);
+                MaxReachPro.getInstance().updateTopBarColors();
                 MaxReachPro.getInstance().getScissorLift().updateColors(Color.web(Config.getPrimaryColor()), Color.web(Config.getSecondaryColor()));
-                refreshUIElements();  // Refresh UI after selection
                 /*  System.out.println("colorIndex: " + colorIndex + 
                     " -> offsetX: (" + colorIndex + " % 7) * " + hexSpacing + " = " + offsetX + 
                     ", offsetY: (" + colorIndex + " / 7) * (" + hexSize + " * 1.5) = " + offsetY);
@@ -362,6 +367,29 @@ public class LoginController extends BaseController {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private void setupPaintbrushButton() {
+        ImageView paintbrushIcon = new ImageView(new Image(getClass().getResourceAsStream("/images/paintbrush.png")));
+        
+        paintbrushIcon.setFitWidth(20);
+        paintbrushIcon.setFitHeight(20);
+
+        paintbrushButton.setGraphic(paintbrushIcon);
+        paintbrushButton.setLayoutX(14);
+        paintbrushButton.setLayoutY(550);
+
+        paintbrushButton.setOnAction(null);
+        paintbrushButton.setOnAction(event -> {
+            drawColorSettingElements();
+            drawColorSettingElementsForSecondWheel();
+            paintbrushButton.setVisible(false);
+        });
+    }
+
+    @FXML
+    private void handlePaintbrush(ActionEvent event) {
+
     }
 
     @FXML

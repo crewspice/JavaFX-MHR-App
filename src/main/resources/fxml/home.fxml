@@ -17,5 +17,4 @@
     <Label fx:id="sourceCodeLabel" text="Source Code" layoutX="200" layoutY="597" onMouseClicked="#handleSourceCodeClick"
        styleClass="source-code-label"/>
     <Button fx:id="backButton" text="Back" layoutX="270" layoutY="5" onAction="#handleBack"/>
-    <Rectangle fx:id="dragArea"/>
 </AnchorPane>

@@ -1,7 +1,9 @@
 package com.MaxHighReach;
 
 
+import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
@@ -16,6 +18,8 @@ import javafx.scene.Scene;
 import javafx.stage.StageStyle;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
@@ -23,6 +27,9 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.*;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
@@ -48,7 +55,17 @@ public class MaxReachPro extends Application {
     private static StackPane mainPane;
     private static StackPane mapPane;
     private static HBox rootLayout;
+    private static StackPane layeredRoot;
     private static Scene scene;
+    private static Rectangle topBar;
+    private static Rectangle closeRect;
+    private static Text closeSymbol;
+    private static Rectangle minimizeRect;
+    private static Text minimizeSymbol;
+    private static Rectangle collapseRect;
+    private static Text collapseSymbol;
+    private static Rectangle cornerCoverInMiddle1;
+    private static Rectangle cornerCoverInMiddle2;
     private static ScissorLift scissorLift;
     private static boolean isFirstScene = true;
     private static Map<String, String> sceneHierarchy = new HashMap<>();
@@ -65,7 +82,8 @@ public class MaxReachPro extends Application {
     private static String selectedDriverName;
     private static ObservableList<Customer> customers = FXCollections.observableArrayList();
     private static ObservableList<Lift> lifts = FXCollections.observableArrayList();
-
+    private static double xOffset = 0;
+    private static double yOffset = 0;
     private static final double SCISSOR_DRAW_HEIGHT = 50;
     private static final double SCISSOR_INITIAL_HEIGHT = Config.SCISSOR_LIFT_INITIAL_HEIGHT;
 
@@ -94,8 +112,20 @@ public class MaxReachPro extends Application {
         rootLayout.setStyle("-fx-background-color: transparent;");
         rootLayout.setHgrow(mapPane, Priority.ALWAYS);
 
+        Rectangle[] derivedRects = makeTopBar();
+        topBar = derivedRects[0];
+
+        setupTopBarButtons();
+
+        // Create StackPane to layer dragArea above rootLayout
+        layeredRoot = new StackPane(rootLayout, topBar, derivedRects[1], derivedRects[2], 
+                                        closeRect, closeSymbol, minimizeRect, minimizeSymbol, 
+                                        collapseRect, collapseSymbol);
+        layeredRoot.setStyle("-fx-background-color: transparent");
+        layeredRoot.setAlignment(Pos.TOP_LEFT);
+
         // Create and set scene
-        scene = new Scene(rootLayout, Config.WINDOW_WIDTH + 1300, Config.WINDOW_HEIGHT + 18);
+        scene = new Scene(layeredRoot, Config.WINDOW_WIDTH + (Config.WINDOW_HEIGHT / 2), Config.WINDOW_HEIGHT + 15);
         scene.setFill(Color.TRANSPARENT); // Makes the scene transparent
         scene.getStylesheets().add(getClass().getResource("/styles/styles.css").toExternalForm());
 
@@ -123,16 +153,113 @@ public class MaxReachPro extends Application {
         }
     
         // Expand the mapPane
-        mapPane.setMinWidth(600);
-        mapPane.setMaxWidth(600);
+        mapPane.setMinWidth(Config.WINDOW_HEIGHT / 2);
+        mapPane.setMaxWidth(Config.WINDOW_HEIGHT / 2);
         HBox.setHgrow(mapPane, Priority.ALWAYS);
+
+        double originalWidth = topBar.getWidth();
+
+        // Calculate the new X position by adding half of the window height from the current position
+        double newWidth = originalWidth + (Config.WINDOW_HEIGHT / 2) + 2.5;
+        // Assuming closeRect, closeSymbol, minimizeRect, and minimizeSymbol are defined somewhere
+
+        // Define the original and new positions for the translations
+        double closeRectOriginalX = closeRect.getLayoutX();
+        double closeRectNewX = closeRectOriginalX + newWidth - 35;  // Adjust this to the desired translation value
+
+        double closeSymbolOriginalX = closeSymbol.getLayoutX();
+        double closeSymbolNewX = closeSymbolOriginalX + newWidth - 26;  // Same as above
+
+        double minimizeRectOriginalX = minimizeRect.getLayoutX();
+        double minimizeRectNewX = minimizeRectOriginalX + newWidth - 69;  // Adjust accordingly
+
+        double minimizeSymbolOriginalX = minimizeSymbol.getLayoutX();
+        double minimizeSymbolNewX = minimizeSymbolOriginalX + newWidth - 61;  // Adjust accordingly
+
+        double collapseRectOriginalX = collapseRect.getLayoutX();
+        double collapseRectNewX = collapseRectOriginalX + newWidth - 104;
+
+        double collapseSymbolOriginalX = collapseSymbol.getLayoutX();
+        double collapseSymbolNewX = collapseSymbolOriginalX + newWidth - 98;
+
+        // Create the Timeline with both width and translation animations
+        Timeline timeline = new Timeline(
+            new KeyFrame(Duration.ZERO, 
+                new KeyValue(topBar.widthProperty(), originalWidth, Interpolator.EASE_BOTH),
+                new KeyValue(closeRect.translateXProperty(), 285, Interpolator.EASE_BOTH),
+                new KeyValue(closeSymbol.translateXProperty(), 295, Interpolator.EASE_BOTH),
+                new KeyValue(minimizeRect.translateXProperty(), 248, Interpolator.EASE_BOTH),
+                new KeyValue(minimizeSymbol.translateXProperty(), 256, Interpolator.EASE_BOTH),
+                new KeyValue(collapseRect.translateXProperty(), 210, Interpolator.EASE_BOTH),
+                new KeyValue(collapseSymbol.translateXProperty(), 216, Interpolator.EASE_BOTH)
+            ),
+            new KeyFrame(Duration.millis(1075), 
+                new KeyValue(topBar.widthProperty(), newWidth, Interpolator.EASE_BOTH),
+                new KeyValue(closeRect.translateXProperty(), closeRectNewX, Interpolator.EASE_BOTH),
+                new KeyValue(closeSymbol.translateXProperty(), closeSymbolNewX, Interpolator.EASE_BOTH),
+                new KeyValue(minimizeRect.translateXProperty(), minimizeRectNewX, Interpolator.EASE_BOTH),
+                new KeyValue(minimizeSymbol.translateXProperty(), minimizeSymbolNewX, Interpolator.EASE_BOTH),
+                new KeyValue(collapseRect.translateXProperty(), collapseRectNewX, Interpolator.EASE_BOTH),
+                new KeyValue(collapseSymbol.translateXProperty(), collapseSymbolNewX, Interpolator.EASE_BOTH)
+            )
+        );
+
+        timeline.setOnFinished(event -> {
+            collapseRect.setVisible(true);
+            collapseSymbol.setVisible(true);
+        });
+
+        // Play the timeline animation
+        timeline.play();
+
+
+        cornerCoverInMiddle1.setFill(Color.web("#F4F4F4"));
+        cornerCoverInMiddle2.setFill(Color.web("#F4F4F4"));
 
     }
 
-    public void collapseStage() {
+    public static void collapseStage() {
         mapPane.setMinWidth(0);
         mapPane.setMaxWidth(0);
         mapPane.getChildren().removeAll(mapPane.getChildren());
+
+        double originalWidth = topBar.getWidth();
+
+        // Calculate the reduced width for collapse (restore the original width)
+        double newWidth = originalWidth - (Config.WINDOW_HEIGHT / 2) - 2.5;
+        
+        // Create the Timeline with both width and translation animations for collapsing
+        Timeline timeline = new Timeline(
+            new KeyFrame(Duration.ZERO, 
+                new KeyValue(topBar.widthProperty(), originalWidth, Interpolator.EASE_BOTH),
+                new KeyValue(closeRect.translateXProperty(), 705, Interpolator.EASE_BOTH),
+                new KeyValue(closeSymbol.translateXProperty(), 714, Interpolator.EASE_BOTH),
+                new KeyValue(minimizeRect.translateXProperty(), 671, Interpolator.EASE_BOTH),
+                new KeyValue(minimizeSymbol.translateXProperty(), 680, Interpolator.EASE_BOTH),
+                new KeyValue(collapseRect.translateXProperty(), 637, Interpolator.EASE_BOTH),
+                new KeyValue(collapseSymbol.translateXProperty(), 643, Interpolator.EASE_BOTH)
+            ),
+            new KeyFrame(Duration.millis(1075), 
+                new KeyValue(topBar.widthProperty(), newWidth, Interpolator.EASE_BOTH),
+                new KeyValue(closeRect.translateXProperty(), 285, Interpolator.EASE_BOTH),
+                new KeyValue(closeSymbol.translateXProperty(), 295, Interpolator.EASE_BOTH),
+                new KeyValue(minimizeRect.translateXProperty(), 251, Interpolator.EASE_BOTH),
+                new KeyValue(minimizeSymbol.translateXProperty(), 259, Interpolator.EASE_BOTH),
+                new KeyValue(collapseRect.translateXProperty(), 210, Interpolator.EASE_BOTH),
+                new KeyValue(collapseSymbol.translateXProperty(), 216, Interpolator.EASE_BOTH)
+            )
+        );
+    
+        collapseRect.setVisible(false);
+        collapseSymbol.setVisible(false);
+    
+        // Play the timeline animation
+        timeline.play();
+    
+        cornerCoverInMiddle1.setFill(Color.TRANSPARENT);  // Optionally hide the cover after collapsing
+        cornerCoverInMiddle2.setFill(Color.TRANSPARENT);  // Optionally hide the cover after collapsing
+
+        closeRect.toFront();
     }
 
     public static void loadScene(String fxmlPath) throws Exception {
@@ -220,8 +347,6 @@ public class MaxReachPro extends Application {
 
     public static StackPane makeMapPane() {
         mapPane = new StackPane();
-        
-        mapPane = new StackPane();
         mapPane.setMinWidth(30);  // Start hidden
         mapPane.setMaxWidth(30);
         mapPane.setTranslateX(0);
@@ -229,6 +354,177 @@ public class MaxReachPro extends Application {
         
         return mapPane;
     }
+
+    public static Rectangle[] makeTopBar() {
+        // 🔹 CREATE GLOBAL DRAG AREA OVER BOTH PANES
+        Rectangle dragArea = new Rectangle(Config.WINDOW_WIDTH / 4, Config.WINDOW_HEIGHT);
+        dragArea.setWidth(Config.WINDOW_WIDTH - 2);
+        dragArea.setHeight(21);
+        dragArea.setFill(new LinearGradient(
+            0, 0, 1, 0,  // Start (left) to End (right)
+            true, CycleMethod.NO_CYCLE, 
+            new Stop(0, Color.web(Config.getSecondaryColor())),  // Left color
+            new Stop(1, Color.web(Config.getPrimaryColor()))           // Right color
+        ));            
+        dragArea.setMouseTransparent(false);
+
+        // dragArea.setTranslateX(-Config.WINDOW_WIDTH);
+        // dragArea.setLayoutY(0);
+
+        // Round the top two corners only
+        dragArea.setArcWidth(20);
+        dragArea.setArcHeight(20);
+
+        // 🔹 Enable Dragging (Same across both regions)
+        dragArea.setOnMousePressed(event -> {
+            System.out.println("Pressed in DragArea");
+        });
+
+        dragArea.setOnMouseDragged(event -> {
+            System.out.println("Dragging in DragArea");
+        });
+
+        dragArea.setOnMousePressed(event -> {
+            xOffset = primaryStage.getX() - event.getScreenX();
+            yOffset = primaryStage.getY() - event.getScreenY();
+        });
+
+        dragArea.setOnMouseDragged(event -> {
+            primaryStage.setX(event.getScreenX() + xOffset);
+            primaryStage.setY(event.getScreenY() + yOffset);
+        });
+
+        cornerCoverInMiddle1 = new Rectangle(17, 15);
+        cornerCoverInMiddle1.setTranslateX(Config.WINDOW_WIDTH - 21);
+        cornerCoverInMiddle1.setTranslateY(Config.WINDOW_HEIGHT + 6);
+        cornerCoverInMiddle1.setFill(Color.web("TRANSPARENT"));
+
+        cornerCoverInMiddle2 = new Rectangle(9, 40);
+        cornerCoverInMiddle2.setTranslateX(Config.WINDOW_WIDTH - 11);
+        cornerCoverInMiddle2.setTranslateY(Config.WINDOW_HEIGHT - 6);
+        cornerCoverInMiddle2.setFill(Color.web("TRANSPARENT"));
+
+        return new Rectangle[]{dragArea, cornerCoverInMiddle1, cornerCoverInMiddle2};
+    }
+
+    public static void setupTopBarButtons() {
+        // Close Button
+        closeRect = new Rectangle(30, 15, Color.web("#F4F4F4"));
+        closeRect.setArcWidth(40);
+        closeRect.setArcHeight(40);
+        closeRect.setTranslateX(Config.WINDOW_WIDTH - 35);
+        closeRect.setTranslateY(3);
+    
+        closeSymbol = new Text("X");
+        closeSymbol.setFont(Font.font("Arial", FontWeight.BOLD, 15));
+        closeSymbol.setFill(Color.web(Config.getPrimaryColor()));
+        closeSymbol.setTranslateX(closeRect.getTranslateX() + 10);
+        closeSymbol.setTranslateY(closeRect.getTranslateY() - 1);
+    
+        // Minimize Button (Placed to the left of Close Button)
+        minimizeRect = new Rectangle(30, 15, Color.web("#F4F4F4"));
+        minimizeRect.setArcWidth(40);
+        minimizeRect.setArcHeight(40);
+        minimizeRect.setTranslateX(closeRect.getTranslateX() - 35); // Move left by 35 pixels
+        minimizeRect.setTranslateY(closeRect.getTranslateY());
+    
+        minimizeSymbol = new Text("\u2014");
+        minimizeSymbol.setFont(Font.font("Arial", FontWeight.BOLD, 15));
+        minimizeSymbol.setFill(Color.web(Config.getPrimaryColor()));
+        minimizeSymbol.setTranslateX(minimizeRect.getTranslateX() + 8);
+        minimizeSymbol.setTranslateY(minimizeRect.getTranslateY() - 2);
+    
+        // Collapse Button (Placed to the left of Minimize Button)
+        collapseRect = new Rectangle(30, 15, Color.web("#F4F4F4"));
+        collapseRect.setArcWidth(40);
+        collapseRect.setArcHeight(40);
+        collapseRect.setTranslateX(minimizeRect.getTranslateX() - 35);
+        collapseRect.setTranslateY(closeRect.getTranslateY());
+        collapseRect.setVisible(false);
+    
+        collapseSymbol = new Text("\u2190");
+        DropShadow shadow = new DropShadow();
+        shadow.setRadius(1); // Remove blur by setting radius to 0
+        shadow.setOffsetX(1); // Control horizontal shadow displacement
+        shadow.setOffsetY(1); // Control vertical shadow displacement
+        shadow.setColor(Color.web(Config.getPrimaryColor())); // Set the shadow color
+        collapseSymbol.setEffect(shadow);
+        collapseSymbol.setFont(Font.font("Arial", FontWeight.EXTRA_BOLD, 18));
+        collapseSymbol.setFill(Color.web(Config.getPrimaryColor()));
+        collapseSymbol.setTranslateX(collapseRect.getTranslateX() + 6);
+        collapseSymbol.setTranslateY(collapseRect.getTranslateY() - 4);
+        collapseSymbol.setVisible(false);
+
+        // Hover Effects (Both Rectangle & Text)
+        EventHandler<MouseEvent> hoverEnter = event -> {
+            if (event.getSource() == minimizeRect || event.getSource() == minimizeSymbol) {
+                minimizeRect.setFill(Color.web(Config.getTertiaryColor()));
+                minimizeSymbol.setFill(Color.web(Config.getSecondaryColor()));
+            } else if (event.getSource() == closeRect || event.getSource() == closeSymbol) {
+                closeRect.setFill(Color.web(Config.getTertiaryColor()));
+                closeSymbol.setFill(Color.web(Config.getSecondaryColor()));
+            } else if (event.getSource() == collapseRect || event.getSource() == collapseSymbol) {
+                collapseRect.setFill(Color.web(Config.getTertiaryColor()));
+                collapseSymbol.setFill(Color.web(Config.getSecondaryColor()));
+            }
+        };
+    
+        EventHandler<MouseEvent> hoverExit = event -> {
+            if (event.getSource() == minimizeRect || event.getSource() == minimizeSymbol) {
+                minimizeRect.setFill(Color.web("#F4F4F4"));
+                minimizeSymbol.setFill(Color.web(Config.getPrimaryColor())); // Reset symbol color
+            } else if (event.getSource() == closeRect || event.getSource() == closeSymbol) {
+                closeRect.setFill(Color.web("#F4F4F4"));
+                closeSymbol.setFill(Color.web(Config.getPrimaryColor())); // Reset symbol color
+            } else if (event.getSource() == collapseRect || event.getSource() == collapseSymbol) {
+                collapseRect.setFill(Color.web("#F4F4F4"));
+                collapseSymbol.setFill(Color.web(Config.getPrimaryColor())); // Reset symbol color
+            }
+        };
+    
+        // Apply Hover Effects
+        minimizeRect.setOnMouseEntered(hoverEnter);
+        minimizeRect.setOnMouseExited(hoverExit);
+        minimizeSymbol.setOnMouseEntered(hoverEnter);
+        minimizeSymbol.setOnMouseExited(hoverExit);
+    
+        closeRect.setOnMouseEntered(hoverEnter);
+        closeRect.setOnMouseExited(hoverExit);
+        closeSymbol.setOnMouseEntered(hoverEnter);
+        closeSymbol.setOnMouseExited(hoverExit);
+    
+        collapseRect.setOnMouseEntered(hoverEnter);
+        collapseRect.setOnMouseExited(hoverExit);
+        collapseSymbol.setOnMouseEntered(hoverEnter);
+        collapseSymbol.setOnMouseExited(hoverExit);
+    
+        // Click Handler for Collapse Button (Prints a message when clicked)
+        collapseRect.setOnMouseClicked(event -> {
+            collapseStage();
+        });
+    
+        collapseSymbol.setOnMouseClicked(event -> {
+            collapseStage();
+        });
+    
+        // Other existing button handlers
+        EventHandler<MouseEvent> minimizeHandler = event -> {
+            Stage stage = (Stage) topBar.getScene().getWindow();
+            stage.setIconified(true);
+        };
+    
+        EventHandler<MouseEvent> closeHandler = event -> {
+            Stage stage = (Stage) topBar.getScene().getWindow();
+            stage.close();
+        };
+    
+        minimizeRect.setOnMouseClicked(minimizeHandler);
+        minimizeSymbol.setOnMouseClicked(minimizeHandler);
+    
+        closeRect.setOnMouseClicked(closeHandler);
+        closeSymbol.setOnMouseClicked(closeHandler);
+    }
+    
 
 
     public static MaxReachPro getInstance() {
@@ -295,6 +591,25 @@ public class MaxReachPro extends Application {
         // Apply the new stylesheet from the temporary CSS file
         scene.getStylesheets().add(tempCssFile.toURI().toString());
     
+    }
+
+    public static void updateTopBarColors() {
+        if (topBar != null) {
+            topBar.setFill(new LinearGradient(
+                    0, 0, 1, 0, // Start (left) to End (right)
+                    true, CycleMethod.NO_CYCLE, 
+                    new Stop(0, Color.web(Config.getSecondaryColor())), // Left color
+                    new Stop(1, Color.web(Config.getPrimaryColor()))    // Right color
+            ));
+        }
+
+        // Update close and minimize symbols with the primary color
+        if (closeSymbol != null) {
+            closeSymbol.setFill(Color.web(Config.getPrimaryColor()));
+        }
+        if (minimizeSymbol != null) {
+            minimizeSymbol.setFill(Color.web(Config.getPrimaryColor()));
+        }    
     }
     
     public static boolean checkTooDark(String colorHex) {

@@ -13,6 +13,14 @@
     <Pane fx:id="scissorLiftPane" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0"/>
     <TextField fx:id="nameField" layoutX="14.0" layoutY="14.0" promptText="Enter your name" AnchorPane.leftAnchor="14.0" AnchorPane.topAnchor="14.0"/>
     <ListView fx:id="suggestionsList" layoutX="14.0" layoutY="44.0" AnchorPane.leftAnchor="14.0" AnchorPane.topAnchor="44.0" visible="false"/>
+    <!-- <Button fx:id="paintbrushButton" onAction="#handlePaintbrush" style="-fx-background-color: transparent;"
+        AnchorPane.leftAnchor="200.0" AnchorPane.topAnchor="14.0">
+        <graphic>
+            <ImageView fitWidth="20" fitHeight="20">
+                <Image url="@/images/paintbrush.png"/>
+            </ImageView>
+        </graphic>
+    </Button> -->
+    <Button fx:id="paintbrushButton" layoutX="200.0" layoutY="14.0" AnchorPane.leftAnchor="14.0" AnchorPane.topAnchor="763.0" styleClass="sidebar-button-inactive"/>
     <Button fx:id="loginButton" text="Login" layoutX="200.0" layoutY="14.0" onAction="#handleLogin" AnchorPane.leftAnchor="200.0" AnchorPane.topAnchor="14.0"/>
-    <Rectangle fx:id="dragArea"/>
 </AnchorPane>

@@ -125,7 +125,7 @@ public class Rental {
                           String orderedByName, String orderedByPhone, boolean autoTerm, String addressBlockOne,
                           String addressBlockTwo, String addressBlockThree, int rentalItemId, String serialNumber,
                           boolean singleItemOrder, int rentalOrderId, String siteContactName, String siteContactPhone, 
-                          double latitude, double longitude) {
+                          double latitude, double longitude, String liftType) {
         this.customerId = new SimpleStringProperty(customerId);
         this.name = new SimpleStringProperty(name);
         this.orderedByName = new SimpleStringProperty(orderedByName);
@@ -153,7 +153,7 @@ public class Rental {
         this.driverNumber = new SimpleIntegerProperty(0);
         this.serialNumber = new SimpleStringProperty(serialNumber);
         this.liftId = new SimpleIntegerProperty(0);
-        this.liftType = new SimpleStringProperty("Unknown");
+        this.liftType = new SimpleStringProperty(liftType);
         this.shortLiftType = new SimpleStringProperty("Unknown");
         this.status = new SimpleStringProperty("Unknown");
         this.rentalOrderId = new SimpleIntegerProperty(rentalOrderId);

@@ -670,7 +670,7 @@ public class ScheduleDeliveryController extends BaseController {
 
     	// Start rotating highlight for lift type toggle buttons
 
-
+		initializeGrid();
 
 
 	}
@@ -1500,28 +1500,24 @@ public class ScheduleDeliveryController extends BaseController {
 		String sourceFile = Paths.get(PathConfig.CONTRACTS_DIR, "contract template.pdf").toString();
 		List<String> createdPdfFiles = new ArrayList<>();
 
-
 		for (Rental rental : rentalsList) {
 			String outputFile = Paths.get(PathConfig.CONTRACTS_DIR, "contract_" + rental.getRentalItemId() + ".pdf").toString();
 			double latitude = rental.getLatitude();
 			double longitude = rental.getLongitude();
 			String mapPage = getGridNameFromCoords(latitude, longitude);
-
+			System.out.println("Latitude: " + latitude + ", Longitude: " + longitude + ", Map Page: " + mapPage);
 
 			try {
 				// Open the source PDF
 				PdfDocument pdfDoc = new PdfDocument(new PdfReader(sourceFile), new PdfWriter(outputFile));
 				Document document = new Document(pdfDoc);
 
-
 				// Get page 1 of the PDF
 				PdfCanvas canvas = new PdfCanvas(pdfDoc.getPage(1));
-
 
 				// Add text to specific coordinates
 				canvas.beginText();
 				canvas.setFontAndSize(com.itextpdf.kernel.font.PdfFontFactory.createFont(), 12);
-
 
 				String dateString = rental.getDeliveryDate();
 				DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("MMM-d");
@@ -1539,7 +1535,6 @@ public class ScheduleDeliveryController extends BaseController {
 				canvas.setTextMatrix(435, 711); // Delivery Date
 				canvas.showText(formattedDeliveryDate);
 
-
 				// Additional fields
 				canvas.setTextMatrix(440 ,747); // Delivery Time
 				canvas.showText("P" + rental.getRentalItemId());
@@ -1552,7 +1547,6 @@ public class ScheduleDeliveryController extends BaseController {
 				canvas.setTextMatrix(454, 559);
 				canvas.showText(mapPage);
 
-
 				if (rental.getSiteContactName() != null) {
 					canvas.setTextMatrix(371, 577); // Address Block Four
 					canvas.showText(rental.getSiteContactName());
@@ -1560,14 +1554,12 @@ public class ScheduleDeliveryController extends BaseController {
 					canvas.showText(formatPhoneNumber(rental.getSiteContactPhone()));
 				}
 
-
 				if (rental.getOrderedByName() != null) {
 					canvas.setTextMatrix(119, 559); // Address Block Four
 					canvas.showText(rental.getOrderedByName());
 					canvas.setTextMatrix(76, 577); // Address Block Five
 					canvas.showText(formatPhoneNumber(rental.getOrderedByPhone()));
 				}
-
 
 				canvas.setTextMatrix(194, 559); // PO Number
 				canvas.showText(rental.getPoNumber());
@@ -1578,21 +1570,14 @@ public class ScheduleDeliveryController extends BaseController {
 				canvas.setTextMatrix(43, 652);
 				canvas.showText(rental.getPreTripInstructions());
 				canvas.setTextMatrix(99, 481); // Lift Type
-				canvas.showText(rental.getLiftType());
-
-
+				canvas.showText(Config.getAbbreviatedLiftType(rental.getLiftType()));
 				canvas.endText();
-
 
 				// Close the document
 				document.close();
 
-
 				// Track the generated PDF file
 				createdPdfFiles.add(outputFile);
-
-
-
 
 			} catch (Exception e) {
 				System.out.println("Error creating contract for rental ID " + rental.getRentalItemId() + ": " + e.getMessage());
@@ -1600,24 +1585,20 @@ public class ScheduleDeliveryController extends BaseController {
 			}
 		}
 
-
 		// Merge individual PDFs into one file
 		if (!createdPdfFiles.isEmpty()) {
 			String todayDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 			String finalOutputFile = Paths.get(PathConfig.CONTRACTS_DIR, "contracts_" + todayDate + ".pdf").toString();
 
-
 			try {
 				PdfDocument finalPdfDoc = new PdfDocument(new PdfWriter(finalOutputFile));
 				PdfMerger merger = new PdfMerger(finalPdfDoc);
-
 
 				for (String pdfFile : createdPdfFiles) {
 					PdfDocument docToMerge = new PdfDocument(new PdfReader(pdfFile));
 					merger.merge(docToMerge, 1, docToMerge.getNumberOfPages());
 					docToMerge.close();
 				}
-
 
 				finalPdfDoc.close();
 
@@ -1637,8 +1618,6 @@ public class ScheduleDeliveryController extends BaseController {
 					if (file.exists() && file.delete()) {
 					}
 				}
-
-
 			} catch (Exception e) {
 				System.out.println("Error merging PDFs: " + e.getMessage());
 				e.printStackTrace();
@@ -1646,9 +1625,6 @@ public class ScheduleDeliveryController extends BaseController {
 		} else {
 			System.out.println("No contracts were created, so no merge occurred.");
 		}
-
-
-			
 	}
 
 	private Tooltip createCustomTooltip(Button button, double xOffset, double yOffset, Tooltip tooltip) {
@@ -1920,16 +1896,29 @@ public class ScheduleDeliveryController extends BaseController {
 
 
         	String po = POField.getText();
-
+			String orderedByNameValue = orderedByField.getText();
+			String orderedByNumberValue = orderedByPhoneField.getText();
+			String siteContactNameValue = siteContactField.getText();
+			String siteContactNumberValue = siteContactPhoneField.getText();
+			String locationNotes = locationNotesButton.getStyleClass().contains("schedule-delivery-button-has-value") ? locationNotesField.getText() : "";
+			String preTripInstructions = preTripInstructionsButton.getStyleClass().contains("schedule-delivery-button-has-value") ? preTripInstructionsField.getText() : "";
 
 
 
         	currentCustomerRental = new Rental(customerId, customerName, deliveryDate, deliveryTime,
             	null, "", 0, "Upcoming", po, rentalsList.size() + 1,
              	false, null);
+			currentCustomerRental.setAddressBlockOne(site);
         	currentCustomerRental.setAddressBlockTwo(streetAddress);
         	currentCustomerRental.setAddressBlockThree(city);
+			currentCustomerRental.setSiteContactName(site);
         	currentCustomerRental.setCallOffDate(callOffDate);
+			currentCustomerRental.setOrderedByName(orderedByNameValue);
+			currentCustomerRental.setOrderedByPhone(orderedByNumberValue);
+			currentCustomerRental.setSiteContactName(siteContactNameValue);
+			currentCustomerRental.setSiteContactPhone(siteContactNumberValue);
+			currentCustomerRental.setLocationNotes(locationNotes);
+			currentCustomerRental.setPreTripInstructions(preTripInstructions);
 			double[] coords = calculateLongAndLat(streetAddress, city);
 			currentCustomerRental.setLatitude(coords[0]);
 			currentCustomerRental.setLongitude(coords[1]);
@@ -1976,9 +1965,8 @@ public class ScheduleDeliveryController extends BaseController {
 
 
 
-
-
-            	if (insertRentalItem(currentCustomerRental, rentalOrderId, liftId, currentCustomerRental.getOrderDate(), dbDeliveryDate, dbCallOffDate, deliveryTime, po) && rentalOrderScheduled) {
+				boolean insertRentalItem = insertRentalItem(currentCustomerRental, rentalOrderId, liftId, currentCustomerRental.getOrderDate(), dbDeliveryDate, dbCallOffDate, deliveryTime, po, orderedByNameValue, orderedByNumberValue, siteContactNameValue, siteContactNumberValue, locationNotes, preTripInstructions) && rentalOrderScheduled;
+            	if (insertRentalItem && rentalOrderScheduled) {
                 	// Update the status label for successful scheduling
                 	System.out.println("Rental item created successfully!"); // For debugging
                 	statusLabel.setText("Rental item created successfully!"); // Show success message
@@ -2071,14 +2059,15 @@ public class ScheduleDeliveryController extends BaseController {
 	}
 
 
-	private boolean insertRentalItem(Rental rental, int localRentalOrderId, int liftId, String orderDate, String deliveryDate, String callOffDate, String deliveryTime, String po) {
-		int autoTerm = (callOffDate != null) ? 1 : 0;
+	private boolean insertRentalItem(Rental rental, int localRentalOrderId, int liftId, String orderDate,
+		String deliveryDate, String callOffDate, String deliveryTime, String po, String orderedByNameValue, 
+		String orderedByNumberValue, String siteContactNameValue, String siteContactNumberValue, 
+		String preTripInstructions, String locationNotes) {
+		
+			int autoTerm = (callOffDate != null) ? 1 : 0;
 	
 		// First section prepares contact vars
-		String orderedByNameValue = orderedByField.getText();
-		String orderedByNumberValue = orderedByPhoneField.getText();
-		String siteContactNameValue = siteContactField.getText();
-		String siteContactNumberValue = siteContactPhoneField.getText();
+
 		boolean haveOrderedBy = false, haveSiteContact = false;
 		String orderedByContactId = "", siteContactId = "";
 	
@@ -2129,16 +2118,8 @@ public class ScheduleDeliveryController extends BaseController {
 			preparedStatement.setInt(8, autoTerm);
 			preparedStatement.setString(9, deliveryTime);
 			preparedStatement.setString(10, po);
-			if (locationNotesButton.getStyleClass().contains("schedule-delivery-button-has-value")) {
-				preparedStatement.setString(11, locationNotesField.getText());
-			} else {
-				preparedStatement.setNull(11, Types.VARCHAR);
-			}
-			if (preTripInstructionsButton.getStyleClass().contains("schedule-delivery-button-has-value")) {
-				preparedStatement.setString(12, preTripInstructionsField.getText());
-			} else {
-				preparedStatement.setNull(12, Types.VARCHAR);
-			}
+			preparedStatement.setString(11, locationNotes);
+			preparedStatement.setString(12, preTripInstructions);
 			preparedStatement.setString(13, "Upcoming");
 	
 			// Execute the update
@@ -2477,7 +2458,47 @@ public class ScheduleDeliveryController extends BaseController {
 	}
 
 
+	private void initializeGrid() {
+    	double latStepGreater = (LAT_MAX - LAT_MIN) / 7;
+    	double lonStepGreater = (LON_MAX - LON_MIN) / 13;
+    	int cellNameGreater = 720;
 
+
+    	for (int row = 0; row < 7; row++) {
+        	for (int col = 0; col < 13; col++) {
+            	double minLat = LAT_MAX - (row + 1) * latStepGreater;
+            	double maxLat = LAT_MAX - row * latStepGreater;
+            	double minLon = LON_MIN + col * lonStepGreater;
+            	double maxLon = LON_MIN + (col + 1) * lonStepGreater;
+
+
+            	greaterGridCells.add(new GridCell("greater", minLat, maxLat, minLon, maxLon, String.valueOf(cellNameGreater), false));
+            	cellNameGreater++;
+        	}
+        	cellNameGreater += 7;
+    	}
+
+
+    	double latStepLesser = (LAT_MAX - LAT_MIN) / 14;
+    	double lonStepLesser = (LON_MAX - LON_MIN) / 26;
+    	int cellNameLesser = 61;
+
+
+    	for (int row = 0; row < 14; row++) {
+        	for (int col = 0; col < 26; col++) {
+            	double minLat = LAT_MAX - (row + 1) * latStepLesser;
+            	double maxLat = LAT_MAX - row * latStepLesser;
+            	double minLon = LON_MIN + col * lonStepLesser;
+            	double maxLon = LON_MIN + (col + 1) * lonStepLesser;
+            	boolean isDominant = dominantLesserCells.contains(String.valueOf(cellNameLesser));
+            	lesserGridCells.add(new GridCell("lesser", minLat, maxLat, minLon, maxLon, String.valueOf(cellNameLesser), isDominant));
+            	cellNameLesser ++;
+        	}
+        	cellNameLesser += 4;
+    	}
+
+
+	}
 
 	@FXML
 	public void handleBack() {

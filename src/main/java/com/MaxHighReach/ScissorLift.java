@@ -19,7 +19,10 @@ import java.net.URISyntaxException;
 public class ScissorLift extends Pane {
     private static final int ARM_COUNT = 6;
     private static final double WHEEL_RADIUS = 30;
-    private final Circle WHEEL_1 = createWheel1();
+    private Circle wheel1;
+    private Circle innerWheel1;
+    private Circle wheel2;
+    private Circle innerWheel2;
     private Line[] arm1, arm2;
     private Line[] arm1Borders, arm2Borders; // Add references for borders
     private Rectangle[] basket;
@@ -36,23 +39,27 @@ public class ScissorLift extends Pane {
         drawLift(-drawHeight);
     }
 
-    private Circle createWheel1() {
-        Circle wheel1 = new Circle(WHEEL_RADIUS, Color.GRAY);
-        wheel1.setCenterX(WHEEL_RADIUS + Config.PADDING);
-        wheel1.setCenterY(Config.WINDOW_HEIGHT - Config.PADDING - WHEEL_RADIUS);
-        wheel1.setOnMouseClicked(ScissorLift::handleWheelClick);
-        return wheel1;
-    }
-
     private void drawLift(double drawHeight) {
         double width = Config.SCISSOR_LIFT_WIDTH;
         double baseHeight = WHEEL_RADIUS;
 
         getChildren().clear();
 
-        Circle wheel2 = new Circle(WHEEL_RADIUS, Color.GRAY);
+        wheel1 = new Circle(WHEEL_RADIUS, Color.web(Config.getTertiaryColor()));
+        wheel1.setCenterX(WHEEL_RADIUS + Config.PADDING);
+        wheel1.setCenterY(Config.WINDOW_HEIGHT - Config.PADDING - WHEEL_RADIUS);
+
+        innerWheel1 = new Circle(WHEEL_RADIUS - 7, Color.web(Config.getPrimaryColor()));
+        innerWheel1.setCenterX(WHEEL_RADIUS + Config.PADDING);
+        innerWheel1.setCenterY(Config.WINDOW_HEIGHT - Config.PADDING - WHEEL_RADIUS);
+
+        wheel2 = new Circle(WHEEL_RADIUS, Color.web(Config.getTertiaryColor()));
         wheel2.setCenterX(width - WHEEL_RADIUS - Config.PADDING);
         wheel2.setCenterY(Config.WINDOW_HEIGHT - Config.PADDING - WHEEL_RADIUS);
+
+        innerWheel2 = new Circle(WHEEL_RADIUS - 7, Color.web(Config.getPrimaryColor()));
+        innerWheel2.setCenterX(width - WHEEL_RADIUS - Config.PADDING);
+        innerWheel2.setCenterY(Config.WINDOW_HEIGHT - Config.PADDING - WHEEL_RADIUS);
 
         double rectYCoordinate = WHEEL_RADIUS * 2.7;
         base = new Rectangle(Config.PADDING, Config.WINDOW_HEIGHT - rectYCoordinate,
@@ -75,13 +82,13 @@ public class ScissorLift extends Pane {
             arm1Borders[i] = new Line(Config.PADDING + 15, lastArm,
                                        width - Config.PADDING - 15,
                                        lastArm - armSpacing);
-            arm1Borders[i].setStroke(Color.GREY);
+            arm1Borders[i].setStroke(Color.web(Config.getTertiaryColor()));
             arm1Borders[i].setStrokeWidth(borderWidth);
 
             // Create arm2 border (grey)
             arm2Borders[i] = new Line(Config.PADDING + 15, lastArm - armSpacing,
                                        width - Config.PADDING - 15, lastArm);
-            arm2Borders[i].setStroke(Color.GREY);
+            arm2Borders[i].setStroke(Color.web(Config.getTertiaryColor()));
             arm2Borders[i].setStrokeWidth(borderWidth);
 
          }
@@ -146,11 +153,11 @@ public class ScissorLift extends Pane {
                 platform};
 
         getChildren().addAll(basket);
-        getChildren().addAll(base, WHEEL_1, wheel2);
+        getChildren().addAll(base, wheel1, wheel2, innerWheel1, innerWheel2);
     }
 
     public Circle getWheel1() {
-        return WHEEL_1;
+        return wheel1;
     }
 
     private static void handleWheelClick(MouseEvent event) {
@@ -245,6 +252,12 @@ public class ScissorLift extends Pane {
             }
         }
         base.setFill(newColorPrimary);
+
+        innerWheel1.setFill(newColorPrimary);
+        innerWheel2.setFill(newColorPrimary);
+        wheel1.setFill(Color.web(Config.getTertiaryColor()));
+        wheel2.setFill(Color.web(Config.getTertiaryColor()));
+
     }
 
 }

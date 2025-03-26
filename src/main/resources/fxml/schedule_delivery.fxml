@@ -200,6 +200,5 @@
     <Label fx:id="tableViewTitle" text="Deliveries You Have Scheduled:" layoutX="28" layoutY="360" translateY="27"
            style="-fx-font-weight: bold; -fx-font-size: 14;" visible="false"/>
 
-    <Rectangle fx:id="dragArea"/>
 
 </AnchorPane>

@@ -1298,156 +1298,10 @@ public class ColumnFactory {
             batchButton.setVisible(anySelected);
             updateRentalButton.setVisible(false);
 
-        
+			
             if (anySelected) {
-                batchButton.setOnAction(event -> {
-                    ObservableList<Rental> selectedRentals = dbTableView.getItems().filtered(Rental::isSelected);
-
-        
-                    if (selectedRentals.isEmpty()) {
-                        return;
-                    }
-        
-                    String sourceFile = Paths.get(PathConfig.CONTRACTS_DIR, "contract template.pdf").toString();
-                	List<String> createdPdfFiles = new ArrayList<>();
-
-
-                    for (Rental rental : selectedRentals) {
-                        String outputFile = Paths.get(PathConfig.CONTRACTS_DIR, "contract_" + rental.getRentalItemId() + ".pdf").toString();
-                    	double latitude = rental.getLatitude();
-                    	double longitude = rental.getLongitude();
-                    	String mapPage = getGridNameFromCoords(latitude, longitude);
-
-
-                    	try {
-                        	// Open the source PDF
-                        	PdfDocument pdfDoc = new PdfDocument(new PdfReader(sourceFile), new PdfWriter(outputFile));
-                        	Document document = new Document(pdfDoc);
-
-
-                        	// Get page 1 of the PDF
-                        	PdfCanvas canvas = new PdfCanvas(pdfDoc.getPage(1));
-
-
-                        	// Add text to specific coordinates
-                        	canvas.beginText();
-                        	canvas.setFontAndSize(com.itextpdf.kernel.font.PdfFontFactory.createFont(), 12);
-
-
-                        	String dateString = rental.getDeliveryDate();
-                        	LocalDate date = LocalDate.parse(dateString, DateTimeFormatter.ISO_LOCAL_DATE);
-                        	DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM'.' d");
-                        	String formattedDate = date.format(formatter);
-                        	int day = date.getDayOfMonth();
-                        	String suffix = getDaySuffix(day);
-                        	String formattedDeliveryDate = formattedDate + suffix;
-                        	canvas.setTextMatrix(435, 711); // Delivery Date
-                        	canvas.showText(formattedDeliveryDate);
-
-
-                        	// Additional fields
-                        	canvas.setTextMatrix(440 ,747); // Delivery Time
-                        	canvas.showText("P" + rental.getRentalItemId());
-                        	canvas.setTextMatrix(355, 631); // Address Block One
-                        	canvas.showText(rental.getAddressBlockOne());
-                        	canvas.setTextMatrix(346, 613); // Address Block Two
-                        	canvas.showText(rental.getAddressBlockTwo());
-                        	canvas.setTextMatrix(364, 595); // Address Block Three
-                        	canvas.showText(rental.getAddressBlockThree());
-                        	canvas.setTextMatrix(454, 559);
-                        	canvas.showText(mapPage);
-
-
-                        	if (rental.getSiteContactName() != null) {
-                            	canvas.setTextMatrix(371, 577); // Address Block Four
-                            	canvas.showText(rental.getSiteContactName());
-                            	canvas.setTextMatrix(454, 577); // Address Block Five
-                            	canvas.showText(formatPhoneNumber(rental.getSiteContactPhone()));
-                        	}
-
-
-                        	if (rental.getOrderedByName() != null) {
-                            	canvas.setTextMatrix(119, 559); // Address Block Four
-                            	canvas.showText(rental.getOrderedByName());
-                            	canvas.setTextMatrix(76, 577); // Address Block Five
-                            	canvas.showText(formatPhoneNumber(rental.getOrderedByPhone()));
-                        	}
-
-
-                        	canvas.setTextMatrix(194, 559); // PO Number
-                        	canvas.showText(rental.getPoNumber());
-                        	canvas.setTextMatrix(43, 523);
-                        	canvas.showText(rental.getLocationNotes());
-                        	canvas.setTextMatrix(81, 630); // Name
-                        	canvas.showText(rental.getName());
-                        	canvas.setTextMatrix(43, 652);
-                        	canvas.showText(rental.getPreTripInstructions());
-                        	canvas.setTextMatrix(99, 481); // Lift Type
-                        	canvas.showText(rental.getLiftType());
-
-
-                        	canvas.endText();
-
-
-                        	// Close the document
-                        	document.close();
-
-
-                        	// Track the generated PDF file
-                        	createdPdfFiles.add(outputFile);
-
-
-                        secondInProcessButton.setVisible(true);
-
-
-                    	} catch (Exception e) {
-                        	System.out.println("Error creating contract for rental ID " + rental.getRentalItemId() + ": " + e.getMessage());
-                        	e.printStackTrace();
-                    	}
-                	}
-
-
-                	// Merge individual PDFs into one file
-                	if (!createdPdfFiles.isEmpty()) {
-                    	String todayDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                        String finalOutputFile = Paths.get(PathConfig.CONTRACTS_DIR, "contracts_" + todayDate + ".pdf").toString();
-
-
-                    	try {
-                        	PdfDocument finalPdfDoc = new PdfDocument(new PdfWriter(finalOutputFile));
-                        	PdfMerger merger = new PdfMerger(finalPdfDoc);
-
-
-                        	for (String pdfFile : createdPdfFiles) {
-                            	PdfDocument docToMerge = new PdfDocument(new PdfReader(pdfFile));
-                            	merger.merge(docToMerge, 1, docToMerge.getNumberOfPages());
-                            	docToMerge.close();
-                        	}
-
-
-                        	finalPdfDoc.close();
-
-
-
-
-                        	// Clean up individual PDFs
-                        	for (String pdfFile : createdPdfFiles) {
-                            	File file = new File(pdfFile);
-                            	if (file.exists() && file.delete()) {
-                            	}
-                        	}
-
-
-                    	} catch (Exception e) {
-                        	System.out.println("Error merging PDFs: " + e.getMessage());
-                        	e.printStackTrace();
-                    	}
-                	} else {
-                    	System.out.println("No contracts were created, so no merge occurred.");
-                	}
-
-
-                });
+				List<String> createdPdfFiles = new ArrayList<>();
+                handleBatchContracts(createdPdfFiles);
             }
         }
 
@@ -2274,6 +2128,96 @@ public class ColumnFactory {
         	}
     	}
     	return "Uncharted";
+	}
+
+	private void handleBatchContracts(List<String> createdPdfFiles) {
+		ObservableList<Rental> selectedRentals = dbTableView.getItems().filtered(Rental::isSelected);
+
+		if (selectedRentals.isEmpty()) {
+			return;
+		}
+
+		String sourceFile = Paths.get(PathConfig.CONTRACTS_DIR, "contract template.pdf").toString();
+
+		for (Rental rental : selectedRentals) {
+			String outputFile = Paths.get(PathConfig.CONTRACTS_DIR, "contract_" + rental.getRentalItemId() + ".pdf").toString();
+			double latitude = rental.getLatitude();
+			double longitude = rental.getLongitude();
+			String mapPage = getGridNameFromCoords(latitude, longitude);
+
+			try {
+				// Open the source PDF
+				PdfDocument pdfDoc = new PdfDocument(new PdfReader(sourceFile), new PdfWriter(outputFile));
+				Document document = new Document(pdfDoc);
+
+				// Get page 1 of the PDF
+				PdfCanvas canvas = new PdfCanvas(pdfDoc.getPage(1));
+
+				// Add text to specific coordinates
+				canvas.beginText();
+				canvas.setFontAndSize(com.itextpdf.kernel.font.PdfFontFactory.createFont(), 12);
+
+				String dateString = rental.getDeliveryDate();
+				LocalDate date = LocalDate.parse(dateString, DateTimeFormatter.ISO_LOCAL_DATE);
+				DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM'.' d");
+				String formattedDate = date.format(formatter);
+				int day = date.getDayOfMonth();
+				String suffix = getDaySuffix(day);
+				String formattedDeliveryDate = formattedDate + suffix;
+				canvas.setTextMatrix(435, 711); // Delivery Date
+				canvas.showText(formattedDeliveryDate);
+
+				// Additional fields
+				canvas.setTextMatrix(440 ,747); // Delivery Time
+				canvas.showText("P" + rental.getRentalItemId());
+				canvas.setTextMatrix(355, 631); // Address Block One
+				canvas.showText(rental.getAddressBlockOne());
+				canvas.setTextMatrix(346, 613); // Address Block Two
+				canvas.showText(rental.getAddressBlockTwo());
+				canvas.setTextMatrix(364, 595); // Address Block Three
+				canvas.showText(rental.getAddressBlockThree());
+				canvas.setTextMatrix(454, 559);
+				canvas.showText(mapPage);
+
+				if (rental.getSiteContactName() != null) {
+					canvas.setTextMatrix(371, 577); // Address Block Four
+					canvas.showText(rental.getSiteContactName());
+					canvas.setTextMatrix(454, 577); // Address Block Five
+					canvas.showText(formatPhoneNumber(rental.getSiteContactPhone()));
+				}
+
+				if (rental.getOrderedByName() != null) {
+					canvas.setTextMatrix(119, 559); // Address Block Four
+					canvas.showText(rental.getOrderedByName());
+					canvas.setTextMatrix(76, 577); // Address Block Five
+					canvas.showText(formatPhoneNumber(rental.getOrderedByPhone()));
+				}
+
+				canvas.setTextMatrix(194, 559); // PO Number
+				canvas.showText(rental.getPoNumber());
+				canvas.setTextMatrix(43, 523);
+				canvas.showText(rental.getLocationNotes());
+				canvas.setTextMatrix(81, 630); // Name
+				canvas.showText(rental.getName());
+				canvas.setTextMatrix(43, 652);
+				canvas.showText(rental.getPreTripInstructions());
+				canvas.setTextMatrix(99, 481); // Lift Type
+				canvas.showText(rental.getLiftType());
+
+				canvas.endText();
+
+				// Close the document
+				document.close();
+
+				// Track the generated PDF file
+				createdPdfFiles.add(outputFile);
+
+			secondInProcessButton.setVisible(true);
+			} catch (Exception e) {
+				System.out.println("Error creating contract for rental ID " + rental.getRentalItemId() + ": " + e.getMessage());
+				e.printStackTrace();
+			}
+		}
 	}
 
 
