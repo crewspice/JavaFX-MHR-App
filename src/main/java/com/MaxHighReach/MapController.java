@@ -1,5 +1,6 @@
 package com.MaxHighReach;
 
+
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.fxml.FXML;
@@ -20,6 +21,7 @@ import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -43,6 +45,7 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import javafx.application.Platform;
 
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -64,18 +67,24 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 //import com.google.maps.routing.v2.*;
 
 
+
+
 public class MapController {
+
 
     @FXML
     private AnchorPane anchorPane;
 
+
     @FXML
     private Button closeButton;
+
 
     private Rectangle transitioner = new Rectangle(); // Rectangle to animate
     private Rectangle mapArea = new Rectangle(); // The area where the map (dots) will be placed
@@ -84,73 +93,97 @@ public class MapController {
     private double zoomFactor = 1.0;
     private Circle centerpointDot;
 
+
     //
     private double[] mapBounds = {40.814076, -104.377137, 39.391122, -105.468393};
     private double[] visibleBounds = {0, 0, 0, 0};
     private double mouseX, mouseY;
 
+
     // Number of random dots to generate
     private static final int NUM_DOTS = 8;
+
 
     // Compression ratio to fit the map into a smaller area within the transitioner
     private static final double COMPRESSION_RATIO_X = 1; // Compress the map horizontally
     private static final double COMPRESSION_RATIO_Y = 1; // Compress the map vertically
 
+
     // Offsets for the entire map area (move Y down by 150, X to the left by 50)
     private static final double OFFSET_X = 0; // Move left by 50 units
     private static final double OFFSET_Y = 0; // Move down by 150 units
 
-    private List<Rental> rentalsForCharting;
-    private List<String> storedEncodedPolylines = new ArrayList<>();
-    private List<String[]> storedColorsList = new ArrayList<>();
 
+    private List<Rental> rentalsForCharting;
 
     // Track the alst clicked rental and popup
     private Rental lastClickedRental = null;
     private PopupCard lastPopup = null;
 
-    private StackPane routeOnePane = new StackPane();
-    private VBox routeOneBox = new VBox();
-    private List<Rental> routeOneStops = new ArrayList<>();
-    private StackPane routeTwoPane = new StackPane();
-    private VBox routeTwoBox = new VBox();
-    private List<Rental> routeTwoStops = new ArrayList<>();
-    private StackPane routeThreePane = new StackPane();
-    private VBox routeThreeBox = new VBox();
-    private List<Rental> routeThreeStops = new ArrayList<>();
-    private StackPane routeFourPane = new StackPane();
-    private VBox routeFourBox = new VBox();
-    private List<Rental> routeFourStops = new ArrayList<>();
-    private StackPane routeFivePane = new StackPane();
-    private VBox routeFiveBox = new VBox();
-    private List<Rental> routeFiveStops = new ArrayList<>();
+
+    private List<StackPane> routeVBoxPanes = new ArrayList<>();
+    private List<StackPane> routeHBoxPanes = new ArrayList<>();
+    private List<VBox> routeVBoxes = new ArrayList<>();
+    private List<HBox> routeHBoxes = new ArrayList<>();
+    private List<Region> routeRegions = new ArrayList<>();
+    private List<List<Rental>> routeStops = new ArrayList<>();
+    private Map<String, List<Rental>> routes = new HashMap<>();
+    private Map<String, VBox> routeBoxes = new HashMap<>();
+
+
+    // New trials for syncing up route polylines in deletions
+   // private Map<String, List<Polyline[]>> polylines = new HashMap<>();
+    private Map<String, List<String>> encodedPolylines = new HashMap<>();
 
     private Map<String, String> routeAssignments = new HashMap<>();
     public List<Rental> latestRouteEdited = null;
-    private Map<String, List<Rental>> routes = new HashMap<>() {{
-        put("routeOne", routeOneStops);
-        put("routeTwo", routeTwoStops);
-        put("routeThree", routeThreeStops);
-        put("routeFour", routeFourStops);
-        put("routeFive", routeFiveStops);
-    }};
-    private Map<List<Rental>, VBox> routeBoxes = new HashMap<>() {{
-        put(routeOneStops, routeOneBox);
-        put(routeTwoStops, routeTwoBox);
-        put(routeThreeStops, routeThreeBox);
-        put(routeFourStops, routeFourBox);
-        put(routeFiveStops, routeFiveBox);
-    }};
+    private StackPane lastCardCover = null;
+    private Region lastCoveredPane = null;
+
+
+    // Define your route lists (ensure these are populated somewhere, otherwise they will be null)
+    private List<Rental> routeOneStops = new ArrayList<>();
+    private List<Rental> routeTwoStops = new ArrayList<>();
+    private List<Rental> routeThreeStops = new ArrayList<>();
+    private List<Rental> routeFourStops = new ArrayList<>();
+    private List<Rental> routeFiveStops = new ArrayList<>();
+
+
+    // Initialize routes map (you can do this in a constructor or any other initialization block)
+    {
+        routes.put("routeOne", routeOneStops);
+        routes.put("routeTwo", routeTwoStops);
+        routes.put("routeThree", routeThreeStops);
+        routes.put("routeFour", routeFourStops);
+        routes.put("routeFive", routeFiveStops);
+    }
+
+
+    // Initialize routeBoxes map (same here, ensure the VBox components are defined before using)
+    private VBox routeOneBox, routeTwoBox, routeThreeBox, routeFourBox, routeFiveBox;
+
+
+    {
+        routeBoxes.put("routeOne", routeOneBox);
+        routeBoxes.put("routeTwo", routeTwoBox);
+        routeBoxes.put("routeThree", routeThreeBox);
+        routeBoxes.put("routeFour", routeFourBox);
+        routeBoxes.put("routeFive", routeFiveBox);
+    }
+   
+    private int cardHeightUnit = 55;
+    private int cardWidthUnit = 100;
+
 
     @FXML
     private void initialize() {
         int lilAdjuster = 9;
-
+    
         anchorPane.setStyle("-fx-background-color: transparent;");
         anchorPane.setPrefSize((Config.WINDOW_HEIGHT + lilAdjuster) / 2, Config.WINDOW_HEIGHT + lilAdjuster);
         anchorPane.setMaxWidth(Config.WINDOW_HEIGHT / 2);
         anchorPane.setMaxHeight(Config.WINDOW_HEIGHT);
-
+    
         // Create the main transitioner rectangle
         Rectangle transitioner = new Rectangle();
         transitioner.setX(-2);
@@ -159,50 +192,188 @@ public class MapController {
         transitioner.setHeight(Config.WINDOW_HEIGHT + lilAdjuster);
         transitioner.setFill(Color.web("#F4F4F4"));
         transitioner.toBack();
-
-        // Add both rectangles to the anchor pane
         anchorPane.getChildren().addAll(transitioner);
-
-
+    
+        // Timeline animation for transitioner
         double totalDurationInSeconds = 1.0;
         double targetWidth = (Config.WINDOW_HEIGHT + lilAdjuster) / 2;
         double targetHeight = Config.WINDOW_HEIGHT;
-
+    
         Timeline timeline = new Timeline(new KeyFrame(
             Duration.seconds(totalDurationInSeconds),
             new javafx.animation.KeyValue(transitioner.widthProperty(), targetWidth)
         ));
-        
         timeline.setCycleCount(1);
         timeline.setOnFinished(event -> {
-         //   configureMapArea();  // Still runs after animation
+            // Ensure setupMetroMap() runs before plotRentalLocations()
             setupMetroMap();
-            System.out.println("made it after setupMetroMap");
-            plotRentalLocations(); // Now only runs AFTER rental data is loaded
- //           closeButton.toFront();
- //           closeButton.setVisible(true);
-            System.out.println("made it after plotRentalLocations");
-            loadACenterPointDeleteLater();
+            // Start loading rental data after setupMetroMap() finishes
+            loadRentalDataAsync();  // We load data asynchronously
         });
-
-        // Start loading rental data in a background thread
-        CompletableFuture.runAsync(() -> {
-            loadRentalData(); // Runs immediately without blocking UI
-        }).thenRun(() -> Platform.runLater(() -> plotRentalLocations())); // Ensures plotRentalLocations() runs on the JavaFX thread
-
+    
         timeline.play();
-        
+    
+        // Instantiate route panes based on Config.NUMBER_OF_TRUCKS
+        for (int i = 0; i < Config.NUMBER_OF_TRUCKS; i++) {
+            final int index = i;
+            StackPane routeVBoxPane = new StackPane();
+            StackPane routeHBoxPane = new StackPane();
+            VBox routeVBox = new VBox();
+            HBox routeHBox = new HBox();
+            List<Rental> routeRentalStops = new ArrayList<>();
+    
+            // Add the route components to their respective lists
+            routeVBoxPanes.add(routeVBoxPane);
+            routeHBoxPanes.add(routeHBoxPane);
+            routeVBoxes.add(routeVBox);
+            routeHBoxes.add(routeHBox);
+            routeRegions.add(routeVBox);
+            routeStops.add(routeRentalStops);
+    
+            // Optionally add each route to the routes map and routeBoxes map for later use
+            routes.put("route" + (i + 1), routeRentalStops);
+            routeBoxes.put("route" + (i + 1), routeVBox);
+            encodedPolylines.put("route" + (i + 1), new ArrayList<>());
 
 
+            routeVBoxPane.setOnMousePressed(event -> {
+                // Store initial position of the mouse when pressed
+                routeVBoxPane.setUserData(new double[]{event.getSceneX(), event.getSceneY()});
+            });
+            routeHBoxPane.setOnMousePressed(event -> {
+                // Store initial position of the mouse when pressed
+                routeHBoxPane.setUserData(new double[]{event.getSceneX(), event.getSceneY()});
+            });
+            
+            routeVBoxPane.setOnMouseDragged(event -> {
+                double deltaX = event.getSceneX() - ((double[]) routeVBoxPane.getUserData())[0];
+                double deltaY = event.getSceneY() - ((double[]) routeVBoxPane.getUserData())[1];
+            
+                double newX = routeVBoxPane.getLayoutX() + deltaX;
+                double newY = routeVBoxPane.getLayoutY() + deltaY;
+            
+                // Define boundaries
+                double minX = 0; // Adjust according to your left boundary
+                double maxX = anchorPane.getWidth() - routeVBoxPane.getWidth() - 2; // Prevent from moving out on the right
+                double minY = 20; // Top boundary
+                double maxY = anchorPane.getHeight() - routeVBoxPane.getHeight(); // Bottom boundary
+            
+                // Apply boundary constraints
+                routeVBoxPane.setLayoutX(Math.max(minX, Math.min(maxX, newX)));
+                routeVBoxPane.setLayoutY(Math.max(minY, Math.min(maxY, newY)));
+                routeHBoxPane.setLayoutX(Math.max(minX, Math.min(maxX, newX)));
+                routeHBoxPane.setLayoutY(Math.max(minY, Math.min(maxY, newY)));
+
+            
+                // Update the starting mouse position for the next drag event
+                routeVBoxPane.setUserData(new double[]{event.getSceneX(), event.getSceneY()});
+            });
+
+            routeHBoxPane.setOnMouseDragged(event -> {
+                double deltaX = event.getSceneX() - ((double[]) routeHBoxPane.getUserData())[0];
+                double deltaY = event.getSceneY() - ((double[]) routeHBoxPane.getUserData())[1];
+            
+                double newX = routeHBoxPane.getLayoutX() + deltaX;
+                double newY = routeHBoxPane.getLayoutY() + deltaY;
+            
+                // Define boundaries
+                double minX = 0; // Adjust according to your left boundary
+                double maxX = anchorPane.getWidth() - routeHBoxPane.getWidth() - 2; // Prevent from moving out on the right
+                double minY = 20; // Top boundary
+                double maxY = anchorPane.getHeight() - routeHBoxPane.getHeight(); // Bottom boundary
+            
+                // Apply boundary constraints
+                routeHBoxPane.setLayoutX(Math.max(minX, Math.min(maxX, newX)));
+                routeHBoxPane.setLayoutY(Math.max(minY, Math.min(maxY, newY)));
+                routeVBoxPane.setLayoutX(Math.max(minX, Math.min(maxX, newX)));
+                routeVBoxPane.setLayoutY(Math.max(minY, Math.min(maxY, newY)));
+
+            
+                // Update the starting mouse position for the next drag event
+                routeHBoxPane.setUserData(new double[]{event.getSceneX(), event.getSceneY()});
+            });
+
+            String routeKey = getRouteNameFromIndex(i);
+
+            routeVBoxPane.setOnMouseClicked(event -> {
+                if (event.getClickCount() == 2) { // Check for double click
+                    double x = Math.floor(event.getX() * 10) / 10.0; // X relative to routeBox
+                    double y = Math.floor(event.getY() * 10) / 10.0; // Y relative to routeBox
+    
+                    removeCardOptionsCover();
+                    
+                    if (x > 15 && y > 14) {
+                        int multiple = closestMultiple(y - 14, cardHeightUnit);
+                        int routeSize = routes.get(routeKey).size();
+                        if (multiple + 1 <= routeSize) {
+                            int yOffset = (multiple * (cardHeightUnit)) - ((routeSize - 1) * 27);
+                            lastCardCover = createCardOptionsCover(routes.get(routeKey).get(multiple), multiple, x, y, index);
+                            routeVBoxPane.getChildren().add(lastCardCover);
+                            lastCoveredPane = routeVBoxPane;
+                            StackPane.setAlignment(lastCardCover, Pos.BOTTOM_LEFT);
+                            lastCardCover.setTranslateX(5);
+                            lastCardCover.setTranslateY(yOffset);
+                        }
+                    }
+                }
+            });
+
+            routeHBoxPane.setOnMouseClicked(event -> {
+                if (event.getClickCount() == 2) { // Check for double click
+                    System.out.println("card covered triggered");
+                    double x = Math.floor(event.getX() * 10) / 10.0; // X relative to routeBox
+                    double y = Math.floor(event.getY() * 10) / 10.0; // Y relative to routeBox
+    
+                    removeCardOptionsCover();
+                    
+                    if (x > 15 && y > 14) {
+                        int multiple = closestMultiple(x - 14, cardWidthUnit);
+                        int routeSize = routes.get(routeKey).size();
+                        if (multiple + 1 <= routeSize) {
+                            int xOffset = multiple * (cardWidthUnit - 2) - ((routeSize) * 20) - ((routeSize - 1) * 22) + 10 + ((3 - routeSize) * 5);
+                            lastCardCover = createCardOptionsCover(routes.get(routeKey).get(multiple), multiple, x, y, index);
+                            routeHBoxPane.getChildren().add(lastCardCover);
+                            lastCoveredPane = routeHBoxPane;
+                            StackPane.setAlignment(lastCardCover, Pos.BOTTOM_LEFT);
+                            lastCardCover.setTranslateY(5);
+                            lastCardCover.setTranslateX(xOffset);
+                        }
+                    }
+                }
+            });
+
+            routeVBox.setAlignment(Pos.BOTTOM_RIGHT);
+            routeHBox.setAlignment(Pos.BOTTOM_RIGHT);
+            routeVBox.setTranslateY(-5);
+            routeHBox.setTranslateX(-5);
+    
+            routeVBoxPane.setPickOnBounds(false);
+            routeHBoxPane.setPickOnBounds(false);
+
+
+        }
     }
+    
+    // New async method to load rental data
+    private void loadRentalDataAsync() {
+        CompletableFuture.runAsync(() -> {
+            loadRentalData();  // Load rental data in the background
+        }).thenRun(() -> Platform.runLater(() -> {
+            // Once data is loaded, plotRentalLocations() will be triggered here
+            plotRentalLocations();
+            loadACenterPointDeleteLater();
+        }));
+    }    
+
 
     private void loadACenterPointDeleteLater() {
         centerpointDot = new Circle(anchorPane.getWidth() / 2, anchorPane.getHeight() / 2, 5);
-        System.out.println("centerpointDot will be drawn at: (" + (anchorPane.getWidth() / 2) + ", " + (anchorPane.getHeight() / 2) + ")");
         centerpointDot.setFill(Color.CYAN);
         anchorPane.getChildren().add(centerpointDot);
         centerpointDot.toFront();
     }
+
+
 
 
     private void loadRentalData() {
@@ -267,38 +438,47 @@ public class MapController {
     
 
 
+
+
     // Shared logic for creating rental location dots
     private void createRentalDot(double x, double y, Rental rental) {
         Circle dot = new Circle(x, y, 5);
         dot.setFill(Color.web(Config.getPrimaryColor())); 
+
 
         // Apply stroke for the under-effect based on the primary color
         String strokeUnderneath = Config.COLOR_TEXT_MAP.get(Config.getPrimaryColor()) == 1 ? Config.getTertiaryColor() : "WHITE";
         dot.setStroke(Color.web(strokeUnderneath));
         dot.setStrokeWidth(2);
 
+
         mapContainer.getChildren().add(dot);
+
 
         final double finalX = x > 150 ? x - 205 : x;
         final double finalY = y > 410 ? y - 150 : y;
+
 
         // Handle click to show rental details
         dot.setOnMouseClicked(event -> {
             // Remove any existing drive time popup
             anchorPane.getChildren().removeIf(node -> node instanceof PopupCard && ((PopupCard) node).isDriveTimePopup());
 
+
             // Remove previous rental popup (if exists)
             if (lastPopup != null && anchorPane.getChildren().contains(lastPopup)) {
                 anchorPane.getChildren().remove(lastPopup);
             }
 
+
             lastClickedRental = rental;
+
 
             // Create and add new popup for the clicked rental
             PopupCard popup = new PopupCard(this, rental, finalX, finalY);
             anchorPane.getChildren().add(popup);
-            System.out.println("Rental popup displayed for: " + rental.getName()); // Debugging line
             lastPopup = popup;
+
 
             // Hide popup when clicking outside
             anchorPane.setOnMouseClicked(e -> {
@@ -309,20 +489,24 @@ public class MapController {
                 }
             });
 
+
             event.consume(); // Prevent event from bubbling
         });
     }
+
 
     private void plotRentalLocations() {
         for (Rental rental : rentalsForCharting) {
             double x = mapLongitudeToX(rental.getLongitude());
             double y = mapLatitudeToY(rental.getLatitude());
 
+
             if (rental.getLongitude() < 0 && rental.getLatitude() > 0) {
                 createRentalDot(x, y, rental);
             }
         }
     }
+
 
     // This method is used to update the position of all dots (rental locations)
     private void updateRentalLocations() {
@@ -332,6 +516,7 @@ public class MapController {
             double x = mapLongitudeToX(rental.getLongitude());
             double y = mapLatitudeToY(rental.getLatitude());
 
+
             if (rental.getLongitude() < 0 && rental.getLatitude() > 0) {
                 createRentalDot(x, y, rental);
             }
@@ -340,7 +525,10 @@ public class MapController {
 
 
 
-    private void drawRoutePolyline(String encodedPolyline, String[] colors) {
+
+
+
+    private Polyline[] drawRoutePolyline(String encodedPolyline, String[] colors) {
         List<double[]> polylinePoints = decodePolyline(encodedPolyline);
     
         // **1️⃣ First glow (larger gray glow)**
@@ -381,21 +569,36 @@ public class MapController {
         glowPolyline1.toBack();  // Glow1 at the very back
         glowPolyline2.toBack();  // Glow2 behind the main line
         metroMapView.toBack();   // Ensure map is behind everything else
+    
+        return new Polyline[]{mainPolyline, glowPolyline1, glowPolyline2};
     }
+
+
     
-    
+
 
     private void updateRoutePolylines() {
         // Remove existing polylines before re-plotting
         mapContainer.getChildren().removeIf(node -> node instanceof Polyline);
+      //  polylines.clear();
     
-        for (int i = 0; i < storedEncodedPolylines.size(); i++) {
-            String encodedPolyline = storedEncodedPolylines.get(i);
-            String[] colors = storedColorsList.get(i); // Retrieve associated colors
-            drawRoutePolyline(encodedPolyline, colors);
+        // for (int i = 0; i < storedEncodedPolylines.size(); i++) {
+        //     String encodedPolyline = storedEncodedPolylines.get(i);
+        //     String[] colors = storedColorsList.get(i); // Retrieve associated colors
+        //     drawRoutePolyline(encodedPolyline, colors);
+        // }
+    
+        for (Map.Entry<String, List<String>> entry : encodedPolylines.entrySet()) {
+            List<String> routeSegments = entry.getValue();
+            String[] colors = getRouteColors(entry.getKey());
+            for (String segmentPolyline : routeSegments) {
+                drawRoutePolyline(segmentPolyline, colors);
+            }
         }
-    }
     
+    
+    }
+
 
     private void setupMetroMap() {
         try {
@@ -436,6 +639,8 @@ public class MapController {
             metroMapView.setSmooth(true);
             metroMapView.setCache(true);
     
+
+
             // Wrap in a Pane for movement
             mapContainer = new Pane(metroMapView);
             mapContainer.setPrefSize(anchorPane.getWidth(), anchorPane.getHeight());
@@ -454,6 +659,7 @@ public class MapController {
             // Enable panning with bounds
             mapContainer.setOnMousePressed(event -> {
                 mapContainer.setUserData(new double[]{event.getSceneX(), event.getSceneY(), metroMapView.getTranslateX(), metroMapView.getTranslateY()});
+                removeCardOptionsCover();
             });
     
             mapContainer.setOnMouseDragged(event -> {
@@ -494,11 +700,12 @@ public class MapController {
                 centerpointDot.toFront();
             }
     
-            System.out.println("Metro map successfully loaded with dynamic theme color and 50% opacity.");
         } catch (Exception e) {
             System.err.println("Failed to load metro map: " + e.getMessage());
         }
     }
+
+
 
 
     private void updateVisibleMapBounds(ImageView metroMapView) {
@@ -542,6 +749,7 @@ public class MapController {
     
         
     
+
 
     // -------------   Methods for fully synchronized visual revamp    ------------- //
     // ----------------------------------------------------------------------------- //
@@ -587,15 +795,52 @@ public class MapController {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // ----------   Code unrelated to fully synchronized visual revamp    ---------- //
     // ----------------------------------------------------------------------------- //
     // i could see us wanting a base scene for routes so let's consider exporting to 
     // their own class
 
 
+
+
     public double mapLongitudeToX(double lon) {
         double visibleMinX = visibleBounds[3];
         double visibleMaxX = visibleBounds[1];
+
 
         // Extract bounds for readability
         double lonMin = mapBounds[3]; // LON_MIN (top-left)
@@ -627,20 +872,19 @@ public class MapController {
             return 0;
         }
 
+
         double observedOffset = .12;
         lat += observedOffset;
     
         // Compute relative position (inverted Y-axis)
         double relativeY = (visibleMaxY - lat) / (visibleMaxY - visibleMinY);
 
+
         
     
         // Map to screen range
         return relativeY * Config.WINDOW_HEIGHT;
     }
-    
-
-
     
     // Configure the mapArea to fit inside the transitioner after animation
     private void configureMapArea() {
@@ -653,354 +897,628 @@ public class MapController {
         mapArea.setStroke(Color.BLACK); // Apply border to mapArea
         mapArea.setStrokeWidth(1); // Thin border
 
+
         // Add mapArea to the map2Pane
         anchorPane.getChildren().add(mapArea);
     }
 
+
     
     public void addStopToRoute(String routeSignifier, Rental rental) {
-        System.out.println("Add stop to route called");
-        System.out.println("Route signifier: " + routeSignifier);
+
 
         String matchedRoute = null;
+        int index = 99;
         
         if (routeSignifier == null) {
-            matchedRoute = getARouteNoPreference();
+            String[] route = getARouteNoPreference();
+            matchedRoute = route[0];
+            index = Integer.parseInt(route[1]);
         } else {
+
 
             // Check if routeSignifier is a driver’s initials
             for (String[] employee : Config.EMPLOYEES) {
                 
-                System.out.println("employee[1] is: " + employee[1] + ", and employee[2] is: " 
-                    + employee[2]);
+
 
                 if (routeSignifier.equals(employee[1]) || routeSignifier.equals(employee[2])) {
-                    System.out.println("Matched with employee: " + Arrays.toString(employee));
+
 
                     // Print routeAssignments before checking for an existing route
-                    System.out.println("Current route assignments: " + routeAssignments);
 
+
+                    int counter = 0;
                     // Find an existing route assigned to this driver
                     for (Map.Entry<String, String> entry : routeAssignments.entrySet()) {
-                        System.out.println("Checking route: " + entry.getKey() + " assigned to: " + entry.getValue());
                         if (entry.getValue() != null && entry.getValue().equals(routeSignifier)) {
                             matchedRoute = entry.getKey();
-                            System.out.println("Found existing route: " + matchedRoute);
+                            index = counter;
                             break;
                         }
+                        counter++;
                     }
+
 
                     // If no assigned route found, assign a new one
                     if (matchedRoute == null) {
                         matchedRoute = "Route " + (routeAssignments.size() + 1);
-                        System.out.println("No existing route found, creating new: " + matchedRoute);
+                        index = routes.size();
                         routes.put(matchedRoute, new ArrayList<>());
                         routeAssignments.put(matchedRoute, routeSignifier);
                     }
                     break; // Exit the employee loop since we found a match
                 }
-                System.out.println("No match. Moving on");
             }
 
-            System.out.println("We passed employees check for a route signifier");
+
+
 
             // Final check if route was assigned
             if (matchedRoute == null) {
-                System.out.println("ERROR: No matching route found for " + routeSignifier);
             } else {
-                System.out.println("Final assigned route: " + matchedRoute);
             }
+
 
             // If not a driver initial, treat it as a route name directly
             if (matchedRoute == null && routes.containsKey(routeSignifier)) {
                 matchedRoute = routeSignifier;
+                index = wordToNumber(matchedRoute.replace("route","")) - 1;
             }
         }
-        System.out.println("chose a route and it's: " + matchedRoute);
+
 
         // Add stop to the selected route
         routes.get(matchedRoute).add(rental);
         latestRouteEdited = routes.get(matchedRoute);
 
+
         // Update UI for the route
-        updateRoutePane(matchedRoute, rental);
+        updateRoutePane(matchedRoute, rental, "insertion", 99, index);
+
+
 
 
     }
 
-    private void updateRoutePane(String routeName, Rental rental) {
-        System.out.println("update route vbox called, route name is: '" + routeName + 
-            "', and rental is: " + rental);
-        StackPane routePane = getRoutePane(routeName);
-        VBox routeBox = getRouteVBox(routeName);
+
+    private void removeStopFromRoute(Rental rental, int closestMultiple, int routeIndex) {
+        System.out.println("**    removeStopFromRoute called with:" +
+            "\n- closestMultiple: " + closestMultiple +
+            "\n- routeIndex: " + routeIndex + " **");
+            // Get route key from index
+        String routeKey = getRouteNameFromIndex(routeIndex);
+
+
+        List<Rental> stopList;
+        if (routes.get(routeKey) != null) {
+            stopList = routes.get(routeKey);
+        } else {
+            System.err.println("stopList is null");
+            return;
+        }
+
+        if (closestMultiple < 0 || closestMultiple >= stopList.size()) {
+            System.out.println("closestMultiple out of bounds. Exiting method.");
+            return;
+        }
+    
+        Rental removed = stopList.remove(closestMultiple);
+    
+
+
+    
+        removeCardOptionsCover();
+
+
+        updateRoutePane(routeKey, rental, "deletion", closestMultiple, routeIndex);
+
+
+    }
+    
+
+
+
+
+    private void updateRoutePane(String routeName, Rental rental, String orientation,
+                                int closestMultiple, int index) {
+
+
+        System.out.println("Updating route pane with: " +
+            "\n- routeName: " + routeName +
+            "\n- rental: " + rental +
+            "\n- orientation: " + orientation +
+            "\n- closestMultiple: " + closestMultiple +
+            "\n- index: " + index + 
+            "-------------------------");
+
+
+        int tempIndex = index;
+        if (orientation.equals("insertion")) {
+            tempIndex = getRouteIndex(routeName);
+        }
+        final int routeIndex = tempIndex;
+        // ^ maybe not the optimal way but i think this is needed since this method
+        // contains itself in a setOnAction response
+        
+        StackPane routeVBoxPane = routeVBoxPanes.get(routeIndex);
+        StackPane routeHBoxPane = routeHBoxPanes.get(routeIndex);
+        Region routeRegion = routeRegions.get(routeIndex);
+        VBox routeVBox = routeVBoxes.get(routeIndex);
+        HBox routeHBox = routeHBoxes.get(routeIndex);
         String[] colors = getRouteColors(routeName);
         List<Rental> route = routes.get(routeName);
-        System.out.println("routeBox is: " + routeBox);
         int routeSize = route.size();
-        int cardHeightUnit = 61;
-
-        if (routeSize == 1) {
-            if (routeBox != null) {
-                System.out.println("the route box colors are: " + colors[0] + " and " + colors[1]);
-            
-                // Make VBox visible if hidden
-                routeBox.setVisible(true);
-                routeBox.setSpacing(15); // Space between routes
-            
-                // dynamic logic later
-                Random random = new Random();
-                double randomX = (200 - 50) * random.nextDouble(); // Random between 50 and 200
-                double randomY = 100 + (700 - 100) * random.nextDouble(); // Random between 100 and 700
-                routePane.setLayoutX(randomX);
-                routePane.setLayoutY(randomY);
-            
-                // Create a styled HBox chunk for the stop
-                System.out.println("made it back from the hbox constructor");
-        
-                routeBox.setSpacing(0);
-            
-                routePane.getChildren().add(routeBox);
-
-                routePane.setStyle("-fx-background-color: " + colors[0] + ";");
-        
-                // **Filled square (existing one)**
-                Rectangle filledSquare = new Rectangle(7, 7); // 12x12 square
-                filledSquare.setFill(Color.web(colors[1])); // Fill color
-                filledSquare.setTranslateX(3);
-                filledSquare.setTranslateY(3);
-
-                // **Outlined frame (slightly larger square)**
-                Rectangle outlineSquare = new Rectangle(12, 12); // Slightly bigger to act as a frame
-                outlineSquare.setFill(Color.TRANSPARENT); // No fill, just an outline
-                outlineSquare.setStroke(Color.TRANSPARENT); // Same color as the filled square
-                outlineSquare.setStrokeWidth(1); // Thickness of the outline
-
-                Rectangle rightArrowOutline = new Rectangle(12, 12);
-                rightArrowOutline.setFill(Color.TRANSPARENT); // No fill, just an outline
-                rightArrowOutline.setStroke(Color.TRANSPARENT); // Same color as the filled square
-                rightArrowOutline.setStrokeWidth(1); // Thickness of the outline
-                rightArrowOutline.setTranslateX(12);
-
-                Line rightArrowTop = new Line(3.0,2.0, 10.0, 5.0);
-                Line rightArrowBottom = new Line(10.0, 6.0, 3.0, 9.0);
-                rightArrowTop.setStroke(Color.web(colors[1]));
-                rightArrowBottom.setStroke(Color.web(colors[1]));
-                rightArrowTop.setStrokeWidth(2);
-                rightArrowBottom.setStrokeWidth(2);
-                rightArrowTop.setTranslateX(14);
-                rightArrowBottom.setTranslateX(14);
-                rightArrowTop.setTranslateY(2);
-                rightArrowBottom.setTranslateY(5);
-
-                Rectangle downArrowOutline = new Rectangle(12, 12);
-                downArrowOutline.setFill(Color.TRANSPARENT); // No fill, just an outline
-                downArrowOutline.setStroke(Color.TRANSPARENT); // Same color as the filled square
-                downArrowOutline.setStrokeWidth(1); // Thickness of the outline
-                downArrowOutline.setTranslateY(12);
-
-                Line downArrowLeft = new Line(2.0,3.0, 5.0, 10.0);
-                Line downArrowRight = new Line(6.0, 10.0, 9.0, 3.0);
-                downArrowLeft.setStroke(Color.web(colors[1]));
-                downArrowRight.setStroke(Color.web(colors[1]));
-                downArrowLeft.setStrokeWidth(2);
-                downArrowRight.setStrokeWidth(2);
-                downArrowLeft.setTranslateY(14);
-                downArrowRight.setTranslateY(14);
-                downArrowLeft.setTranslateX(2);
-                downArrowRight.setTranslateX(5);
 
 
-                // **Grouping both squares in a StackPane**
-                StackPane squareContainer = new StackPane(outlineSquare, filledSquare, rightArrowOutline, 
-                                                            rightArrowTop, rightArrowBottom, downArrowLeft,
-                                                            downArrowOutline, downArrowRight);
-                StackPane.setAlignment(squareContainer, Pos.TOP_LEFT); // Align to top-left
-                StackPane.setAlignment(outlineSquare, Pos.TOP_LEFT);
-                StackPane.setAlignment(filledSquare, Pos.TOP_LEFT);
-                StackPane.setAlignment(rightArrowOutline, Pos.TOP_LEFT);
-                StackPane.setAlignment(rightArrowTop, Pos.TOP_LEFT);
-                StackPane.setAlignment(rightArrowBottom, Pos.TOP_LEFT);
-                StackPane.setAlignment(downArrowOutline, Pos.TOP_LEFT);
-                StackPane.setAlignment(downArrowLeft, Pos.TOP_LEFT);
-                StackPane.setAlignment(downArrowRight, Pos.TOP_LEFT);
-
-                Color defaultColor = Color.web(colors[1]);
-                Color hoverColor = Color.web(colors[2]);
-
-                Shape[] squareGroup = {filledSquare};
-                Shape[] rightGroup = {rightArrowTop, rightArrowBottom};
-                Shape[] downGroup = {downArrowLeft, downArrowRight};
-
-                addHoverEffectToRouteCard(filledSquare, squareGroup,  defaultColor, hoverColor);
-                addHoverEffectToRouteCard(rightArrowTop, rightGroup, defaultColor, hoverColor);
-                addHoverEffectToRouteCard(rightArrowBottom, rightGroup, defaultColor, hoverColor);
-                addHoverEffectToRouteCard(downArrowLeft, downGroup, defaultColor, hoverColor);
-                addHoverEffectToRouteCard(downArrowRight, downGroup, defaultColor, hoverColor);
-                addHoverEffectToRouteCard(outlineSquare, squareGroup, defaultColor, hoverColor);
-                addHoverEffectToRouteCard(rightArrowOutline, rightGroup, defaultColor, hoverColor);
-                addHoverEffectToRouteCard(downArrowOutline, downGroup, defaultColor, hoverColor);
-
-                // Group filledSquareGroup = new Group(outlineSquare, filledSquare);
-                // Group rightArrowGroup = new Group(rightArrowOutline, rightArrowTop, rightArrowBottom);
-                // Group downArrowGroup = new Group(downArrowOutline, downArrowLeft, downArrowRight);
-
-                // // **Add hover effect to each group**
-                // addHoverEffectToRouteCard(filledSquareGroup, defaultColor, hoverColor);
-                // addHoverEffectToRouteCard(rightArrowGroup, defaultColor, hoverColor);
-                // addHoverEffectToRouteCard(downArrowGroup, defaultColor, hoverColor);
-
-                Image originalFlatbedImage = new Image(getClass().getResourceAsStream("/images/flatbed-even.png"));
-
-                int width = (int) originalFlatbedImage.getWidth();
-                int height = (int) originalFlatbedImage.getHeight();
-
-                PixelReader pixelReader = originalFlatbedImage.getPixelReader();
-                WritableImage modifiedImage = new WritableImage(width, height);
-                PixelWriter pixelWriter = modifiedImage.getPixelWriter();
-
-                Color targetColor = Color.web(colors[1]);
+        if (orientation.equals("insertion")) {
+            if (routeSize == 1) {
+                if (routeVBox != null && routeHBox != null) {
                 
-                // Iterate over every pixel
-                for (int y = 0; y < height; y++) {
-                    for (int x = 0; x < width; x++) {
-                        Color pixelColor = pixelReader.getColor(x, y);
-                        
-                        // Check if pixel is black (or near black to account for aliasing)
-                        if (pixelColor.getRed() < 0.1 && pixelColor.getGreen() < 0.1 && pixelColor.getBlue() < 0.1) {
-                            pixelWriter.setColor(x, y, targetColor); // Replace black with target color
-                        } else {
-                            pixelWriter.setColor(x, y, pixelColor); // Keep other colors the same
+                    // Default to VBox visible
+                    routeVBox.setVisible(true);
+                    routeHBox.setVisible(false);
+
+
+
+
+                    // dynamic logic later
+                    Random random = new Random();
+                    double randomX = (200 - 50) * random.nextDouble(); // Random between 50 and 200
+                    double randomY = 100 + (700 - 100) * random.nextDouble(); // Random between 100 and 700
+                    routeVBoxPane.setLayoutX(randomX);
+                    routeVBoxPane.setLayoutY(randomY);
+                    routeHBoxPane.setLayoutX(randomX);
+                    routeHBoxPane.setLayoutY(randomY);
+                
+                    // Create a styled HBox chunk for the stop
+            
+                    routeVBox.setSpacing(0);
+                    routeHBox.setSpacing(0);
+                
+                    routeVBoxPane.getChildren().add(routeVBox);
+                    routeHBoxPane.getChildren().add(routeHBox);
+
+
+                    routeVBoxPane.setStyle("-fx-background-color: " + colors[0] + ";");
+                    routeHBoxPane.setStyle("-fx-background-color: " + colors[0] + ";");
+
+
+
+
+                    // **Filled square (existing one)**
+                    Rectangle filledSquareV = new Rectangle(7, 7); // 12x12 square
+                    Rectangle filledSquareH = new Rectangle(7, 7); // 12x12 square
+                    filledSquareV.setFill(Color.web(colors[1])); // Fill color
+                    filledSquareH.setFill(Color.web(colors[1])); // Fill color
+                    filledSquareV.setTranslateX(3);
+                    filledSquareH.setTranslateX(3);
+                    filledSquareV.setTranslateY(3);
+                    filledSquareH.setTranslateY(3);
+
+
+
+
+                    // **Outlined frame (slightly larger square)**
+                    Rectangle outlineSquareV = new Rectangle(12, 12); // Slightly bigger to act as a frame
+                    Rectangle outlineSquareH = new Rectangle(12, 12); // Slightly bigger to act as a frame
+                    outlineSquareV.setFill(Color.TRANSPARENT); // No fill, just an outline
+                    outlineSquareH.setFill(Color.TRANSPARENT); // No fill, just an outline
+                    outlineSquareV.setStroke(Color.TRANSPARENT); // Same color as the filled square
+                    outlineSquareH.setStroke(Color.TRANSPARENT); // Same color as the filled square
+                    outlineSquareV.setStrokeWidth(1); // Thickness of the outline
+                    outlineSquareH.setStrokeWidth(1); // Thickness of the outline
+
+
+
+
+                    Rectangle rightArrowOutlineV = new Rectangle(12, 12);
+                    Rectangle rightArrowOutlineH = new Rectangle(12, 12);
+                    rightArrowOutlineV.setFill(Color.TRANSPARENT); // No fill, just an outline
+                    rightArrowOutlineH.setFill(Color.TRANSPARENT); // No fill, just an outline
+                    rightArrowOutlineV.setStroke(Color.TRANSPARENT); // Same color as the filled square
+                    rightArrowOutlineH.setStroke(Color.TRANSPARENT); // Same color as the filled square
+                    rightArrowOutlineV.setStrokeWidth(1); // Thickness of the outline
+                    rightArrowOutlineH.setStrokeWidth(1); // Thickness of the outline
+                    rightArrowOutlineV.setTranslateX(12);
+                    rightArrowOutlineH.setTranslateX(12);
+
+
+
+
+                    Line rightArrowTopV = new Line(3.0,2.0, 10.0, 5.0);
+                    Line rightArrowTopH = new Line(3.0,2.0, 10.0, 5.0);
+                    Line rightArrowBottomV = new Line(10.0, 6.0, 3.0, 9.0);
+                    Line rightArrowBottomH = new Line(10.0, 6.0, 3.0, 9.0);
+                    rightArrowTopV.setStroke(Color.web(colors[1]));
+                    rightArrowTopH.setStroke(Color.web(colors[1]));
+                    rightArrowBottomV.setStroke(Color.web(colors[1]));
+                    rightArrowBottomH.setStroke(Color.web(colors[1]));
+                    rightArrowTopV.setStrokeWidth(2);
+                    rightArrowTopH.setStrokeWidth(2);
+                    rightArrowBottomV.setStrokeWidth(2);
+                    rightArrowBottomH.setStrokeWidth(2);
+                    rightArrowTopV.setTranslateX(14);
+                    rightArrowTopH.setTranslateX(14);
+                    rightArrowBottomV.setTranslateX(14);
+                    rightArrowBottomH.setTranslateX(14);
+                    rightArrowTopV.setTranslateY(2);
+                    rightArrowTopH.setTranslateY(2);
+                    rightArrowBottomV.setTranslateY(5);
+                    rightArrowBottomH.setTranslateY(5);
+
+
+                    Rectangle downArrowOutlineV = new Rectangle(12, 12);
+                    Rectangle downArrowOutlineH = new Rectangle(12, 12);
+                    downArrowOutlineV.setFill(Color.TRANSPARENT); // No fill, just an outline
+                    downArrowOutlineH.setFill(Color.TRANSPARENT); // No fill, just an outline
+                    downArrowOutlineV.setStroke(Color.TRANSPARENT); // Same color as the filled square
+                    downArrowOutlineH.setStroke(Color.TRANSPARENT); // Same color as the filled square
+                    downArrowOutlineV.setStrokeWidth(1); // Thickness of the outline
+                    downArrowOutlineH.setStrokeWidth(1); // Thickness of the outline
+                    downArrowOutlineV.setTranslateY(12);
+                    downArrowOutlineH.setTranslateY(12);
+
+
+
+
+                    Line downArrowLeftV = new Line(2.0,3.0, 5.0, 10.0);
+                    Line downArrowLeftH = new Line(2.0,3.0, 5.0, 10.0);
+                    Line downArrowRightV = new Line(6.0, 10.0, 9.0, 3.0);
+                    Line downArrowRightH = new Line(6.0, 10.0, 9.0, 3.0);
+                    downArrowLeftV.setStroke(Color.web(colors[1]));
+                    downArrowLeftH.setStroke(Color.web(colors[1]));
+                    downArrowRightV.setStroke(Color.web(colors[1]));
+                    downArrowRightH.setStroke(Color.web(colors[1]));
+                    downArrowLeftV.setStrokeWidth(2);
+                    downArrowLeftH.setStrokeWidth(2);
+                    downArrowRightV.setStrokeWidth(2);
+                    downArrowRightH.setStrokeWidth(2);
+                    downArrowLeftV.setTranslateY(14);
+                    downArrowLeftH.setTranslateY(14);
+                    downArrowRightV.setTranslateY(14);
+                    downArrowRightH.setTranslateY(14);
+                    downArrowLeftV.setTranslateX(2);
+                    downArrowLeftH.setTranslateX(2);
+                    downArrowRightV.setTranslateX(5);
+                    downArrowRightH.setTranslateX(5);
+
+
+                    // **Grouping both squares in a StackPane**
+                    StackPane squareContainerV = new StackPane(outlineSquareV, filledSquareV, rightArrowOutlineV, 
+                                                                rightArrowTopV, rightArrowBottomV, downArrowLeftV,
+                                                                downArrowOutlineV, downArrowRightV);
+                    StackPane squareContainerH = new StackPane(outlineSquareH, filledSquareH, rightArrowOutlineH, 
+                                                                rightArrowTopH, rightArrowBottomH, downArrowLeftH,
+                                                                downArrowOutlineH, downArrowRightH);
+                    StackPane.setAlignment(squareContainerV, Pos.TOP_LEFT); // Align to top-left
+                    StackPane.setAlignment(squareContainerH, Pos.TOP_LEFT); // Align to top-left
+                    StackPane.setAlignment(outlineSquareV, Pos.TOP_LEFT);
+                    StackPane.setAlignment(outlineSquareH, Pos.TOP_LEFT);
+                    StackPane.setAlignment(filledSquareV, Pos.TOP_LEFT);
+                    StackPane.setAlignment(filledSquareH, Pos.TOP_LEFT);
+                    StackPane.setAlignment(rightArrowOutlineV, Pos.TOP_LEFT);
+                    StackPane.setAlignment(rightArrowOutlineH, Pos.TOP_LEFT);
+                    StackPane.setAlignment(rightArrowTopV, Pos.TOP_LEFT);
+                    StackPane.setAlignment(rightArrowTopH, Pos.TOP_LEFT);
+                    StackPane.setAlignment(rightArrowBottomV, Pos.TOP_LEFT);
+                    StackPane.setAlignment(rightArrowBottomH, Pos.TOP_LEFT);
+                    StackPane.setAlignment(downArrowOutlineV, Pos.TOP_LEFT);
+                    StackPane.setAlignment(downArrowOutlineH, Pos.TOP_LEFT);
+                    StackPane.setAlignment(downArrowLeftV, Pos.TOP_LEFT);
+                    StackPane.setAlignment(downArrowLeftH, Pos.TOP_LEFT);
+                    StackPane.setAlignment(downArrowRightV, Pos.TOP_LEFT);
+                    StackPane.setAlignment(downArrowRightH, Pos.TOP_LEFT);
+
+
+                    Color defaultColor = Color.web(colors[1]);
+                    Color hoverColor = Color.web(colors[2]);
+
+
+                    Shape[] squareGroupV = {filledSquareV};
+                    Shape[] squareGroupH = {filledSquareH};
+                    Shape[] rightGroupV = {rightArrowTopV, rightArrowBottomV};
+                    Shape[] rightGroupH = {rightArrowTopH, rightArrowBottomH};
+                    Shape[] downGroupV = {downArrowLeftV, downArrowRightV};
+                    Shape[] downGroupH = {downArrowLeftH, downArrowRightH};
+
+
+
+
+                    addHoverEffectToRouteCard(filledSquareV, squareGroupV,  defaultColor, hoverColor);
+                    addHoverEffectToRouteCard(filledSquareH, squareGroupH,  defaultColor, hoverColor);
+                    addHoverEffectToRouteCard(rightArrowTopV, rightGroupV, defaultColor, hoverColor);
+                    addHoverEffectToRouteCard(rightArrowTopH, rightGroupH, defaultColor, hoverColor);
+                    addHoverEffectToRouteCard(rightArrowBottomV, rightGroupV, defaultColor, hoverColor);
+                    addHoverEffectToRouteCard(rightArrowBottomH, rightGroupH, defaultColor, hoverColor);
+                    addHoverEffectToRouteCard(downArrowLeftV, downGroupV, defaultColor, hoverColor);
+                    addHoverEffectToRouteCard(downArrowLeftH, downGroupH, defaultColor, hoverColor);
+                    addHoverEffectToRouteCard(downArrowRightV, downGroupV, defaultColor, hoverColor);
+                    addHoverEffectToRouteCard(downArrowRightH, downGroupH, defaultColor, hoverColor);
+                    addHoverEffectToRouteCard(outlineSquareV, squareGroupV, defaultColor, hoverColor);
+                    addHoverEffectToRouteCard(outlineSquareH, squareGroupH, defaultColor, hoverColor);
+                    addHoverEffectToRouteCard(rightArrowOutlineV, rightGroupV, defaultColor, hoverColor);
+                    addHoverEffectToRouteCard(rightArrowOutlineH, rightGroupH, defaultColor, hoverColor);
+                    addHoverEffectToRouteCard(downArrowOutlineV, downGroupV, defaultColor, hoverColor);
+                    addHoverEffectToRouteCard(downArrowOutlineH, downGroupH, defaultColor, hoverColor);
+
+
+
+
+                    for (Shape arrowV : rightGroupV) {
+                        arrowV.setOnMouseClicked(event -> toggleRouteLayout(routeName, rental, "horizontal"));
+                    }
+                    for (Shape arrowH : downGroupH) {
+                        arrowH.setOnMouseClicked(event -> toggleRouteLayout(routeName, rental, "vertical"));
+                    }
+                    rightArrowOutlineV.setOnMouseClicked(event -> toggleRouteLayout(routeName, rental, "horizontal"));
+                    downArrowOutlineH.setOnMouseClicked(event -> toggleRouteLayout(routeName, rental, "vertical"));
+
+
+
+
+                    // Group filledSquareGroup = new Group(outlineSquare, filledSquare);
+                    // Group rightArrowGroup = new Group(rightArrowOutline, rightArrowTop, rightArrowBottom);
+                    // Group downArrowGroup = new Group(downArrowOutline, downArrowLeft, downArrowRight);
+
+
+                    // // **Add hover effect to each group**
+                    // addHoverEffectToRouteCard(filledSquareGroup, defaultColor, hoverColor);
+                    // addHoverEffectToRouteCard(rightArrowGroup, defaultColor, hoverColor);
+                    // addHoverEffectToRouteCard(downArrowGroup, defaultColor, hoverColor);
+
+
+                    Image originalFlatbedImage = new Image(getClass().getResourceAsStream("/images/flatbed-even.png"));
+
+
+                    int width= (int) originalFlatbedImage.getWidth();
+                    int height = (int) originalFlatbedImage.getHeight();
+
+
+                    PixelReader pixelReader = originalFlatbedImage.getPixelReader();
+                    WritableImage modifiedImage = new WritableImage(width, height);
+                    PixelWriter pixelWriter = modifiedImage.getPixelWriter();
+
+
+                    Color targetColor = Color.web(colors[1]);
+                    
+                    // Iterate over every pixel
+                    for (int y = 0; y < height; y++) {
+                        for (int x = 0; x < width; x++) {
+                            Color pixelColor = pixelReader.getColor(x, y);
+                            
+                            // Check if pixel is black (or near black to account for aliasing)
+                            if (pixelColor.getRed() < 0.1 && pixelColor.getGreen() < 0.1 && pixelColor.getBlue() < 0.1) {
+                                pixelWriter.setColor(x, y, targetColor); // Replace black with target color
+                            } else {
+                                pixelWriter.setColor(x, y, pixelColor); // Keep other colors the same
+                            }
                         }
                     }
+
+
+                    ImageView imageView = new ImageView(originalFlatbedImage);
+                    imageView.setFitWidth(30);
+                    imageView.setFitHeight(22);
+                    imageView.setTranslateX(6);
+                    imageView.setTranslateY(1);
+
+
+
+
+                    routeVBoxPane.getChildren().add(imageView);
+                    routeHBoxPane.getChildren().add(imageView);
+                    //modifiedImage.setAlignment(Pos.CENTER);
+                    StackPane.setAlignment(imageView, Pos.BOTTOM_LEFT);
+
+
+                    // Add click event handler to the inner square
+                    filledSquareV.setOnMouseClicked(event -> {
+                    });
+                    filledSquareH.setOnMouseClicked(event -> {
+                    });
+
+
+                    // Add the grouped squares to the routeVBoxPane
+                    routeVBoxPane.getChildren().addAll(squareContainerV);
+                    routeHBoxPane.getChildren().addAll(squareContainerH);
+
+
+                    anchorPane.getChildren().add(routeVBoxPane);
+                    // as a default, don't add
+
+
+
+
                 }
-
-                ImageView imageView = new ImageView(originalFlatbedImage);
-                imageView.setFitWidth(30);
-                imageView.setFitHeight(22);
-                imageView.setTranslateX(6);
-                imageView.setTranslateY(1);
-
-
-                routePane.getChildren().add(imageView);
-                //modifiedImage.setAlignment(Pos.CENTER);
-                StackPane.setAlignment(imageView, Pos.BOTTOM_LEFT);
-
-                // Add click event handler to the inner square
-                filledSquare.setOnMouseClicked(event -> {
-                    System.out.println("Square clicked!"); // Prints a message when clicked
-                });
-
-                // Add the grouped squares to the routePane
-                routePane.getChildren().addAll(squareContainer);
-
-                
-                anchorPane.getChildren().add(routePane);
-        
-                routePane.setOnMousePressed(event -> {
-                    // Store initial position of the mouse when pressed
-                    routePane.setUserData(new double[]{event.getSceneX(), event.getSceneY()});
-                });
-                
-                routePane.setOnMouseDragged(event -> {
-                    double deltaX = event.getSceneX() - ((double[]) routePane.getUserData())[0];
-                    double deltaY = event.getSceneY() - ((double[]) routePane.getUserData())[1];
-                
-                    double newX = routePane.getLayoutX() + deltaX;
-                    double newY = routePane.getLayoutY() + deltaY;
-                
-                    // Define boundaries
-                    double minX = 0; // Adjust according to your left boundary
-                    double maxX = anchorPane.getWidth() - routePane.getWidth() - 2; // Prevent from moving out on the right
-                    double minY = 20; // Top boundary
-                    double maxY = anchorPane.getHeight() - routePane.getHeight(); // Bottom boundary
-                
-                    // Apply boundary constraints
-                    routePane.setLayoutX(Math.max(minX, Math.min(maxX, newX)));
-                    routePane.setLayoutY(Math.max(minY, Math.min(maxY, newY)));
-                
-                    // Update the starting mouse position for the next drag event
-                    routePane.setUserData(new double[]{event.getSceneX(), event.getSceneY()});
-                });
-            }
-        } else {
-            System.out.println("Beginning of button sequencing logic");
-        
-            Rental firstRental = route.get(route.size() - 2);
-            Rental secondRental = route.get(route.size() - 1);
-        
-            // Check if firstRental and secondRental are being fetched correctly
-            System.out.println("First Rental: " + firstRental.getName() + ", " + firstRental.getLatitude() + ", " + firstRental.getLongitude());
-            System.out.println("Second Rental: " + secondRental.getName() + ", " + secondRental.getLatitude() + ", " + secondRental.getLongitude());
-        
-            String[] googleResults = {"unknown", "unknown"};
-            try {
-                googleResults = getGoogleRoute(firstRental.getLatitude(), firstRental.getLongitude(),
-                                                secondRental.getLatitude(), secondRental.getLongitude());
-                // Check googleResults after fetching
-                //System.out.println("Google Results: " + googleResults[0] + ", " + googleResults[1]);
-            } catch (Exception e) {
-                System.out.println("Error while fetching Google route: " + e.getMessage());
-            }
-        
-            // Check if the intermediary VBox is created correctly
-            VBox intermediary = createStopIntermediary(googleResults[0], colors);
-            if (intermediary != null) {
-                System.out.println("Intermediary VBox created successfully.");
             } else {
-                System.out.println("Failed to create Intermediary VBox.");
+            
+                Rental firstRental = route.get(route.size() - 2);
+                Rental secondRental = route.get(route.size() - 1);
+            
+                // Check if firstRental and secondRental are being fetched correctly
+            
+                String[] googleResults = {"unknown", "unknown"};
+                try {
+                    googleResults = getGoogleRoute(firstRental.getLatitude(), firstRental.getLongitude(),
+                                                    secondRental.getLatitude(), secondRental.getLongitude());
+                    // Check googleResults after fetching
+                    //System.out.println("Google Results: " + googleResults[0] + ", " + googleResults[1]);
+                } catch (Exception e) {
+                }
+            
+                // Check if the intermediary VBox is created correctly
+                Region intermediaryRegionV = createStopIntermediary(googleResults[0], colors, "vertical");
+                Region intermediaryRegionH = createStopIntermediary(googleResults[0], colors, "horizontal");
+                VBox intermediaryV = (VBox) intermediaryRegionV;
+                HBox intermediaryH = (HBox) intermediaryRegionH;
+
+
+                
+                int singleDigitSpacerV = isSingleDigitMinutes(googleResults[0]) ? 10 : 0;
+                int singleDigitSpacerH = isSingleDigitMinutes(googleResults[0]) ? 10 : 0;
+
+
+
+
+                routeVBoxPane.getChildren().add(intermediaryV);
+                routeHBoxPane.getChildren().add(intermediaryH);
+                intermediaryV.setTranslateY(((routeSize - 1) * cardHeightUnit) - 13 + singleDigitSpacerV);
+                intermediaryH.setTranslateY(1);
+                intermediaryV.setTranslateX(1);
+                intermediaryH.setTranslateX(((routeSize - 1) * cardWidthUnit) - 23 + singleDigitSpacerH);
+
+
+
+
+            
+
+
+
+
+
+                //drawRoutePolyline(googleResults[1], colors);
+                encodedPolylines.get("route" + (index + 1)).add(googleResults[1]);
+                //  storedEncodedPolylines.add(googleResults[1]);
+                updateRoutePolylines();
+            
+            
+                routeVBoxPane.toFront();
+                routeVBox.toFront();
+
+
             }
 
-            int singleDigitSpacer = isSingleDigitMinutes(googleResults[0]) ? 10 : 0;
+
+            StackPane rentalChunkV = createRentalChunk(rental, colors, "vertical");
+            StackPane rentalChunkH = createRentalChunk(rental, colors, "horizontal");
+            routeVBox.getChildren().add(rentalChunkV);
+            routeHBox.getChildren().add(rentalChunkH);
+    
+            rentalChunkH.setTranslateY(20);
+            rentalChunkV.setTranslateY(-8);
+    
+        } else if (orientation.equals("deletion")) {
             
-            routePane.getChildren().add(intermediary);
-            intermediary.setTranslateY(((routeSize - 1) * cardHeightUnit) - 13 + singleDigitSpacer);
-            intermediary.setTranslateX(1);
-        
-            System.out.println("made it to just before drawing polyline from button sequencing");
-        
-            drawRoutePolyline(googleResults[1], colors);
-            storedEncodedPolylines.add(googleResults[1]);
-            storedColorsList.add(colors);
-        
-            System.out.println("made it to right after drawing polyline from button sequencing");
+            System.out.println("routeHBoxPane children before a deletion is: " + routeHBoxPane.getChildren());
+            
+            if (routeSize == 0) {
+                routeVBox.setVisible(false);
+                routeHBox.setVisible(false);
+                routeVBoxPane.getChildren().removeAll(routeVBoxPane.getChildren());
+                routeHBoxPane.getChildren().removeAll(routeHBoxPane.getChildren());
+                anchorPane.getChildren().remove(routeVBoxPane);
+                anchorPane.getChildren().remove(routeHBoxPane);
+            } else {
+                if (routeSize == 1) {
+                    routeVBoxPane.getChildren().remove(2);
+                    routeHBoxPane.getChildren().remove(3);
+                    encodedPolylines.get("route" + (index + 1)).remove(0);
+                    // no longer need for any int's
+                } else if (closestMultiple == 0) {
+                    routeVBoxPane.getChildren().remove(2);
+                    routeHBoxPane.getChildren().remove(3);
+                    for (int i = 2; i < routeVBoxPane.getChildren().size(); i++) {
+                        VBox vbox = (VBox) routeVBoxPane.getChildren().get(i);
+                        double currentY = vbox.getTranslateY();
+                        vbox.setTranslateY(currentY - cardHeightUnit);
+                    }
+                    for (int i = 3; i < routeHBoxPane.getChildren().size(); i++) {
+                        HBox hbox = (HBox) routeHBoxPane.getChildren().get(i);
+                        double currentX = hbox.getTranslateX();
+                        hbox.setTranslateX(currentX - cardWidthUnit);
+                    }
+                    encodedPolylines.get("route" + (index + 1)).remove(0);
+                    // shift up other int's
+                } else if (closestMultiple == routeSize) {
+                    routeVBoxPane.getChildren().remove(closestMultiple + 1);
+                    routeHBoxPane.getChildren().remove(closestMultiple + 2);
+                    encodedPolylines.get("route" + (index + 1)).remove(closestMultiple - 1);
+                    // no shifting int's
+                } else {
+                    routeVBoxPane.getChildren().remove(closestMultiple + 1);
+                    routeHBoxPane.getChildren().remove(closestMultiple + 2);
+                    // recalculating: 
+                    //      - removing at index closestMultiple + 3 too
+                    // shifting int's also
+                    for (int i = closestMultiple + 1; i < routeVBoxPane.getChildren().size(); i++) {
+                        VBox vbox = (VBox) routeVBoxPane.getChildren().get(i);
+                        double currentY = vbox.getTranslateY();
+                        vbox.setTranslateY(currentY - cardHeightUnit);
+                    }
+                    for (int i = closestMultiple + 2; i < routeHBoxPane.getChildren().size(); i++) {
+                        HBox hbox = (HBox) routeHBoxPane.getChildren().get(i);
+                        double currentX = hbox.getTranslateX();
+                        hbox.setTranslateX(currentX - cardWidthUnit);
+                    }
+
+                    Rental newLinkStart = route.get(closestMultiple - 1);
+                    Rental newLinkEnd = route.get(closestMultiple);
+                    String [] newLink = {"unknown", "unknown"};
+                    try {   
+                        newLink = getGoogleRoute(newLinkStart.getLatitude(), 
+                                newLinkStart.getLongitude(), newLinkEnd.getLatitude(),
+                                newLinkEnd.getLongitude());
+                    } catch (Exception e) {
+                    }
+                    Region newIntV = createStopIntermediary(newLink[0], colors, "vertical");
+                    Region newIntH = createStopIntermediary(newLink[0], colors, "horizontal");
+                    VBox newIntVBox = (VBox) newIntV;
+                    HBox newIntHBox = (HBox) newIntH;
+                    int singleDigitSpacerV = isSingleDigitMinutes(newLink[0]) ? 10 : 0;
+                    int singleDigitSpacerH = isSingleDigitMinutes(newLink[0]) ? 10 : 0;
+                    newIntVBox.setTranslateY(((closestMultiple) * cardHeightUnit) - 13 + singleDigitSpacerV);
+                    newIntHBox.setTranslateY(1);
+                    newIntVBox.setTranslateX(1);
+                    newIntHBox.setTranslateX((closestMultiple * cardWidthUnit) - 23 + singleDigitSpacerH);
+                    routeVBoxPane.getChildren().set(closestMultiple + 1, newIntVBox);
+                    routeHBoxPane.getChildren().set(closestMultiple + 2, newIntHBox);
+
+                    encodedPolylines.get("route" + (index + 1)).remove(closestMultiple - 1);
+                  
+                    encodedPolylines.get("route" + (index + 1)).set(closestMultiple - 1, newLink[1]);
+                    //  VBox vbox = (VBox) routeVBoxPane.getChildren().get(closestMultiple + 1);
+
+
+
+
+                }
+                
+            updateRoutePolylines();
+            }
+            routeVBox.getChildren().remove(closestMultiple);
+            routeHBox.getChildren().remove(closestMultiple);
         }
         
-        StackPane rentalChunk = createRentalChunk(rental, colors);
-        routeBox.getChildren().add(rentalChunk);
-        routeBox.setAlignment(Pos.BOTTOM_RIGHT);
-        routeBox.setTranslateY(-15);
+        routeVBox.toBack();
+        routeHBox.toBack();
 
-        routePane.setOnMouseClicked(event -> {
-            if (event.getClickCount() == 2) { // Check for double click
-                double x = event.getX(); // X relative to routeBox
-                double y = event.getY(); // Y relative to routeBox
-                if (x > 15 && y > 14) {
-                    System.out.println("Double-clicked at: X=" + x + ", Y=" + y);
-                    Rectangle cover = createCardOptionsCover(rental);
-                    routePane.getChildren().add(cover);
-                    StackPane.setAlignment(cover, Pos.TOP_LEFT);
-                    cover.setTranslateX(12);
-                    int yOffset = (closestMultiple((y - 14), cardHeightUnit) * cardHeightUnit) + 14;
-                    System.out.println(yOffset);
-                    cover.setTranslateY(yOffset);
-                }
-            }
-        });
-
-        routePane.setPrefWidth(105);
-        routePane.setPrefHeight((routeSize * cardHeightUnit) + 29);
+        routeVBoxPane.setPrefWidth(112);
+        routeVBoxPane.setPrefHeight((routeSize * cardHeightUnit) + 28);
         
+        routeHBoxPane.setPrefHeight(85);
+        routeHBoxPane.setPrefWidth((routeSize * cardWidthUnit) + 20);
+
+
+        routeVBoxPane.setClip(new Rectangle(112, routeSize * cardHeightUnit + 28));
+        routeHBoxPane.setClip(new Rectangle((routeSize * cardWidthUnit) + 20, 85));
     }
+
+
 
 
     // Creates a visually distinct "chunk" for each Rental stop
-    private StackPane createRentalChunk(Rental rental, String[] colors) {
+    private StackPane createRentalChunk(Rental rental, String[] colors, String orientation) {
         VBox labelBox = new VBox(0); // Vertical box with no spacing between elements
         StackPane rentalChunk = new StackPane(labelBox);
         rentalChunk.setAlignment(Pos.TOP_RIGHT);
         labelBox.setPadding(new Insets(0, 10, 0, 10)); // Top, Right, Bottom, Left padding for VBox container
         labelBox.setAlignment(Pos.CENTER); // Center the content inside the VBox
-        labelBox.setMaxWidth(95); // Maximum width (increased from 70px to 95px)
+        labelBox.setMaxWidth(cardWidthUnit); // Maximum width (increased from 70px to 95px)
+        labelBox.setMinWidth(cardWidthUnit);
+        labelBox.setMinHeight(cardHeightUnit);
+        labelBox.setMaxHeight(cardHeightUnit);
+
 
         // Define the gradient between colors[1] and colors[0]
         LinearGradient gradient = new LinearGradient(
@@ -1017,14 +1535,18 @@ public class MapController {
             new Stop(1.0, Color.web(colors[0]))        
         );
 
+
         // Set the background gradient
         labelBox.setBackground(new Background(new BackgroundFill(gradient, CornerRadii.EMPTY, Insets.EMPTY)));
+
 
         // Set a border
         labelBox.setStyle("-fx-padding: 5;");
 
+
         // Character limit for truncation (increased to fit the new width)
         int charLimit = 14; // Adjusted for 95px width
+
 
         // Create labels with truncation and set padding for left/right buffer
         Label nameLabel = new Label(truncateText(rental.getName(), charLimit));
@@ -1032,15 +1554,18 @@ public class MapController {
         nameLabel.setMaxWidth(95); // Updated width limit
         nameLabel.setPadding(new Insets(0, 4, 0, 4)); // Add buffer on left/right
 
+
         Label address2 = new Label(truncateText(rental.getAddressBlockTwo(), charLimit));
         address2.setStyle("-fx-text-fill: " + colors[2] + ";");
         address2.setMaxWidth(95);
         address2.setPadding(new Insets(0, 4, 0, 4)); // Add buffer on left/right
 
+
         Label address3 = new Label(truncateText(rental.getAddressBlockThree(), 7));
         address3.setStyle("-fx-text-fill: " + colors[2] + ";");
         address3.setMaxWidth(95);
         address3.setPadding(new Insets(0, 4, 0, 4)); // Add buffer on left/right
+
 
         Label liftType = new Label(rental.getLiftType());
         rentalChunk.getChildren().add(liftType);
@@ -1048,12 +1573,18 @@ public class MapController {
         liftType.setStyle("-fx-font-weight: bold;");
         liftType.setTranslateX(-8);
         StackPane.setAlignment(liftType, Pos.BOTTOM_RIGHT);
+        if (orientation.equals("horizontal")) {
+            liftType.setTranslateY(-28);
+        }
+
 
         // Add labels to the VBox
         labelBox.getChildren().addAll(nameLabel, address2, address3);
 
+
         return rentalChunk;
     }
+
 
     // Utility method to truncate text
     private String truncateText(String text, int limit) {
@@ -1064,11 +1595,9 @@ public class MapController {
     }
 
 
+    private Region createStopIntermediary(String driveTimeStr, String[] colors, String orientation) {
 
 
-    private VBox createStopIntermediary(String driveTimeStr, String[] colors) {
-        VBox intermediary = new VBox(-6);
-        
         // Extract and convert drive time
         driveTimeStr = driveTimeStr.replace("s", "");
         int driveTimeInSeconds = Integer.parseInt(driveTimeStr);
@@ -1084,45 +1613,165 @@ public class MapController {
         container.setMinWidth(10); // Keeps it within the leftmost 10px
         container.setAlignment(Pos.CENTER_LEFT); // Centers text inside the container
     
-        VBox textBox = new VBox(-13); // Holds the digits and "m" in a vertical stack
-        textBox.setAlignment(Pos.CENTER);
-        textBox.setMinWidth(12);
-        textBox.setMaxWidth(12);
-        textBox.setTranslateX(1);
-    
-        // Add each digit as a separate label
-        for (char digit : timeNumber.toCharArray()) {
-            Label digitLabel = new Label(String.valueOf(digit));
-            digitLabel.setStyle("-fx-font-size: 19px; -fx-font-weight: bold; -fx-text-fill: " + colors[1] + ";");
-            textBox.getChildren().add(digitLabel);
-        }
-    
         // Create "m" label (smaller font)
         Label unitLabel = new Label(timeUnit);
         unitLabel.setTranslateY(1);
         unitLabel.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: " + colors[1] + ";");
-        textBox.getChildren().add(unitLabel); // Add "m" at the bottom
-    
-        // Add textBox to container
-        container.getChildren().add(textBox);
         
-        // Add container to intermediary VBox
-        intermediary.getChildren().add(container);
-    
-        return intermediary;
+
+
+        if (orientation.equals("vertical")){
+            
+            VBox intermediary = new VBox(-6);
+            VBox textBox = new VBox(-13); // Holds the digits and "m" in a vertical stack
+            textBox.setAlignment(Pos.CENTER);
+            textBox.setMinWidth(12);
+            textBox.setMaxWidth(12);
+            textBox.setTranslateX(1);
+        
+            // Add each digit as a separate label
+            for (char digit : timeNumber.toCharArray()) {
+                Label digitLabel = new Label(String.valueOf(digit));
+                digitLabel.setStyle("-fx-font-size: 19px; -fx-font-weight: bold; -fx-text-fill: " + colors[1] + ";");
+                textBox.getChildren().add(digitLabel);
+            }
+
+
+            textBox.getChildren().add(unitLabel); // Add "m" at the bottom
+        
+            // Add textBox to container
+            container.getChildren().add(textBox);
+            
+            // Add container to intermediary VBox
+            intermediary.getChildren().add(container);
+        
+            return intermediary;
+
+
+
+
+        } else if (orientation.equals("horizontal")) {
+            HBox intermediary = new HBox(-6);
+            HBox textBox = new HBox(-1); // Holds the digits and "m" in a vertical stack
+            textBox.setAlignment(Pos.CENTER);
+            textBox.setMinHeight(12);
+            textBox.setMaxHeight(12);
+            textBox.setTranslateY(-37);
+            textBox.setTranslateX(21);
+        
+            // Add each digit as a separate label
+            for (char digit : timeNumber.toCharArray()) {
+                Label digitLabel = new Label(String.valueOf(digit));
+                digitLabel.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: " + colors[1] + ";");
+                textBox.getChildren().add(digitLabel);
+            }
+
+
+            textBox.getChildren().add(unitLabel); // Add "m" at the bottom
+        
+            // Add textBox to container
+            container.getChildren().add(textBox);
+            
+            // Add container to intermediary VBox
+            intermediary.getChildren().add(container);
+        
+            return intermediary;
+        } else {
+            return null;
+        }
     }
     
-    
-    private Rectangle createCardOptionsCover(Rental rental) {
-        Rectangle cover = new Rectangle(10, 10);
+    private StackPane createCardOptionsCover(Rental rental, int closestMultiple, double x, double y, int routeIndex) {
+        // Create the cover rectangle
+        Rectangle cover = new Rectangle(cardWidthUnit - 14, cardHeightUnit);
         cover.setFill(Color.web("#F4F4F4"));
-        return cover;
+        cover.setOpacity(0.75); // Adjust opacity to make it slightly transparent
+    
+        // Load the delete icon from resources
+        Image deleteImage = new Image(getClass().getResource("/images/delete.png").toExternalForm());
+        ImageView deleteIcon = new ImageView(deleteImage);
+        deleteIcon.setFitWidth(30);  // Adjust size as needed
+        deleteIcon.setFitHeight(30);
+        
+        deleteIcon.setOnMouseClicked(event -> {
+            removeStopFromRoute(rental, closestMultiple, routeIndex);
+        });
+        deleteIcon.setPickOnBounds(true);
+        deleteIcon.setMouseTransparent(false);
+
+
+        // Add a glow effect
+        Glow glow = new Glow(0.8);  // Adjust intensity (0 to 1)
+        deleteIcon.setEffect(glow);
+    
+        // StackPane to center the image on the rectangle
+        StackPane stack = new StackPane(cover, deleteIcon/*,
+             new Label(String.valueOf(closestMultiple) + " & x,y: " + x + "," + y)*/);
+        stack.setAlignment(Pos.CENTER);
+        stack.setFocusTraversable(true);
+        //stack.setClip(new Rectangle(cardWidthUnit +1000, cardHeightUnit + 1000));
+        stack.setPickOnBounds(false);
+        return stack;
+    }
+
+
+    private void removeCardOptionsCover() {
+        if (lastCardCover != null && lastCardCover.getParent() != null) {
+            ((Pane) lastCardCover.getParent()).getChildren().remove(lastCardCover);
+        }
+        lastCardCover = null;
+        lastCoveredPane = null;
+    }
+
+
+    private void handleDeleteStop(Rental rental, int closestMultiple, int routeIndex) {
+    }
+    
+    
+    private void toggleRouteLayout(String routeName, Rental rental, String orientation) {
+        String cleanedName = routeName.replaceFirst("(?i)route", "");
+        int routeIndex = -1;
+        try {
+            String numericPart = routeName.replaceAll("[^0-9]", "");
+            if (!numericPart.isEmpty()) {
+                routeIndex = Integer.parseInt(numericPart);
+            } else {
+                routeIndex = wordToNumber(cleanedName);
+            }
+            routeIndex -=1;
+        } catch (NumberFormatException | IndexOutOfBoundsException e) {
+            System.err.println("Error processing routeName: " + routeName);
+        }
+        
+        if (routeIndex >= 0 && routeIndex < routeRegions.size()) {
+            switch (orientation) {
+                case "horizontal":
+                    routeRegions.set(routeIndex, routeHBoxes.get(routeIndex));
+                    routeVBoxes.get(routeIndex).setVisible(false);
+                    routeHBoxes.get(routeIndex).setVisible(true);
+                    anchorPane.getChildren().remove(routeVBoxPanes.get(routeIndex));
+                    anchorPane.getChildren().add(routeHBoxPanes.get(routeIndex));
+                    routeHBoxPanes.get(routeIndex).setLayoutX(Math.min(routeHBoxPanes.get(routeIndex).getLayoutX(), 400 - (routes.get(routeName).size() + cardWidthUnit)));
+                    break;
+                case "vertical":
+                    routeRegions.set(routeIndex, routeVBoxes.get(routeIndex));
+                    routeHBoxes.get(routeIndex).setVisible(false);
+                    routeVBoxes.get(routeIndex).setVisible(true);
+                    anchorPane.getChildren().remove(routeHBoxPanes.get(routeIndex));
+                    anchorPane.getChildren().add(routeVBoxPanes.get(routeIndex));
+                    break;
+                default:
+            }
+        } else {
+        }
+        
+        removeCardOptionsCover();
+        
     }
     
     
     
-    
-    
+
 
     public List<Rental> getRouteStops(String routeName) {
         switch (routeName) {
@@ -1134,17 +1783,25 @@ public class MapController {
             default: return null;
         }
     }
-
-    private StackPane getRoutePane(String routeName) {
-        switch (routeName) {
-            case "routeOne": return routeOnePane;
-            case "routeTwo": return routeTwoPane;
-            case "routeThree": return routeThreePane;
-            case "routeFour": return routeFourPane;
-            case "routeFive": return routeFivePane;
-            default: return null;
+    
+    // Helper method to convert word numbers to integers
+    private int wordToNumber(String word) {
+        Map<String, Integer> wordMap = Map.of(
+            "one", 1, "two", 2, "three", 3, "four", 4, "five", 5,
+            "six", 6, "seven", 7, "eight", 8, "nine", 9, "ten", 10
+        );
+    
+        int num = wordMap.getOrDefault(word.toLowerCase(), -1); // Convert to lowercase before lookup
+        
+        if (num == -1) {
+            System.err.println("Warning: Could not map word '" + word + "' to a number.");
         }
-    }    
+        
+        return num;
+    }
+    
+    
+
 
     private VBox getRouteVBox(String routeName) {
         switch (routeName) {
@@ -1157,18 +1814,101 @@ public class MapController {
         }
     }
     
+
+
+    public int getRouteIndex(String routeName) {
+        String cleanedName = routeName.replaceFirst("(?i)route", "");
+
+
+        try {
+            // Extract numeric part
+            String numericPart = routeName.replaceAll("[^0-9]", "");
+            
+            // If numeric part is empty, attempt to map from word numbers
+            int routeIndex;
+            if (!numericPart.isEmpty()) {
+                routeIndex = Integer.parseInt(numericPart);
+            } else {
+                routeIndex = wordToNumber(cleanedName);
+            }
+    
+            // Convert to zero-based index
+            routeIndex -= 1;
+    
+            return routeIndex;
+        } catch (NumberFormatException | IndexOutOfBoundsException e) {
+            System.err.println("Error processing routeName: " + routeName);
+            return -1;
+        }
+    }
+
+
+    private String getRouteNameFromIndex(int index){
+        String routeKey = switch (index) {
+            case 0 -> "routeOne";
+            case 1 -> "routeTwo";
+            case 2 -> "routeThree";
+            case 3 -> "routeFour";
+            case 4 -> "routeFive";
+            default -> null;
+        };
+        return routeKey;
+    }
+
+
     public String[] getRouteColors(String routeName) {
+        String primary = Config.getPrimaryColor();
+        String secondary = Config.getSecondaryColor();
+        String tertiary = Config.getTertiaryColor();
+    
         switch (routeName) {
-            case "routeOne": return new String[] {Config.getPrimaryColor(), Config.getSecondaryColor(), 
-                                Config.COLOR_TEXT_MAP.get(Config.getSecondaryColor()) == 1 ? Config.getTertiaryColor() : "#ffffff"};
-            case "routeTwo": return new String[] {Config.getTertiaryColor(), Config.getPrimaryColor(),
-                                Config.COLOR_TEXT_MAP.get(Config.getPrimaryColor()) == 1 ? Config.getTertiaryColor() : "#ffffff"};
-            case "routeThree": return new String[] {Config.getSecondaryColor(), Config.getTertiaryColor(), "#ffffff"};
-            case "routeFour": return new String[] {Config.getPrimaryColor(), "#ffffff", Config.getTertiaryColor()};
-            case "routeFive": return new String[] {Config.getPrimaryColor(), Config.getSecondaryColor(), 
-                                Config.COLOR_TEXT_MAP.get(Config.getSecondaryColor()) == 1 ? Config.getTertiaryColor() : "#ffffff"};
-            default: return new String[] {Config.getPrimaryColor(), Config.getSecondaryColor(), 
-                                Config.COLOR_TEXT_MAP.get(Config.getSecondaryColor()) == 1 ? Config.getTertiaryColor() : "#ffffff"};
+            case "route1":
+            case "routeOne":
+                return new String[]{
+                    primary,
+                    secondary,
+                    Config.COLOR_TEXT_MAP.getOrDefault(secondary, 0) == 1 ? tertiary : "#ffffff"
+                };
+    
+            case "route2":
+            case "routeTwo":
+                return new String[]{
+                    tertiary,
+                    primary,
+                    Config.COLOR_TEXT_MAP.getOrDefault(primary, 0) == 1 ? tertiary : "#ffffff"
+                };
+    
+            case "route3":
+            case "routeThree":
+                return new String[]{
+                    secondary,
+                    tertiary,
+                    "#ffffff"
+                };
+    
+            case "route4":
+            case "routeFour":
+                return new String[]{
+                    primary,
+                    "#ffffff",
+                    tertiary
+                };
+    
+            case "route5":
+            case "routeFive":
+                return new String[]{
+                    primary,
+                    secondary,
+                    Config.COLOR_TEXT_MAP.getOrDefault(secondary, 0) == 1 ? tertiary : "#ffffff"
+                };
+    
+            default:
+                // Fallback route colors
+                return new String[]{
+                    primary,
+                    secondary,
+                    Config.COLOR_TEXT_MAP.getOrDefault(secondary, 0) == 1 ? tertiary : "#ffffff"
+                };
         }
     }
 
@@ -1251,8 +1991,10 @@ public class MapController {
         int seconds = durationInSeconds % 60;
     
 
+
         return new String[]{durationString, polylineString};
     }
+
 
     private boolean isSingleDigitMinutes(String durationString) {
         // Remove the 's' character and convert to integer (assuming format like "1441s")
@@ -1265,6 +2007,7 @@ public class MapController {
         return minutes < 10;
     }
    
+
 
     private List<double[]> decodePolyline(String encoded) {
         List<double[]> polylinePoints = new ArrayList<>();
@@ -1299,28 +2042,33 @@ public class MapController {
         return polylinePoints;
     }
 
+
     
-    private String getARouteNoPreference() {
-        System.out.println("get a route called");
+    private String[] getARouteNoPreference() {
+
 
         // Find the first empty route
+        int index = 0;
         for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
             if (entry.getValue().isEmpty()) {
-                return entry.getKey();
+                return new String[] { entry.getKey(), String.valueOf(index) };
             }
+            index++;
         }
     
+        index = 0;
         // Use the last edited route
         if (latestRouteEdited != null) {
             for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
                 if (entry.getValue() == latestRouteEdited) {
-                    return entry.getKey();
+                    return new String[] { entry.getKey(), String.valueOf(index) };
                 }
             }
+            index++;
         }
     
         // Default to Route 1
-        return "routeOne";
+        return new String[]{ "route1", "0" };
     }
   
     private void addHoverEffectToRouteCard(Shape shape, Shape[] shapesToChange, Color defaultColor, Color hoverColor) {
@@ -1345,16 +2093,10 @@ public class MapController {
         });
     }
 
+
     private int closestMultiple(double value, int multiple) {
         int result = (int) (value / multiple);
         
-        // Debug print statements
-        System.out.println("Input value: " + value);
-        System.out.println("Multiple: " + multiple);
-        System.out.println("Value / Multiple: " + (value / multiple));
-        System.out.println("Casted to int: " + (int) (value / multiple));
-        System.out.println("Final result (closest multiple): " + result);
-    
         return result;
     }
     
@@ -1364,3 +2106,7 @@ public class MapController {
         MaxReachPro.getInstance().collapseStage();
     }
 } 
+
+
+
+

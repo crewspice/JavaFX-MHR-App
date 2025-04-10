@@ -1008,17 +1008,6 @@ public class ColumnFactory {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 	public TableColumn<Rental, String> getSelectColumn(){
     	selectColumn.setCellValueFactory(new PropertyValueFactory<>("deliveryTime"));
 
@@ -2113,6 +2102,7 @@ public class ColumnFactory {
 
 	private String getGridNameFromCoords(double latitude, double longitude) {
     	for (GridCell lesserCell : lesserGridCells) {
+
         	if (lesserCell.contains(latitude, longitude)) {
             	if (lesserCell.isDominant()) {
                 	return lesserCell.getCellName();
@@ -2123,6 +2113,8 @@ public class ColumnFactory {
 
 
     	for (GridCell greaterCell : greaterGridCells) {
+			System.out.println("Checking if latitude: " + latitude + ", longitude: " + longitude + 
+				" is within greaterCell bounds: " + greaterCell.describeBounds());
         	if (greaterCell.contains(latitude, longitude)) {
             	return greaterCell.getCellName();
         	}
@@ -2144,6 +2136,7 @@ public class ColumnFactory {
 			double latitude = rental.getLatitude();
 			double longitude = rental.getLongitude();
 			String mapPage = getGridNameFromCoords(latitude, longitude);
+			System.out.println("map page determined to be:" + mapPage);
 
 			try {
 				// Open the source PDF
@@ -2218,6 +2211,48 @@ public class ColumnFactory {
 				e.printStackTrace();
 			}
 		}
+
+
+		// Merge individual PDFs into one file
+		if (!createdPdfFiles.isEmpty()) {
+			String todayDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+			String finalOutputFile = Paths.get(PathConfig.CONTRACTS_DIR, "contracts_" + todayDate + ".pdf").toString();
+
+
+			try {
+				PdfDocument finalPdfDoc = new PdfDocument(new PdfWriter(finalOutputFile));
+				PdfMerger merger = new PdfMerger(finalPdfDoc);
+
+
+				for (String pdfFile : createdPdfFiles) {
+					PdfDocument docToMerge = new PdfDocument(new PdfReader(pdfFile));
+					merger.merge(docToMerge, 1, docToMerge.getNumberOfPages());
+					docToMerge.close();
+				}
+
+
+				finalPdfDoc.close();
+
+
+
+
+				// Clean up individual PDFs
+				for (String pdfFile : createdPdfFiles) {
+					File file = new File(pdfFile);
+					if (file.exists() && file.delete()) {
+					}
+				}
+
+
+			} catch (Exception e) {
+				System.out.println("Error merging PDFs: " + e.getMessage());
+				e.printStackTrace();
+			}
+		} else {
+			System.out.println("No contracts were created, so no merge occurred.");
+		}
+
+
 	}
 
 

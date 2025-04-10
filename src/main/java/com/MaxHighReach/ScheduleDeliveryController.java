@@ -12,6 +12,7 @@ import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.image.ImageView;
@@ -204,6 +205,7 @@ public class ScheduleDeliveryController extends BaseController {
 	@FXML
 	private Button printButton;
 	private final Tooltip printTooltip = new Tooltip("Print Contracts");
+	private List <TextField> textFields;
 
 	private Timeline rotationTimeline; // Timeline for rotating highlight
 	private boolean isRotating = false;
@@ -640,6 +642,13 @@ public class ScheduleDeliveryController extends BaseController {
         	}
     	});
 
+		textFields = List.of(customerNameField, orderedByField, orderedByPhoneField, siteField, 
+							 addressField, siteContactField, siteContactPhoneField, POField);
+
+        for (int i = 0; i < textFields.size(); i++) {
+            int index = i;
+            textFields.get(i).addEventHandler(KeyEvent.KEY_PRESSED, event -> handleTabNavigation(event, index));
+        }
 
     	createCustomTooltip(locationNotesButton, 38, 10, locationNotesTooltip);
     	createCustomTooltip(preTripInstructionsButton, 38, 10, preTripInstructionsTooltip);
@@ -2450,7 +2459,8 @@ public class ScheduleDeliveryController extends BaseController {
 	
 	private String formatPhoneNumber(String phoneNumber) {
     	if (phoneNumber == null || phoneNumber.length() != 10) {
-        	throw new IllegalArgumentException("Input must be a 10-digit number.");
+        	System.out.println("Input must be a 10-digit number.");
+			return "";
     	}
 
 
@@ -2497,8 +2507,23 @@ public class ScheduleDeliveryController extends BaseController {
         	cellNameLesser += 4;
     	}
 
-
 	}
+
+	private void handleTabNavigation(KeyEvent event, int currentIndex) {
+        if (event.getCode() == KeyCode.TAB) {
+            event.consume(); // Prevent default tab behavior
+            
+            int nextIndex;
+            if (event.isShiftDown()) {
+                // Shift+Tab → Move to previous field
+                nextIndex = (currentIndex == 0) ? textFields.size() - 1 : currentIndex - 1;
+            } else {
+                // Tab → Move to next field
+                nextIndex = (currentIndex == textFields.size() - 1) ? 0 : currentIndex + 1;
+            }
+            textFields.get(nextIndex).requestFocus(); // Move focus
+        }
+    }
 
 	@FXML
 	public void handleBack() {
