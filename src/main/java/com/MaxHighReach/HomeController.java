@@ -30,6 +30,8 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.MaxHighReach.SpireonAPIClient.FleetAPIClient;
+
 public class HomeController extends BaseController {
 
     @FXML
@@ -147,6 +149,22 @@ public class HomeController extends BaseController {
     @FXML
     private void handleMap() {
         MaxReachPro.getInstance().expandStage();
+    }
+
+    @FXML
+    private void handleReturnAssets() {
+        new Thread(() -> {
+            try {
+                String response = FleetAPIClient.getAllAssets();
+                System.out.println("Assets response:");
+                System.out.println(response);
+
+                // TODO: optionally parse response as JSON and do something with it
+            } catch (IOException e) {
+                System.err.println("Error fetching assets: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }).start();     
     }
 
     @FXML
