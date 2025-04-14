@@ -36,9 +36,17 @@ public class Config {
     public static final String DB_NAME = "dispatch";
 
     // --------------------------------------------------
-    // Lift Type Maps
+    // Tokens and keys
     // --------------------------------------------------
     public static final String GOOGLE_KEY = "AIzaSyBPqUosXIYsD2XMPYYeWphhDS7XwphdVB0";
+    
+    public static final String SPIREON_ACCOUNT_NAME = "Max High Reach Inc";
+    public static final String SPIREON_NSPIRE_ID = "5301680";
+    public static final String SPIREON_USR = "Spireonintegration@MaxHigh.com";
+    public static final String SPIREON_PSWD = "hRs8$6Mw#g";
+    public static final String SPIREON_EMAIL = "office@maxhighreach.com";
+    public static final String SPIREON_TOKEN = "e2cfc07a-255a-4677-8f4f-07b8ae7149e8";
+
 
     // --------------------------------------------------
     // SDK Path (Using PathConfig)
@@ -58,6 +66,13 @@ public class Config {
             {"Ken Mulberry", "KM", "KM"},
             {"Byron Chilton", "BC", "B"}
     };
+
+    // --------------------------------------------------
+    // Truck Data
+    // --------------------------------------------------
+    public static final double SHOP_LAT = 39.795135;
+    public static final double SHOP_LON = -104.931914;
+    public static final int NUMBER_OF_TRUCKS = 5;
 
     // --------------------------------------------------
     // Lift Type Maps
