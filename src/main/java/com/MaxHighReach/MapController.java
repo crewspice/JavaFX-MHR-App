@@ -934,29 +934,17 @@ public class MapController {
 
     
     public void addStopToRoute(String routeSignifier, Rental rental) {
-
-
         String matchedRoute = null;
         int index = 99;
-        
         if (routeSignifier == null) {
             String[] route = getARouteNoPreference();
             matchedRoute = route[0];
             index = Integer.parseInt(route[1]);
         } else {
-
-
             // Check if routeSignifier is a driver’s initials
             for (String[] employee : Config.EMPLOYEES) {
-                
-
-
                 if (routeSignifier.equals(employee[1]) || routeSignifier.equals(employee[2])) {
-
-
                     // Print routeAssignments before checking for an existing route
-
-
                     int counter = 0;
                     // Find an existing route assigned to this driver
                     for (Map.Entry<String, String> entry : routeAssignments.entrySet()) {
@@ -968,7 +956,6 @@ public class MapController {
                         counter++;
                     }
 
-
                     // If no assigned route found, assign a new one
                     if (matchedRoute == null) {
                         matchedRoute = "Route " + (routeAssignments.size() + 1);
@@ -979,16 +966,6 @@ public class MapController {
                     break; // Exit the employee loop since we found a match
                 }
             }
-
-
-
-
-            // Final check if route was assigned
-            if (matchedRoute == null) {
-            } else {
-            }
-
-
             // If not a driver initial, treat it as a route name directly
             if (matchedRoute == null && routes.containsKey(routeSignifier)) {
                 matchedRoute = routeSignifier;
@@ -996,18 +973,32 @@ public class MapController {
             }
         }
 
-
         // Add stop to the selected route
         routes.get(matchedRoute).add(rental);
         latestRouteEdited = routes.get(matchedRoute);
-
-
         // Update UI for the route
         updateRoutePane(matchedRoute, rental, "insertion", 99, index);
+    }
 
+    private void addTruckToRoute(String routeSignifier, double[] truck) {
+        String matchedRoute = null;
+        int index = 0;
 
+        // If not a driver initial, treat it as a route name directly
+        if (matchedRoute == null && routes.containsKey(routeSignifier)) {
+            matchedRoute = routeSignifier;
+            index = wordToNumber(matchedRoute.replace("route","")) - 1;
+        }
 
+        String city = getCityFromCoordinates(truck[0], truck[1]);
 
+        Rental truckLocation = new Rental(null, "", null,
+            null, null, null, null, false,
+            null, "truck's location", city, 0,
+            null, false, 0, null, null, truck[0],
+            truck[1], "");
+
+        
     }
 
 
@@ -1045,9 +1036,6 @@ public class MapController {
 
     }
     
-
-
-
 
     private void updateRoutePane(String routeName, Rental rental, String orientation,
                                 int closestMultiple, int index) {
@@ -1352,9 +1340,6 @@ public class MapController {
                     routeVBoxPane.getChildren().addAll(squareContainerV);
                     routeHBoxPane.getChildren().addAll(squareContainerH);
 
-
-
-
                     Label truckIdLabelV = new Label(" ? ");
                     truckIdLabelV.setTranslateY(2);
                     truckIdLabelV.setTranslateX(0);
@@ -1372,70 +1357,52 @@ public class MapController {
                     routeVBoxPane.getChildren().add(truckIdLabelV);
                     StackPane.setAlignment(truckIdLabelV, Pos.BOTTOM_LEFT);
                     
-
-
-
                     anchorPane.getChildren().add(routeVBoxPane);
                     // as a default, don't add routeHBoxPane
 
-
-
-
                 }
             } else {
-            
-                Rental firstRental = route.get(route.size() - 2);
-                Rental secondRental = route.get(route.size() - 1);
-            
-                // Check if firstRental and secondRental are being fetched correctly
-            
-                String[] googleResults = {"unknown", "unknown"};
-                try {
-                    googleResults = getGoogleRoute(firstRental.getLatitude(), firstRental.getLongitude(),
-                                                    secondRental.getLatitude(), secondRental.getLongitude());
-                    // Check googleResults after fetching
-                    //System.out.println("Google Results: " + googleResults[0] + ", " + googleResults[1]);
-                } catch (Exception e) {
-                }
-            
-                // Check if the intermediary VBox is created correctly
-                Region intermediaryRegionV = createStopIntermediary(googleResults[0], colors, "vertical");
-                Region intermediaryRegionH = createStopIntermediary(googleResults[0], colors, "horizontal");
-                VBox intermediaryV = (VBox) intermediaryRegionV;
-                HBox intermediaryH = (HBox) intermediaryRegionH;
-
-
+                if (closestMultiple == 99) {
+                    Rental firstRental = route.get(route.size() - 2);
+                    Rental secondRental = route.get(route.size() - 1);
                 
-                int singleDigitSpacerV = isSingleDigitMinutes(googleResults[0]) ? 10 : 0;
-                int singleDigitSpacerH = isSingleDigitMinutes(googleResults[0]) ? 10 : 0;
+                    String[] googleResults = {"unknown", "unknown"};
+                    try {
+                        googleResults = getGoogleRoute(firstRental.getLatitude(), firstRental.getLongitude(),
+                                                        secondRental.getLatitude(), secondRental.getLongitude());
+                        // Check googleResults after fetching
+                        //System.out.println("Google Results: " + googleResults[0] + ", " + googleResults[1]);
+                    } catch (Exception e) {
+                    }
+                
+                    // Check if the intermediary VBox is created correctly
+                    Region intermediaryRegionV = createStopIntermediary(googleResults[0], colors, "vertical");
+                    Region intermediaryRegionH = createStopIntermediary(googleResults[0], colors, "horizontal");
+                    VBox intermediaryV = (VBox) intermediaryRegionV;
+                    HBox intermediaryH = (HBox) intermediaryRegionH;
 
+                    int singleDigitSpacerV = isSingleDigitMinutes(googleResults[0]) ? 10 : 0;
+                    int singleDigitSpacerH = isSingleDigitMinutes(googleResults[0]) ? 10 : 0;
 
+                    routeVBoxPane.getChildren().add(intermediaryV);
+                    routeHBoxPane.getChildren().add(intermediaryH);
+                    intermediaryV.setTranslateY(((routeSize - 1) * cardHeightUnit) - 13 + singleDigitSpacerV);
+                    intermediaryH.setTranslateY(8);
+                    intermediaryV.setTranslateX(-1);
+                    intermediaryH.setTranslateX(((routeSize - 1) * cardWidthUnit) - 27 + singleDigitSpacerH);
 
+                    intermediaryV.setClip(new Rectangle(15, 45));
 
-                routeVBoxPane.getChildren().add(intermediaryV);
-                routeHBoxPane.getChildren().add(intermediaryH);
-                intermediaryV.setTranslateY(((routeSize - 1) * cardHeightUnit) - 13 + singleDigitSpacerV);
-                intermediaryH.setTranslateY(8);
-                intermediaryV.setTranslateX(-1);
-                intermediaryH.setTranslateX(((routeSize - 1) * cardWidthUnit) - 27 + singleDigitSpacerH);
+                    //drawRoutePolyline(googleResults[1], colors);
+                    encodedPolylines.get("route" + (index + 1)).add(googleResults[1]);
+                    //  storedEncodedPolylines.add(googleResults[1]);
+                    updateRoutePolylines();
+                
+                    routeVBoxPane.toFront();
+                    routeVBox.toFront();
+                } else {
 
-                intermediaryV.setClip(new Rectangle(15, 45));
-
-            
-
-
-
-
-
-                //drawRoutePolyline(googleResults[1], colors);
-                encodedPolylines.get("route" + (index + 1)).add(googleResults[1]);
-                //  storedEncodedPolylines.add(googleResults[1]);
-                updateRoutePolylines();
-            
-            
-                routeVBoxPane.toFront();
-                routeVBox.toFront();
-
+                }
 
             }
 
@@ -2137,6 +2104,55 @@ public class MapController {
 
 
         return new String[]{durationString, polylineString};
+    }
+
+    private String getCityFromCoordinates(double lat, double lon) {
+        String cityName = "Unknown";
+        try {
+            String urlString = String.format(
+                "https://maps.googleapis.com/maps/api/geocode/json?latlng=%f,%f&key=%s",
+                lat, lon, Config.GOOGLE_KEY
+            );
+
+            URL url = new URL(urlString);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+
+            BufferedReader reader = new BufferedReader(
+                new InputStreamReader(conn.getInputStream())
+            );
+            StringBuilder response = new StringBuilder();
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                response.append(line);
+            }
+            reader.close();
+
+            JSONObject json = new JSONObject(response.toString());
+            JSONArray results = json.getJSONArray("results");
+
+            if (results.length() > 0) {
+                JSONArray addressComponents = results.getJSONObject(0).getJSONArray("address_components");
+
+                for (int i = 0; i < addressComponents.length(); i++) {
+                    JSONObject component = addressComponents.getJSONObject(i);
+                    JSONArray types = component.getJSONArray("types");
+
+                    for (int j = 0; j < types.length(); j++) {
+                        if (types.getString(j).equals("locality")) {
+                            cityName = component.getString("long_name");
+                            break;
+                        }
+                    }
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return cityName;
     }
 
 
