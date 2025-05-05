@@ -49,7 +49,7 @@ public class PopupCard extends VBox {
         buttonContainer.setAlignment(Pos.CENTER);
     
         // Route names
-        String[] routeNames = { "routeOne", "routeTwo", "routeThree", "routeFour", "routeFive" };
+        String[] routeNames = { "route1", "route2", "route3", "route4", "route5" };
         
         // Track first empty route
         String firstEmptyRoute = null;
@@ -96,31 +96,31 @@ public class PopupCard extends VBox {
         setLayoutY(y - 50);
     }
 
-    // Constructor for drive time popups
-    public PopupCard(String driveTimeMessage, double x, double y) {
-        setSpacing(10);
-        setAlignment(Pos.CENTER);
-        setStyle("-fx-background-color: lightyellow; -fx-border-color: black; -fx-border-radius: 10; -fx-padding: 10;");
+    // // Constructor for drive time popups
+    // public PopupCard(String driveTimeMessage, double x, double y) {
+    //     setSpacing(10);
+    //     setAlignment(Pos.CENTER);
+    //     setStyle("-fx-background-color: lightyellow; -fx-border-color: black; -fx-border-radius: 10; -fx-padding: 10;");
 
-        setEffect(new DropShadow(10, Color.DARKGRAY));
+    //     setEffect(new DropShadow(10, Color.DARKGRAY));
 
-        // Ensure proper clipping to match rounded corners
-        Rectangle clip = new Rectangle(320, 50);
-        clip.setArcWidth(20);
-        clip.setArcHeight(20);
-        setClip(clip);
+    //     // Ensure proper clipping to match rounded corners
+    //     Rectangle clip = new Rectangle(320, 50);
+    //     clip.setArcWidth(20);
+    //     clip.setArcHeight(20);
+    //     setClip(clip);
 
-        // Drive time info
-        Label driveTimeLabel = new Label(driveTimeMessage);
-        driveTimeLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+    //     // Drive time info
+    //     Label driveTimeLabel = new Label(driveTimeMessage);
+    //     driveTimeLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
 
-        getChildren().add(driveTimeLabel);
+    //     getChildren().add(driveTimeLabel);
 
-        // Set flag and position
-        this.isDriveTimePopup = true;
-        setLayoutX(30);
-        setLayoutY(720);
-    }
+    //     // Set flag and position
+    //     this.isDriveTimePopup = true;
+    //     setLayoutX(30);
+    //     setLayoutY(720);
+    // }
 
     // Getter to check if it's a drive time popup
     public boolean isDriveTimePopup() {

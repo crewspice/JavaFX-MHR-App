@@ -67,6 +67,8 @@ public class Rental {
     private final SimpleBooleanProperty singleItemOrder;
     private final SimpleBooleanProperty needsInvoice;
     private final StringProperty latestBilledDate;
+    private final StringProperty deliveryTruck;
+    private final StringProperty pickUpTruck;
    
     // Constructor with all relevant fields
     public Rental(String customerId, String name, String deliveryDate, String deliveryTime, String callOffDate,
@@ -112,6 +114,9 @@ public class Rental {
         this.singleItemOrder = new SimpleBooleanProperty(false);
         this.needsInvoice = new SimpleBooleanProperty(needsInvoice);
         this.latestBilledDate = new SimpleStringProperty(latestBilledDate);
+        this.deliveryTruck = new SimpleStringProperty(null);
+        this.pickUpTruck = new SimpleStringProperty(null);
+
     }
    
     // Constructor without driver and status
@@ -161,6 +166,8 @@ public class Rental {
         this.singleItemOrder = new SimpleBooleanProperty(singleItemOrder);
         this.needsInvoice = new SimpleBooleanProperty(false);
         this.latestBilledDate = new SimpleStringProperty("Unknown");
+        this.deliveryTruck = new SimpleStringProperty(null);
+        this.pickUpTruck = new SimpleStringProperty(null);
     }
 
 
@@ -887,6 +894,33 @@ public class Rental {
         return latestBilledDate;
     }
 
+    public String getDeliveryTruck() {
+        return deliveryTruck.get();
+    }
+
+
+    public void setDeliveryTruck(String deliveryTruck) {
+        this.deliveryTruck.set(deliveryTruck);
+    }
+
+
+    public StringProperty deliveryTruckProperty() {
+        return deliveryTruck;
+    }
+
+    public String getPickUpTruck() {
+        return pickUpTruck.get();
+    }
+
+
+    public void setPickUpTruck(String pickUpTruck) {
+        this.pickUpTruck.set(pickUpTruck);
+    }
+
+
+    public StringProperty pickUpTruckProperty() {
+        return pickUpTruck;
+    }
 
     // Getter and Setter for rentalId
     public int getRentalOrderId() {

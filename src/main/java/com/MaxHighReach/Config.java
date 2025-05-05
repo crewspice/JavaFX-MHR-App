@@ -3,6 +3,7 @@ package com.MaxHighReach;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -61,11 +62,20 @@ public class Config {
             {"Kaleb Streit", "KS", "K"},
             {"Sandy Mulberry", "SM", "S"},
             {"Adrian Barraza", "AB", "A"},
+            {"Jacob Streit", "JS", "JS"},
             {"Jackson Cline", "JC", "JC"},
             {"John Wright", "JW", "J"},
             {"Ken Mulberry", "KM", "KM"},
             {"Byron Chilton", "BC", "B"}
     };
+
+    public static final String[][] DRIVERS;
+
+    static {
+        DRIVERS = Arrays.stream(EMPLOYEES)
+            .filter(emp -> !emp[0].equals("Sandy Mulberry") && !emp[0].equals("Ken Mulberry"))
+            .toArray(String[][]::new);
+    }
 
     // --------------------------------------------------
     // Truck Data

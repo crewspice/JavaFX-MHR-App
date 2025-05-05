@@ -151,34 +151,6 @@ public class HomeController extends BaseController {
     }
 
     @FXML
-    private void handleReturnAssets() {
-        new Thread(() -> {
-            try {
-                double radiusMiles = 50;
-    
-                List<FleetAPIClient.AssetContent> assets = FleetAPIClient.getAssetsNearLocation(Config.SHOP_LAT, Config.SHOP_LON, radiusMiles);
-                System.out.println("Nearby assets:");
-    
-                for (FleetAPIClient.AssetContent asset : assets) {
-                    System.out.printf(
-                        "Name: %s | VIN: %s | Distance: %.2f miles | Location: (%.5f, %.5f)%n",
-                        asset.assetRef.name,
-                        asset.assetRef.vin,
-                        asset.distance,
-                        asset.assetRef.lastLocation.lat,
-                        asset.assetRef.lastLocation.lng
-                    );
-                }
-    
-            } catch (IOException e) {
-                System.err.println("Error fetching nearby assets: " + e.getMessage());
-                e.printStackTrace();
-            }
-        }).start();
-    }
-    
-
-    @FXML
     private void handleSourceCodeClick(MouseEvent event) {
         try {
             URI uri = new URI("https://github.com/crewspice/Max-High-Reach/tree/main");
