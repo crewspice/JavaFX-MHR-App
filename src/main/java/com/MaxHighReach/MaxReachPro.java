@@ -71,7 +71,9 @@ public class MaxReachPro extends Application {
     private static Map<String, String> sceneHierarchy = new HashMap<>();
     private static Stage primaryStage = new Stage();
     private static String[] user;
+    private static BaseController currentController;
     private static Rental rentalForExpanding;
+    private static String currentScenePath;
     private static String sceneBeforeExpandName;
     private static String filterFromActivityScene;
     private static String selectedViewSetting;
@@ -80,6 +82,7 @@ public class MaxReachPro extends Application {
     private static LocalDate activityDateSelected2;
     private static String selectedCustomerName;
     private static String selectedDriverName;
+    private static ObservableList<Rental> scheduledRentalsList = FXCollections.observableArrayList();
     private static ObservableList<Customer> customers = FXCollections.observableArrayList();
     private static ObservableList<Lift> lifts = FXCollections.observableArrayList();
     private static double xOffset = 0;
@@ -100,7 +103,6 @@ public class MaxReachPro extends Application {
         sceneHierarchy.put("/fxml/activity.fxml", "/fxml/home.fxml");
         sceneHierarchy.put("/fxml/schedule_delivery.fxml", "/fxml/home.fxml");
         sceneHierarchy.put("/fxml/sync_with_qb.fxml", "/fxml/home.fxml");
-        sceneHierarchy.put("/fxml/expand.fxml", "/fxml/activity.fxml");
         sceneHierarchy.put("/fxml/utilization.fxml", "/fxml/home.fxml");
         sceneHierarchy.put("/fxml/expand_imaginary.fxml", "/fxml/utilization.fxml");
 
@@ -263,32 +265,33 @@ public class MaxReachPro extends Application {
     }
 
     public static void loadScene(String fxmlPath) throws Exception {
+        if (currentScenePath != null && fxmlPath.equals("/fxml/expand.fxml")) {
+            sceneBeforeExpandName = currentScenePath;
+        }
     
         if (mainPane != null) {
-            // Check if the mainLayout has a previous root node
             if (mainPane.getChildren().size() > 1) {
                 Parent currentRoot = (Parent) mainPane.getChildren().get(1);
                 BaseController currentController = (BaseController) currentRoot.getProperties().get("controller");
                 if (currentController != null) {
                     currentController.cleanup();
                 }
-            }
-
-            if (mainPane.getChildren().size() > 1) {
                 mainPane.getChildren().remove(1);
             }
         }
-
+    
         FXMLLoader loader = new FXMLLoader(MaxReachPro.class.getResource(fxmlPath));
         Parent newRoot = loader.load();
+    
         BaseController newController = loader.getController();
         double newHeight = newController.getTotalHeight();
-
+    
         newRoot.getProperties().put("controller", newController);
         newController.setFXMLPath(fxmlPath);
+        currentScenePath = fxmlPath;
+        currentController = newController;
         StackPane.setAlignment(newRoot, javafx.geometry.Pos.TOP_LEFT);
-
-
+    
         if (isFirstScene) {
             MaxReachPro instance = getInstance();
             mainPane = instance.makeMainPane(newRoot);
@@ -297,13 +300,15 @@ public class MaxReachPro extends Application {
         } else {
             scissorLift.animateTransition(newHeight);
         }
+    
         if (mainPane.getChildren().contains(newRoot)) {
-            mainPane.getChildren().remove(newRoot); // Removes any previous scene content
+            mainPane.getChildren().remove(newRoot);
         }
+    
         mainPane.getChildren().add(newRoot);
-
-        System.out.println("Scene loaded: " + fxmlPath + " | New scene height: " + newHeight);
     }
+    
+    
 
     public static StackPane makeMainPane(Parent root) {
         mainPane = new StackPane(root);
@@ -531,6 +536,10 @@ public class MaxReachPro extends Application {
         return instance;
     }
 
+    public static BaseController getCurrentController() {
+        return currentController;
+    }
+
     public static ScissorLift getScissorLift() {
         return scissorLift;
     }
@@ -631,9 +640,13 @@ public class MaxReachPro extends Application {
     }
 
 
-    public static void setRentalForExpanding(Rental rental, String sceneName) {
+    public static void setRentalForExpanding(Rental rental, ObservableList<Rental> list) {
+        if (list != null && !list.isEmpty()) {
+            scheduledRentalsList = list;
+        } else {
+            scheduledRentalsList = null;
+        }        
         rentalForExpanding = rental;
-        sceneBeforeExpandName = sceneName;
     }
 
 
@@ -645,6 +658,10 @@ public class MaxReachPro extends Application {
     public static String getSceneBeforeExpandName(){
         System.out.println("Getting the scene before expanding: " + sceneBeforeExpandName);
         return sceneBeforeExpandName;
+    }
+
+    public static ObservableList<Rental> getScheduleDeliveryTableViewSet() {
+        return scheduledRentalsList;
     }
 
 
@@ -798,7 +815,15 @@ public class MaxReachPro extends Application {
         }
     }
 
-
+    public static void goBackFromExpand() throws Exception {
+        System.out.println("🔙 goBackFromExpand called. Returning to: " + sceneBeforeExpandName);
+        if (sceneBeforeExpandName != null) {
+            loadScene(sceneBeforeExpandName);
+        } else {
+            System.out.println("⚠️ No previous scene stored!");
+        }
+    }
+   
 
     
 }

@@ -9,6 +9,7 @@ import javafx.scene.control.Label;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.CycleMethod;
 import javafx.scene.paint.LinearGradient;
+import javafx.scene.paint.RadialGradient;
 import javafx.scene.paint.Stop;
 import javafx.scene.shape.Rectangle;
 
@@ -146,19 +147,17 @@ public class PopupCard extends VBox {
         String secondaryColor = colors[1];
     
         // Apply gradient background
-        LinearGradient gradient = new LinearGradient(
-            0, 0, 1, 0, // Horizontal gradient
-            true, CycleMethod.NO_CYCLE,
-            new Stop(0.0, Color.web(colors[0])),        
-            new Stop(0.011, Color.web(colors[0]).interpolate(Color.web(colors[1]), 0.1)), 
-            new Stop(0.061, Color.web(colors[0]).interpolate(Color.web(colors[1]), 0.38)), 
-            new Stop(0.1, Color.web(colors[0]).interpolate(Color.web(colors[1]), 0.95)), 
-            new Stop(0.5, Color.web(colors[1])),
-            new Stop(0.9, Color.web(colors[0]).interpolate(Color.web(colors[1]), 0.95)), 
-            new Stop(0.939, Color.web(colors[0]).interpolate(Color.web(colors[1]), 0.38)), 
-            new Stop(0.989, Color.web(colors[0]).interpolate(Color.web(colors[1]), 0.1)),
-            new Stop(1.0, Color.web(colors[0]))        
+        RadialGradient gradient = new RadialGradient(
+            0,                     // focusAngle (not rotating)
+            0.0,                   // focusDistance (centered)
+            0.5, 0.5,              // centerX, centerY (middle of shape)
+            0.5,                   // radius (50% of bounding box)
+            true,                  // proportional: true = percentages
+            CycleMethod.NO_CYCLE,  // don’t repeat
+            new Stop(0.0, Color.web(colors[0])),   // Inner color (primary)
+            new Stop(1.0, Color.web(colors[1]))    // Outer color (accent)
         );
+
     
         routeButton.getStyleClass().removeAll(routeButton.getStyleClass());
         routeButton.setBackground(new Background(

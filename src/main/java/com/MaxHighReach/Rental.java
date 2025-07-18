@@ -130,7 +130,7 @@ public class Rental {
                           String orderedByName, String orderedByPhone, boolean autoTerm, String addressBlockOne,
                           String addressBlockTwo, String addressBlockThree, int rentalItemId, String serialNumber,
                           boolean singleItemOrder, int rentalOrderId, String siteContactName, String siteContactPhone, 
-                          double latitude, double longitude, String liftType) {
+                          double latitude, double longitude, String liftType, String status) {
         this.customerId = new SimpleStringProperty(customerId);
         this.name = new SimpleStringProperty(name);
         this.orderedByName = new SimpleStringProperty(orderedByName);
@@ -151,8 +151,8 @@ public class Rental {
         this.siteContactName = new SimpleStringProperty(siteContactName);
         this.siteContactPhone = new SimpleStringProperty(siteContactPhone);
         this.poNumber = new SimpleStringProperty(poNumber);
-        this.locationNotes = new SimpleStringProperty("Unknown");
-        this.preTripInstructions = new SimpleStringProperty("Unknown");
+        this.locationNotes = new SimpleStringProperty("");
+        this.preTripInstructions = new SimpleStringProperty("");
         this.driver = new SimpleStringProperty("Unknown");
         this.driverInitial = new SimpleStringProperty("Unknown");
         this.driverNumber = new SimpleIntegerProperty(0);
@@ -160,7 +160,8 @@ public class Rental {
         this.liftId = new SimpleIntegerProperty(0);
         this.liftType = new SimpleStringProperty(liftType);
         this.shortLiftType = new SimpleStringProperty("Unknown");
-        this.status = new SimpleStringProperty("Unknown");
+        this.status = new SimpleStringProperty(status);
+        this.isInvoiceWritten = new SimpleBooleanProperty(false);
         this.rentalOrderId = new SimpleIntegerProperty(rentalOrderId);
         this.rentalItemId = new SimpleIntegerProperty(rentalItemId);
         this.singleItemOrder = new SimpleBooleanProperty(singleItemOrder);
@@ -792,6 +793,23 @@ public class Rental {
         }
     }
 
+    public void decapitalizeLiftType() {
+        if (liftType != null && liftType.get() != null) {
+            String original = liftType.get();
+            StringBuilder result = new StringBuilder();
+    
+            for (char c : original.toCharArray()) {
+                if ("BRTSM".indexOf(c) != -1) {
+                    result.append(Character.toLowerCase(c));
+                } else {
+                    result.append(c);
+                }
+            }
+    
+            liftType.set(result.toString());
+        } 
+    }
+    
 
     public StringProperty shortLiftTypeProperty() {
         return shortLiftType;
@@ -855,12 +873,12 @@ public class Rental {
     }
 
 
-    public boolean isInvoiceWritten() {
+    public boolean isInvoiceComposed() {
         return isInvoiceWritten.get();
     }
 
 
-    public void setInvoiceWritten(boolean invoiceWritten) {
+    public void setInvoiceComposed(boolean invoiceWritten) {
         this.isInvoiceWritten.set(invoiceWritten);
     }
 

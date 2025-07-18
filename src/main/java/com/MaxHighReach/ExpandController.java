@@ -7,6 +7,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -33,7 +34,6 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.*;
-import java.sql.Connection;
 import java.sql.Date;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -189,392 +189,421 @@ public class ExpandController extends BaseController {
 
 
     public void initialize() {
-        super.initialize(dragArea);
-        lifts = MaxReachPro.getLifts();
-        customers = MaxReachPro.getCustomers();
-        setRentalDate();
-
-        customerNameField.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ENTER) {
-                // Remove focus from the text field
-                customerNameField.getParent().requestFocus();
-            }
-        });
-
-        customerNameField.textProperty().addListener((observable, oldValue, newValue) -> {
-            // Call your existing autofill logic
-            autoFillCustomerName(newValue);
-
-            // Check if there's text in the field and update the style accordingly
-            if (newValue.isEmpty()) {
-                // No text, show the underline
-                customerNameField.getStyleClass().remove("has-text");
-            } else {
-                // Text is present, hide the underline
-                if (!customerNameField.getStyleClass().contains("has-text")) {
-                    customerNameField.getStyleClass().add("has-text");
-                }
-            }
-        });
-
-        contractNumberField.setEditable(false); // Prevents user input.
-        contractNumberField.setFocusTraversable(false); // Disables focus and hides the cursor.
-
-        contractNumberField.addEventFilter(MouseEvent.ANY, javafx.event.Event::consume); // Blocks mouse interaction.
-        contractNumberField.addEventFilter(KeyEvent.ANY, javafx.event.Event::consume); // Blocks keyboard interaction.
-
-        for (javafx.scene.Node node : statusPane.getChildren()) {
-            if (node instanceof HBox) {
-                for (Node hboxNode : ((HBox) node).getChildren()) {
-                    if (hboxNode instanceof ToggleButton) {
-                        ToggleButton toggleButton = (ToggleButton) hboxNode;
-                        toggleButton.setToggleGroup(statusToggleGroup);
-                        String buttonText = toggleButton.getText();
-                        toggleButton.setOnAction(event -> {
-                            expandedRental.setStatus(buttonText);
-                            if (buttonText.equals("Upcoming") || buttonText.equals("Active")) {
-                                if (!noCallOffMemory) {
-                                    if (!expandedRental.isAutoTerm()) {
-                                        System.out.println("Made it inside of this if statement. Here's where i'd like it to add dormant style.");
-                                        updateWeekdayToggleButtons(callOffWeeksRowTilePane, null);
-                                        expandedRental.setCallOffDate(null);
-                                        weeksRowToggleGroupAT.selectToggle(null);
-                                    }
-                                }
-                            } else {
-                                System.out.println("about to switch noCallOffMemory to false and it's currently: " + noCallOffMemory);
-                                if (noCallOffMemory) {
-                                    LocalDate assumedCallOffDate = getAssumedCallOffDate();
-                                    noCallOffMemory = false;
-                                    updateWeekdayToggleButtons(callOffWeeksRowTilePane, assumedCallOffDate);
-                                    expandedRental.setCallOffDate(getAssumedCallOffDate().toString());
-                                }
-                            }
-                        });
-                    }
-                }
-            }
-        }
-
-        orderedByBox.setOnAction(event -> handleContactSelection(orderedByBox, true));
-        siteContactBox.setOnAction(event -> handleContactSelection(siteContactBox, false));
-
-        orderedByBox.setPrefWidth(1);
-        orderedByBox.setMinWidth(1);
-        orderedByBox.setMaxWidth(1);
-
-        createCustomTooltip(autoTermButton, 38, 10, autoTermTooltip);
-
-        weeksRowToggleGroup = new ToggleGroup();  // Create the ToggleGroup for weeks
-        liftTypeToggleGroup = new ToggleGroup();  // Create the ToggleGroup for lift types
-        deliveryTimeToggleGroup = new ToggleGroup();  // Create the ToggleGroup for delivery times
-
-        // Load the calendar icon image
-        Image calendarImage = new Image(getClass().getResourceAsStream("/images/calendar.png"));
-        ImageView calendarIcon = new ImageView(calendarImage);
-        calendarIcon.setFitHeight(20);
-        calendarIcon.setFitWidth(20);
-        // Optionally, set the calendar button's graphic if you have a button for it.
-        // calendarButton.setGraphic(calendarIcon);
-
-        setupDatePicker(datePickerDel, deliveryWeeksRowTilePane, "Del", calendarCoverDel);
-
-        // Set up the DatePicker for Call Off side with associated TilePane and Calendar Cover
-        setupDatePicker(datePickerEnd, callOffWeeksRowTilePane, "End", calendarCoverEnd);
-
-        ToggleGroup deliveryWeeksToggleGroup = new ToggleGroup();
-        ToggleGroup callOffWeeksToggleGroup = new ToggleGroup();
-        initializeWeekRowToggleButtons(deliveryWeeksRowTilePane, deliveryWeeksToggleGroup);
-        initializeWeekRowToggleButtons(callOffWeeksRowTilePane, callOffWeeksToggleGroup);
-
-        for (javafx.scene.Node node : liftTypeTilePane.getChildren()) {
-            if (node instanceof ToggleButton) {
-                ToggleButton toggleButton = (ToggleButton) node;
-                toggleButton.setToggleGroup(liftTypeToggleGroup);  // Add each ToggleButton to the ToggleGroup
-            }
-        }
-
-        prepareLiftTypeButtons();
-
-        // Set up ToggleButtons for delivery time
-        for (javafx.scene.Node node : deliveryTimeTilePane.getChildren()) {
-            if (node instanceof ToggleButton) {
-                ToggleButton toggleButton = (ToggleButton) node;
-                toggleButton.setToggleGroup(deliveryTimeToggleGroup);  // Add each ToggleButton to the ToggleGroup
-
-                // Hide the custom ComboBoxes when a delivery time button is clicked
-                toggleButton.setOnAction(event -> {
-                    if (toggleButton != customButton) {
-                        hourComboBox.setVisible(false);
-  //                      ampmComboBox.setVisible(false);
-                        customButton.setSelected(false); // Unselect custom button
-                    }
-                });
-            }
-        }
-
-        // Pre-select the "8-10" delivery time toggle button
-        deliveryTimeToggleGroup.selectToggle(deliveryTime8To10Button);
-
-        // Populate hour and AM/PM ComboBoxes
-      //  for (int i = 1; i <= 12; i++) {
-        hourComboBox.getItems().addAll("6", "7", "8", "9", "10", "11", "12", "1", "2", "3", "4"); // Add hours 1-12 to the ComboBox
- //       }
- //       ampmComboBox.getItems().addAll("am", "pm"); // Add AM and PM to the ComboBox
-
-        customButton.setOnAction(event -> {
-            boolean isSelected = customButton.isSelected();
-            hourComboBox.setVisible(isSelected);
-  //          ampmComboBox.setVisible(isSelected);
-            if (!isSelected) {
-                hourComboBox.getSelectionModel().clearSelection();
-  //              ampmComboBox.getSelectionModel().clearSelection();
-            }
-        });
-
-        siteField.textProperty().addListener((observable, oldValue, newValue) -> {
-                        // Check if there's text in the field and update the style accordingly
-            if (newValue.isEmpty()) {
-                siteField.getStyleClass().remove("has-text");
-                siteField.getStyleClass().add("empty-unfocused");
-            } else {
-                siteField.getStyleClass().remove("empty-unfocused");
-                if (!siteField.getStyleClass().contains("has-text")) {
-                    siteField.getStyleClass().add("has-text");
-                }
-            }
-        });
-
-        // Handle focus events for addressField
-        siteField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
-            if (isNowFocused) {
-                siteField.getStyleClass().remove("empty-unfocused"); // Remove empty style when focused
-            } else if (siteField.getText().isEmpty()) {
-                siteField.getStyleClass().add("empty-unfocused"); // Add empty style when focus is lost
-            }
-        });
-
-        suggestionsBox.setPrefWidth(1);
-        suggestionsBox.setMinWidth(1);
-        suggestionsBox.setMaxWidth(1);
-        suggestionsBox.setVisibleRowCount(5); // Set the number of visible rows
-
-        // Listener for addressField text changes
-        addressField.textProperty().addListener((observable, oldValue, newValue) -> {
-            // Check if the last action was a backspace
-            boolean isBackspace = false;
-
-            // If the text length has decreased, we assume a backspace occurred
-            if (newValue.length() < oldValue.length()) {
-                isBackspace = true;
-            }
-
-            // Update suggestions based on input, unless it was a backspace
-            if (!isBackspace) {
-                // updateSuggestions(newValue);
-                addressTypeCounter++; // Only increment if it wasn't a backspace
-            }
-
-            // Check if there's text in the field and update the style accordingly
-            if (newValue.isEmpty()) {
-                addressField.getStyleClass().remove("has-text");
-                addressField.getStyleClass().add("empty-unfocused");
-             //   suggestionsBox.setVisible(false); // Hide suggestions if empty
-            } else {
-                addressField.getStyleClass().remove("empty-unfocused");
-                if (!addressField.getStyleClass().contains("has-text")) {
-                    addressField.getStyleClass().add("has-text");
-                }
-            }
-        });
-
-        // Handle focus events for addressField
-        addressField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
-         //   suggestionsBox.setVisible(false);
-            if (isNowFocused) {
-                addressField.getStyleClass().remove("empty-unfocused"); // Remove empty style when focused
-                //System.out.println("");
-            } else if (addressField.getText().isEmpty()) {
-                addressField.getStyleClass().add("empty-unfocused"); // Add empty style when focus is lost
-          //      suggestionsBox.setVisible(false); // Hide suggestions when focus is lost and input is empty
-            }
-        });
-
-        // Listener for the ComboBox to handle selection
-        suggestionsBox.setOnAction(e -> {
-            System.out.println("Action event on suggestionsBox");
-            String selectedSuggestion = suggestionsBox.getValue();
-            if (selectedSuggestion != null) {
-                System.out.println("Selected suggestion: " + selectedSuggestion);
-                String formattedAddress = formatSelectedSuggestion(selectedSuggestion);
-                addressField.setText(formattedAddress); // Set selected suggestion in the TextField
-                suggestionsBox.getSelectionModel().clearSelection(); // Clear selection to reset ComboBox
-             //   suggestionsBox.setVisible(false);
-                addressTypeCounter = 0;// Hide suggestions after selection
-            }
-
-        });
-
-        // Optional: Set up an additional listener if you want to catch selection via valueProperty
-        suggestionsBox.valueProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null) {
-                addressField.setText(newVal); // Populate addressField with selected suggestion
-             //   suggestionsBox.setVisible(false);
-                addressTypeCounter = 0;// Hide suggestions after selection
-            }
-        });
-
-        // Handle Enter key press in addressField to confirm selection
-        addressField.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ENTER) {
-                if (suggestionsBox.isVisible() && suggestionsBox.getValue() != null) {
-                    addressField.setText(suggestionsBox.getValue()); // Set selected suggestion
-               //     suggestionsBox.setVisible(false);
-                    addressTypeCounter = 0;// Hide suggestions on Enter key
-                } else {
-                    addressField.getParent().requestFocus(); // Move focus if no selection
-                }
-            }
-        });
-
-        siteField.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ENTER) {
-
-                siteField.getParent().requestFocus(); // Move focus if no selection
-            }
-        });
-
-        siteContactBox.setPrefWidth(1);
-        siteContactBox.setMinWidth(1);
-        siteContactBox.setMaxWidth(1);
-
-         POField.textProperty().addListener((observable, oldValue, newValue) -> {
-                        // Check if there's text in the field and update the style accordingly
-            if (newValue.isEmpty()) {
-                POField.getStyleClass().remove("has-text");
-                POField.getStyleClass().add("empty-unfocused");
-            } else {
-                POField.getStyleClass().remove("empty-unfocused");
-                if (!POField.getStyleClass().contains("has-text")) {
-                    POField.getStyleClass().add("has-text");
-                }
-            }
-        });
-
-        // Handle focus events for addressField
-        POField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
-            if (isNowFocused) {
-                POField.getStyleClass().remove("empty-unfocused"); // Remove empty style when focused
-            } else if (POField.getText().isEmpty()) {
-                POField.getStyleClass().add("empty-unfocused"); // Add empty style when focus is lost
-            }
-        });
-
-        createCustomTooltip(locationNotesButton, 38, 10, locationNotesTooltip);
-        createCustomTooltip(preTripInstructionsButton, 38, 10, preTripInstructionsTooltip);
-
-        setupTextFieldListeners(locationNotesField, locationNotesButton, locationNotesLabel);
-        setupTextFieldListeners(preTripInstructionsField, preTripInstructionsButton, preTripInstructionsLabel);
-
-        // Hide the status label initially
-       // statusLabel.setVisible(false);
-
-        serialNumberField.setTextFormatter(new TextFormatter<>(change -> {
-            if (change.getControlNewText().length() > 6) {
-                return null; // Reject the change
-            }
-            return change; // Accept the change
-        }));
-
-        if (MaxReachPro.getUser()[0] == "Byron Chilton") {
-            ButtonGroup buttonGroup = new ButtonGroup();
-            buttonGroup.applyStylesToButtons(liftTypeTilePane);
-            buttonGroup.startRandomWalk();
-        }
-
-        serialNumberField.textProperty().addListener((observable, oldValue, newValue) -> {
-            // Call your existing autofill logic
-            autoFillSerialNumber(newValue);
-
-            // Check if there's text in the field and update the style accordingly
-            if (newValue.isEmpty()) {
-                // No text, show the underline
-                serialNumberField.getStyleClass().remove("has-text");
-            } else {
-                // Text is present, hide the underline
-                if (!serialNumberField.getStyleClass().contains("has-text")) {
-                    serialNumberField.getStyleClass().add("has-text");
-                }
-            }
-        });
-
 
         expandedRental = MaxReachPro.getRentalForExpanding();
-        prepareInvoiceArea();
-        fillInFields();
+
+        try {
+
+            System.out.println("Initilizng expandController");
+            super.initialize(dragArea);
+            lifts = MaxReachPro.getLifts();
+            customers = MaxReachPro.getCustomers();
+            setRentalDate();
+
+            customerNameField.setOnKeyPressed(event -> {
+                if (event.getCode() == KeyCode.ENTER) {
+                    // Remove focus from the text field
+                    customerNameField.getParent().requestFocus();
+                }
+            });
+
+            customerNameField.textProperty().addListener((observable, oldValue, newValue) -> {
+                // Call your existing autofill logic
+                autoFillCustomerName(newValue);
+
+                // Check if there's text in the field and update the style accordingly
+                if (newValue.isEmpty()) {
+                    // No text, show the underline
+                    customerNameField.getStyleClass().remove("has-text");
+                } else {
+                    // Text is present, hide the underline
+                    if (!customerNameField.getStyleClass().contains("has-text")) {
+                        customerNameField.getStyleClass().add("has-text");
+                    }
+                }
+            });
+
+            contractNumberField.setEditable(false); // Prevents user input.
+            contractNumberField.setFocusTraversable(false); // Disables focus and hides the cursor.
+
+            contractNumberField.addEventFilter(MouseEvent.ANY, javafx.event.Event::consume); // Blocks mouse interaction.
+            contractNumberField.addEventFilter(KeyEvent.ANY, javafx.event.Event::consume); // Blocks keyboard interaction.
+
+            for (javafx.scene.Node node : statusPane.getChildren()) {
+                if (node instanceof HBox) {
+                    for (Node hboxNode : ((HBox) node).getChildren()) {
+                        if (hboxNode instanceof ToggleButton) {
+                            ToggleButton toggleButton = (ToggleButton) hboxNode;
+                            toggleButton.setToggleGroup(statusToggleGroup);
+                            String buttonText = toggleButton.getText();
+                            toggleButton.setOnAction(event -> {
+                                expandedRental.setStatus(buttonText);
+                                if (buttonText.equals("Upcoming") || buttonText.equals("Active")) {
+                                    if (!noCallOffMemory) {
+                                        if (!expandedRental.isAutoTerm()) {
+                                            System.out.println("Made it inside of this if statement. Here's where i'd like it to add dormant style.");
+                                            updateWeekdayToggleButtons(callOffWeeksRowTilePane, null);
+                                            expandedRental.setCallOffDate(null);
+                                            weeksRowToggleGroupAT.selectToggle(null);
+                                        }
+                                    }
+                                } else {
+                                    System.out.println("about to switch noCallOffMemory to false and it's currently: " + noCallOffMemory);
+                                    if (noCallOffMemory) {
+                                        LocalDate assumedCallOffDate = getAssumedCallOffDate();
+                                        noCallOffMemory = false;
+                                        updateWeekdayToggleButtons(callOffWeeksRowTilePane, assumedCallOffDate);
+                                        expandedRental.setCallOffDate(getAssumedCallOffDate().toString());
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+
+            System.out.println("expandedRental is: " + expandedRental);
+            System.out.println(expandedRental.getStatus());
+            System.out.println(expandedRental.getRentalItemId());
+
+            orderedByBox.setOnAction(event -> handleContactSelection(orderedByBox, true));
+            siteContactBox.setOnAction(event -> handleContactSelection(siteContactBox, false));
+
+            orderedByBox.setPrefWidth(1);
+            orderedByBox.setMinWidth(1);
+            orderedByBox.setMaxWidth(1);
+
+            createCustomTooltip(autoTermButton, 38, 10, autoTermTooltip);
+
+            weeksRowToggleGroup = new ToggleGroup();  // Create the ToggleGroup for weeks
+            liftTypeToggleGroup = new ToggleGroup();  // Create the ToggleGroup for lift types
+            deliveryTimeToggleGroup = new ToggleGroup();  // Create the ToggleGroup for delivery times
+
+            // Load the calendar icon image
+            Image calendarImage = new Image(getClass().getResourceAsStream("/images/calendar.png"));
+            ImageView calendarIcon = new ImageView(calendarImage);
+            calendarIcon.setFitHeight(20);
+            calendarIcon.setFitWidth(20);
+            // Optionally, set the calendar button's graphic if you have a button for it.
+            // calendarButton.setGraphic(calendarIcon);
+
+            setupDatePicker(datePickerDel, deliveryWeeksRowTilePane, "Del", calendarCoverDel);
+
+            // Set up the DatePicker for Call Off side with associated TilePane and Calendar Cover
+            setupDatePicker(datePickerEnd, callOffWeeksRowTilePane, "End", calendarCoverEnd);
+
+            ToggleGroup deliveryWeeksToggleGroup = new ToggleGroup();
+            ToggleGroup callOffWeeksToggleGroup = new ToggleGroup();
+            initializeWeekRowToggleButtons(deliveryWeeksRowTilePane, deliveryWeeksToggleGroup);
+            initializeWeekRowToggleButtons(callOffWeeksRowTilePane, callOffWeeksToggleGroup);
+
+            for (javafx.scene.Node node : liftTypeTilePane.getChildren()) {
+                if (node instanceof ToggleButton) {
+                    ToggleButton toggleButton = (ToggleButton) node;
+                    toggleButton.setToggleGroup(liftTypeToggleGroup);  // Add each ToggleButton to the ToggleGroup
+                }
+            }
+
+            prepareLiftTypeButtons();
+
+            // Set up ToggleButtons for delivery time
+            for (javafx.scene.Node node : deliveryTimeTilePane.getChildren()) {
+                if (node instanceof ToggleButton) {
+                    ToggleButton toggleButton = (ToggleButton) node;
+                    toggleButton.setToggleGroup(deliveryTimeToggleGroup);  // Add each ToggleButton to the ToggleGroup
+
+                    // Hide the custom ComboBoxes when a delivery time button is clicked
+                    toggleButton.setOnAction(event -> {
+                        if (toggleButton != customButton) {
+                            hourComboBox.setVisible(false);
+    //                      ampmComboBox.setVisible(false);
+                            customButton.setSelected(false); // Unselect custom button
+                        }
+                    });
+                }
+            }
+
+            // Pre-select the "8-10" delivery time toggle button
+            deliveryTimeToggleGroup.selectToggle(deliveryTime8To10Button);
+
+            // Populate hour and AM/PM ComboBoxes
+        //  for (int i = 1; i <= 12; i++) {
+            hourComboBox.getItems().addAll("6", "7", "8", "9", "10", "11", "12", "1", "2", "3", "4"); // Add hours 1-12 to the ComboBox
+    //       }
+    //       ampmComboBox.getItems().addAll("am", "pm"); // Add AM and PM to the ComboBox
+
+            customButton.setOnAction(event -> {
+                boolean isSelected = customButton.isSelected();
+                hourComboBox.setVisible(isSelected);
+    //          ampmComboBox.setVisible(isSelected);
+                if (!isSelected) {
+                    hourComboBox.getSelectionModel().clearSelection();
+    //              ampmComboBox.getSelectionModel().clearSelection();
+                }
+            });
+
+            siteField.textProperty().addListener((observable, oldValue, newValue) -> {
+                            // Check if there's text in the field and update the style accordingly
+                if (newValue.isEmpty()) {
+                    siteField.getStyleClass().remove("has-text");
+                    siteField.getStyleClass().add("empty-unfocused");
+                } else {
+                    siteField.getStyleClass().remove("empty-unfocused");
+                    if (!siteField.getStyleClass().contains("has-text")) {
+                        siteField.getStyleClass().add("has-text");
+                    }
+                }
+            });
+
+            // Handle focus events for addressField
+            siteField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+                if (isNowFocused) {
+                    siteField.getStyleClass().remove("empty-unfocused"); // Remove empty style when focused
+                } else if (siteField.getText().isEmpty()) {
+                    siteField.getStyleClass().add("empty-unfocused"); // Add empty style when focus is lost
+                }
+            });
+
+            suggestionsBox.setPrefWidth(1);
+            suggestionsBox.setMinWidth(1);
+            suggestionsBox.setMaxWidth(1);
+            suggestionsBox.setVisibleRowCount(5); // Set the number of visible rows
+
+            // Listener for addressField text changes
+            addressField.textProperty().addListener((observable, oldValue, newValue) -> {
+                // Check if the last action was a backspace
+                boolean isBackspace = false;
+
+                // If the text length has decreased, we assume a backspace occurred
+                if (newValue.length() < oldValue.length()) {
+                    isBackspace = true;
+                }
+
+                // Update suggestions based on input, unless it was a backspace
+                if (!isBackspace) {
+                    // updateSuggestions(newValue);
+                    addressTypeCounter++; // Only increment if it wasn't a backspace
+                }
+
+                // Check if there's text in the field and update the style accordingly
+                if (newValue.isEmpty()) {
+                    addressField.getStyleClass().remove("has-text");
+                    addressField.getStyleClass().add("empty-unfocused");
+                //   suggestionsBox.setVisible(false); // Hide suggestions if empty
+                } else {
+                    addressField.getStyleClass().remove("empty-unfocused");
+                    if (!addressField.getStyleClass().contains("has-text")) {
+                        addressField.getStyleClass().add("has-text");
+                    }
+                }
+            });
+
+            // Handle focus events for addressField
+            addressField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+            //   suggestionsBox.setVisible(false);
+                if (isNowFocused) {
+                    addressField.getStyleClass().remove("empty-unfocused"); // Remove empty style when focused
+                    //System.out.println("");
+                } else if (addressField.getText().isEmpty()) {
+                    addressField.getStyleClass().add("empty-unfocused"); // Add empty style when focus is lost
+            //      suggestionsBox.setVisible(false); // Hide suggestions when focus is lost and input is empty
+                }
+            });
+
+            // Listener for the ComboBox to handle selection
+            suggestionsBox.setOnAction(e -> {
+                System.out.println("Action event on suggestionsBox");
+                String selectedSuggestion = suggestionsBox.getValue();
+                if (selectedSuggestion != null) {
+                    System.out.println("Selected suggestion: " + selectedSuggestion);
+                    String formattedAddress = formatSelectedSuggestion(selectedSuggestion);
+                    addressField.setText(formattedAddress); // Set selected suggestion in the TextField
+                    suggestionsBox.getSelectionModel().clearSelection(); // Clear selection to reset ComboBox
+                //   suggestionsBox.setVisible(false);
+                    addressTypeCounter = 0;// Hide suggestions after selection
+                }
+
+            });
+
+            // Optional: Set up an additional listener if you want to catch selection via valueProperty
+            suggestionsBox.valueProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal != null) {
+                    addressField.setText(newVal); // Populate addressField with selected suggestion
+                //   suggestionsBox.setVisible(false);
+                    addressTypeCounter = 0;// Hide suggestions after selection
+                }
+            });
+
+            // Handle Enter key press in addressField to confirm selection
+            addressField.setOnKeyPressed(event -> {
+                if (event.getCode() == KeyCode.ENTER) {
+                    if (suggestionsBox.isVisible() && suggestionsBox.getValue() != null) {
+                        addressField.setText(suggestionsBox.getValue()); // Set selected suggestion
+                //     suggestionsBox.setVisible(false);
+                        addressTypeCounter = 0;// Hide suggestions on Enter key
+                    } else {
+                        addressField.getParent().requestFocus(); // Move focus if no selection
+                    }
+                }
+            });
+
+            siteField.setOnKeyPressed(event -> {
+                if (event.getCode() == KeyCode.ENTER) {
+
+                    siteField.getParent().requestFocus(); // Move focus if no selection
+                }
+            });
+
+            siteContactBox.setPrefWidth(1);
+            siteContactBox.setMinWidth(1);
+            siteContactBox.setMaxWidth(1);
+
+            POField.textProperty().addListener((observable, oldValue, newValue) -> {
+                            // Check if there's text in the field and update the style accordingly
+                if (newValue.isEmpty()) {
+                    POField.getStyleClass().remove("has-text");
+                    POField.getStyleClass().add("empty-unfocused");
+                } else {
+                    POField.getStyleClass().remove("empty-unfocused");
+                    if (!POField.getStyleClass().contains("has-text")) {
+                        POField.getStyleClass().add("has-text");
+                    }
+                }
+            });
+
+            // Handle focus events for addressField
+            POField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+                if (isNowFocused) {
+                    POField.getStyleClass().remove("empty-unfocused"); // Remove empty style when focused
+                } else if (POField.getText().isEmpty()) {
+                    POField.getStyleClass().add("empty-unfocused"); // Add empty style when focus is lost
+                }
+            });
+
+            createCustomTooltip(locationNotesButton, 38, 10, locationNotesTooltip);
+            createCustomTooltip(preTripInstructionsButton, 38, 10, preTripInstructionsTooltip);
+
+            setupTextFieldListeners(locationNotesField, locationNotesButton, locationNotesLabel);
+            setupTextFieldListeners(preTripInstructionsField, preTripInstructionsButton, preTripInstructionsLabel);
+
+            // Hide the status label initially
+        // statusLabel.setVisible(false);
+
+            serialNumberField.setTextFormatter(new TextFormatter<>(change -> {
+                if (change.getControlNewText().length() > 6) {
+                    return null; // Reject the change
+                }
+                return change; // Accept the change
+            }));
+
+            if (MaxReachPro.getUser()[0] == "Byron Chilton") {
+                ButtonGroup buttonGroup = new ButtonGroup();
+                buttonGroup.applyStylesToButtons(liftTypeTilePane);
+                buttonGroup.startRandomWalk();
+            }
+
+            serialNumberField.textProperty().addListener((observable, oldValue, newValue) -> {
+                // Call your existing autofill logic
+                autoFillSerialNumber(newValue);
+
+                // Check if there's text in the field and update the style accordingly
+                if (newValue.isEmpty()) {
+                    // No text, show the underline
+                    serialNumberField.getStyleClass().remove("has-text");
+                } else {
+                    // Text is present, hide the underline
+                    if (!serialNumberField.getStyleClass().contains("has-text")) {
+                        serialNumberField.getStyleClass().add("has-text");
+                    }
+                }
+            });
+
+
+            prepareInvoiceArea();
+            fillInFields();
+            System.out.println("made it through expandController initialize");
+    
+        } catch (Exception e) {
+            System.err.println("❌ Exception during ExpandController.initialize():");
+            e.printStackTrace();
+        }    
+   
+   
     }
+
 
     private void fillInFields() {
-       customerNameField.setText(expandedRental.getName());
-       contractNumberField.setText("P" + String.valueOf(expandedRental.getRentalItemId()));
-       System.out.println("Trying to fill out that the status is: " + expandedRental.getStatus());
-       updateStatusToggleButtons(expandedRental.getStatus());
-       orderedByField.setText(expandedRental.getOrderedByName());
-       orderedByPhoneField.setText(expandedRental.getOrderedByPhone());
-       if (expandedRental.isAutoTerm()) {
-           autoTermButton.getStyleClass().add("schedule-delivery-button-has-value");
-       }
-       siteField.setText(expandedRental.getAddressBlockOne());
-       addressField.setText(expandedRental.getAddressBlockTwo() + ", " + expandedRental.getCity());
-       siteContactField.setText(expandedRental.getSiteContactName());
-       siteContactPhoneField.setText(expandedRental.getSiteContactPhone());
-       POField.setText(expandedRental.getPoNumber());
-
-       if (expandedRental.getLocationNotes() != null) {
-           if (!expandedRental.getLocationNotes().isEmpty()) {
-               locationNotesField.setText(expandedRental.getLocationNotes());
-               locationNotesButton.getStyleClass().add("schedule-delivery-button-has-value");
-           }
-       }
-
-       if (expandedRental.getPreTripInstructions() != null) {
-           if (!expandedRental.getPreTripInstructions().isEmpty()) {
-               preTripInstructionsField.setText(expandedRental.getPreTripInstructions());
-               preTripInstructionsButton.getStyleClass().add("schedule-delivery-button-has-value");
-           }
-       }
-
-       updateWeekdayToggleButtons(deliveryWeeksRowTilePane, LocalDate.parse(expandedRental.getDeliveryDate()));
-       if (expandedRental.getCallOffDate() == null) {
-           updateWeekdayToggleButtons(callOffWeeksRowTilePane, null);
-       } else {
-           updateWeekdayToggleButtons(callOffWeeksRowTilePane, LocalDate.parse(expandedRental.getCallOffDate()));
-       }
-
-       setDeliveryTime(expandedRental.getDeliveryTime());
-       setLiftType(expandedRental.getLiftType());
-       serialNumberField.setText(expandedRental.getSerialNumber());
-
+        System.out.println("started fillInFields method");
+        try {
+            customerNameField.setText(expandedRental.getName());
+            contractNumberField.setText("P" + expandedRental.getRentalItemId());
+            updateStatusToggleButtons(expandedRental.getStatus());
+            orderedByField.setText(expandedRental.getOrderedByName());
+            orderedByPhoneField.setText(expandedRental.getOrderedByPhone());
+    
+            if (expandedRental.isAutoTerm()) {
+                autoTermButton.getStyleClass().add("schedule-delivery-button-has-value");
+            }
+    
+            siteField.setText(expandedRental.getAddressBlockOne());
+            addressField.setText(expandedRental.getAddressBlockTwo() + ", " + expandedRental.getCity());
+            siteContactField.setText(expandedRental.getSiteContactName());
+            siteContactPhoneField.setText(expandedRental.getSiteContactPhone());
+            POField.setText(expandedRental.getPoNumber());
+    
+            if (expandedRental.getLocationNotes() != null && !expandedRental.getLocationNotes().isEmpty()) {
+                locationNotesField.setText(expandedRental.getLocationNotes());
+                locationNotesButton.getStyleClass().add("schedule-delivery-button-has-value");
+            }
+    
+            if (expandedRental.getPreTripInstructions() != null && !expandedRental.getPreTripInstructions().isEmpty()) {
+                preTripInstructionsField.setText(expandedRental.getPreTripInstructions());
+                preTripInstructionsButton.getStyleClass().add("schedule-delivery-button-has-value");
+            }
+    
+            updateWeekdayToggleButtons(deliveryWeeksRowTilePane,
+                expandedRental.getDeliveryDate() != null ? LocalDate.parse(expandedRental.getDeliveryDate()) : null);
+    
+            updateWeekdayToggleButtons(callOffWeeksRowTilePane,
+                expandedRental.getCallOffDate() != null ? LocalDate.parse(expandedRental.getCallOffDate()) : null);
+    
+            setDeliveryTime(expandedRental.getDeliveryTime());
+            setLiftType(expandedRental.getLiftType());
+            serialNumberField.setText(expandedRental.getSerialNumber());
+    
+        } catch (Exception e) {
+            // Silent fail protection
+            System.err.println("❌ fillInFields() encountered an error: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
+    
+
 
     private void prepareInvoiceArea() {
+        System.out.println("🧾 Preparing invoice area...");
         invoiceBox.setSpacing(0);
         invoiceBox.setAlignment(Pos.CENTER_LEFT);
-
+        System.out.println("✅ invoiceBox spacing and alignment set.");
+    
         String imagePath = "/images/create-invoices.png";
         Image image = new Image(Objects.requireNonNull(getClass().getResourceAsStream(imagePath)));
         ImageView statusImage = new ImageView(image);
         statusImage.setFitHeight(30);
         statusImage.setPreserveRatio(true);
-
+        System.out.println("🖼️ Status image loaded and styled.");
+        System.out.println("expandedRental.isInvoiceWritten() returns: " + expandedRental.isInvoiceComposed());
         Label statusLabel = new Label();
-        if (expandedRental.isInvoiceWritten()) {
-            Label checkSymbol = new Label("\u2713"); // Unicode checkmark symbol
+        if (expandedRental.isInvoiceComposed()) {
+            System.out.println("✅ Rental has invoice");
+            Label checkSymbol = new Label("\u2713");
             checkSymbol.setStyle("-fx-text-fill: green; -fx-font-size: 22px; -fx-padding: 0;");
             statusLabel = new Label(" Has invoice");
             invoiceBox.getChildren().addAll(statusImage, checkSymbol, statusLabel);
+            System.out.println("✔️ Check symbol and label added to invoiceBox");
         } else {
-            Label xSymbol = new Label("\u2717"); // Unicode X symbol
+            System.out.println("❗ Rental needs invoice");
+            Label xSymbol = new Label("\u2717");
             xSymbol.setStyle("-fx-text-fill: red; -fx-font-size: 22px; -fx-padding: -2;");
             VBox labelBox = new VBox();
             labelBox.setSpacing(-4);
@@ -585,23 +614,30 @@ public class ExpandController extends BaseController {
             labelBox.getChildren().addAll(statusLabelTop, statusLabelBottom);
             statusLabelTop.setTranslateX(2);
             invoiceBox.getChildren().addAll(statusImage, xSymbol, labelBox);
+            System.out.println("❌ X symbol and labelBox added to invoiceBox");
         }
+        System.out.println("📦 invoiceBox populated based on invoice status.");
+    
         statusLabel.setStyle("-fx-font-size: 12; -fx-padding: 0 -2 0 -5;");
         invoiceBox.setAlignment(Pos.CENTER);
-
+    
         Label topInvoiceLabel = new Label("Mark as");
         topInvoiceLabel.setStyle("-fx-font-size: 12");
         Label bottomInvoiceLabel = new Label();
-        if (expandedRental.isInvoiceWritten()) {
+        if (expandedRental.isInvoiceComposed()) {
             bottomInvoiceLabel.setText("'Needs Invoice'");
         } else {
             bottomInvoiceLabel.setText("'Has Invoice'");
         }
+        System.out.println("🪧 Invoice toggle labels prepared.");
+    
         switchInvoiceLabelBox.getChildren().addAll(topInvoiceLabel, bottomInvoiceLabel);
         switchInvoiceLabelBox.setSpacing(-4);
         switchInvoiceLabelBox.setAlignment(Pos.CENTER);
-
+        System.out.println("🔄 switchInvoiceLabelBox updated.");
+    
         switchInvoiceButton.getStyleClass().remove("button");
+    
         invoiceBox.setOnMouseEntered(event -> {
             switchInvoiceButton.setVisible(true);
             invoiceBox.setVisible(false);
@@ -616,11 +652,10 @@ public class ExpandController extends BaseController {
                 switchInvoiceButton.setStyle("-fx-background-color: #F4F4F4");
             });
         });
-
-
-
-
+    
+        System.out.println("✅ prepareInvoiceArea completed.");
     }
+    
 
     private void autoFillSerialNumber(String input) {
         selectedLift = null;
@@ -1298,7 +1333,7 @@ public class ExpandController extends BaseController {
         topInvoiceLabel.setStyle("-fx-font-size: 12");
         Label bottomInvoiceLabel = new Label();
 
-        if (expandedRental.isInvoiceWritten()) {
+        if (expandedRental.isInvoiceComposed()) {
             Label xSymbol = new Label("\u2717"); // Unicode X symbol
             xSymbol.setStyle("-fx-text-fill: red; -fx-font-size: 22px; -fx-padding: -2;");
             VBox labelBox = new VBox();
@@ -1324,7 +1359,7 @@ public class ExpandController extends BaseController {
         switchInvoiceLabelBox.getChildren().addAll(topInvoiceLabel, bottomInvoiceLabel);
         switchInvoiceLabelBox.setSpacing(-4);
         switchInvoiceLabelBox.setAlignment(Pos.CENTER);
-        expandedRental.setInvoiceWritten(!expandedRental.isInvoiceWritten());
+        expandedRental.setInvoiceComposed(!expandedRental.isInvoiceComposed());
     }
 
     private void prepareLiftTypeButtons(){
@@ -1393,7 +1428,7 @@ public class ExpandController extends BaseController {
        String poNumber = POField.getText();
        String locationNotes = locationNotesField.getText();
        String preTripInstructions = preTripInstructionsField.getText();
-       int invoiceWritten = expandedRental.isInvoiceWritten() ? 1 : 0 ;
+       int invoiceWritten = expandedRental.isInvoiceComposed() ? 1 : 0 ;
        int autoTerm = expandedRental.isAutoTerm() ? 1 : 0 ;
 
        // Note: going to comment out addedLifts centric code but anticipate needing it for the add lifts scene
@@ -1851,14 +1886,17 @@ public class ExpandController extends BaseController {
         return (value == null) ? "" : value;
     }
 
-    @FXML
-    public void handleBack() {
-        try {
-            MaxReachPro.goBack("/fxml/expand.fxml");
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    @Override
+    protected EventHandler<ActionEvent> getBackHandler() {
+        return event -> {
+            try {
+                MaxReachPro.goBackFromExpand();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        };
     }
+    
 
     @Override
     public double getTotalHeight() {

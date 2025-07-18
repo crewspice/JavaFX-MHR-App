@@ -5,9 +5,12 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
@@ -34,6 +37,7 @@ import com.itextpdf.layout.Document;
 import java.awt.Desktop;
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
@@ -74,6 +78,8 @@ public class ScheduleDeliveryController extends BaseController {
 	private Label tableViewTitle;
 	@FXML
 	private TableView<Rental> scheduledRentalsTableView;  // TableView for rentals
+	@FXML
+	private TableColumn<Rental, Integer> expandColumn;	
 	@FXML
 	private TableColumn<Rental, String> rentalDateColumn;   // Column for Rental Date
 	@FXML
@@ -239,11 +245,9 @@ public class ScheduleDeliveryController extends BaseController {
 	// Initialize method to set up ToggleButtons and the ToggleGroup
 	@FXML
 	public void initialize() {
+
 		super.initialize(dragArea);
     	customers = MaxReachPro.getCustomers();
-
-
-
 
     	customerNameField.setOnKeyPressed(event -> {
         	if (event.getCode() == KeyCode.ENTER) {
@@ -650,19 +654,119 @@ public class ScheduleDeliveryController extends BaseController {
 
 
     	// Initialize TableView columns
-    	rentalDateColumn.setCellValueFactory(cellData -> cellData.getValue().orderDateProperty());
-    	liftTypeColumn.setCellValueFactory(cellData -> cellData.getValue().nameProperty());
+		DateTimeFormatter inputFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+		DateTimeFormatter outputFormat = DateTimeFormatter.ofPattern("M/dd");
+		
+		rentalDateColumn.setCellValueFactory(cellData -> {
+			String rawDate = cellData.getValue().orderDateProperty().get();
+			try {
+				LocalDate date = LocalDate.parse(rawDate, inputFormat);
+				String formatted = outputFormat.format(date);
+				return new SimpleStringProperty(formatted);
+			} catch (Exception e) {
+				// fallback if date is null or malformed
+				return new SimpleStringProperty("");
+			}
+		});
+		
+		
+
+		
+		liftTypeColumn.setCellValueFactory(cellData -> cellData.getValue().nameProperty());
     	deliveryTimeColumn.setCellValueFactory(cellData -> cellData.getValue().deliveryTimeProperty()); // Bind delivery time
 
+		expandColumn.setCellValueFactory(cellData ->
+			cellData.getValue().rentalItemIdProperty().asObject()
+		);
+		
+		expandColumn.setCellFactory(col -> new TableCell<>() {
+			private final Button expandButton;
 
-    	// Initially load scheduled rentals for the current session
-    	scheduledRentalsTableView.setItems(rentalsList); // Bind the rentalsList to the TableView
+			{
+				ImageView imageView;
+
+				URL imageUrl = getClass().getResource("/images/small-expand.png");
+				if (imageUrl == null) {
+					System.err.println("❌ ERROR: expand.png not found at /images/expand.png");
+					imageView = new ImageView(); // fallback
+				} else {
+					Image image = new Image(imageUrl.toExternalForm(), 11, 11, true, true);
+					imageView = new ImageView(image);
+				}
+
+				expandButton = new Button();
+				expandButton.setGraphic(imageView);
+
+				// 🧼 Inline style to avoid row-height inflation
+				expandButton.setStyle(
+					"-fx-background-color: transparent;" +
+					"-fx-border-color: transparent;" +
+					"-fx-padding: 0;" +               // Tightest possible padding
+					"-fx-background-insets: 0;" +     // Removes default button inset
+					"-fx-focus-color: transparent;" +
+					"-fx-faint-focus-color: transparent;"
+				);
+
+				expandButton.setOnAction(event -> {
+					Rental rental = getTableView().getItems().get(getIndex());
+					handleExpandClick(rental);
+				});
+
+				expandButton.setOnMouseEntered(e -> {
+					expandButton.setStyle(
+						"-fx-background-color: orange;" +
+						"-fx-border-color: transparent;" +
+						"-fx-padding: 0;" +
+						"-fx-background-insets: 0;" +
+						"-fx-focus-color: transparent;" +
+						"-fx-faint-focus-color: transparent;"
+					);
+				});
+				
+				expandButton.setOnMouseExited(e -> {
+					expandButton.setStyle(
+						"-fx-background-color: transparent;" +
+						"-fx-border-color: transparent;" +
+						"-fx-padding: 0;" +
+						"-fx-background-insets: 0;" +
+						"-fx-focus-color: transparent;" +
+						"-fx-faint-focus-color: transparent;"
+					);
+				});
+				
 
 
-    	// Adjust the TableView height to fit one empty row initially
-    	adjustTableViewHeight(); // Set initial height of the TableView
-		printButton.setVisible(false);
+			}
 
+			@Override
+			protected void updateItem(Integer item, boolean empty) {
+				super.updateItem(item, empty);
+				setGraphic(empty ? null : expandButton);
+				setContentDisplay(ContentDisplay.GRAPHIC_ONLY); // No text space reserved
+				setPadding(Insets.EMPTY); // Ensures cell padding is tight too
+			}
+		});
+
+	
+
+
+		// Bind the rentalsList to the TableView
+		scheduledRentalsTableView.setItems(rentalsList);
+
+		// 🆕 Check if the static list has any previously saved rows
+		ObservableList<Rental> previousList = MaxReachPro.getScheduleDeliveryTableViewSet();
+		if (previousList != null && !previousList.isEmpty()) {
+			rentalsList.setAll(previousList); // Replace current list with saved list
+			scheduledRentalsTableView.setVisible(true);
+			tableViewTitle.setVisible(true);
+			scheduledCounter = rentalsList.size();
+			printButton.setVisible(true);
+			adjustTableViewHeight();          // Adjust table height accordingly
+		} else {
+			// Adjust the TableView height to fit one empty row initially
+			adjustTableViewHeight(); // Set initial height of the TableView
+			printButton.setVisible(false);
+		}
 
     	// Hide the status label initially
     	statusLabel.setVisible(false);
@@ -926,8 +1030,8 @@ public class ScheduleDeliveryController extends BaseController {
 
 	// Method to update the ToggleButtons based on the next weekday
 	private void updateWeekdayToggleButtons(LocalDate day, String suffix, TilePane tilePane) {
-    	System.out.println("update weekday toggles called wit day: " +
-            	day + ", suffix: " + suffix);
+    	//System.out.println("update weekday toggles called wit day: " +
+            	//day + ", suffix: " + suffix);
     	LocalDate startOfWeek = day.with(java.time.temporal.ChronoField.DAY_OF_WEEK, 1); // Monday
 
 
@@ -1928,7 +2032,6 @@ public class ScheduleDeliveryController extends BaseController {
         	if (insertRentalOrder(customerId, dbDeliveryDate, orderDate, site, streetAddress, city, po, latitude, longitude)) {
             	rentalOrderScheduled = true;
             	// Update the status label for successful scheduling
-            	System.out.println("Rental order scheduled successfully!"); // For debugging
             	statusLabel.setText("Rental order scheduled successfully!"); // Show success message
             	statusLabel.setTextFill(Color.GREEN); // Set the text color to green
             	statusLabel.setVisible(true); // Make the status label visible
@@ -1951,9 +2054,6 @@ public class ScheduleDeliveryController extends BaseController {
             	addedLifts.add(selectedLiftTypeButton.getText());
             	liftCount++;
         	}
-        	System.out.println("Lift count: " + liftCount);
-        	System.out.println("Size of addedLifts is: " + addedLifts.size());
-        	System.out.println("Scheduled counter before iteration: " + scheduledCounter);
         	boolean insertedRentalItem = false;
         	for (int i = 0; i < liftCount; i++){
             	System.out.println("iteration number: " + i);
@@ -1968,29 +2068,19 @@ public class ScheduleDeliveryController extends BaseController {
 				boolean insertRentalItem = insertRentalItem(currentCustomerRental, rentalOrderId, liftId, currentCustomerRental.getOrderDate(), dbDeliveryDate, dbCallOffDate, deliveryTime, po, orderedByNameValue, orderedByNumberValue, siteContactNameValue, siteContactNumberValue, locationNotes, preTripInstructions) && rentalOrderScheduled;
             	if (insertRentalItem && rentalOrderScheduled) {
                 	// Update the status label for successful scheduling
-                	System.out.println("Rental item created successfully!"); // For debugging
                 	statusLabel.setText("Rental item created successfully!"); // Show success message
                 	statusLabel.setTextFill(Color.GREEN); // Set the text color to green
                 	statusLabel.setVisible(true); // Make the status label visible
 
-
-
-
                 	rentalsList.add(currentCustomerRental);
-
-
-
 
                 	scheduledCounter++;
 
-
                 	adjustTableViewHeight(); // Adjust the TableView height after adding a new entry
 					
-
                 	// Animate the scissor lift down by decrementing its height
                 	//currentHeight -= 50; // Decrease height
                 	//MaxReachPro.getScissorLift().animateTransition(currentHeight + ROW_HEIGHT, currentHeight); // Animate the lift
-
 
                 	adjustTableViewHeight(); // Adjust the TableView height after adding a new entry
                 	// Reset fields after successful scheduling
@@ -2046,7 +2136,6 @@ public class ScheduleDeliveryController extends BaseController {
 					if (generatedKeys.next()) {
 						rentalOrderId = generatedKeys.getInt(1);
 						currentCustomerRental.setRentalOrderId(rentalOrderId); // Retrieve the rental_order_id
-						System.out.println("Generated rental_order_id: " + rentalOrderId); // For debugging
 						currentCustomerRental.setOrderDate(orderDate); // Set the order date
 					}
 				}
@@ -2233,6 +2322,18 @@ public class ScheduleDeliveryController extends BaseController {
 	}
 
 
+	private void handleExpandClick(Rental rental) {
+		// Open detail pane, modal, etc.
+		MaxReachPro.setRentalForExpanding(rental, rentalsList);
+		try {
+        	MaxReachPro.loadScene("/fxml/expand.fxml");
+        //	GradientAnimator.initialize();
+    	} catch (Exception e) {
+        	e.printStackTrace();
+    	}
+	}
+	
+
 	public int getLiftIdFromType(String liftType) {
     	return Config.LIFT_TYPE_MAP.getOrDefault(liftType, -1);
 	}
@@ -2283,9 +2384,7 @@ public class ScheduleDeliveryController extends BaseController {
 				String responseData = response.body().string();
 				JSONObject json = new JSONObject(responseData);
 				String status = json.optString("status", "ERROR");
-	
-				System.out.println("API Response Status: " + status);
-	
+		
 				if ("OK".equals(status)) {
 					JSONObject location = json.getJSONArray("results")
 							.getJSONObject(0)
@@ -2449,13 +2548,22 @@ public class ScheduleDeliveryController extends BaseController {
 
 	
 	private String formatPhoneNumber(String phoneNumber) {
-    	if (phoneNumber == null || phoneNumber.length() != 10) {
-        	throw new IllegalArgumentException("Input must be a 10-digit number.");
-    	}
-
-
-    	return "(" + phoneNumber.substring(0, 3) + ")-" + phoneNumber.substring(3, 6) + "-" + phoneNumber.substring(6, 10);
+		if (phoneNumber == null) {
+			return null;
+		}
+	
+		// Remove all non-digit characters
+		String digits = phoneNumber.replaceAll("\\D", "");
+	
+		// Format only if we have exactly 10 digits
+		if (digits.length() == 10) {
+			return "(" + digits.substring(0, 3) + ")-" + digits.substring(3, 6) + "-" + digits.substring(6);
+		}
+	
+		// If not 10 digits, return the original input unmodified
+		return phoneNumber;
 	}
+	
 
 
 	private void initializeGrid() {
@@ -2499,6 +2607,12 @@ public class ScheduleDeliveryController extends BaseController {
 
 
 	}
+
+	@Override
+	public ObservableList<Rental> getActiveRentalList() {
+		return scheduledRentalsTableView.getItems(); // or however your TableView is named
+	}
+	
 
 	@FXML
 	public void handleBack() {

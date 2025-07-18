@@ -1,8 +1,10 @@
 package com.MaxHighReach;
 
-
+import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
+import javafx.animation.TranslateTransition;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
@@ -12,6 +14,8 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.Labeled;
+import javafx.scene.control.TextInputControl;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelReader;
@@ -35,9 +39,13 @@ import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
+import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Polyline;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
 import javafx.scene.effect.*;
 import javafx.util.Duration;
 import okhttp3.MediaType;
@@ -46,16 +54,23 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import javafx.application.Platform;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.collections.ObservableList;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -63,18 +78,29 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -87,7 +113,7 @@ import org.json.JSONObject;
 public class MapController {
 
     @FXML
-    private AnchorPane anchorPane;
+    public AnchorPane anchorPane;
 
     @FXML
     private Button closeButton;
@@ -102,10 +128,11 @@ public class MapController {
     //
     private double[] mapBounds = {40.814076, -104.377137, 39.391122, -105.468393};
     private double[] visibleBounds = {0, 0, 0, 0};
-    private double mouseX, mouseY;
-
+    private double lastDragX = -1;
+    private double lastDragY = -1;
     // Number of random dots to generate
     private static final int NUM_DOTS = 8;
+
 
     // Compression ratio to fit the map into a smaller area within the transitioner
     private static final double COMPRESSION_RATIO_X = 1; // Compress the map horizontally
@@ -116,10 +143,9 @@ public class MapController {
     private static final double OFFSET_Y = 0; // Move down by 150 units
 
     private List<Rental> rentalsForCharting;
-
     // Track the alst clicked rental and popup
     private Rental lastClickedRental = null;
-    private PopupCard lastPopup = null;
+    private PopupDisc lastPopup = null;
 
     private List<StackPane> routeVBoxPanes = new ArrayList<>();
     private List<StackPane> routeHBoxPanes = new ArrayList<>();
@@ -133,17 +159,18 @@ public class MapController {
     // New trials for syncing up route polylines in deletions
    // private Map<String, List<Polyline[]>> polylines = new HashMap<>();
     private Map<String, List<String>> encodedPolylines = new HashMap<>();
-
     private Map<String, Circle> pinpointersV = new HashMap<>();
     private Map<String, Circle> innerPinpointersV = new HashMap<>();
     private Map<String, Label> driverLabelsV = new HashMap<>();
     private Map<String, Circle> pinpointersH = new HashMap<>();
     private Map<String, Circle> innerPinpointersH = new HashMap<>();
     private Map<String, Label> driverLabelsH = new HashMap<>();
-
-    private Map<String, String> routeAssignments = new HashMap<>();
-    private Map<String, String> truckAssignments = new HashMap<>();
+    public Map<String, String> routeAssignments = new HashMap<>();
+    public Map<String, String> truckAssignments = new HashMap<>();
     private Map<String, double[]> truckCoords = new HashMap<>();
+    private Map<String, DoubleProperty> truckProgress = new HashMap<>();
+    private Set<StackPane> activeAnimations = new HashSet<>();
+    private Map<String, List<Integer>> intervals = new HashMap<>();
     public List<Rental> latestRouteEdited = null;
     private StackPane lastCardCover = null;
     private Rectangle lastSideBarCover = null;
@@ -151,28 +178,15 @@ public class MapController {
     private Circle lastPinpointer = null;
     private Label lastDriverLabel = null;
     private Map<String, Circle> trucks = new HashMap<>();
-
-    private double[] truck25;
-    private double[] truck06;
-    private double[] truck08;
-    private double[] truck16;
-    private double[] truck20;
-
-    // // Define your route lists (ensure these are populated somewhere, otherwise they will be null)
-    // private List<Rental> routeOneStops = new ArrayList<>();
-    // private List<Rental> routeTwoStops = new ArrayList<>();
-    // private List<Rental> routeThreeStops = new ArrayList<>();
-    // private List<Rental> routeFourStops = new ArrayList<>();
-    // private List<Rental> routeFiveStops = new ArrayList<>();
-
-    // // Initialize routes map (you can do this in a constructor or any other initialization block)
-    // {
-    //     routes.put("route1", routeOneStops);
-    //     routes.put("route2", routeTwoStops);
-    //     routes.put("route3", routeThreeStops);
-    //     routes.put("route4", routeFourStops);
-    //     routes.put("route5", routeFiveStops);
-    // }
+    private Map<String, Double> truckTranslateX = new HashMap<>();
+    private Map<String, Double> truckTranslateY = new HashMap<>();
+    private Map<String, Timeline> truckTimelines = new HashMap<>();
+    private Map<String, List<double[]>> truckPolylineSteps = new HashMap<>();
+    private Map<String, List<Double>> truckSegmentLengths = new HashMap<>();
+    private Map<String, StackPane> truckPanes = new HashMap<>();
+    private Map<String, List<String>> inventories = new HashMap<>();
+    private Map<String, StackPane> pictoralTrucksV = new HashMap<>();
+    private Map<String, StackPane> pictoralTrucksH = new HashMap<>();
 
     // Initialize routeBoxes map (same here, ensure the VBox components are defined before using)
     private VBox routeOneBox, routeTwoBox, routeThreeBox, routeFourBox, routeFiveBox;
@@ -184,22 +198,13 @@ public class MapController {
         routeBoxes.put("routeFour", routeFourBox);
         routeBoxes.put("routeFive", routeFiveBox);
     }
-
-    {
-        truckCoords.put("06", truck06);
-        truckCoords.put("08", truck08);
-        truckCoords.put("16", truck16);
-        truckCoords.put("20", truck20);
-        truckCoords.put("25", truck25);
-    }
-   
     private int cardHeightUnit = 55;
     private int cardWidthUnit = 100;
-
-
-
+    private String[] truckNames = {"25", "06", "08", "16", "20"};
     private Timeline progressTicker;
-    private Button progressStarterButtonDeleteLater;
+    private Button completeStopButtonDeleteLater;
+    private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+
 
     @FXML
     private void initialize() {
@@ -235,7 +240,7 @@ public class MapController {
             setupMetroMap();
             // Start loading rental data after setupMetroMap() finishes
             loadRentalDataAsync();  // We load data asynchronously
-            progressStarterButtonDeleteLater.toFront();
+            completeStopButtonDeleteLater.toFront();
         });
     
         timeline.play();
@@ -248,12 +253,15 @@ public class MapController {
             VBox routeVBox = new VBox();
             HBox routeHBox = new HBox();
             List<Rental> routeRentalStops = new ArrayList<>();
+            List<Integer> intervalList = new ArrayList<>();
             Circle pinpointerV = new Circle(8);
             Circle pinpointerH = new Circle(8);
             Circle innerPinpointerV = new Circle(6);
             Circle innerPinpointerH = new Circle(6);
-            Label driverLabelV = new Label("L");
+            Label driverLabelV = new Label("?");
             Label driverLabelH = new Label("H");
+            StackPane pictoralTruckV = new StackPane();
+            StackPane pictoralTruckH = new StackPane();
     
             // Add the route components to their respective lists
             routeVBoxPanes.add(routeVBoxPane);
@@ -263,8 +271,8 @@ public class MapController {
             routeRegions.add(routeVBox);
             routeStops.add(routeRentalStops);
     
-            // Optionally add each route to the routes map and routeBoxes map for later use
             routes.put("route" + (i + 1), routeRentalStops);
+            intervals.put("route" + (i + 1), intervalList);
             routeBoxes.put("route" + (i + 1), routeVBox);
             encodedPolylines.put("route" + (i + 1), new ArrayList<>());
             pinpointersV.put("route" + (i + 1), pinpointerV);
@@ -273,6 +281,9 @@ public class MapController {
             innerPinpointersH.put("route" + (i + 1), innerPinpointerH);
             driverLabelsV.put("route" + (i + 1), driverLabelV);
             driverLabelsH.put("route" + (i + 1), driverLabelH);
+            inventories.put("route" + (i + 1), new ArrayList<>());
+            pictoralTrucksV.put("route" + (i + 1), pictoralTruckV);
+            pictoralTrucksH.put("route" + (i + 1), pictoralTruckH);
 
 
             routeVBoxPane.setOnMousePressed(event -> {
@@ -303,10 +314,11 @@ public class MapController {
                 routeHBoxPane.setLayoutX(Math.max(minX, Math.min(maxX, newX)));
                 routeHBoxPane.setLayoutY(Math.max(minY, Math.min(maxY, newY)));
 
-            
+
                 // Update the starting mouse position for the next drag event
                 routeVBoxPane.setUserData(new double[]{event.getSceneX(), event.getSceneY()});
             });
+
 
             routeHBoxPane.setOnMouseDragged(event -> {
                 double deltaX = event.getSceneX() - ((double[]) routeHBoxPane.getUserData())[0];
@@ -327,15 +339,15 @@ public class MapController {
                 routeVBoxPane.setLayoutX(Math.max(minX, Math.min(maxX, newX)));
                 routeVBoxPane.setLayoutY(Math.max(minY, Math.min(maxY, newY)));
 
-            
                 // Update the starting mouse position for the next drag event
                 routeHBoxPane.setUserData(new double[]{event.getSceneX(), event.getSceneY()});
             });
 
+
             String routeKey = getRouteNameFromIndex(i);
 
-            routeVBoxPane.setOnMouseClicked(event -> {
-                
+
+            routeVBoxPane.setOnMouseClicked(event -> { 
          //       System.out.println(">> Clicked on: " + event.getTarget());
                 if (event.getClickCount() == 2) { // Check for double click
                     double x = Math.floor(event.getX() * 10) / 10.0; // X relative to routeBox
@@ -348,7 +360,7 @@ public class MapController {
                         int routeSize = routes.get(routeKey).size();
                         if (multiple + 1 <= routeSize) {
                             int yOffset = (multiple * (cardHeightUnit)) - ((routeSize - 1) * 27);
-                            lastCardCover = createCardOptionsCover(routes.get(routeKey).get(multiple), multiple, x, y, index);
+                            lastCardCover = createCardOptionsCover(routes.get(routeKey).get(multiple), multiple, x, y, index, "vertical");
                             routeVBoxPane.getChildren().add(lastCardCover);
                             lastCoveredPane = routeVBoxPane;
                             StackPane.setAlignment(lastCardCover, Pos.BOTTOM_LEFT);
@@ -359,17 +371,12 @@ public class MapController {
                 }
             });
 
+
             routeHBoxPane.setOnMouseClicked(event -> {
-                
                 Node clickedNode = event.getPickResult().getIntersectedNode();
-                if (clickedNode != null) {
-                    System.out.println("Clicked node: " + clickedNode);
-                    System.out.println("Node ID: " + clickedNode.getId());
-                    System.out.println("Node class: " + clickedNode.getClass().getSimpleName());
-                }
+
 
                 if (event.getClickCount() == 2) { // Check for double click
-                    System.out.println("card covered triggered");
                     double x = Math.floor(event.getX() * 10) / 10.0; // X relative to routeBox
                     double y = Math.floor(event.getY() * 10) / 10.0; // Y relative to routeBox
     
@@ -380,7 +387,7 @@ public class MapController {
                         int routeSize = routes.get(routeKey).size();
                         if (multiple + 1 <= routeSize) {
                             int xOffset = multiple * (cardWidthUnit - 2) - ((routeSize) * 20) - ((routeSize - 1) * 22) + 10 + ((3 - routeSize) * 5);
-                            lastCardCover = createCardOptionsCover(routes.get(routeKey).get(multiple), multiple, x, y, index);
+                            lastCardCover = createCardOptionsCover(routes.get(routeKey).get(multiple), multiple, x, y, index, "horizontal");
                             routeHBoxPane.getChildren().add(lastCardCover);
                             lastCoveredPane = routeHBoxPane;
                             StackPane.setAlignment(lastCardCover, Pos.BOTTOM_LEFT);
@@ -390,7 +397,6 @@ public class MapController {
                     }
                 }
             });
-
             routeVBox.setAlignment(Pos.BOTTOM_RIGHT);
             routeHBox.setAlignment(Pos.BOTTOM_RIGHT);
             routeVBox.setTranslateY(-5);
@@ -398,15 +404,97 @@ public class MapController {
     
             routeVBoxPane.setPickOnBounds(false);
             routeHBoxPane.setPickOnBounds(false);
+            
+
+            // Create the truck circle
+            Circle truckDot = new Circle(8); // radius 8
+            truckDot.setTranslateX(-5);
+            truckDot.setTranslateY(-5);
+            truckDot.setFill(Color.TRANSPARENT);
+
+            // Create a tight, non-obstructive StackPane
+            StackPane truckPane = new StackPane(truckDot);
+            truckPane.setPickOnBounds(false); // only respond to mouse events on visible content
+            truckPane.setMouseTransparent(true); // let mouse events pass through to map
+            truckPane.setMinSize(StackPane.USE_PREF_SIZE, StackPane.USE_PREF_SIZE);
+            truckPane.setPrefSize(10, 10); // match circle diameter
+            truckPane.setMaxSize(StackPane.USE_PREF_SIZE, StackPane.USE_PREF_SIZE);
+
+            // Track
+            trucks.put(truckNames[i], truckDot);
+            truckPanes.put(truckNames[i], truckPane);
+            truckTranslateX.put(truckNames[i], 0.0);
+            truckTranslateY.put(truckNames[i], 0.0);
+            truckProgress.put(truckNames[i], new SimpleDoubleProperty(0.0));
+
+            pictoralTruckV.setMaxHeight(25);
+            pictoralTruckV.setMaxWidth(82);
+            pictoralTruckH.setMaxHeight(25);
+            pictoralTruckH.setMaxWidth(82);
         }
 
-        progressStarterButtonDeleteLater = new Button("start progressions");
-        anchorPane.getChildren().add(progressStarterButtonDeleteLater);
-        progressStarterButtonDeleteLater.setOnAction(e -> {
-            startAllTruckProgress();
-            System.out.println("progress starter clicked");
+
+        completeStopButtonDeleteLater = new Button("complete a stop");
+        anchorPane.getChildren().add(completeStopButtonDeleteLater);
+        completeStopButtonDeleteLater.setOnAction(e -> {
+            for (int i = 0; i < 5; i++) {
+                System.out.println("🔁 Processing route index: " + i);
+
+
+                String routeKey = "route" + (i + 1);
+                System.out.println("🔑 Using routeKey: " + routeKey);
+
+                StackPane pictoralTruck = pictoralTrucksV.get(routeKey);
+                if (pictoralTruck == null) {
+                    System.out.println("⚠️ pictoralTruck HBox not found for " + routeKey);
+                    continue;
+                }
+
+                // Retain base image
+                if (pictoralTruck.getChildren().isEmpty()) {
+                    System.out.println("⚠️ No children in pictoralTruck for " + routeKey);
+                    continue;
+                }
+
+                ImageView baseImageView = (ImageView) pictoralTruck.getChildren().get(0);
+                pictoralTruck.getChildren().clear();
+                pictoralTruck.getChildren().add(baseImageView);
+                System.out.println("🔄 Reset pictoralTruck view for " + routeKey);
+
+                List<String> cargoList = inventories.get(routeKey);
+                if (cargoList == null) {
+                    System.out.println("⚠️ No cargo list found for " + routeKey);
+                    continue;
+                }
+
+                cargoList.add("19s"); // Example item being added
+                System.out.println("➕ Added cargo item '19s' to " + routeKey);
+                int counter = 1;
+                String[] colors = getRouteColors(routeKey);
+
+                for (String item : cargoList) {
+                    String imageName = item + "-peek.png";
+                    InputStream imageStream = getClass().getClassLoader().getResourceAsStream("images/" + imageName);
+
+                    if (imageStream != null) {
+                        Image image = new Image(imageStream);
+                        Image imageRecolored = recolorImage(image, Color.web(colors[2]), null);
+                        ImageView imageView = new ImageView(imageRecolored);
+                        imageView.setFitWidth(20);
+                        imageView.setFitHeight(27);
+                        imageView.setTranslateX(-59 + (counter * 19));
+                //     imageView.setTranslateX(-100);
+                        pictoralTruck.getChildren().add(imageView);
+                        System.out.println("✅ Added image for item: " + item);
+                    } else {
+                        System.err.println("❌ Image not found for item: " + item);
+                    }
+                    counter++;
+                }
+            }
         });
-        progressStarterButtonDeleteLater.setTranslateY(20);
+
+        completeStopButtonDeleteLater.setTranslateY(20);
     
     }
     
@@ -420,14 +508,28 @@ public class MapController {
             Platform.runLater(() -> {
                 plotRentalLocations();
                 updateTruckCoordinates();
-                updateTrucks();
+                updateTrucks(true);
                 reflectRoutingData();
                 updateRoutePolylines();
+                setupLiveDriveProgressions();
             });
         });
     } 
 
 
+
+
+    /*                                    /*
+     *               incoming              *
+     *                  &                  *
+     *               outgoing              *
+     *                 DATA                *
+    /*                                     */
+
+
+
+
+/*
     private void loadTruckFromDirectCall() {
         try {
             truck25 = FleetAPIClient.getTruckCoordsByName("2025");
@@ -435,11 +537,19 @@ public class MapController {
             truck08 = randomizeCoords(truck25);
             truck06 = randomizeCoords(truck25);
             truck20 = randomizeCoords(truck25);
+            System.out.println("truckCoords is: " + truckCoords);
+
+
+
+
             updateTrucks();
         } catch (IOException e) {
             e.printStackTrace(); // or log the error / show a message to the user
         }
     }
+*/
+
+
 
     public void updateTruckCoordinates() {
         try {
@@ -464,30 +574,31 @@ public class MapController {
                 double lat = truck.getDouble("lat");
                 double lng = truck.getDouble("lng");
     
+                // Normalize keys to match truckCoords' keys
                 switch (name) {
                     case "2025":
-                        truck25 = new double[] { lat, lng };
+                        truckCoords.put("25", new double[]{lat, lng});
                         break;
                     case "2006":
-                        truck06 = new double[] { lat, lng };
+                        truckCoords.put("06", new double[]{lat, lng});
                         break;
                     case "2008":
-                        truck08 = new double[] { lat, lng };
+                        truckCoords.put("08", new double[]{lat, lng});
                         break;
                     case "2016":
-                        truck16 = new double[] { lat, lng };
+                        truckCoords.put("16", new double[]{lat, lng});
                         break;
                     case "2020":
-                        truck20 = new double[] { lat, lng };
+                        truckCoords.put("20", new double[]{lat, lng});
                         break;
                 }
             }
-    
+       
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-
+    
     
     private void loadRentalDataFromAPI() {
         String apiUrl = "http://api.maxhighreach.com:8080/routes/stops";
@@ -529,10 +640,11 @@ public class MapController {
             String query = """
                 SELECT ro.customer_id, c.customer_name, ri.item_delivery_date, ri.item_call_off_date, ro.po_number,
                     ordered_contacts.first_name AS ordered_contact_name, ordered_contacts.phone_number AS ordered_contact_phone,
-                    ri.auto_term, ro.site_name, ro.street_address, ro.city, ri.rental_item_id, l.lift_type,
+                    ri.auto_term, ro.site_name, ro.street_address, ro.city, ri.rental_item_id, ri.item_status, l.lift_type,
                     l.serial_number, ro.single_item_order, ri.rental_order_id, ro.longitude, ro.latitude,
                     site_contacts.first_name AS site_contact_name, site_contacts.phone_number AS site_contact_phone,
-                    ri.driver, ri.driver_number, ri.driver_initial, ri.delivery_truck, ri.pick_up_truck
+                    ri.driver, ri.driver_number, ri.driver_initial, ri.delivery_truck, ri.pick_up_truck, ri.delivery_time, 
+                    ri.invoice_composed
                 FROM customers c
                 JOIN rental_orders ro ON c.customer_id = ro.customer_id
                 JOIN rental_items ri ON ro.rental_order_id = ri.rental_order_id
@@ -573,23 +685,25 @@ public class MapController {
                             rs.getString("site_contact_phone"),
                             rs.getDouble("latitude"),
                             rs.getDouble("longitude"),
-                            rs.getString("lift_type")
+                            rs.getString("lift_type"),
+                            rs.getString("item_status")
                         );
                         rental.setDriver(rs.getString("driver"));
                         rental.setDriverInitial(rs.getString("driver_initial"));
                         rental.setDriverNumber(rs.getInt("driver_number"));
                         rental.setDeliveryTruck(rs.getString("delivery_truck"));
                         rental.setPickUpTruck(rs.getString("pick_up_truck"));
+                        rental.setDeliveryTime(rs.getString("delivery_time"));
+                        rental.setInvoiceComposed(rs.getBoolean("invoice_composed"));
+                        rental.decapitalizeLiftType();
                         rentalsForCharting.add(rental);
                     }
                 }
             }
-
         } catch (Exception e) {
             throw new RuntimeException("Failed to load rental data from API guide", e);
         }
     }
-
 
 
     private void loadRentalDataFromSQL() {
@@ -598,7 +712,7 @@ public class MapController {
             SELECT ro.customer_id, c.customer_name, ri.item_delivery_date, ri.item_call_off_date, ro.po_number,
                 ordered_contacts.first_name AS ordered_contact_name, ordered_contacts.phone_number AS ordered_contact_phone,
                 ri.auto_term, ro.site_name, ro.street_address, ro.city, ri.rental_item_id, l.lift_type,
-                l.serial_number, ro.single_item_order, ri.rental_order_id, ro.longitude, ro.latitude,
+                l.serial_number, ro.single_item_order, ri.rental_order_id, ro.longitude, ro.latitude, ri.item_status,
                 site_contacts.first_name AS site_contact_name, site_contacts.phone_number AS site_contact_phone
             FROM customers c
             JOIN rental_orders ro ON c.customer_id = ro.customer_id
@@ -640,12 +754,13 @@ public class MapController {
                 String siteContactPhone = rs.getString("site_contact_phone");
                 double latitude = rs.getDouble("latitude");
                 double longitude = rs.getDouble("longitude");
+                String status = rs.getString("item_status");
     
                 // Create Rental objects for each row and add them to the list
                 rentalsForCharting.add(new Rental(customerId, name, deliveryDate, callOffDate, poNumber,
                         orderedByName, orderedByPhone, autoTerm, addressBlockOne, addressBlockTwo,
                         addressBlockThree, rentalItemId, serialNumber, singleItemOrder, rentalOrderId,
-                        siteContactName, siteContactPhone, latitude, longitude, liftType));
+                        siteContactName, siteContactPhone, latitude, longitude, liftType, status));
             }
         } catch (SQLException e) {
             throw new RuntimeException("Error loading rental data", e);
@@ -769,10 +884,57 @@ public class MapController {
         } catch (SQLException e) {
             e.printStackTrace(); // or use a logger
         }
+        sendRoutingToRedisAPI();
     }
     
-    
-    
+    private void sendRoutingToRedisAPI() {   
+        try {
+            List<RoutingRental> routingItems = new ArrayList<>();
+            for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
+                String routeKey = entry.getKey();
+                List<Rental> rentals = entry.getValue();
+                String driverInitial = routeAssignments.get(routeKey);   
+                String assignedTruck = truckAssignments.entrySet().stream()
+                        .filter(e -> e.getValue().equals(routeKey))
+                        .map(Map.Entry::getKey)
+                        .findFirst()
+                        .orElse(null); 
+                int offset = (assignedTruck != null) ? 0 : 1;
+                for (int i = 0; i < rentals.size(); i++) {
+                    Rental rental = rentals.get(i);
+                    if (rental.getRentalItemId() == 0) {
+                        continue;
+                    }
+                    int driverNumber = i + offset;
+                    RoutingRental dto = new RoutingRental(
+                            rental.getRentalItemId(),
+                            "unknown",
+                            "unknwon",
+                            0.0,
+                            0.0,
+                            driverInitial,
+                            driverNumber,
+                            assignedTruck
+                    );
+                    routingItems.add(dto);
+                }
+            }   
+            ObjectMapper mapper = new ObjectMapper();
+            String requestBody = mapper.writeValueAsString(routingItems);
+            //System.out.println("Serialized JSON payload: " + requestBody);
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("http://api.maxhighreach.com:8080/routes/update"))  // Fixed URI
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
+   
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (Exception e) {
+            System.err.println("Exception occurred while sending routing data:");
+            e.printStackTrace();
+        }
+    }    
     
     private void reflectRoutingData() {
         if (rentalsForCharting == null || rentalsForCharting.isEmpty()) {
@@ -801,11 +963,13 @@ public class MapController {
         // Step 4: Create routes and populate the global routes map
         for (Map.Entry<String, List<Rental>> entry : groupedByDriverInitial.entrySet()) {
             String routeKey = getARouteNoPreference()[0]; // Get route key (customizable)
+            String[] colors = getRouteColors(routeKey);
             routes.put(routeKey, entry.getValue());
             routeAssignments.put(routeKey, entry.getKey());
             int routeIndex = getRouteIndex(routeKey);
             StackPane vBoxPane = routeVBoxPanes.get(routeIndex);
             StackPane hBoxPane = routeHBoxPanes.get(routeIndex);
+
 
             // Process the rentals and update the route pane
             for (Rental rental : entry.getValue()) {
@@ -844,76 +1008,132 @@ public class MapController {
                         break; // assuming only one label
                     }
                 }
-            }
 
+                configureTruckDot(entry.getKey(), truckSignifier, colors);
+
+            }
             driverLabelsV.get(routeKey).setText(entry.getKey());
             driverLabelsH.get(routeKey).setText(entry.getKey());
         }
-
         // Step 5: Done
     }
+
+
+    private List<Rental> findCompletedStops() {
+        List<Rental> completedStops = new ArrayList<>();
     
+        // Collect all rental_item_ids from routes
+        List<Integer> allItemIds = routes.values().stream()
+            .flatMap(List::stream)
+            .map(Rental::getRentalItemId)
+            .distinct()
+            .toList();
     
+        if (allItemIds.isEmpty()) return completedStops;
     
+        // Create a comma-separated list of placeholders (e.g., ?, ?, ?, ...)
+        String placeholders = allItemIds.stream().map(id -> "?").collect(Collectors.joining(", "));
     
+        String query = "SELECT rental_item_id, item_status FROM rental_items WHERE rental_item_id IN (" + placeholders + ")";
     
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+             PreparedStatement ps = connection.prepareStatement(query)) {
     
+            // Fill placeholders
+            for (int i = 0; i < allItemIds.size(); i++) {
+                ps.setInt(i + 1, allItemIds.get(i));
+            }
     
+            // Execute query and build status map
+            ResultSet rs = ps.executeQuery();
+            Map<Integer, String> statusMap = new HashMap<>();
+            while (rs.next()) {
+                int id = rs.getInt("rental_item_id");
+                String status = rs.getString("item_status");
+                statusMap.put(id, status);
+            }
+    
+            // Find rentals with invalid statuses
+            for (List<Rental> rentalList : routes.values()) {
+                for (Rental rental : rentalList) {
+                    int id = rental.getRentalItemId();
+                    String status = statusMap.get(id);
+                    if (status != null && !(status.equals("Upcoming") || status.equals("Called Off"))) {
+                        completedStops.add(rental);
+                    }
+                }
+            }
+    
+        } catch (SQLException e) {
+            throw new RuntimeException("Error checking completed rentals", e);
+        }
+    
+        return completedStops;
+    }
     
 
+
+    /*                                    /*
+     *               MAPPING               *
+    /*                                     */
+    
     // Shared logic for creating rental location dots
-    private void createRentalDot(double x, double y, Rental rental) {
-        Circle dot = new Circle(x, y, 5);
-        dot.setFill(Color.web(Config.getPrimaryColor())); 
-
-
-        // Apply stroke for the under-effect based on the primary color
-        String strokeUnderneath = Config.COLOR_TEXT_MAP.get(Config.getPrimaryColor()) == 1 ? Config.getTertiaryColor() : "WHITE";
-        dot.setStroke(Color.web(strokeUnderneath));
-        dot.setStrokeWidth(2);
-
-
-        mapContainer.getChildren().add(dot);
-
-
+    private void createRentalDot(double x, double y, Rental rental, String status) {
+        Shape dotShape;
+    
+        if ("Called Off".equals(status)) {
+            // Create an octagon (stop-sign style)
+            double radius = 7;
+            Polygon octagon = new Polygon();
+            for (int i = 0; i < 8; i++) {
+                double angle = Math.toRadians(45 * i + 22.5); // 22.5° offset for flat top
+                double px = x + radius * Math.cos(angle);
+                double py = y + radius * Math.sin(angle);
+                octagon.getPoints().addAll(px, py);
+            }
+            dotShape = octagon;
+            dotShape.setFill(Color.RED);
+        } else {
+            Circle circle = new Circle(x, y, 7);
+            circle.setFill(Color.web(Config.getPrimaryColor()));
+            dotShape = circle;
+        }
+    
+        // Stroke logic
+        String strokeUnderneath = Config.COLOR_TEXT_MAP.get(Config.getPrimaryColor()) == 1
+            ? Config.getTertiaryColor()
+            : "WHITE";
+        dotShape.setStroke(Color.web(strokeUnderneath));
+        dotShape.setStrokeWidth(2);
+    
+        mapContainer.getChildren().add(dotShape);
+    
         final double finalX = x > 150 ? x - 205 : x;
         final double finalY = y > 410 ? y - 150 : y;
-
-
-        // Handle click to show rental details
-        dot.setOnMouseClicked(event -> {
-            // Remove any existing drive time popup
-            anchorPane.getChildren().removeIf(node -> node instanceof PopupCard && ((PopupCard) node).isDriveTimePopup());
-
-
-            // Remove previous rental popup (if exists)
+    
+        dotShape.setOnMouseClicked(event -> {
+            anchorPane.getChildren().removeIf(node -> node instanceof PopupDisc);
             if (lastPopup != null && anchorPane.getChildren().contains(lastPopup)) {
                 anchorPane.getChildren().remove(lastPopup);
             }
-
-
+    
             lastClickedRental = rental;
-
-
-            // Create and add new popup for the clicked rental
-            PopupCard popup = new PopupCard(this, rental, finalX, finalY);
-            anchorPane.getChildren().add(popup);
-            lastPopup = popup;
-
-
-            // Hide popup when clicking outside
+            PopupDisc disc = new PopupDisc(this, rental, x, y);
+            anchorPane.getChildren().add(disc);
+            lastPopup = disc;
+    
             anchorPane.setOnMouseClicked(e -> {
-                if (!popup.getBoundsInParent().contains(e.getX(), e.getY())) {
-                    anchorPane.getChildren().remove(popup);
+                if (!disc.getBoundsInParent().contains(e.getX(), e.getY())) {
+                    anchorPane.getChildren().remove(disc);
                     lastClickedRental = null;
                     lastPopup = null;
                 }
             });
-
-
-            event.consume(); // Prevent event from bubbling
+    
+            event.consume();
         });
     }
+    
 
 
     private void plotRentalLocations() {
@@ -921,25 +1141,26 @@ public class MapController {
             double x = mapLongitudeToX(rental.getLongitude());
             double y = mapLatitudeToY(rental.getLatitude());
 
-
             if (rental.getLongitude() < 0 && rental.getLatitude() > 0) {
-                createRentalDot(x, y, rental);
+                createRentalDot(x, y, rental, rental.getStatus());
             }
         }
     }
 
 
+
+
     // This method is used to update the position of all dots (rental locations)
     private void updateRentalLocations() {
-        mapContainer.getChildren().removeIf(node -> node instanceof Circle); // Remove old dots before re-plotting
-        
+        mapContainer.getChildren().removeIf(node -> node instanceof Circle || node instanceof Polygon);
+                
         for (Rental rental : rentalsForCharting) {
             double x = mapLongitudeToX(rental.getLongitude());
             double y = mapLatitudeToY(rental.getLatitude());
 
 
             if (rental.getLongitude() < 0 && rental.getLatitude() > 0) {
-                createRentalDot(x, y, rental);
+                createRentalDot(x, y, rental, rental.getStatus());
             }
         }
     }
@@ -991,6 +1212,8 @@ public class MapController {
     }
 
 
+
+
     private void updateRoutePolylines() {
         // Remove existing polylines before re-plotting
         mapContainer.getChildren().removeIf(node -> node instanceof Polyline);
@@ -1012,33 +1235,35 @@ public class MapController {
     
     }
 
-    private void updateTrucks() {
-        mapContainer.getChildren().removeIf(node ->
-            node instanceof Circle && Color.CYAN.equals(((Circle) node).getFill())
-        );
-        plotTruck(truck25, "25");
-        plotTruck(truck06, "06");
-        plotTruck(truck08, "08");
-        plotTruck(truck16, "16");
-        plotTruck(truck20, "20");
-    }
-
-    private void plotTruck(double[] coords, String truckName) {
-        if (coords == null) return;
-        Circle truckDot = new Circle(mapLongitudeToX(coords[1]), mapLatitudeToY(coords[0]), 5);
-        if (trucks.containsKey(truckName)) {
-            trucks.remove(truckName);
+    public void updateTrucks(boolean absoluteMode) {
+        for (Map.Entry<String, StackPane> entry : truckPanes.entrySet()) {
+            String truckId = entry.getKey();
+            StackPane truckPane = entry.getValue();
+            if (absoluteMode) {
+                double[] coords = truckCoords.get(truckId);
+                if (coords == null) continue;
+        
+                double targetX = mapLongitudeToTranslateX(coords[1]);
+                double targetY = mapLatitudeToTranslateY(coords[0]);
+                truckTranslateX.put(truckId, targetX);
+                truckTranslateY.put(truckId, targetY);
+                truckPane.setTranslateX(targetX);
+                truckPane.setTranslateY(targetY);
+            } else {
+                double[] logicalVector = {truckTranslateX.get(truckId), truckTranslateY.get(truckId)};
+                if (logicalVector == null) logicalVector = new double[]{0, 0};
+    
+                truckPane.setTranslateX(logicalVector[0]);
+                truckPane.setTranslateY(logicalVector[1]);
+            }
         }
-        truckDot.setFill(Color.CYAN);
-        trucks.put(truckName, truckDot);
-        mapContainer.getChildren().add(truckDot);
-        truckDot.toFront();
     }
+    
     
     private void setupMetroMap() {
         try {
             // Load the original metro map image
-            Image metroImage = new Image(getClass().getResourceAsStream("/images/stadia_map_z8_size400_800.png"));
+            Image metroImage = new Image(getClass().getResourceAsStream("/images/stadia_map_z8_size400_800_vertical_tweaks.png"));
             if (metroImage.isError()) {
                 throw new RuntimeException("Error loading metro map image.");
             }
@@ -1074,8 +1299,6 @@ public class MapController {
             metroMapView.setSmooth(true);
             metroMapView.setCache(true);
     
-
-
             // Wrap in a Pane for movement
             mapContainer = new Pane(metroMapView);
             mapContainer.setPrefSize(anchorPane.getWidth(), anchorPane.getHeight());
@@ -1091,12 +1314,29 @@ public class MapController {
             metroMapView.setTranslateX(startX);
             metroMapView.setTranslateY(startY);
     
-            // Enable panning with bounds
+            // MOUSE PRESSED: Initialize starting positions and reset last drag
             mapContainer.setOnMousePressed(event -> {
-                mapContainer.setUserData(new double[]{event.getSceneX(), event.getSceneY(), metroMapView.getTranslateX(), metroMapView.getTranslateY()});
+                mapContainer.setUserData(new double[]{
+                    event.getSceneX(),
+                    event.getSceneY(),
+                    metroMapView.getTranslateX(),
+                    metroMapView.getTranslateY()
+                });
+                lastDragX = event.getSceneX();
+                lastDragY = event.getSceneY();
                 removeCardCovers();
+                for (Timeline timeline : truckTimelines.values()) {
+                    timeline.pause();  // Or .stop() if you want to hard stop
+                }
+                for (Map.Entry<String, StackPane> entry : truckPanes.entrySet()) {
+                    String id = entry.getKey();
+                    StackPane truckPane = entry.getValue();
+                    truckTranslateX.put(id, truckPane.getTranslateX());
+                    truckTranslateY.put(id, truckPane.getTranslateY());
+                }
             });
-    
+
+            // MOUSE DRAGGED: Calculate deltas based on last drag, not initial press
             mapContainer.setOnMouseDragged(event -> {
                 double[] data = (double[]) mapContainer.getUserData();
                 if (data != null) {
@@ -1104,35 +1344,147 @@ public class MapController {
                     double startYPos = data[1];
                     double startImgX = data[2];
                     double startImgY = data[3];
-    
-                    double deltaX = event.getSceneX() - startXPos;
-                    double deltaY = event.getSceneY() - startYPos;
-    
-                    double newX = startImgX + deltaX;
-                    double newY = startImgY + deltaY;
-    
+
+                    // System.out.println("Truck Translation States:");
+                    // for (String truckId : trucks.keySet()) {
+                    //     double tx = truckTranslateX.getOrDefault(truckId, 0.0);
+                    //     double ty = truckTranslateY.getOrDefault(truckId, 0.0);
+                    //     System.out.printf("Truck ID: %s — translateX: %.2f, translateY: %.2f%n", truckId, tx, ty);
+                    // }
+                    // System.out.println(); // Line break
+
+                    // Compute delta first
+                    double deltaX = event.getSceneX() - lastDragX;
+                    double deltaY = event.getSceneY() - lastDragY;
+                    
+                    // Enhanced log output including last drag point and deltas
+                    // System.out.printf(
+                    //     "DRAG START DATA — startXPos: %.2f, startYPos: %.2f, startImgX: %.2f, startImgY: %.2f%n" +
+                    //     "                  lastDragX: %.2f, lastDragY: %.2f, deltaX: %.2f, deltaY: %.2f%n" +
+                    //     "                  eventX: %.2f, eventY: %.2f%n%n",
+                    //     startXPos, startYPos, startImgX, startImgY,
+                    //     lastDragX, lastDragY, deltaX, deltaY,
+                    //     event.getSceneX(), event.getSceneY()
+                    // );                    
+
+                    // Update last drag point
+                    lastDragX = event.getSceneX();
+                    lastDragY = event.getSceneY();
+
+                    double currentX = metroMapView.getTranslateX();
+                    double currentY = metroMapView.getTranslateY();
+                    double newX = currentX + deltaX;
+                    double newY = currentY + deltaY;
+
                     double minX = anchorPane.getWidth() - metroImage.getWidth();
                     double maxX = 0;
                     double minY = anchorPane.getHeight() - metroImage.getHeight();
                     double maxY = 0;
-    
+                    // System.out.println("minX: " + minX + " & minY: " + minY);
+
                     // Apply bounds
                     metroMapView.setTranslateX(Math.max(minX, Math.min(maxX, newX)));
                     metroMapView.setTranslateY(Math.max(minY, Math.min(maxY, newY)));
-    
+
+                    // Update logical translation for all trucks
+                    for (String truckId : trucks.keySet()) {
+
+            
+
+                        boolean allowX =
+                        ((startXPos - lastDragX) > startImgX || deltaX < 0) &&
+                        ((lastDragX - startXPos + startImgX) > minX || deltaX > 0);
+                        
+                        if (allowX) {
+                            double oldTranslateX = truckTranslateX.getOrDefault(truckId, 0.0);
+                            truckTranslateX.put(truckId, oldTranslateX + deltaX);
+                        }
+                        
+                        boolean allowY =
+                            ((startYPos - lastDragY) > startImgY || deltaY < 0) &&
+                            ((lastDragY - startYPos + startImgY) > minY || deltaY > 0);
+                        
+                        if (allowY) {
+                            double oldTranslateY = truckTranslateY.getOrDefault(truckId, 0.0);
+                            truckTranslateY.put(truckId, oldTranslateY + deltaY);
+                        }
+                    
+
+
+                    }
+
                     updateVisibleMapBounds(metroMapView);
                     updateRentalLocations();
                     updateRoutePolylines();
-                    updateTrucks();
+                    updateTrucks(false); // relative mode
                 }
             });
-    
+
+            mapContainer.setOnMouseReleased(event -> {
+                for (Map.Entry<String, Timeline> entry : truckTimelines.entrySet()) {
+                    String truckId = entry.getKey();
+                    Timeline timeline = entry.getValue();
+                    StackPane truckPane = truckPanes.get(truckId);
+                    List<double[]> steps = truckPolylineSteps.get(truckId);
+            
+                    if (truckPane == null || steps == null || steps.isEmpty()) continue;
+            
+                    // Find step with minimum distance from truck's current position
+                    double truckX = truckPane.getTranslateX();
+                    double truckY = truckPane.getTranslateY();
+            
+                    int closestIndex = 0;
+                    double minDistance = Double.MAX_VALUE;
+                    for (int i = 0; i < steps.size(); i++) {
+                        double[] latLon = steps.get(i);
+                        double x = mapLongitudeToTranslateX(latLon[1]);
+                        double y = mapLatitudeToTranslateY(latLon[0]);
+                        double distance = Math.hypot(truckX - x, truckY - y);
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closestIndex = i;
+                        }
+                    }
+            
+                    // Rebuild timeline from the closest index
+                    Timeline resumedTimeline = new Timeline();
+                    for (int i = closestIndex; i < steps.size(); i++) {
+                        double[] latLon = steps.get(i);
+                        KeyFrame frame = new KeyFrame(
+                            Duration.seconds((i - closestIndex) * 1),
+                            new KeyValue(truckPane.translateXProperty(), mapLongitudeToTranslateX(latLon[1])),
+                            new KeyValue(truckPane.translateYProperty(), mapLatitudeToTranslateY(latLon[0]))
+                        );
+                        resumedTimeline.getKeyFrames().add(frame);
+                    }
+            
+                    resumedTimeline.setOnFinished(e2 -> {
+                        activeAnimations.remove(truckPane);
+                        truckTranslateX.put(truckPane.getId(), truckPane.getTranslateX());
+                        truckTranslateY.put(truckPane.getId(), truckPane.getTranslateY());
+                    });
+            
+                    // Replace old timeline and play
+                    truckTimelines.put(truckId, resumedTimeline);
+                    activeAnimations.add(truckPane);
+                    resumedTimeline.play();
+                }
+            });
+              
+            
+            
             updateVisibleMapBounds(metroMapView);
+
     
             // Add map to UI
             anchorPane.getChildren().add(mapContainer);
             mapArea.toFront();
-            updateTrucks();
+            updateTrucks(true);
+
+            
+            for (StackPane truckPane : truckPanes.values()) {
+                mapContainer.getChildren().add(truckPane);
+            }
     
         } catch (Exception e) {
             System.err.println("Failed to load metro map: " + e.getMessage());
@@ -1175,6 +1527,29 @@ public class MapController {
         // + ", Bottom: " + visibleBounds[2]
         // + ", Left: " + visibleBounds[3]);
     }
+
+    private void configureTruckDot(String driverInitial, String truckId, String[] colors) {
+        StackPane truckPane = truckPanes.get(truckId);
+        Circle truck = (Circle) truckPane.getChildren().get(0);
+        truck.setFill(Color.web(colors[0]));
+        Circle innerTruck = new Circle(6);
+        innerTruck.setFill(Color.web(colors[1]));
+        innerTruck.setTranslateX(-5);
+        innerTruck.setTranslateY(-5);
+        truckPane.getChildren().add(innerTruck);
+        Label driverLabel = new Label(driverInitial);
+        driverLabel.setTextFill(Color.web(colors[2]));
+        driverLabel.setTranslateX(-5);
+        driverLabel.setTranslateY(-5);
+        driverLabel.setStyle("-fx-font-weight: bold");
+        driverLabel.setMinWidth(Label.USE_PREF_SIZE);
+        driverLabel.setPrefWidth(Label.USE_COMPUTED_SIZE);
+        driverLabel.setMaxWidth(Double.MAX_VALUE); // or a specific value if needed
+        driverLabel.setWrapText(false);
+        driverLabel.setEllipsisString(null); // Optional: prevent ellipsis entirely if using custom skin
+        truckPane.getChildren().add(driverLabel);
+    }
+
 
     // -------------   Methods for fully synchronized visual revamp    ------------- //
     // ----------------------------------------------------------------------------- //
@@ -1226,91 +1601,16 @@ public class MapController {
 
 
 
+    /*                                    /*
+     *             ROUTE CARDS             *
+     *            ROUTE EDITING            *
+    /*                                     */
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    // ----------   Code unrelated to fully synchronized visual revamp    ---------- //
-    // ----------------------------------------------------------------------------- //
-    // i could see us wanting a base scene for routes so let's consider exporting to 
-    // their own class
-
-
-
-
-    public double mapLongitudeToX(double lon) {
-        double visibleMinX = visibleBounds[3];
-        double visibleMaxX = visibleBounds[1];
-
-
-        // Extract bounds for readability
-        double lonMin = mapBounds[3]; // LON_MIN (top-left)
-        double lonMax = mapBounds[1]; // LON_MAX (bottom-right)
-        
-        // Ensure the longitude is within bounds
-        if (lon < lonMin || lon > lonMax) {
-            return 0;
-        }
-    
-        // Compute relative position (0 to 1)
-        double relativeX = (lon - visibleMinX) / (visibleMaxX - visibleMinX);
-    
-        
-        // Map to screen range
-        return relativeX * (Config.WINDOW_HEIGHT / 2);
-    }
-    
-    public double mapLatitudeToY(double lat) {
-        double visibleMinY = visibleBounds[2]; // Bottom bound of the visible area
-        double visibleMaxY = visibleBounds[0]; // Top bound of the visible area
-    
-        // Extract bounds for readability
-        double latMax = mapBounds[0]; // LAT_MAX (top-left)
-        double latMin = mapBounds[2]; // LAT_MIN (bottom-right)
-    
-        // Ensure the latitude is within bounds
-        if (lat < latMin || lat > latMax) {
-            return 0;
-        }
-
-
-        double observedOffset = .12;
-        lat += observedOffset;
-    
-        // Compute relative position (inverted Y-axis)
-        double relativeY = (visibleMaxY - lat) / (visibleMaxY - visibleMinY);
-
-        // Map to screen range
-        return relativeY * Config.WINDOW_HEIGHT;
-    }
         
     public void addStopToRoute(String routeSignifier, Rental rental) {
-        System.out.println("-- addStopToRoute called with routeKey == " + routeSignifier);
-        System.out.println("-- for reference, routes is: " + routes);
         String matchedRoute = null;
         int index = 99;
         if (routeSignifier == null) {
@@ -1333,6 +1633,9 @@ public class MapController {
                         counter++;
                     }
 
+
+
+
                     // If no assigned route found, assign a new one
                     if (matchedRoute == null) {
                         matchedRoute = "Route " + (routes.size() + 1);
@@ -1350,18 +1653,26 @@ public class MapController {
             }
         }
 
+
         // Add stop to the selected route
         routes.get(matchedRoute).add(rental);
         latestRouteEdited = routes.get(matchedRoute);
         // Update UI for the route
         updateRoutePane(matchedRoute, rental, "insertion", 99, index, "user");
-        System.out.println("added stop to route and routeAssignments is: " + routeAssignments);
     }
 
+
+
+
+
+
+
+
     private void addTruckToRoute(String routeSignifier, String truckSignifier, String agent) {
-        double[] truck = getTruckByNumber(truckSignifier);
+        double[] truck = truckCoords.get(truckSignifier);
         String matchedRoute = null;
         int index = 0;
+
 
         // If not a driver initial, treat it as a route name directly
         if (matchedRoute == null && routes.containsKey(routeSignifier)) {
@@ -1369,18 +1680,23 @@ public class MapController {
             index = wordToNumber(matchedRoute.replace("route","")) - 1;
         }
 
-        String city = getCityFromCoordinates(truck[0], truck[1]);
 
+        String city = getCityFromCoordinates(truck[0], truck[1]);
         Rental truckLocation = new Rental(null, "'" + truckSignifier, null,
             null, null, null, null, false,
             "", city, "", 0,
             null, false, 0, null, null, truck[0],
-            truck[1], "");
+            truck[1], "", "");
+
 
         routes.get(matchedRoute).add(0, truckLocation);
         truckAssignments.put(truckSignifier, routeSignifier);
+        
         updateRoutePane(matchedRoute, truckLocation, "insertion-truck", 0, index, agent);
+        
     }
+
+
 
 
     private void removeFromRoute(Rental rental, int closestMultiple, int routeIndex) {
@@ -1397,19 +1713,98 @@ public class MapController {
             return;
         }
 
+
         if (closestMultiple < 0 || closestMultiple >= stopList.size()) {
             System.out.println("closestMultiple out of bounds. Exiting method.");
             return;
         }
-
         Rental removed = stopList.remove(closestMultiple);
         removeCardCovers();
         updateRoutePane(routeKey, rental, "deletion", closestMultiple, routeIndex, "user");
     }
     
 
+    private void editRouteInventory(Rental rental, int index, int routeKey) {
+        printRouteVBoxPaneSummary();
+        StackPane vboxPane = routeVBoxPanes.get(routeKey);
+        StackPane hboxPane = routeHBoxPanes.get(routeKey);
+    
+        if (vboxPane == null) {
+            System.out.println("vboxPane is null for routeKey: " + routeKey);
+            return;
+        }
+    
+        if (hboxPane == null) {
+            System.out.println("hboxPane is null for routeKey: " + routeKey);
+            return;
+        }
+    
+    
+        if (!vboxPane.getChildren().isEmpty()) {
+            Node firstChild = vboxPane.getChildren().get(0);
+    
+            if (firstChild instanceof Parent parent) {
+    
+                int routeIndex = 1;
+                for (Node node : parent.getChildrenUnmodifiable()) {
+                    System.out.println(index++ + ". " + describeNode(node));
+                }
+    
+                Map<String, List<Node>> grouped = new LinkedHashMap<>();
+                for (Node node : parent.getChildrenUnmodifiable()) {
+                    String key = node.getClass().getSimpleName();
+                    grouped.computeIfAbsent(key, k -> new ArrayList<>()).add(node);
+                }
+    
+                for (Map.Entry<String, List<Node>> entry : grouped.entrySet()) {
+                    System.out.println("\n" + entry.getKey() + "s:");
+                    for (Node node : entry.getValue()) {
+                        System.out.println(" - " + describeNode(node));
+                    }
+                }
+            } else {
+            }
+        } else {
+        }
+    }
+    
+
+    private String describeNode(Node node) {
+        String id = node.getId() != null ? "id='" + node.getId() + "'" : "no id";
+        String type = node.getClass().getSimpleName();
+        String text = "";
+
+        // Try to extract meaningful text content
+        if (node instanceof Labeled labeled) {
+            text = ", text='" + labeled.getText() + "'";
+        } else if (node instanceof TextInputControl input) {
+            text = ", text='" + input.getText() + "'";
+        }
+
+        return type + " (" + id + text + ")";
+    }
+
+
+    private void printRouteVBoxPaneSummary() {
+        System.out.println("\n--- routeVBoxPanes summary ---");
+        for (int i = 0; i < routeVBoxPanes.size(); i++) {
+            StackPane pane = routeVBoxPanes.get(i);
+            System.out.println("Index " + i + ": StackPane with " + pane.getChildren().size() + " children");
+    
+            for (int j = 0; j < pane.getChildren().size(); j++) {
+                Node child = pane.getChildren().get(j);
+                System.out.println("  " + (j + 1) + ". " + describeNode(child));
+            }
+        }
+        System.out.println("--- End summary ---\n");
+    }
+        
+    
+
+
     private void updateRoutePane(String routeName, Rental rental, String orientation,
                                 int closestMultiple, int index, String agent) {
+
 
         /*
         System.out.println("Updating route pane with: " +
@@ -1420,6 +1815,7 @@ public class MapController {
             "\n- index: " + index + 
             "-------------------------");
         */
+
 
         int tempIndex = index;
         if (orientation.equals("insertion") && agent.equals("user")) {
@@ -1450,6 +1846,11 @@ public class MapController {
         Label driverLabelV = driverLabelsV.get(numeralRouteName);
         Label driverLabelH = driverLabelsH.get(numeralRouteName);
         boolean hasTruckAssigned = truckAssignments.containsValue(routeName);
+        List<Integer> intervalList = intervals.get(routeName);
+        List<String> polylineList = encodedPolylines.get(routeName);
+        StackPane pictoralTruckV = pictoralTrucksV.get(numeralRouteName);
+        StackPane pictoralTruckH = pictoralTrucksH.get(numeralRouteName);
+        
 
         if (orientation.equals("insertion")) {
             if (routeSize == 1) {
@@ -1597,17 +1998,12 @@ public class MapController {
                     squareContainerV.getChildren().add(imageViewV);
                     StackPane.setAlignment(imageViewV, Pos.BOTTOM_LEFT);
                     imageViewV.toFront();
-
                     squareContainerH.getChildren().add(imageViewH);
                     StackPane.setAlignment(imageViewH, Pos.TOP_RIGHT);
                     imageViewH.toFront();
-
                     routeVBoxPane.getChildren().addAll(squareContainerV);
                     routeHBoxPane.getChildren().addAll(squareContainerH);
-
                     anchorPane.getChildren().add(routeVBoxPane);
-
-
                 }
             } else {
                 Rental firstRental = route.get(routeSize - 2);
@@ -1621,7 +2017,15 @@ public class MapController {
                     //System.out.println("Google Results: " + googleResults[0] + ", " + googleResults[1]);
                 } catch (Exception e) {
                 }
-            
+
+
+                String driveTimeStr = googleResults[0].replace("s", "");
+                int driveTimeInSeconds = Integer.parseInt(driveTimeStr);
+                int driveTimeInMinutes = (int) Math.round(driveTimeInSeconds / 60.0);
+                
+                intervalList.add(driveTimeInMinutes);
+
+
                 // Check if the intermediary VBox is created correctly
                 Region intermediaryRegionV = createStopIntermediary(googleResults[0], colors, "vertical");
                 Region intermediaryRegionH = createStopIntermediary(googleResults[0], colors, "horizontal");
@@ -1662,12 +2066,15 @@ public class MapController {
             //    intermediaryH.setClip(new Rectangle(45, 30));
 
                 //drawRoutePolyline(googleResults[1], colors);
-                encodedPolylines.get("route" + (index + 1)).add(googleResults[1]);
+                polylineList.add(googleResults[1]);
                 //  storedEncodedPolylines.add(googleResults[1]);
                 updateRoutePolylines();
                 routeVBoxPane.toFront();
                 routeVBox.toFront();
             }
+
+
+
 
             StackPane rentalChunkV = createRentalChunk(rental, colors, "vertical", routeName, closestMultiple);
             StackPane rentalChunkH = createRentalChunk(rental, colors, "horizontal", routeName, closestMultiple);
@@ -1685,38 +2092,35 @@ public class MapController {
         } else if (orientation.equals("deletion")) {
             int accountForTruck = hasTruckAssigned ? -1 : 0;
 
-            // System.out.println("***///  truckAssignments: " + truckAssignments + "///***"); 
-            // System.out.println("📦 routeVBoxPane children BEFORE deletion:");
-            // ObservableList<Node> children = routeVBoxPane.getChildren();
-            
-            // // Print each child
-            // for (int i = 0; i < children.size(); i++) {
-            //     System.out.println("    [" + i + "] " + children.get(i));
-            // }
-            
-            // // Section break
-            // System.out.println("\n──────────── Grouped by Type ────────────");
-            
-            // // Group by class simple name
-            // Map<String, List<Node>> grouped = new TreeMap<>();
-            // for (Node child : children) {
-            //     String type = child.getClass().getSimpleName();
-            //     grouped.computeIfAbsent(type, k -> new ArrayList<>()).add(child);
-            // }
-            
-            // // Print each group
-            // for (String type : grouped.keySet()) {
-            //     System.out.println("• " + type + "s:");
-            //     for (Node child : grouped.get(type)) {
-            //         System.out.println("    - " + child);
-            //     }
-            // }
-            
-            // System.out.println("closestMultiple is: " + closestMultiple);
-            // System.out.println("routeSize is:" + routeSize);
-            // System.out.println("routeName is: " + routeName);
-            // System.out.println("does truckAssignments contain routeName?: " + 
-            //     truckAssignments.containsValue(routeName));
+            ////////////// Print System for child/parent shifting ////////////////
+     //      System.out.println("***///  truckAssignments: " + truckAssignments + "///***"); 
+     /*       System.out.println("📦 routeVBoxPane children BEFORE deletion:");
+            ObservableList<Node> children = routeVBoxPane.getChildren();
+            // Print each child
+            for (int i = 0; i < children.size(); i++) {
+                System.out.println("    [" + i + "] " + children.get(i));
+            }
+            // Section break
+            System.out.println("\n──────────── Grouped by Type ────────────");
+            // Group by class simple name
+            Map<String, List<Node>> grouped = new TreeMap<>();
+            for (Node child : children) {
+                String type = child.getClass().getSimpleName();
+                grouped.computeIfAbsent(type, k -> new ArrayList<>()).add(child);
+            }
+            // Print each group
+            for (String type : grouped.keySet()) {
+                System.out.println("• " + type + "s:");
+                for (Node child : grouped.get(type)) {
+                    System.out.println("    - " + child);
+                }
+            }
+            System.out.println("closestMultiple is: " + closestMultiple);
+            System.out.println("routeSize is:" + routeSize);
+            System.out.println("routeName is: " + routeName);
+            System.out.println("does truckAssignments contain routeName?: " + 
+                truckAssignments.containsValue(routeName));  */
+            /////////////////////////////////////////////////////////////
 
             if (routeSize == 0) {
                 routeVBox.setVisible(false);
@@ -1729,11 +2133,13 @@ public class MapController {
                 if (routeSize == 1) {
                     routeVBoxPane.getChildren().remove(2);
                     routeHBoxPane.getChildren().remove(2);
-                    encodedPolylines.get("route" + (index + 1)).remove(0);
+                    polylineList.remove(0);
+                    intervalList.remove(0);
                     // no longer need for any int's
                 } else if (closestMultiple == 0) {
                     routeVBoxPane.getChildren().remove(2);
                     routeHBoxPane.getChildren().remove(2);
+                    intervalList.remove(0);
                     
                     for (int i = 2; i < routeVBoxPane.getChildren().size(); i++) {
                         Node node = routeVBoxPane.getChildren().get(i);
@@ -1753,7 +2159,7 @@ public class MapController {
                         }
                     }
                     
-                    encodedPolylines.get("route" + (index + 1)).remove(0);
+                    polylineList.remove(0);
                     
                     // shift up other int's
                 } else if (closestMultiple == routeSize) {
@@ -1767,6 +2173,7 @@ public class MapController {
                         }
                     }
 
+
                     // Remove the last HBox from routeHBoxPane
                     for (int i = routeHBoxPane.getChildren().size() - 1; i >= 0; i--) {
                         Node node = routeHBoxPane.getChildren().get(i);
@@ -1776,7 +2183,10 @@ public class MapController {
                         }
                     }
 
-                    encodedPolylines.get("route" + (index + 1)).remove(closestMultiple - 1);
+
+                    polylineList.remove(closestMultiple - 1);
+                    intervalList.remove(closestMultiple - 1);
+                    
                     // no shifting int's
                 } else {
                     routeVBoxPane.getChildren().remove(closestMultiple + 1);
@@ -1802,6 +2212,7 @@ public class MapController {
                         }
                     }
 
+
                     Rental newLinkStart = route.get(closestMultiple - 1/* + accountForTruck*/);
                     Rental newLinkEnd = route.get(closestMultiple/* + accountForTruck*/);
                     String [] newLink = {"unknown", "unknown"};
@@ -1817,57 +2228,56 @@ public class MapController {
                     HBox newIntHBox = (HBox) newIntH;
                     int singleDigitSpacerV = isSingleDigitMinutes(newLink[0]) ? 7 : 0;
                     int singleDigitSpacerH = isSingleDigitMinutes(newLink[0]) ? 10 : 0;
+                    String driveTimeStr = newLink[0].replace("s", "");
+                    int driveTimeInSeconds = Integer.parseInt(driveTimeStr);
+                    int driveTimeInMinutes = (int) Math.round(driveTimeInSeconds / 60.0);
                     newIntVBox.setTranslateY(((closestMultiple) * cardHeightUnit) - 26 + singleDigitSpacerV);
                     newIntHBox.setTranslateY(1);
                     newIntVBox.setTranslateX(-1);
                     newIntHBox.setTranslateX((closestMultiple * cardWidthUnit) - 23 + singleDigitSpacerH);
                     routeVBoxPane.getChildren().set(closestMultiple + 1, newIntVBox);
                     routeHBoxPane.getChildren().set(closestMultiple + 1, newIntHBox);
-
-                    encodedPolylines.get("route" + (index + 1)).remove(closestMultiple - 1/* + accountForTruck*/);
-                  
-                    encodedPolylines.get("route" + (index + 1)).set(closestMultiple - 1/* + accountForTruck*/, newLink[1]);
+                    polylineList.remove(closestMultiple - 1/* + accountForTruck*/);
+                    polylineList.set(closestMultiple - 1/* + accountForTruck*/, newLink[1]);
+                    intervalList.remove(closestMultiple - 1);
+                    intervalList.set(closestMultiple - 1, driveTimeInMinutes);
                     //  VBox vbox = (VBox) routeVBoxPane.getChildren().get(closestMultiple + 1);
-
                     newIntVBox.setClip(new Rectangle(15, 45));
                 }
-                
             updateRoutePolylines();
             }
             routeVBox.getChildren().remove(closestMultiple);
             routeHBox.getChildren().remove(closestMultiple);
-        
 
-            // System.out.println("📦 routeVBoxPane children AFTER deletion:");
-            // ObservableList<Node> children2 = routeVBoxPane.getChildren();
+            ////////////// Print System for child/parent shifting ////////////////
+    /*      System.out.println("📦 routeVBoxPane children AFTER deletion:");
+            ObservableList<Node> children2 = routeVBoxPane.getChildren();
+            // Print each child
+            for (int i = 0; i < children2.size(); i++) {
+                System.out.println("    [" + i + "] " + children2.get(i));
+            }
+            // Section break
+            System.out.println("\n──────────── Grouped by Type ────────────");
+            // Group by class simple name
+            Map<String, List<Node>> grouped2 = new TreeMap<>();
+            for (Node child : children2) {
+                String type = child.getClass().getSimpleName();
+                grouped2.computeIfAbsent(type, k -> new ArrayList<>()).add(child);
+            }
+            // Print each group
+            for (String type : grouped2.keySet()) {
+                System.out.println("• " + type + "s:");
+                for (Node child : grouped2.get(type)) {
+                    System.out.println("    - " + child);
+                }
+            } */
+            ///////////////////////////////////////////////////
 
-            // // Print each child
-            // for (int i = 0; i < children2.size(); i++) {
-            //     System.out.println("    [" + i + "] " + children2.get(i));
-            // }
 
-            // // Section break
-            // System.out.println("\n──────────── Grouped by Type ────────────");
-
-            // // Group by class simple name
-            // Map<String, List<Node>> grouped2 = new TreeMap<>();
-            // for (Node child : children2) {
-            //     String type = child.getClass().getSimpleName();
-            //     grouped2.computeIfAbsent(type, k -> new ArrayList<>()).add(child);
-            // }
-
-            // // Print each group
-            // for (String type : grouped2.keySet()) {
-            //     System.out.println("• " + type + "s:");
-            //     for (Node child : grouped2.get(type)) {
-            //         System.out.println("    - " + child);
-            //     }
-            // }
-
-           // System.out.println("routeName: " + routeName);
+            System.out.println("routeName: " + routeName);
             // delete truck assignment in memory and assignment ui elements
             // TODO: drop driver assignment as well
-            // System.out.println("truckAssignments is: " + truckAssignments);
+            System.out.println("truckAssignments is: " + truckAssignments);
             if (closestMultiple == 0 && truckAssignments.containsValue(routeName)) {
                 System.out.println("Going to try to wipe off pinpointers");
                 for (Map.Entry<String, String> entry : truckAssignments.entrySet()) {
@@ -1906,52 +2316,57 @@ public class MapController {
                 }
             }            
 
+
             String[] googleResults = {"unknown", "unknown"};
             try {
                 googleResults = getGoogleRoute(firstRental.getLatitude(), firstRental.getLongitude(),
                                                 secondRental.getLatitude(), secondRental.getLongitude());
                 // Check googleResults after fetching
-                //System.out.println("Google Results: " + googleResults[0] + ", " + googleResults[1]);
+                // System.out.println("Google Results: " + googleResults[0] + ", " + googleResults[1]);
             } catch (Exception e) {
             }
+            String driveTimeStr = googleResults[0].replace("s", "");
+            int driveTimeInSeconds = Integer.parseInt(driveTimeStr);
+            int driveTimeInMinutes = (int) Math.round(driveTimeInSeconds / 60.0);
 
             // Check if the intermediary VBox is created correctly
             Region intermediaryRegionV = createStopIntermediary(googleResults[0], colors, "vertical");
             Region intermediaryRegionH = createStopIntermediary(googleResults[0], colors, "horizontal");
             VBox intermediaryV = (VBox) intermediaryRegionV;
             HBox intermediaryH = (HBox) intermediaryRegionH;
-
             int singleDigitSpacerV = isSingleDigitMinutes(googleResults[0]) ? 7 : 0;
             int singleDigitSpacerH = isSingleDigitMinutes(googleResults[0]) ? 10 : 0;
 
             routeVBoxPane.getChildren().add(2, intermediaryV);
             routeHBoxPane.getChildren().add(2, intermediaryH);
-
-            // System.out.println("routeVBoxPane children:");
-            // for (Node node : routeVBoxPane.getChildren()) {
-            //     System.out.println(" - " + node);
-            // }
+/*
+            System.out.println("routeVBoxPane children:");
+            for (Node node : routeVBoxPane.getChildren()) {
+                System.out.println(" - " + node);
+            }
             
-            // System.out.println("routeHBoxPane children:");
-            // for (Node node : routeHBoxPane.getChildren()) {
-            //     System.out.println(" - " + node);
-            // }       
+            System.out.println("routeHBoxPane children:");
+            for (Node node : routeHBoxPane.getChildren()) {
+                System.out.println(" - " + node);
+            }      */  
 
             intermediaryV.setTranslateY((cardHeightUnit) - 26 + singleDigitSpacerV);
             intermediaryH.setTranslateY(8);
             intermediaryV.setTranslateX(-1);
             intermediaryH.setTranslateX((cardWidthUnit) - 27 + singleDigitSpacerH);
-
             intermediaryV.setClip(new Rectangle(15, 45));
 
+
             //drawRoutePolyline(googleResults[1], colors);
-            encodedPolylines.get("route" + (index + 1)).add(0, googleResults[1]);
+            polylineList.add(0, googleResults[1]);
+            intervalList.add(0, driveTimeInMinutes);
             //  storedEncodedPolylines.add(googleResults[1]);
             updateRoutePolylines();
         
             routeVBoxPane.toFront();
             routeVBox.toFront();
             intermediaryH.toFront();
+
 
             StackPane rentalChunkV = createRentalChunk(rental, colors, "vertical-truck", routeName, closestMultiple);
             StackPane rentalChunkH = createRentalChunk(rental, colors, "horizontal-truck", routeName, closestMultiple);
@@ -1962,30 +2377,94 @@ public class MapController {
             rentalChunkH.setTranslateX(5);
             rentalChunkV.setTranslateY(3);
 
+
             // V variant
             pinpointerV.setFill(Color.web(colors[0]));
-            pinpointerV.setTranslateX(-20);
+            pinpointerV.setTranslateX(-22);
+            pinpointerV.setOnMouseEntered(event -> {
+                innerPinpointerV.setFill(Color.web(colors[0]));
+                if (routeName.equals("route2")) driverLabelV.setTextFill(Color.WHITE);
+                else if (routeName.equals("route3")) driverLabelV.setTextFill(Color.web(colors[1]));
+            });
+            pinpointerV.setOnMouseExited(event -> {
+                innerPinpointerV.setFill(Color.web(colors[1]));
+                driverLabelV.setTextFill(Color.web(colors[2]));
+            });
             pinpointerV.setOnMouseClicked(event -> {
                 removeCardCovers();
-                System.out.println("pinpointer registered a click");
                 handleDriverExpander(routeName, numeralRouteName, colors, "vertical");
                 event.consume();
             });
 
-            innerPinpointerV.setFill(Color.web(colors[1]));
-            innerPinpointerV.setTranslateX(-20);
-            innerPinpointerV.setMouseTransparent(true);
 
+            innerPinpointerV.setFill(Color.web(colors[1]));
+            innerPinpointerV.setTranslateX(-22);
+            innerPinpointerV.setMouseTransparent(true);
             driverLabelV.setTextFill(Color.web(colors[2]));
             driverLabelV.setStyle("-fx-font-weight: bold");
-            driverLabelV.setTranslateX(-20);
+            driverLabelV.setTranslateX(-22);
             driverLabelV.setMouseTransparent(true);
 
-            routeVBoxPane.getChildren().addAll(pinpointerV, innerPinpointerV, driverLabelV);
+
+            Rectangle truckCatcherV = new Rectangle(85, 26);
+            truckCatcherV.setFill(Color.TRANSPARENT);
+            truckCatcherV.setTranslateX(17);
+            truckCatcherV.setTranslateY(5);
+            StackPane.setAlignment(truckCatcherV, Pos.TOP_LEFT);
+
+
+            // new image views
+            Image originalFlatbedImage = new Image(getClass().getResourceAsStream("/images/flatbed.png"));
+            Image infoFlatbedImage = new Image(getClass().getResourceAsStream("/images/flatbed-info.png"));
+
+
+            Image modifiedBase = changePixelColor(originalFlatbedImage, colors);
+            Image modifiedHover = changePixelColor(infoFlatbedImage, colors);
+
+            
+            ImageView imageViewV = new ImageView(modifiedBase);
+            imageViewV.setFitWidth(98);
+            imageViewV.setFitHeight(25);
+            imageViewV.setMouseTransparent(true);
+            
+            pictoralTruckV.getChildren().removeAll();
+            pictoralTruckV.getChildren().add(imageViewV);
+            pictoralTruckV.setMouseTransparent(true);
+            pictoralTruckV.setTranslateX(13);
+            pictoralTruckV.setTranslateY(6);
+            // pictoralTruckV.setMaxHeight(25);
+            // pictoralTruckV.setMaxWidth(82);
+            StackPane.setAlignment(pictoralTruckV, Pos.TOP_LEFT);
+
+
+            ImageView imageViewH = new ImageView(modifiedBase);
+            imageViewH.setFitWidth(82);
+            imageViewH.setFitHeight(25);
+            imageViewH.setTranslateY(-2);
+            imageViewH.setTranslateX(10);
+            imageViewH.setMouseTransparent(true);
+            StackPane.setAlignment(imageViewH, Pos.CENTER_LEFT);
+
+
+            // truckCatcherV.setOnMouseEntered(e -> showDetailedTruck(pictoralTruckV, imageViewV, modifiedHover, routeName));
+            // truckCatcherV.setOnMouseExited(e -> showDefaultTruck(pictoralTruckV, imageViewV, modifiedBase, routeName));
+
+
+            routeVBoxPane.getChildren().addAll(pinpointerV, innerPinpointerV, driverLabelV, truckCatcherV, pictoralTruckV);
+
 
             // H variant
             pinpointerH.setFill(Color.web(colors[0]));
             pinpointerH.setTranslateY(20);
+            pinpointerH.setOnMouseEntered(event -> {
+                innerPinpointerH.setFill(Color.web(colors[0]));
+                if (routeName.equals("route2")) driverLabelH.setTextFill(Color.WHITE);
+                else if (routeName.equals("route3")) driverLabelH.setTextFill(Color.web(colors[1]));
+            });
+            pinpointerH.setOnMouseExited(event -> {
+                innerPinpointerH.setFill(Color.web(colors[1]));
+                driverLabelH.setTextFill(Color.web(colors[2]));
+            });
             pinpointerH.setOnMouseClicked(event -> {
                 removeCardCovers();
                 System.out.println("pinpointer registered a click");
@@ -1996,37 +2475,33 @@ public class MapController {
             innerPinpointerH.setFill(Color.web(colors[1]));
             innerPinpointerH.setTranslateY(20);
             innerPinpointerH.setMouseTransparent(true);
-
             driverLabelH.setTextFill(Color.web(colors[2]));
             driverLabelH.setStyle("-fx-font-weight: bold");
             driverLabelH.setTranslateY(20);
             driverLabelH.setMouseTransparent(true);
 
-            routeHBoxPane.getChildren().addAll(pinpointerH, innerPinpointerH, driverLabelH);
+
+            // new image views
+
+
+            routeHBoxPane.getChildren().addAll(pinpointerH, innerPinpointerH, driverLabelH, imageViewH);
         }
         
         routeVBox.toBack();
         routeHBox.toBack();
-
         routeSize = route.size();
-
         routeVBoxPane.setPrefWidth(112);
         routeVBoxPane.setPrefHeight((routeSize * cardHeightUnit) + 1);
-        
         routeHBoxPane.setPrefHeight(69);
         routeHBoxPane.setPrefWidth((routeSize * cardWidthUnit) - 6);
-
         int timelineOffsetY = -((routeSize - 1) * (cardHeightUnit / 2)) + 11;
         pinpointerV.setTranslateY(timelineOffsetY);
         innerPinpointerV.setTranslateY(timelineOffsetY);
         driverLabelV.setTranslateY(timelineOffsetY);
-
         int timelineOffsetX = -((routeSize - 1) * (cardWidthUnit / 2)) - 27;
         pinpointerH.setTranslateX(timelineOffsetX);
         innerPinpointerH.setTranslateX(timelineOffsetX);
         driverLabelH.setTranslateX(timelineOffsetX);
-
-        
         routeVBoxPane.setClip(new Rectangle(112, routeSize * cardHeightUnit + 28));
         routeHBoxPane.setClip(new Rectangle((routeSize * cardWidthUnit) + 20, 85));
     
@@ -2034,6 +2509,8 @@ public class MapController {
             syncRoutingToDB();
         }
     }
+
+
 
     // Creates a visually distinct "chunk" for each Rental stop
     private StackPane createRentalChunk(Rental rental, String[] colors, String orientation, String routeName, int closestMultiple) {
@@ -2056,6 +2533,7 @@ public class MapController {
             }
         }
 
+
         double endX = (orientation.equals("vertical") || orientation.equals("vertical-truck")) ? 0 : 1;
         double endY = (orientation.equals("vertical") || orientation.equals("vertical-truck")) ? 1 : 0;
         
@@ -2074,6 +2552,7 @@ public class MapController {
             new Stop(1.0, Color.web(colors[0]))        
         );
 
+
         if (orientation.equals("vertical") || orientation.equals("horizontal")) {
             // Set the background gradient
             labelBox.setBackground(new Background(new BackgroundFill(gradient, CornerRadii.EMPTY, Insets.EMPTY)));
@@ -2082,30 +2561,50 @@ public class MapController {
             labelBox.setStyle("-fx-padding: 5;");
 
             // Character limit for truncation (increased to fit the new width)
-            int charLimit = 14; // Adjusted for 95px width
+            int charLimit = orientation.equals("vertical") ? 20 : 17; // Adjusted for 95px width
+            int sidePadding = orientation.equals("vertical") ? -2 : 1;
 
-            // Create labels with truncation and set padding for left/right buffer
-            Label nameLabel = new Label(truncateText(rental.getName(), charLimit));
- //           System.out.println("the truck rental getName was: " + rental.getName());
-            nameLabel.setStyle("-fx-text-fill: " + colors[2] + "; -fx-font-weight: bold;");
-            nameLabel.setMaxWidth(95); // Updated width limit
-            nameLabel.setPadding(new Insets(0, 4, 0, 4)); // Add buffer on left/right
+            // Create labels with width-based truncation and set padding for left/right buffer
+            Font boldFont = Font.font("System", FontWeight.BOLD, 12);
+            Font regularFont = Font.font("System", 12);
+            double maxLabelWidth = orientation.equals("vertical") ? 101 : 86;
+            double cityLineDeduction = orientation.equals("verical") ? 26 : 20;
 
-            Label address2 = new Label(truncateText(rental.getAddressBlockTwo(), charLimit));
+            // Name label (bold)
+            String rawName = Config.CUSTOMER_NAME_MAP.getOrDefault(rental.getName(), rental.getName());
+            String name = rawName.replace(".", "");
+            Label nameLabel = new Label(truncateTextToWidth(name, maxLabelWidth, boldFont));
+            nameLabel.setFont(boldFont);
+            nameLabel.setStyle("-fx-text-fill: " + colors[2] + ";");
+            nameLabel.setMaxWidth(maxLabelWidth);
+            nameLabel.setPadding(new Insets(0, sidePadding, 0, sidePadding));
+
+            // Address block two (regular)
+            Label address2 = new Label(truncateTextToWidth(rental.getAddressBlockTwo(), maxLabelWidth, regularFont));
+            address2.setFont(regularFont);
             address2.setStyle("-fx-text-fill: " + colors[2] + ";");
-            address2.setMaxWidth(95);
-            address2.setPadding(new Insets(0, 4, 0, 4)); // Add buffer on left/right
+            address2.setMaxWidth(maxLabelWidth);
+            address2.setPadding(new Insets(0, sidePadding - 2, 0, sidePadding));
 
-            Label address3 = new Label(truncateText(rental.getAddressBlockThree(), 7));
+            // Address block three (regular, conditional padding/limit preserved)
+            Label address3 = new Label(truncateTextToWidth(rental.getAddressBlockThree(), maxLabelWidth - cityLineDeduction, regularFont));
+            address3.setFont(regularFont);
             address3.setStyle("-fx-text-fill: " + colors[2] + ";");
-            address3.setMaxWidth(95);
-            address3.setPadding(new Insets(0, 4, 0, 4)); // Add buffer on left/right
+            address3.setMaxWidth(maxLabelWidth);
+            address3.setPadding(new Insets(0, sidePadding, 0, sidePadding));
+
+            if (orientation.equals("horizontal")) {
+                nameLabel.setTranslateX(-2);
+                address2.setTranslateX(-2);
+                address3.setTranslateX(-2);
+            }
 
             Label liftType = new Label(rental.getLiftType());
             rentalChunk.getChildren().add(liftType);
             liftType.setAlignment(Pos.BOTTOM_RIGHT);
             liftType.setStyle("-fx-font-weight: bold; -fx-text-fill: " + colors[2] + ";");
-            liftType.setTranslateX(-8);
+            int liftTypeTranslateX = orientation.equals("vertical") ? -3 : -8;
+            liftType.setTranslateX(liftTypeTranslateX);
             StackPane.setAlignment(liftType, Pos.BOTTOM_RIGHT);
             if (orientation.equals("horizontal") || orientation.equals("horizontal-truck")) {
                 liftType.setTranslateY(-17);
@@ -2117,50 +2616,6 @@ public class MapController {
 
         } else if (orientation.equals("horizontal-truck") || orientation.equals("vertical-truck")) {
             truckPane.setBackground(new Background(new BackgroundFill(gradient, CornerRadii.EMPTY, Insets.EMPTY)));
-
-            Image originalFlatbedImage = new Image(getClass().getResourceAsStream("/images/flatbed.png"));
-
-            int width = (int) originalFlatbedImage.getWidth();
-            int height = (int) originalFlatbedImage.getHeight();
-            
-            PixelReader pixelReader = originalFlatbedImage.getPixelReader();
-            WritableImage modifiedImage = new WritableImage(width, height);
-            PixelWriter pixelWriter = modifiedImage.getPixelWriter();
-            
-            Color contentColor = Color.web(colors[2]); 
-            
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
-                    Color pixelColor = pixelReader.getColor(x, y);
-            
-                    // Preserve full transparency
-                    if (pixelColor.getOpacity() == 0.0) {
-                        pixelWriter.setColor(x, y, pixelColor);
-                        continue;
-                    }
-            
-                    // If pixel is near black, keep it as content color
-                    if (isNearBlack(pixelColor)) {
-                        pixelWriter.setColor(x, y, contentColor);
-                    }
-            
-                    // Otherwise, keep the pixel as-is
-                    else {
-                        pixelWriter.setColor(x, y, pixelColor);
-                    }
-                }
-            }
-            
-            ImageView imageView = new ImageView(modifiedImage);
-            
-            imageView.setFitWidth(82);
-            imageView.setFitHeight(25);
-            // imageView.setTranslateX(13);
-            imageView.setTranslateY(8);
-            truckPane.getChildren().add(imageView);
-            //modifiedImage.setAlignment(Pos.CENTER);
-            StackPane.setAlignment(imageView, Pos.TOP_CENTER);
-
             int timelineCapRange = cardWidthUnit / 2 - 10;
             Circle leftTimelineCap = new Circle(4, Color.web(colors[0]));
             Circle rightTimelineCap = new Circle(4, Color.web(colors[0]));
@@ -2172,8 +2627,9 @@ public class MapController {
             timeline.setTranslateY(14);
             timeline.setStroke(Color.web(colors[0]));
             Label truckLabel = new Label("'##");
-            truckLabel.setTranslateX(timelineCapRange - 9);
-            truckLabel.setTranslateY(-12);
+            truckLabel.setTranslateX(orientation.equals("horizontal-truck") ? timelineCapRange - 8 : timelineCapRange - 3);
+            truckLabel.setTranslateY(orientation.equals("horizontal-truck") ? -14 : -12);
+            Color contentColor = Color.web(colors[2]); 
             truckLabel.setTextFill(contentColor);
             truckLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 9px");
             DropShadow glow = new DropShadow();
@@ -2188,6 +2644,7 @@ public class MapController {
         }
         return rentalChunk;
     }
+
 
     private Region createStopIntermediary(String driveTimeStr, String[] colors, String orientation) {
         // Extract and convert drive time
@@ -2268,17 +2725,45 @@ public class MapController {
     }
     
     
-    private StackPane createCardOptionsCover(Rental rental, int closestMultiple, double x, double y, int routeIndex) {
+    private StackPane createCardOptionsCover(Rental rental, int closestMultiple, double x, double y, int routeIndex, String orientation) {
+        double buttonCoverHeight;
+        double buttonCoverWidth;
+        double centerX;
+        double centerY;
+        double leftCardCenterX;
+        double rightCardCenterX;
+
+        if (orientation.equals("vertical")) {
+            buttonCoverHeight = cardHeightUnit - 8;
+            buttonCoverWidth = cardWidthUnit / 2;
+            centerX = 1;
+            centerY = -4;
+            leftCardCenterX = (-cardWidthUnit / 4) + 1;
+            rightCardCenterX = (cardWidthUnit / 4) + 1;
+        } else {
+            buttonCoverHeight = cardHeightUnit;
+            buttonCoverWidth = (cardWidthUnit / 2) - 8;
+            centerX =  -3;
+            centerY = 2;
+            leftCardCenterX = (-cardWidthUnit) / 4;
+            rightCardCenterX = ((cardWidthUnit - 16) / 4) - 3; 
+        }
+        
+        
         // Create the cover rectangle
-        Rectangle cover = new Rectangle(cardWidthUnit - 14, cardHeightUnit);
-        cover.setFill(Color.web("#F4F4F4"));
-        cover.setOpacity(0.75); // Adjust opacity to make it slightly transparent
-    
+        Rectangle deleteCover = new Rectangle(buttonCoverWidth, buttonCoverHeight);
+        deleteCover.setFill(Color.web("#F4F4F4"));
+        deleteCover.setOpacity(0.75); // Adjust opacity to make it slightly transparent
+        deleteCover.setTranslateX(rightCardCenterX);
+        deleteCover.setTranslateY(centerY);
+
         // Load the delete icon from resources
         Image deleteImage = new Image(getClass().getResource("/images/delete.png").toExternalForm());
         ImageView deleteIcon = new ImageView(deleteImage);
         deleteIcon.setFitWidth(30);  // Adjust size as needed
         deleteIcon.setFitHeight(30);
+        deleteIcon.setTranslateX(rightCardCenterX);
+        deleteIcon.setTranslateY(centerY);
         
         deleteIcon.setOnMouseClicked(event -> {
             removeFromRoute(rental, closestMultiple, routeIndex);
@@ -2286,12 +2771,46 @@ public class MapController {
         deleteIcon.setPickOnBounds(true);
         deleteIcon.setMouseTransparent(false);
 
+        // Create a thin vertical line as a visual separator
+        Line separatorLine = new Line(0, 0, 0, buttonCoverHeight);
+        separatorLine.setStroke(Color.BLACK);
+        separatorLine.setStrokeWidth(1);
+        separatorLine.setTranslateX(centerX);  // Centered between the covers
+        separatorLine.setTranslateY(centerY);
+
+        Rectangle expandCover = new Rectangle(buttonCoverWidth, buttonCoverHeight);
+        expandCover.setFill(Color.web("#F4F4F4"));
+        expandCover.setOpacity(0.75);
+        expandCover.setTranslateX(leftCardCenterX);
+        expandCover.setTranslateY(centerY);
+
+        Image expandImage = new Image(getClass().getResource("/images/expand.png").toExternalForm());
+        ImageView expandIcon = new ImageView(expandImage);
+        expandIcon.setFitWidth(30);
+        expandIcon.setFitHeight(30);
+        expandIcon.setTranslateX(leftCardCenterX);
+        expandIcon.setTranslateY(centerY);
+        expandIcon.setPickOnBounds(true);
+
+        expandIcon.setOnMouseClicked(event -> {
+            try {
+                BaseController active = MaxReachPro.getCurrentController();
+                ObservableList<Rental> currentList = (active != null) ? active.getActiveRentalList() : null;
+                removeCardCovers();
+                MaxReachPro.setRentalForExpanding(rental, currentList);
+                MaxReachPro.loadScene("/fxml/expand.fxml");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }     
+        });
+
         // Add a glow effect
         Glow glow = new Glow(0.8);  // Adjust intensity (0 to 1)
         deleteIcon.setEffect(glow);
+        expandIcon.setEffect(glow);
     
         // StackPane to center the image on the rectangle
-        StackPane stack = new StackPane(cover, deleteIcon/*,
+        StackPane stack = new StackPane(deleteCover, deleteIcon, separatorLine, expandCover, expandIcon/*,
              new Label(String.valueOf(closestMultiple) + " & x,y: " + x + "," + y)*/);
         stack.setAlignment(Pos.CENTER);
         stack.setFocusTraversable(true);
@@ -2299,6 +2818,7 @@ public class MapController {
         stack.setPickOnBounds(false);
         return stack;
     }
+
 
 
     private void removeCardCovers() {
@@ -2477,15 +2997,21 @@ public class MapController {
 
 
         for (Map.Entry<String, String> entry : truckAssignments.entrySet()) {
-
         }
-
         removeCardCovers();
         if (truckAssignments.containsValue(routeName)) {    
             removeFromRoute(routes.get(routeName).get(0), 0, getRouteIndex(routeName));
         } 
 
+
+
+
+        System.out.println("Making it to just before addTruckToRoute on handleAssignTruck");
         addTruckToRoute(routeName, labelString, "user");
+        System.out.println("Made it through addTruckToRoute");
+
+
+
 
         Node cardsNode = routePane.getChildren().get(0);
         if (cardsNode instanceof VBox || cardsNode instanceof HBox) {
@@ -2557,7 +3083,7 @@ public class MapController {
                 label.setOnMouseExited(e -> label.setStyle("-fx-font-size: 10px; -fx-text-fill: " + colors[1] + "; -fx-font-weight: bold"));
             
                 // Click action
-                label.setOnMouseClicked(e -> handleAssignDriver(vboxPane, initials, numeralRouteName));
+                label.setOnMouseClicked(e -> handleAssignDriver(vboxPane, initials, numeralRouteName, colors));
             
                 labelColumn.getChildren().add(label);
             }
@@ -2565,7 +3091,7 @@ public class MapController {
             vboxPane.getChildren().add(labelColumn);
             StackPane.setAlignment(labelColumn, Pos.CENTER_LEFT);
         
-            System.out.println("finished the vertical part of handledriverexpander");
+        //    System.out.println("finished the vertical part of handledriverexpander");
         
         } else if (orientation.equals("horizontal")) {
             lastSideBarCover = makeSideBarCover(width, 14, colors);
@@ -2595,7 +3121,7 @@ public class MapController {
                 label.setOnMouseExited(e -> label.setStyle("-fx-font-size: 14px; -fx-text-fill: " + colors[1] + "; -fx-font-weight: bold"));
             
                 // Click action
-                label.setOnMouseClicked(e -> handleAssignDriver(vboxPane, initials, numeralRouteName));
+                label.setOnMouseClicked(e -> handleAssignDriver(vboxPane, initials, numeralRouteName, colors));
             
                 labelRow.getChildren().add(label);
             }
@@ -2606,129 +3132,12 @@ public class MapController {
        
         }
         
-
-        
-    }
-
-    /*                                    /*
-     *              PROGRESS               *
-    /*                                     */
-
-    private int DURATION_MINUTES = 1;
-    private int PROGRESS_RANGE_PIXELS = 50;
-
-    private void startAllTruckProgress() {
-        for (Map.Entry<String, String> entry : truckAssignments.entrySet()) {
-            startTruckProgress(entry.getValue());
-        }
-    }
-    
-    private void startTruckProgress(String routeKey) {
-        int routeIndex = getRouteIndex(routeKey);
-        String numeralRouteName = "route" + (routeIndex + 1);
-
-        int steps = DURATION_MINUTES * 60; // 1 step per second
-        double stepPixels = PROGRESS_RANGE_PIXELS / (double) steps;
-
-        Circle pinV = pinpointersV.get(numeralRouteName);
-        Circle innerPinV = innerPinpointersV.get(numeralRouteName);
-        Label labelV = driverLabelsV.get(numeralRouteName);
-
-        Circle pinH = pinpointersH.get(numeralRouteName);
-        Circle innerPinH = innerPinpointersH.get(numeralRouteName);
-        Label labelH = driverLabelsH.get(numeralRouteName);
-
-        // ----------------------------
-        // Animate route card progress
-        // ----------------------------
-        final double[] progress = {0};
-
-        Timeline cardTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
-            if (progress[0] >= PROGRESS_RANGE_PIXELS) return;
-
-            pinV.setTranslateX(pinV.getTranslateX() + stepPixels);
-            innerPinV.setTranslateX(innerPinV.getTranslateX() + stepPixels);
-            labelV.setTranslateX(labelV.getTranslateX() + stepPixels);
-
-            pinH.setTranslateX(pinH.getTranslateX() + stepPixels);
-            innerPinH.setTranslateX(innerPinH.getTranslateX() + stepPixels);
-            labelH.setTranslateX(labelH.getTranslateX() + stepPixels);
-
-            progress[0] += stepPixels;
-        }));
-        cardTimeline.setCycleCount(steps);
-        cardTimeline.play();
-
-        // ----------------------------
-        // Animate map truck movement
-        // ----------------------------
-
-        Optional<String> assignedTruck = truckAssignments.entrySet().stream()
-            .filter(entry -> entry.getValue().equals(routeKey))
-            .map(Map.Entry::getKey)
-            .findFirst();
-
-        if (assignedTruck.isEmpty()) return;
-
-        String truckName = assignedTruck.get();
-        Circle truckCircle = trucks.get(truckName);
-        if (truckCircle == null) return;
-
-        List<String> routeOfPolylines = encodedPolylines.get(numeralRouteName);
-        if (routeOfPolylines == null || routeOfPolylines.isEmpty()) return;
-
-        String encoded = routeOfPolylines.get(0);
-        List<double[]> decodedPoints = decodePolyline(encoded);
-
-        List<Point2D> screenPoints = decodedPoints.stream()
-            .map(latlon -> new Point2D(
-                mapLongitudeToX(latlon[1]),
-                mapLatitudeToY(latlon[0])
-            ))
-            .collect(Collectors.toList());
-
-        if (screenPoints.size() < 2) return;
-
-        final int totalFrames = DURATION_MINUTES * 60;
-        final int totalSegments = screenPoints.size() - 1;
-        final double framesPerSegment = (double) totalFrames / totalSegments;
-        final double[] currentFrame = {0};
-
-        // Optionally: reset truck to starting point
-        Point2D first = screenPoints.get(0);
-        truckCircle.setCenterX(first.getX());
-        truckCircle.setCenterY(first.getY());
-
-        Timeline mapTimeline = new Timeline(new KeyFrame(Duration.seconds(1.0 / 60), e -> {
-            int segmentIndex = (int)(currentFrame[0] / framesPerSegment);
-            if (segmentIndex >= totalSegments) return;
-
-            Point2D start = screenPoints.get(segmentIndex);
-            Point2D end = screenPoints.get(segmentIndex + 1);
-            double segmentProgress = (currentFrame[0] % framesPerSegment) / framesPerSegment;
-
-            double interpX = start.getX() + (end.getX() - start.getX()) * segmentProgress;
-            double interpY = start.getY() + (end.getY() - start.getY()) * segmentProgress;
-
-            truckCircle.setCenterX(interpX);
-            truckCircle.setCenterY(interpY);
-
-            currentFrame[0]++;
-        }));
-
-        mapTimeline.setCycleCount(totalFrames);
-        mapTimeline.play();
     }
 
 
-    
-
-    /*                                    /*
-     *              UTILITIES              *
-    /*                                     */
-
-
-    private void handleAssignDriver(StackPane routePane, String labelString, String routeName) {
+    private void handleAssignDriver(StackPane routePane, String labelString, String routeName, String[] colors) {
+        String truckId = getTruckIdForRoute(routeName);
+        configureTruckDot(labelString, truckId, colors);
         driverLabelsV.forEach((key, label) -> {
             if (!key.equals(routeName) && label.getText().equals(labelString)) {
                 label.setText("");
@@ -2746,13 +3155,463 @@ public class MapController {
         removeCardCovers();
         syncRoutingToDB();
     }
+
+
+    private void showDefaultTruck(StackPane pane, ImageView imageView, Image flatbedImage, String routeName) {
+        imageView.setImage(flatbedImage);
+    }
+
+    private void showDetailedTruck(StackPane pane, ImageView imageView, Image flatbedInfoImage, String routeName) {
+        imageView.setImage(flatbedInfoImage);
+        System.out.println("showDetailedTruck triggered");
+
+    }
+
+    private void editRouteInventory2(Rental rental, int index, int routeIndex, String actionType){
+
+    }
+
     
+
+    /*                                    /*
+     *              PROGRESS               *
+    /*                                     */
+    private void setupLiveDriveProgressions() {
+        Map<String, Double> lastProportions = new HashMap<>();
+    
+        Runnable task = () -> Platform.runLater(() -> {
+            try {
+                Map<String, Double> currentProportions = getProgressReport();
+    
+               //  loadRentalDataFromAPI(); best order of events for getting new rentals added on??
+                // just call routes/prepare more frequently in api
+                // call routes/stops
+                // organize work into background if you can
+
+                // then 
+                // introduce p.u.s on map schema
+
+                // === NEW: Handle completed stops first ===
+                List<Rental> completedRentals = findCompletedStops();
+                List<Rental> rentalsToRemoveFromCharting = new ArrayList<>();
+                
+                for (Rental rental : completedRentals) {
+                    for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
+                        List<Rental> rentals = entry.getValue();
+                        int index = rentals.indexOf(rental);
+                        if (index != -1) {
+                            int routeIndex = getRouteIndex(entry.getKey());
+                            removeFromRoute(rental, index, routeIndex);
+                            if (rental.getStatus().equals("Upcoming")) {
+                            } else if (rental.getStatus().equals("Called Off")) {
+                                editVisualCargo(rental, index, "picking-up");
+                            }
+                            break; // Rental is only in one route
+                        }
+                    }
+                    rentalsToRemoveFromCharting.add(rental);
+                }
+                
+                loadRentalDataFromAPI();
+
+                // ✅ Safely remove afterward
+                for (Rental rental : rentalsToRemoveFromCharting) {
+                    if (rentalsForCharting.contains(rental)) {
+                        rentalsForCharting.remove(rental);
+                    }
+                }
+
+                updateRentalLocations();
+    
+                // === Animate progress ===
+                for (Map.Entry<String, Double> entry : currentProportions.entrySet()) {
+                    String routeKey = entry.getKey();
+                    double current = entry.getValue();
+                    double previous = lastProportions.getOrDefault(routeKey, current);
+    
+                    double visualCompletionRatio = 15.0 / 17.0;
+                    double prevScaled = Math.min(previous / visualCompletionRatio, 1.0);
+                    double currScaled = Math.min(current / visualCompletionRatio, 1.0);
+    
+                    double prevX = -22 + prevScaled * 55;
+                    double currX = -22 + currScaled * 55;
+    
+                    Timeline timeline = new Timeline(
+                            new KeyFrame(Duration.ZERO, new KeyValue(pinpointersV.get(routeKey).translateXProperty(), prevX)),
+                            new KeyFrame(Duration.minutes(1), new KeyValue(pinpointersV.get(routeKey).translateXProperty(), currX))
+                    );
+                    timeline.play();
+    
+                    Timeline innerPinpointerTimeline = new Timeline(
+                            new KeyFrame(Duration.ZERO, new KeyValue(innerPinpointersV.get(routeKey).translateXProperty(), prevX)),
+                            new KeyFrame(Duration.minutes(1), new KeyValue(innerPinpointersV.get(routeKey).translateXProperty(), currX))
+                    );
+                    innerPinpointerTimeline.play();
+    
+                    Timeline driverLabelTimeline = new Timeline(
+                            new KeyFrame(Duration.ZERO, new KeyValue(driverLabelsV.get(routeKey).translateXProperty(), prevX)),
+                            new KeyFrame(Duration.minutes(1), new KeyValue(driverLabelsV.get(routeKey).translateXProperty(), currX))
+                    );
+                    driverLabelTimeline.play();
+    
+                    lastProportions.put(routeKey, current);
+    
+                    Optional<String> assignedTruck = truckAssignments.entrySet().stream()
+                        .filter(e -> e.getValue().equals(routeKey))
+                        .map(Map.Entry::getKey)
+                        .findFirst();
+    
+                    if (assignedTruck.isEmpty()) return;
+    
+                    if (encodedPolylines.containsKey(routeKey) && trucks.containsKey(assignedTruck.get())) {
+                        List<double[]> decodedPolyline = decodePolyline(encodedPolylines.get(routeKey).get(0));
+                        StackPane truckPane = truckPanes.get(assignedTruck.get());
+                        animateTruckAlongPolyline(assignedTruck.get(), decodedPolyline, previous, Math.random(), truckPane);
+                    }
+                }
+    
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+    
+        scheduler.scheduleAtFixedRate(task, 0, 1, TimeUnit.MINUTES);
+    }
+    
+
+
+    public void animateTruckAlongPolyline(
+        String truckId,
+        List<double[]> decodedPolyline,
+        double oldProportion,
+        double newProportion,
+        StackPane truckPane
+    ) {
+        if (decodedPolyline == null || decodedPolyline.size() < 2) return;
+    
+        // Precompute segment lengths if not stored
+        List<Double> segmentLengths = truckSegmentLengths.computeIfAbsent(truckId, k -> {
+            List<Double> lengths = new ArrayList<>();
+            for (int i = 0; i < decodedPolyline.size() - 1; i++) {
+                double[] p1 = decodedPolyline.get(i);
+                double[] p2 = decodedPolyline.get(i + 1);
+                lengths.add(haversine(p1[0], p1[1], p2[0], p2[1]));
+            }
+            return lengths;
+        });
+    
+        // Compute intermediate lat/lon steps
+        List<double[]> steps = new ArrayList<>();
+        int stepCount = 60;
+        for (int i = 0; i <= stepCount; i++) {
+            double t = (double) i / stepCount;
+            double proportion = oldProportion + t * (newProportion - oldProportion);
+            steps.add(getPointAtProportion(decodedPolyline, segmentLengths, proportion));
+        }
+        truckPolylineSteps.put(truckId, steps);
+    
+        // Cancel previous timeline if it exists
+        Timeline existing = truckTimelines.get(truckId);
+        if (existing != null) existing.stop();
+    
+        Timeline timeline = new Timeline();
+        for (int i = 0; i < steps.size(); i++) {
+            double[] latLon = steps.get(i);
+            KeyFrame frame = new KeyFrame(
+                Duration.seconds(i * 1), // 1 second per step, you can adjust
+                new KeyValue(truckPane.translateXProperty(), mapLongitudeToTranslateX(latLon[1])),
+                new KeyValue(truckPane.translateYProperty(), mapLatitudeToTranslateY(latLon[0]))
+            );
+            timeline.getKeyFrames().add(frame);
+        }
+    
+        timeline.setOnFinished(e -> {
+            activeAnimations.remove(truckPane);
+            truckTranslateX.put(truckPane.getId(), truckPane.getTranslateX());
+            truckTranslateY.put(truckPane.getId(), truckPane.getTranslateY());
+        });
+    
+        truckTimelines.put(truckId, timeline);
+        activeAnimations.add(truckPane);
+        timeline.play();
+    }
+    
+    
+    
+    private double[] getPointAtDistance(
+        List<double[]> decodedPolyline,
+        List<Double> segmentLengths,
+        double targetDistance) {
+        double traveled = 0.0;
+        for (int i = 0; i < segmentLengths.size(); i++) {
+            double segLen = segmentLengths.get(i);
+            if (traveled + segLen >= targetDistance) {
+                double ratio = (targetDistance - traveled) / segLen;
+                double[] from = decodedPolyline.get(i);
+                double[] to = decodedPolyline.get(i + 1);
+                double lat = from[0] + ratio * (to[0] - from[0]);
+                double lon = from[1] + ratio * (to[1] - from[1]);
+                return new double[]{lat, lon};
+            }
+            traveled += segLen;
+        }
+        return decodedPolyline.get(decodedPolyline.size() - 1);
+    }
+    
+    private double[] getPointAtProportion(
+        List<double[]> decodedPolyline,
+        List<Double> segmentLengths,
+        double proportion
+    ) {
+        double totalLength = segmentLengths.stream().mapToDouble(Double::doubleValue).sum();
+        double targetDistance = proportion * totalLength;
+        return getPointAtDistance(decodedPolyline, segmentLengths, targetDistance);
+    }
+    
+
+    // Hybrid inputs: real driver progress and linear ETA simulation
+    public Map<String, Double> getProgressReport() {
+        Map<String, Double> proportions = new HashMap<>();
+    
+        try {
+            new URL("http://api.maxhighreach.com:8080/routes/fleet/refresh").openConnection().getInputStream().close();
+            updateTruckCoordinates();
+    
+            URL url = new URL("http://api.maxhighreach.com:8080/routes/fetch");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            JsonNode root = new ObjectMapper().readTree(conn.getInputStream());
+            conn.disconnect();
+    
+            Map<Integer, JsonNode> stopIdToNode = new HashMap<>();
+            for (JsonNode routeNode : root) {
+                JsonNode stops = routeNode.get("stops");
+                if (stops != null && stops.isArray()) {
+                    for (JsonNode stop : stops) {
+                        if (stop.has("id")) stopIdToNode.put(stop.get("id").asInt(), stop);
+                    }
+                }
+            }
+    
+            for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
+                String key = entry.getKey();
+                String truckId = truckAssignments.entrySet().stream()
+                    .filter(e -> e.getValue().equals(key))
+                    .map(Map.Entry::getKey)
+                    .findFirst().orElse(null);
+    
+                if (truckId == null) continue;
+    
+                List<Rental> rentalList = entry.getValue();
+                if (rentalList == null || rentalList.isEmpty()) continue;
+    
+                Rental rentalToUse = rentalList.stream().filter(r -> r.getRentalItemId() != 0).findFirst().orElse(null);
+                if (rentalToUse == null) continue;
+    
+                JsonNode stopMatch = stopIdToNode.get(rentalToUse.getRentalItemId());
+                if (stopMatch == null || !stopMatch.has("departedTime") || stopMatch.get("departedTime").isNull()) continue;
+    
+                LocalDateTime departedTimeLocal = LocalDateTime.parse(stopMatch.get("departedTime").asText());
+                long elapsedMinutes = java.time.Duration.between(
+                    departedTimeLocal.atZone(ZoneId.of("America/Denver")),
+                    ZonedDateTime.now(ZoneId.of("America/Denver"))
+                ).toMinutes();
+    
+                List<Integer> etaList = intervals.get(key);
+                if (etaList == null || etaList.isEmpty()) continue;
+    
+                int etaMinutes = etaList.get(0);
+                double elapsedProportion = Math.min((double) elapsedMinutes / etaMinutes, 1.0);
+    
+                double[] truckLocation = truckCoords.get(truckId);
+                if (truckLocation == null || truckLocation[0] == 0 || truckLocation[1] == 0) continue;
+    
+                double[] destination = {rentalToUse.getLatitude(), rentalToUse.getLongitude()};
+                String[] googleRoute = getGoogleRoute(truckLocation[0], truckLocation[1], destination[0], destination[1]);
+                int remainingSeconds = Integer.parseInt(googleRoute[0].replace("s", ""));
+                double gpsProportion = 1.0 - Math.min((double) remainingSeconds / (etaMinutes * 60), 1.0);
+    
+                double faster = Math.max(elapsedProportion, gpsProportion);
+                double slower = Math.min(elapsedProportion, gpsProportion);
+                double dynamicProportion = 0.3 * faster + 0.7 * slower;
+                proportions.put(key, dynamicProportion);
+            }
+    
+        } catch (Exception e) {
+            System.out.println("🔥 Exception in getProgressReport: " + e);
+            e.printStackTrace();
+        }
+    
+        return proportions;
+    }
+    
+    private void editVisualCargo(Rental rental, int routeIndex, String orientation) {
+        System.out.println("\n📦 [editVisualCargo] Invoked with rental ID: " + rental.getRentalItemId() +
+                           ", routeIndex: " + routeIndex +
+                           ", orientation: " + orientation +
+                           ", rental status: " + rental.getStatus());
+    
+        if (!"picking-up".equals(orientation)) {
+            System.out.println("🚫 Skipping visual cargo edit due to non-pickup orientation.");
+            return;
+        }
+    
+        String routeKey = "route" + (routeIndex + 1);
+        System.out.println("🔑 Computed routeKey: " + routeKey);
+    
+        StackPane pictoralTruck = pictoralTrucksV.get(routeKey);
+        if (pictoralTruck == null) {
+            System.out.println("❌ pictoralTruck is null for routeKey: " + routeKey);
+            return;
+        }
+        if (pictoralTruck.getChildren().isEmpty()) {
+            System.out.println("⚠️ pictoralTruck has no base image, skipping cargo overlay.");
+            return;
+        }
+    
+        System.out.println("🖼️ Found pictoralTruck with existing children, preserving base image...");
+        ImageView baseImageView = (ImageView) pictoralTruck.getChildren().get(0);
+        pictoralTruck.getChildren().clear();
+        pictoralTruck.getChildren().add(baseImageView);
+    
+        // Add cargo to route inventory
+        List<String> cargoList = inventories.computeIfAbsent(routeKey, k -> new ArrayList<>());
+        String cargoName = rental.getLiftType();
+        cargoList.add(cargoName);
+    
+        System.out.println("➕ Added cargo item to inventory list: '" + cargoName + "' for " + routeKey);
+    
+        // Draw all peeks
+        int counter = 1;
+        String[] colors = getRouteColors(routeKey);
+        System.out.println("🎨 Using cargo highlight color: " + colors[2]);
+    
+        for (String item : cargoList) {
+            String imageName = item + "-peek.png";
+            System.out.println("🔍 Attempting to load image: " + imageName);
+    
+            InputStream imageStream = getClass().getClassLoader().getResourceAsStream("images/" + imageName);
+    
+            if (imageStream != null) {
+                Image image = new Image(imageStream);
+                Image imageRecolored = recolorImage(image, Color.web(colors[2]), null);
+                ImageView imageView = new ImageView(imageRecolored);
+                imageView.setFitWidth(20);
+                imageView.setFitHeight(27);
+                imageView.setTranslateX(-59 + (counter * 19));
+    
+                pictoralTruck.getChildren().add(imageView);
+                System.out.println("✅ Successfully added cargo image for item: '" + item + "'");
+            } else {
+                System.err.println("❌ Could not find image file for: " + imageName);
+            }
+    
+            counter++;
+        }
+    
+        System.out.println("✅ [editVisualCargo] Complete for routeKey: " + routeKey + "\n");
+    }
+    
+    
+
+
+
+
+
+
+
+
+    /*                                    /*
+     *              UTILITIES              *
+    /*                                     */
+
+    public double mapLongitudeToX(double lon) {
+        double visibleMinX = visibleBounds[3];
+        double visibleMaxX = visibleBounds[1];
+
+
+        // Extract bounds for readability
+        double lonMin = mapBounds[3]; // LON_MIN (top-left)
+        double lonMax = mapBounds[1]; // LON_MAX (bottom-right)
+        
+        // Ensure the longitude is within bounds
+        if (lon < lonMin || lon > lonMax) {
+            return 0;
+        }
+    
+        // Compute relative position (0 to 1)
+        double relativeX = (lon - visibleMinX) / (visibleMaxX - visibleMinX);
+    
+        
+        // Map to screen range
+        return relativeX * (Config.WINDOW_HEIGHT / 2);
+    }
+    
+    public double mapLatitudeToY(double lat) {
+        double visibleMinY = visibleBounds[2]; // Bottom bound of the visible area
+        double visibleMaxY = visibleBounds[0]; // Top bound of the visible area
+    
+        // Extract bounds for readability
+        double latMax = mapBounds[0]; // LAT_MAX (top-left)
+        double latMin = mapBounds[2]; // LAT_MIN (bottom-right)
+    
+        // Ensure the latitude is within bounds
+        if (lat < latMin || lat > latMax) {
+            return 0;
+        }
+
+
+        double observedOffset = .12;
+        lat += observedOffset;
+    
+        // Compute relative position (inverted Y-axis)
+        double relativeY = (visibleMaxY - lat) / (visibleMaxY - visibleMinY);
+
+
+        // Map to screen range
+        return relativeY * Config.WINDOW_HEIGHT;
+    } 
+
+
+    public double mapLongitudeToTranslateX(double lon) {
+        double visibleMinX = visibleBounds[3];
+        double visibleMaxX = visibleBounds[1];
+    
+        double relativeX = (lon - visibleMinX) / (visibleMaxX - visibleMinX);
+        return relativeX * (Config.WINDOW_HEIGHT / 2); // or WIDTH if your map is wider
+    }
+    
+    public double mapLatitudeToTranslateY(double lat) {
+        double visibleMinY = visibleBounds[2];
+        double visibleMaxY = visibleBounds[0];
+    
+        double observedOffset = 0.12;
+        lat += observedOffset;
+    
+        double relativeY = (visibleMaxY - lat) / (visibleMaxY - visibleMinY);
+        return relativeY * Config.WINDOW_HEIGHT;
+    }
+
+
+    private double haversine(double lat1, double lon1, double lat2, double lon2) {
+        final int R = 6371000; // meters
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                 + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                 * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+    
+
+
+
 
     private Rectangle makeSideBarCover(int width, int height, String[] colors){
         Rectangle rect = new Rectangle(width, height);
         rect.setFill(Color.web(colors[0]));
         rect.setTranslateX(1);
-
         return rect;
     }
 
@@ -2836,16 +3695,7 @@ public class MapController {
         return routeKey;
     }
 
-    private double[] getTruckByNumber(String number) {
-        try {
-            Field field = getClass().getDeclaredField("truck" + number);
-            field.setAccessible(true);
-            return (double[]) field.get(this);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-    }    
+
 
 
     public String[] getRouteColors(String routeName) {
@@ -2889,9 +3739,9 @@ public class MapController {
             case "route5":
             case "routeFive":
                 return new String[]{
-                    primary,
                     secondary,
-                    Config.COLOR_TEXT_MAP.getOrDefault(secondary, 0) == 1 ? tertiary : "#ffffff"
+                    interpolateColorHex(Color.web(primary), Color.web(tertiary), .5),
+                    "#ffffff"
                 };
     
             default:
@@ -2903,6 +3753,35 @@ public class MapController {
                 };
         }
     }
+
+    private String interpolateColorHex(Color c1, Color c2, double factor) {
+        double r = c1.getRed() * (1 - factor) + c2.getRed() * factor;
+        double g = c1.getGreen() * (1 - factor) + c2.getGreen() * factor;
+        double b = c1.getBlue() * (1 - factor) + c2.getBlue() * factor;
+        double a = c1.getOpacity() * (1 - factor) + c2.getOpacity() * factor;
+    
+        int ri = (int) Math.round(r * 255);
+        int gi = (int) Math.round(g * 255);
+        int bi = (int) Math.round(b * 255);
+        int ai = (int) Math.round(a * 255);
+    
+        // If opacity is 1.0, return #RRGGBB; else include alpha
+        if (ai == 255) {
+            return String.format("#%02X%02X%02X", ri, gi, bi);
+        } else {
+            return String.format("#%02X%02X%02X%02X", ai, ri, gi, bi);
+        }
+    }
+    
+
+    public String getTruckIdForRoute(String routeName) {
+        for (Map.Entry<String, String> entry : truckAssignments.entrySet()) {
+            if (entry.getValue().equals(routeName)) {
+                return entry.getKey(); // This is the truck ID
+            }
+        }
+        return null; // Not found
+    }    
 
 
     private String[] getGoogleRoute(double originLat, double originLong, double destinationLat, double destinationLong) throws Exception {
@@ -2923,7 +3802,7 @@ public class MapController {
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
         connection.setRequestProperty("X-Goog-Api-Key", Config.GOOGLE_KEY);
-        connection.setRequestProperty("X-Goog-FieldMask", "routes.duration,routes.polyline");
+        connection.setRequestProperty("X-Goog-FieldMask", "routes.duration,routes.polyline,routes.distanceMeters");
     
         // Convert JSON body to bytes
         byte[] input = requestBody.getBytes(StandardCharsets.UTF_8);
@@ -2976,16 +3855,19 @@ public class MapController {
     
         String durationString = route.getString("duration"); // e.g., "1441s"
         String polylineString = route.getJSONObject("polyline").getString("encodedPolyline");
-    
+        int distanceMeters = route.getInt("distanceMeters");
+        double distanceMiles = distanceMeters / 1609.34;
+
+
         // Convert duration to minutes and seconds
         int durationInSeconds = Integer.parseInt(durationString.replace("s", ""));
         int minutes = durationInSeconds / 60;
         int seconds = durationInSeconds % 60;
     
-
-
-        return new String[]{durationString, polylineString};
+        return new String[]{durationString, polylineString, String.format("%.2f", distanceMiles)};
     }
+
+
 
     private String getCityFromCoordinates(double lat, double lon) {
         String cityName = "Unknown";
@@ -3037,6 +3919,15 @@ public class MapController {
     }
 
 
+    private void animateTranslateX(Node node, double fromX, double toX) {
+        TranslateTransition transition = new TranslateTransition(Duration.seconds(2), node);
+        transition.setFromX(fromX);
+        transition.setToX(toX);
+        transition.setInterpolator(Interpolator.EASE_BOTH);
+        transition.play();
+    }
+
+
     private boolean isSingleDigitMinutes(String durationString) {
         // Remove the 's' character and convert to integer (assuming format like "1441s")
         int durationInSeconds = Integer.parseInt(durationString.replace("s", ""));
@@ -3083,7 +3974,6 @@ public class MapController {
 
     private String[] getARouteNoPreference() {
 
-
         // Find the first empty route
         int index = 0;
         for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
@@ -3108,16 +3998,20 @@ public class MapController {
         return new String[]{ "route1", "0" };
     }
 
+
+
+
+
     private Rental createNewRentalFromId(int rentalId){
         return new Rental(
             null, "'" + rentalId, null, null, null, null, null, false,
             "", "", "", 0,
             null, false, 0, null, null,
-            0.0, 0.0, ""
+            0.0, 0.0, "", ""
         );
     }
 
-  
+
     private void addHoverEffectToRouteCard(Shape shape, Shape[] shapesToChange, Color defaultColor, Color hoverColor) {
         shape.setOnMouseEntered(e -> {
             for (Shape s : shapesToChange) {
@@ -3139,6 +4033,50 @@ public class MapController {
             }
         });
     }
+
+
+    private Image changePixelColor(Image originalImage, String[] colors) {
+        int width = (int) originalImage.getWidth();
+        int height = (int) originalImage.getHeight();
+
+
+        PixelReader pixelReader = originalImage.getPixelReader();
+        WritableImage modifiedImage = new WritableImage(width, height);
+        PixelWriter pixelWriter = modifiedImage.getPixelWriter();
+
+
+        Color contentColor = Color.web(colors[2]);
+
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                Color pixelColor = pixelReader.getColor(x, y);
+
+
+                // Preserve transparency
+                if (pixelColor.getOpacity() == 0.0) {
+                    pixelWriter.setColor(x, y, pixelColor);
+                    continue;
+                }
+
+
+                // Replace near-black with content color
+                if (isNearBlack(pixelColor)) {
+                    pixelWriter.setColor(x, y, contentColor);
+                } else {
+                    pixelWriter.setColor(x, y, pixelColor);
+                }
+            }
+        }
+
+
+        return modifiedImage;
+    }
+
+
+
+
+
 
     private int closestMultiple(double value, int multiple) {
         int result = (int) (value / multiple);
@@ -3197,15 +4135,30 @@ public class MapController {
     }
 
     // Utility method to truncate text
-    private String truncateText(String text, int limit) {
-        if (text.length() > limit) {
-            return text.substring(0, limit) + "..."; // Append "..." if exceeding limit
+    private String truncateTextToWidth(String text, double maxWidth, Font font) {
+        if (text == null || text.isEmpty()) return "";
+   
+        Text helper = new Text();
+        helper.setFont(font);
+   
+        String ellipsis = "...";
+        helper.setText(ellipsis);
+        double ellipsisWidth = helper.getLayoutBounds().getWidth();
+   
+        for (int i = 1; i <= text.length(); i++) {
+            String substr = text.substring(0, i);
+            helper.setText(substr);
+            double textWidth = helper.getLayoutBounds().getWidth();
+   
+            if (textWidth + ellipsisWidth >= maxWidth) {
+                return substr.substring(0, Math.max(0, i - 1)) + ellipsis;
+            }
         }
         return text;
     }
-    
+
     @FXML
     private void resetStage() {
         MaxReachPro.getInstance().collapseStage();
     }
-} 
+}    

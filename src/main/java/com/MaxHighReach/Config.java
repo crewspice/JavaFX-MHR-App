@@ -243,6 +243,105 @@ public class Config {
 
     private static String[] user = null;
 
+
+    // --------------------------------------------------
+    // Customers
+    // --------------------------------------------------
+
+    public static final Map<String, String> CUSTOMER_NAME_MAP = Map.ofEntries(
+        Map.entry("Golden Way Mech", "Golden Way"),
+        Map.entry("Cintas Fire", "Cintas"),
+        Map.entry("Kelly Electrical", "Kelly Elec."),
+        Map.entry("Empire Electric", "Empire Elec."),
+        Map.entry("Titan Electric", "Titan"),
+        Map.entry("Eagle Electric", "Eagle Elec."),
+
+        Map.entry("Clear Creek Mechanical", "Clear Creek"),
+        Map.entry("Canyon Plumbing", "Canyon"),
+        Map.entry("Rogers and Sons", "Rogers & Sons"),
+        Map.entry("Integrated Syst", "ISI"),
+        Map.entry("SJO Electric", "SJO"),
+        Map.entry("Meridian Fire", "Meridian"), 
+                
+        Map.entry("Colorado Garage", "CO Garage"),
+        Map.entry("First Industrial", "1st Ind."),
+        Map.entry("A.A.A. Fire Protection", "A.A.A. Fire"),
+        Map.entry("Bear Electric", "Bear Elec."),
+        Map.entry("Capra Plumbing", "Capra"),
+        Map.entry("CMT ELectric", "CMT"), 
+                
+        Map.entry("North/Western Elec", "NW Elec."),
+        Map.entry("DLR/Equipment Giant", "Discount Lift"),
+        Map.entry("Sentinel Fire", "Sentinel"),
+        Map.entry("Superior Heating and Air", "Superior"),
+        Map.entry("Arrcon Electric", "Arrcon Elec."),
+        Map.entry("KZ Electric Inc", "KZ Elec."), 
+                
+        Map.entry("Colorado Finest Doors", "CO Finest"),
+        Map.entry("Rocky Industries", "Rocky Ind."),
+        Map.entry("Blue Sky Plumbing", "Blue Sky"),
+        Map.entry("Englewood Lock / Eteksystems", "E-tek"),
+        Map.entry("RC HVAC&Construction", "RC HVAC"),
+        Map.entry("Concentric Fire Protection", "Concentric"), 
+                
+        Map.entry("Gold Label Specialties", "Gold Label"),
+        Map.entry("Frontier Fire Protection", "Frontier Fire"),
+        Map.entry("Kennedy Electric", "Kennedy"),
+        Map.entry("Piper Electric", "Piper"),
+        Map.entry("JC2 Lighting & Electric", "JC2"),
+        Map.entry("Legacy Garage Doors", "Legacy"), 
+                
+        Map.entry("Titanium Electric", "Titanium"),
+        Map.entry("JC Garage Doors", "JC Garage"),
+        Map.entry("Rocky Mtn Hydrostatics", "Rocky Mtn Hydro"),
+        Map.entry("Gonzales Fire Protection", "Gonzales"),
+        Map.entry("Maven Fire Protection", "Maven"),
+        Map.entry("Bare Bright Electric", "Bare Bright"),
+                        
+        Map.entry("Bullseye Electrical", "Bullseye"),
+        Map.entry("Lincoln Fire", "Lincoln"),
+        Map.entry("Stanmark Electric", "Stanmark"),
+        Map.entry("B & B Garage Door", "B & B"),
+        Map.entry("K M Electric", "KM Elec."),
+        Map.entry("P & L Electric", "P & L Elec."),
+                        
+        Map.entry("Colorado Crane and Hoist", "CO Crane"),
+        Map.entry("Vigil Electric", "Vigil Elec."),
+        Map.entry("Jefferies Inc.", "Jeffries"),
+        Map.entry("Thompson Safety/Complete Fire", "Thompson"),
+        Map.entry("Electrical Solutions", "Elec. Sol'ns"),
+        Map.entry("Colorado Fire Serivces", "CO Fire"),
+                        
+        Map.entry("Paragon Electric", "Paragon Elec."),
+        Map.entry("Wildwood Serivces", "Wildwood"),
+        Map.entry("Capital Electric", "Capital"),
+        Map.entry("Noble Overhead Door, llc", "Noble"),
+        Map.entry("Harmon Construction", "Harmon"),
+        Map.entry("New Life Tree Triming", "New Life"), 
+                                
+        Map.entry("Community Mechanical Service", "Com. Mech."),
+        Map.entry("Access Electrical", "Access Elec."),
+        Map.entry("Vortex Doors", "Vortex"),
+        Map.entry("Legault Electric", "Legault"),
+        Map.entry("Denver Fire Protection", "Denver Fire"),
+        Map.entry("Vulcan Construction Group", "Vulcan"),
+                                
+        Map.entry("Sentry Protection Systems", "Sentry Protec."),
+        Map.entry("Apex Companies", "Apex"),
+        Map.entry("Team Electric", "Team Elec."),
+        Map.entry("Pagett Elec", "Pagett"),
+        Map.entry("Diamond Fire", "Diamond"), 
+
+        Map.entry("Redline/Colorado Fire Services", "Redline"), 
+        Map.entry("Highland Ranch HVAC", "Highland HVAC"), 
+        Map.entry("Clarion Design", "Clarion")
+
+    );
+
+    public static String simplifyCustomerName(String fullName) {
+        return CUSTOMER_NAME_MAP.getOrDefault(fullName, fullName);
+    }
+
     //''                                                                        ''//
     //*****''//////***********''    M E T H O D S    '''************///////''*****//
     //''                                                                        ''//

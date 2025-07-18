@@ -1,0 +1,888 @@
+package com.MaxHighReach;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Random;
+import java.util.function.BiConsumer;
+
+import javafx.geometry.Pos;
+import javafx.scene.paint.Color;
+import javafx.scene.paint.CycleMethod;
+import javafx.scene.paint.LinearGradient;
+import javafx.scene.paint.RadialGradient;
+import javafx.scene.paint.Stop;
+import javafx.scene.shape.*;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
+import javafx.scene.transform.Rotate;
+import javafx.scene.Group;
+import javafx.scene.Node;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.effect.Glow;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.image.PixelReader;
+import javafx.scene.image.PixelWriter;
+import javafx.scene.image.WritableImage;
+import javafx.scene.layout.*;
+
+public class PopupDisc extends StackPane {
+    private static final double SIZE = 100;
+    private static final double BORDER_WIDTH = 2;
+    private static final double RADIUS = (SIZE - 2 * BORDER_WIDTH) / 2;
+
+    private double spreadStartAngle;
+    private double spreadEndAngle;
+
+    private double angleToCenter;
+    private Double spreadCenter = null;
+
+    private double nameStartAngle;
+    private double nameEndAngle;
+
+    private double addressStartAngle;
+    private double addressEndAngle;
+
+    private double openingAngle;
+    private double openingSpan;
+
+    public PopupDisc(MapController mapController, Rental rental, double x, double y) {
+        System.out.println("\n----- constructing PopupDisc2 -----");
+    
+        setPrefSize(SIZE, SIZE);
+        setAlignment(Pos.CENTER);
+    
+        // setBorder(new Border(new BorderStroke(
+        //     Color.DARKGRAY,
+        //     BorderStrokeStyle.SOLID,
+        //     new CornerRadii(5),
+        //     new BorderWidths(BORDER_WIDTH)
+        // )));
+    
+        // Circle circle = new Circle(RADIUS, Color.TRANSPARENT);
+        // circle.setStroke(Color.CYAN);
+        // circle.setStrokeWidth(1.5);
+        // getChildren().add(circle);
+    
+        setLayoutX(x - SIZE / 2);
+        setLayoutY(y - SIZE / 2);
+    
+        double parentW = mapController.anchorPane.getWidth();
+        double parentH = mapController.anchorPane.getHeight();
+        double parentCenterX = parentW / 2;
+        double parentCenterY = parentH / 2;
+    
+        double dx = parentCenterX - x;
+        double dy = parentCenterY - y;
+    
+        angleToCenter = Math.atan2(dy, dx);
+    
+        // Circle redDot = new Circle(4, Color.RED);
+        // redDot.setTranslateX(RADIUS * Math.cos(angleToCenter));
+        // redDot.setTranslateY(RADIUS * Math.sin(angleToCenter));
+        // getChildren().add(redDot);
+    
+        double leftOverlap = Math.max(0, SIZE / 2 - x);
+        double rightOverlap = Math.max(0, (x + SIZE / 2) - parentW);
+        double topOverlap = Math.max(0, SIZE / 2 - y);
+        double bottomOverlap = Math.max(0, (y + SIZE / 2) - parentH);
+    
+        double normLeft = leftOverlap / (SIZE / 2);
+        double normRight = rightOverlap / (SIZE / 2);
+        double normTop = topOverlap / (SIZE / 2);
+        double normBottom = bottomOverlap / (SIZE / 2);
+    
+        double horizOverlap = Math.max(normLeft, normRight);
+        double vertOverlap = Math.max(normTop, normBottom);
+        boolean cancelSpreadCenter = (horizOverlap < 0.7) && (vertOverlap > horizOverlap);
+    
+        if (!cancelSpreadCenter && horizOverlap > 0) {
+            double targetAngle = normLeft > normRight ? 0.0 : Math.PI;
+            spreadCenter = interpolateAngle(angleToCenter, targetAngle, horizOverlap);
+    
+            // Circle orangeDot = new Circle(4, Color.ORANGE);
+            // orangeDot.setTranslateX(RADIUS * Math.cos(spreadCenter));
+            // orangeDot.setTranslateY(RADIUS * Math.sin(spreadCenter));
+            // getChildren().add(orangeDot);
+        }
+        
+        double outerRadius = 100;
+        double innerRadius = 16;
+        double wedgeAngle = 45;
+        int wedgeCount = 5;
+        double totalAngle = wedgeAngle * wedgeCount;
+    
+        double effectiveSpreadCenter = (spreadCenter != null) ? spreadCenter : angleToCenter;
+        double spreadCenterDegrees = Math.toDegrees(effectiveSpreadCenter) - (totalAngle / 2);
+        double wedgeStartDeg = spreadCenterDegrees;
+        double wedgeEndDeg = wedgeStartDeg + totalAngle;
+        spreadStartAngle = wedgeStartDeg;
+        spreadEndAngle = wedgeEndDeg;
+    
+        /* === Composite Seamless Wedge Ring ===
+        Path seamlessWedges = createWedgeRing(innerRadius, outerRadius, wedgeCount);
+        seamlessWedges.setTranslateX(54);
+        seamlessWedges.setTranslateY(35);
+        getChildren().add(seamlessWedges);
+        seamlessWedges.toBack(); */
+
+
+        for (int i = 0; i < wedgeCount; i++) {
+            double rotation = spreadCenterDegrees + i * wedgeAngle;
+    
+            double bandInner = 16;
+            double bandOuter = 54;
+            double bandSplit = 50; // Major band ends, minor band begins
+        
+            int iNorm = i + 1;
+            String routeName = "route" + iNorm;
+            String[] colors = mapController.getRouteColors(routeName);
+            Color c0 = Color.web(colors[0]); // Major band color
+            Color c1 = Color.web(colors[1]); // Minor outer band color
+        
+            // === Major Band (inner) ===
+            Path majorBand = createInteractiveBand(bandInner, bandSplit, wedgeAngle);
+            majorBand.getTransforms().add(new Rotate(rotation, 0, 0));
+            majorBand.setFill(c1);
+            majorBand.setStroke(Color.TRANSPARENT);
+            majorBand.setTranslateX(29);
+            majorBand.setTranslateY(17);
+            final int index = i;
+            majorBand.setOnMouseClicked(event -> {
+                mapController.addStopToRoute(routeName, rental);
+                System.out.println("calling mapController.addStopToRoute with routeName = " + routeName);
+            });
+        
+            // === Minor Band (outer) ===
+            Path minorBand = createInteractiveBand(bandSplit, bandOuter, wedgeAngle);
+            minorBand.getTransforms().add(new Rotate(rotation, 0, 0));
+            minorBand.setFill(c0);
+            minorBand.setStroke(Color.TRANSPARENT);
+            minorBand.setTranslateX(43);
+            minorBand.setTranslateY(19);
+        
+            // Add both bands to scene (minor first so it appears behind)
+            getChildren().addAll(minorBand, majorBand);
+        
+            Node truckVisual;
+            Optional<String> maybeAssignedTruck;
+            boolean usedTruckImage = false;
+
+            if (mapController.routeAssignments != null && mapController.routeAssignments.containsKey(routeName)) {
+                // ✅ Top-priority override: routeAssignments
+                String labelText = mapController.routeAssignments.get(routeName);
+                System.out.println("🟩 routeAssignments has route " + routeName + " → '" + labelText + "'");
+                Text truckLabel = new Text(labelText);
+                truckLabel.setFont(Font.font("Verdana", FontWeight.BOLD, 11));
+                truckLabel.setFill(Color.web(colors[2]));
+                truckLabel.setTranslateX(-truckLabel.getLayoutBounds().getWidth() / 2);
+                truckLabel.setTranslateY(truckLabel.getLayoutBounds().getHeight() / 4);
+                truckVisual = truckLabel;
+            } else {
+                // Check truckAssignments as a fallback
+                maybeAssignedTruck = mapController.truckAssignments != null
+                    ? mapController.truckAssignments.entrySet().stream()
+                        .filter(entry -> routeName.equals(entry.getValue()))
+                        .map(Map.Entry::getKey)
+                        .findFirst()
+                    : Optional.empty();
+            
+                if (maybeAssignedTruck.isPresent()) {
+                    String assignedTruckName = "'" + maybeAssignedTruck.get();
+                    System.out.println("🟨 truckAssignments has route " + routeName + " → " + assignedTruckName);
+                    Text truckLabel = new Text(assignedTruckName);
+                    truckLabel.setFont(Font.font("Verdana", FontWeight.BOLD, 11));
+                    truckLabel.setFill(Color.web(colors[2]));
+                    truckLabel.setTranslateX(-truckLabel.getLayoutBounds().getWidth() / 2);
+                    truckLabel.setTranslateY(truckLabel.getLayoutBounds().getHeight() / 4);
+                    truckVisual = truckLabel;
+                } else {
+                    System.out.println("🟥 No assignment found for " + routeName + ", using fallback image");
+                    String imagePath = getClass().getResource("/images/truck-face.png").toExternalForm();
+                    Image rawTruckImage = new Image(imagePath);
+                    Color symbolColor = Color.web(colors[2]); // Tertiary color
+                    Image recoloredImage = recolorImage(rawTruckImage, symbolColor);
+                    ImageView truckView = new ImageView(recoloredImage);
+                    truckView.setFitWidth(20);
+                    truckView.setFitHeight(20);
+                    truckView.setPreserveRatio(true);
+                    truckView.setTranslateX(-truckView.getFitWidth() / 2);
+                    truckView.setTranslateY(-truckView.getFitHeight() / 2);
+                    truckVisual = truckView;
+                    usedTruckImage = true;
+                }
+            }
+            
+            // === Wrap the visual (label or image) in a Group and position/rotate ===
+            Group truckGroup = new Group(truckVisual);
+
+            double centerAngleDeg = rotation + wedgeAngle / 2.0;
+            double angleRad = Math.toRadians(centerAngleDeg);
+            double radius = (bandInner + bandSplit) / 2.0;
+
+            double centerX = radius * Math.cos(angleRad);
+            double centerY = radius * Math.sin(angleRad);
+
+            truckGroup.setTranslateX(centerX);
+            truckGroup.setTranslateY(centerY);
+
+            // Keep upright
+            double truckAngleToCenter = Math.toDegrees(Math.atan2(centerY, centerX));
+            truckAngleToCenter = truckAngleToCenter > 0 ? truckAngleToCenter + 180 : truckAngleToCenter;
+
+            truckGroup.setOnMouseClicked(event -> {
+                mapController.addStopToRoute(routeName, rental);
+            });
+
+            getChildren().add(truckGroup);
+            truckGroup.setTranslateX(centerX);
+            truckGroup.setTranslateY(centerY);
+        
+            // Counter-rotate to keep upright
+            if (usedTruckImage) {
+                truckGroup.getTransforms().add(new Rotate(truckAngleToCenter + 90, 0, 0));
+            }
+            
+            
+            truckGroup.setOnMouseClicked(event -> {
+                mapController.addStopToRoute(routeName, rental);
+            });
+        
+            //getChildren().add(truckGroup);
+        }
+        
+        
+    
+        String rawName = Config.CUSTOMER_NAME_MAP.getOrDefault(rental.getName(), rental.getName());
+        String name = rawName.replace(".", "");
+        int len = name.length();
+
+    
+        double labelCenterDeg = Math.toDegrees(effectiveSpreadCenter);
+    
+        // Find vertical angle (±90°) and shift toward it within wedge space
+        double targetAngleDeg = (Math.abs(labelCenterDeg - 90) < Math.abs(labelCenterDeg + 90)) ? 90 : -90;
+        double maxShift = targetAngleDeg - labelCenterDeg;
+        double labelArcSpan = (len > 1) ? 9.0 * (len - 1) : 9.0;
+    
+        double labelStartDeg = labelCenterDeg - labelArcSpan / 2;
+        double labelEndDeg = labelCenterDeg + labelArcSpan / 2;
+        double leftGap = (labelStartDeg - wedgeStartDeg + 360) % 360;
+        double rightGap = (wedgeEndDeg - labelEndDeg + 360) % 360;
+    
+        double clampedShift;
+        if (maxShift > 0) {
+            clampedShift = Math.min(maxShift, rightGap);
+        } else {
+            clampedShift = Math.max(maxShift, -leftGap);
+        }
+    
+        double adjustedLabelCenterDeg = labelCenterDeg + clampedShift;
+    
+        // Compute arc length required by actual text
+        double arcLengthPx = 0;
+        for (int i = 0; i < name.length(); i++) {
+            Text temp = new Text(String.valueOf(name.charAt(i)));
+            temp.setFont(Font.font("Verdana", 20));
+            arcLengthPx += temp.getLayoutBounds().getWidth();
+        }
+        arcLengthPx += (name.length() - 1) * 5;
+        double neededArcDeg = Math.toDegrees(arcLengthPx / 80.0);
+    
+        // Max wedge space left/right of center
+        double maxLeftDeg = adjustedLabelCenterDeg - wedgeStartDeg;
+        double maxRightDeg = wedgeEndDeg - adjustedLabelCenterDeg;
+        double maxAvailableDeg = 2 * Math.min(maxLeftDeg, maxRightDeg);
+    
+        double clampedArcDeg = Math.min(neededArcDeg, maxAvailableDeg);
+        double adjustedLabelCenterRad = Math.toRadians(adjustedLabelCenterDeg);
+
+        double[] nameSpan = addSemiCircleLabel(name, adjustedLabelCenterRad, clampedArcDeg, 20, 85, Color.web(Config.getPrimaryColor()), Color.web(Config.getTertiaryColor()));
+        nameStartAngle = nameSpan[0];
+        nameEndAngle = nameSpan[1];
+        String line1 = rental.getAddressBlockOne();
+        String line2 = rental.getAddressBlockTwo();
+        int maxChars = (line2 != null) ? line2.length() + 4 : 20; // fallback max
+        String siteText = line1;
+        if (line1 != null && line1.length() > maxChars) {
+            siteText = line1.substring(0, Math.max(0, maxChars - 1)) + "…";
+        }
+        addStreetAddressVisual(siteText, adjustedLabelCenterRad, totalAngle, 65, "site");
+                addStreetAddressVisual(rental.getAddressBlockTwo(), adjustedLabelCenterRad, totalAngle, 56, "street");
+        String cityText = rental.getAddressBlockThree() + " ◆ " + rental.getDeliveryTime();
+        addStreetAddressVisual(cityText, adjustedLabelCenterRad, totalAngle, 48, "city");
+        
+        openingAngle = getWidestOpenAngleDeg();
+        secondaryLiftTypeAngleAdjustent();
+
+        /*
+        // === Diagnostics Dots ===
+        Circle startDot = new Circle(4, Color.CYAN);
+        startDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(spreadStartAngle)));
+        startDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(spreadStartAngle)));
+    
+        Circle endDot = new Circle(4, Color.CYAN);
+        endDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(spreadEndAngle)));
+        endDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(spreadEndAngle)));
+    
+        Circle nameStartDot = new Circle(4, Color.web(Config.getPrimaryColor()));
+        nameStartDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(nameStartAngle)));
+        nameStartDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(nameStartAngle)));
+    
+        Circle nameEndDot = new Circle(4, Color.web(Config.getPrimaryColor()));
+        nameEndDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(nameEndAngle)));
+        nameEndDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(nameEndAngle)));
+    
+        Circle addressStartDot = new Circle(4, Color.web(Config.getTertiaryColor()));
+        addressStartDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(addressStartAngle)));
+        addressStartDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(addressStartAngle)));
+    
+        Circle addressEndDot = new Circle(4, Color.web(Config.getTertiaryColor()));
+        addressEndDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(addressEndAngle)));
+        addressEndDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(addressEndAngle)));
+        
+        Circle openAngleDot = new Circle(4, Color.DARKMAGENTA);
+        openAngleDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(openingAngle)));
+        openAngleDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(openingAngle)));
+
+
+        getChildren().addAll(startDot, endDot, nameStartDot, nameEndDot, addressStartDot, addressEndDot, openAngleDot);
+    */
+        addImageAtAngle("/images/" + rental.getLiftType() + ".png", openingAngle, 79, 38);
+
+        System.out.println("\n===== ANGLE DIAGNOSTICS =====");
+        System.out.printf("🔵 angleToCenter       : %.2f°\n", Math.toDegrees(angleToCenter));
+        System.out.printf("🟠 spreadCenter        : %s\n", 
+            (spreadCenter != null ? String.format("%.2f°", Math.toDegrees(spreadCenter)) : "null"));
+        System.out.printf("🟣 spreadStartAngle    : %.2f°\n", spreadStartAngle);
+        System.out.printf("🟣 spreadEndAngle      : %.2f°\n", spreadEndAngle);
+        System.out.printf("🟢 nameStartAngle      : %.2f°\n", nameStartAngle);
+        System.out.printf("🟢 nameEndAngle        : %.2f°\n", nameEndAngle);
+        System.out.printf("🔴 addressStartAngle   : %.2f°\n", addressStartAngle);
+        System.out.printf("🔴 addressEndAngle     : %.2f°\n", addressEndAngle);
+        System.out.printf("🟤 derivedOpenAngleDeg  : %.2f°\n", openingAngle);
+        System.out.printf("🟤 derivedOpeningSpan  : %.2f°\n", openingSpan);
+        System.out.println("================================\n");
+        /*
+        Circle clipCircle = new Circle(125, 125, 110);  // center is (125,125) for StackPane
+        setClip(clipCircle);
+        
+        // Optional: for debug visibility
+        clipCircle.setStroke(Color.RED);
+        clipCircle.setFill(Color.color(1, 0, 0, 0.1));
+        getChildren().add(clipCircle);
+        
+
+
+
+        // Simple circular clip centered at 0,0 (same as your content)
+        Circle debugClip = new Circle(x, y, 110); // 110 matches your radius cutoff
+        this.setClip(debugClip);
+
+        // Optional debug view
+        debugClip.setStroke(Color.RED);
+        debugClip.setFill(Color.color(1, 0, 0, 0.15));
+        getChildren().add(debugClip);
+
+
+
+        
+        // === Apply Custom Clip to Trim StackPane ===
+        Path clipPath = new Path();
+
+        // Elements are centered at (0, 0), so clip center should match
+        double clipCenterX = 0;
+        double clipCenterY = 0;
+        double radius = 110;
+
+        // Normalize angles into [0, 360)
+        double normalizedStart = normalize360(spreadStartAngle);
+        double normalizedEnd = normalize360(spreadEndAngle);
+        if (normalizedEnd <= normalizedStart) normalizedEnd += 360;
+
+        // Move to center
+        clipPath.getElements().add(new MoveTo(clipCenterX, clipCenterY));
+
+        // Trace arc
+        int steps = 60;
+        for (int i = 0; i <= steps; i++) {
+            double t = (double) i / steps;
+            double angleDeg = normalizedStart + (normalizedEnd - normalizedStart) * t;
+            double angleRad = Math.toRadians(angleDeg);
+            double xx = clipCenterX + radius * Math.cos(angleRad);
+            double yy = clipCenterY + radius * Math.sin(angleRad);
+            clipPath.getElements().add(new LineTo(xx, yy));
+        }
+
+        clipPath.getElements().add(new ClosePath());
+        this.setClip(clipPath);
+
+        // Optional: visualize the clip area for debugging
+        clipPath.setStroke(Color.MAGENTA);
+        clipPath.setFill(Color.color(1, 0, 1, 0.15)); // Light translucent purple
+        getChildren().add(clipPath); // Comment this out in production
+
+        */
+
+    }
+
+    private double interpolateAngle(double from, double to, double weight) {
+        double delta = to - from;
+        while (delta > Math.PI) delta -= 2 * Math.PI;
+        while (delta < -Math.PI) delta += 2 * Math.PI;
+        return from + delta * weight;
+    }
+
+    private Path createWedgeRing(double innerR, double outerR, int wedgeCount) {
+        double wedgeAngleDeg = 360.0 / wedgeCount;
+        double wedgeAngleRad = Math.toRadians(wedgeAngleDeg);
+    
+        Path path = new Path();
+        boolean first = true;
+    
+        // --- Outer Arc (clockwise) ---
+        for (int i = 0; i < wedgeCount; i++) {
+            double angle = i * wedgeAngleRad;
+            double x = outerR * Math.cos(angle);
+            double y = outerR * Math.sin(angle);
+    
+            if (first) {
+                path.getElements().add(new MoveTo(x, y));
+                first = false;
+            } else {
+                path.getElements().add(new ArcTo(outerR, outerR, 0, x, y, false, true));
+            }
+        }
+    
+        // --- Inner Arc (counter-clockwise) ---
+        for (int i = wedgeCount - 1; i >= 0; i--) {
+            double angle = i * wedgeAngleRad;
+            double x = innerR * Math.cos(angle);
+            double y = innerR * Math.sin(angle);
+            path.getElements().add(new ArcTo(innerR, innerR, 0, x, y, false, false));
+        }
+    
+        path.getElements().add(new ClosePath());
+        path.setFill(Color.web("#f4f4f4"));
+        path.setStroke(null); // fully eliminate seams
+        path.setStrokeWidth(0);
+        path.setSmooth(false);
+        return path;
+    }
+    
+
+    private void addLetterAlongAngle(String letter, double angleRad, boolean flip, double distance, double fontSize, Color primaryColor, Color outlineColor) {
+        double x = distance * Math.cos(angleRad);
+        double y = distance * Math.sin(angleRad);
+    
+        Group textGroup = new Group();
+    
+        if (outlineColor != null) {
+            Color blendedOutline = interpolateColor(primaryColor, outlineColor, 0.5);
+    
+            Text outline = new Text(letter);
+            outline.setFont(Font.font("Verdana", fontSize));
+            outline.setFill(blendedOutline);
+            outline.setStroke(blendedOutline);
+            outline.setStrokeWidth(1.3);
+            outline.setTranslateX(-outline.getLayoutBounds().getWidth() / 2);
+            outline.setTranslateY(outline.getLayoutBounds().getHeight() / 4);
+            textGroup.getChildren().add(outline);
+        }
+    
+        Text text = new Text(letter);
+        text.setFont(Font.font("Verdana", fontSize));
+        text.setFill(primaryColor);
+        text.setTranslateX(-text.getLayoutBounds().getWidth() / 2);
+        text.setTranslateY(text.getLayoutBounds().getHeight() / 4);
+        textGroup.getChildren().add(text);
+    
+        textGroup.setTranslateX(x);
+        textGroup.setTranslateY(y);
+    
+        double angleDeg = Math.toDegrees(angleRad) + 90;
+        if (flip) {
+            angleDeg += 180;
+        }
+    
+        textGroup.getTransforms().add(new Rotate(angleDeg, 0, 0));
+        getChildren().add(textGroup);
+    }
+    
+    
+    
+    
+    private double[] addSemiCircleLabel(String text, double desiredCenterAngleRad,
+         double maxArcSpanDeg, double fontSize, double radius, Color primaryColor, Color outlineColor) {
+        int len = text.length();
+        if (len == 0) return new double[] {0, 0};
+    
+        double displayRadius = radius * 1.15;
+    
+        // Step 1: Measure character widths
+        double[] letterWidths = new double[len];
+        double totalWidth = 0;
+        for (int i = 0; i < len; i++) {
+            Text temp = new Text(String.valueOf(text.charAt(i)));
+            temp.setFont(Font.font("Verdana", fontSize));
+            double w = temp.getLayoutBounds().getWidth();
+            letterWidths[i] = w;
+            totalWidth += w;
+        }
+    
+        double spacing = 0.5;
+        double totalArcLengthPx = totalWidth + (len - 1) * spacing;
+        double arcSpanRad = totalArcLengthPx / radius;
+        double arcSpanDeg = Math.toDegrees(arcSpanRad);
+        if (arcSpanDeg > maxArcSpanDeg) arcSpanDeg = maxArcSpanDeg;
+    
+        double desiredCenterDeg = Math.toDegrees(desiredCenterAngleRad);
+        double startAngleDeg = desiredCenterDeg - arcSpanDeg / 2;
+    
+        boolean flip, reverse;
+        if (desiredCenterDeg >= 0 && desiredCenterDeg < 90) {
+            flip = true; reverse = true;
+        } else if (desiredCenterDeg >= 90 && desiredCenterDeg <= 180) {
+            flip = true; reverse = true;
+        } else if (desiredCenterDeg >= -180 && desiredCenterDeg < -90) {
+            flip = false; reverse = false;
+        } else {
+            flip = false; reverse = false;
+        }
+    
+        String displayText = reverse ? new StringBuilder(text).reverse().toString() : text;
+    
+        double[] letterCentersDeg = new double[len];
+        double arcOffsetPx = 0;
+    
+        for (int i = 0; i < len; i++) {
+            int index = reverse ? len - 1 - i : i;
+            double charWidth = letterWidths[index];
+            double centerArcLengthPx = arcOffsetPx + charWidth / 2;
+            double angleOffsetDeg = Math.toDegrees(centerArcLengthPx / radius);
+            double letterAngleDeg = startAngleDeg + angleOffsetDeg;
+    
+            letterCentersDeg[i] = letterAngleDeg;
+    
+            addLetterAlongAngle(
+                String.valueOf(displayText.charAt(i)),
+                Math.toRadians(letterAngleDeg),
+                flip,
+                displayRadius,
+                fontSize,
+                primaryColor,
+                outlineColor
+            );
+    
+            arcOffsetPx += charWidth + spacing;
+        }
+    
+        double labelStartDeg = letterCentersDeg[0];
+        double labelEndDeg = letterCentersDeg[len - 1];
+    
+        return new double[] {labelStartDeg, labelEndDeg};
+    }
+    
+
+    private void addStreetAddressVisual(String street, double centerAngleRad, double maxArcSpanDeg, double radius, String type) {
+        int len = street.length();
+        if (len == 0) return;
+    
+        double fontSize = 10;
+        double spacing = 0.5;
+        double bufferDeg = 2.0;
+    
+        // Step 1: Measure text arc span
+        double totalWidth = 0;
+        for (int i = 0; i < len; i++) {
+            Text temp = new Text(String.valueOf(street.charAt(i)));
+            temp.setFont(Font.font("Verdana", fontSize));
+            totalWidth += temp.getLayoutBounds().getWidth();
+        }
+        totalWidth += (len - 1) * spacing;
+    
+        double arcSpanRad = totalWidth / radius;
+        double arcSpanDeg = Math.toDegrees(arcSpanRad);
+    
+        double desiredCenterDeg = Math.toDegrees(centerAngleRad);
+        double labelStartDeg = desiredCenterDeg - arcSpanDeg / 2;
+        double labelEndDeg = desiredCenterDeg + arcSpanDeg / 2;
+    
+        // Step 2: Clamp to inside of spread bounds (with buffer)
+        double adjustedStartDeg = spreadStartAngle + bufferDeg;
+        double adjustedEndDeg = spreadEndAngle - bufferDeg;
+    
+        double overLeft = adjustedStartDeg - labelStartDeg;
+        double overRight = labelEndDeg - adjustedEndDeg;
+    
+        double shift = 0;
+        if (overLeft > 0 && overRight <= 0) {
+            shift = overLeft;
+        } else if (overRight > 0 && overLeft <= 0) {
+            shift = -overRight;
+        } else if (overLeft > 0 && overRight > 0) {
+            // Label is too wide, shift to middle of allowable range
+            double allowedCenterDeg = (adjustedStartDeg + adjustedEndDeg) / 2.0;
+            shift = allowedCenterDeg - desiredCenterDeg;
+        }
+    
+        double adjustedCenterDeg = desiredCenterDeg + shift;
+        double adjustedCenterRad = Math.toRadians(adjustedCenterDeg);
+    
+        System.out.printf("📍 Address label span: %.1f° → %.1f° (%.1f° total)\n", 
+            adjustedCenterDeg - arcSpanDeg / 2, adjustedCenterDeg + arcSpanDeg / 2, arcSpanDeg);
+    
+        // Step 3: Draw label
+        double[] addressSpan = addSemiCircleLabel(
+            street,
+            adjustedCenterRad,
+            maxArcSpanDeg,
+            fontSize,
+            radius * 1.1,
+            Color.web(Config.getTertiaryColor()),
+            null
+        );
+        if (type.equals("street")) {
+            addressStartAngle = addressSpan[0];
+            addressEndAngle = addressSpan[1];
+        } else if (type.equals("city")) {
+
+        }
+        
+    }
+    
+
+    private Path createInteractiveBand(double innerR, double outerR, double angleDeg) {
+        double angleRad = Math.toRadians(angleDeg);
+    
+        double x1 = outerR * Math.cos(0);
+        double y1 = outerR * Math.sin(0);
+        double x2 = outerR * Math.cos(angleRad);
+        double y2 = outerR * Math.sin(angleRad);
+    
+        double x3 = innerR * Math.cos(angleRad);
+        double y3 = innerR * Math.sin(angleRad);
+        double x4 = innerR * Math.cos(0);
+        double y4 = innerR * Math.sin(0);
+    
+        Path path = new Path();
+        path.getElements().add(new MoveTo(x1, y1));
+        path.getElements().add(new ArcTo(outerR, outerR, 0, x2, y2, angleDeg > 180, true));
+        path.getElements().add(new LineTo(x3, y3));
+        path.getElements().add(new ArcTo(innerR, innerR, 0, x4, y4, angleDeg > 180, false));
+        path.getElements().add(new ClosePath());
+    
+        return path;
+    }
+
+    private double getWidestOpenAngleDeg() {
+        // === Normalize spread to [0, 720) ===
+        double spreadStart = normalize360(spreadStartAngle);
+        double spreadEnd = normalize360(spreadEndAngle);
+        if (spreadEnd <= spreadStart) spreadEnd += 360;
+    
+        System.out.printf("🌀 Normalized spread: [%.2f°, %.2f°]%n", spreadStart, spreadEnd);
+    
+        // === Normalize label angles and shift forward if needed ===
+        double[] labelArcs = {
+            normalize360(nameStartAngle), normalize360(nameEndAngle),
+            normalize360(addressStartAngle), normalize360(addressEndAngle)
+        };
+    
+        for (int i = 0; i < labelArcs.length; i++) {
+            if (labelArcs[i] < spreadStart) labelArcs[i] += 360;
+        }
+    
+        // === Clip occupied arcs to within spread ===
+        List<double[]> occupiedArcs = new ArrayList<>();
+        for (int i = 0; i < labelArcs.length; i += 2) {
+            double start = labelArcs[i];
+            double end = labelArcs[i + 1];
+            if (end <= start) end += 360;
+    
+            if (end > spreadStart && start < spreadEnd) {
+                double clippedStart = Math.max(start, spreadStart);
+                double clippedEnd = Math.min(end, spreadEnd);
+                occupiedArcs.add(new double[]{clippedStart, clippedEnd});
+            }
+        }
+    
+        // === Sort arcs for gap detection ===
+        occupiedArcs.sort(Comparator.comparingDouble(a -> a[0]));
+    
+        System.out.println("📌 Occupied Arcs:");
+        for (double[] arc : occupiedArcs) {
+            System.out.printf("   🔻 [%.2f°, %.2f°]%n", arc[0], arc[1]);
+        }
+    
+        // === Find widest open segment ===
+        double bestWidth = -1;
+        double bestCenter = (spreadStart + spreadEnd) / 2;
+        double prevEnd = spreadStart;
+    
+        for (double[] arc : occupiedArcs) {
+            double gapStart = prevEnd;
+            double gapEnd = arc[0];
+    
+            if (gapEnd > gapStart) {
+                double gapWidth = gapEnd - gapStart;
+                if (gapWidth > bestWidth) {
+                    bestWidth = gapWidth;
+                    bestCenter = (gapStart + gapEnd) / 2;
+                }
+            }
+    
+            prevEnd = Math.max(prevEnd, arc[1]);
+        }
+    
+        // Final trailing gap
+        if (prevEnd < spreadEnd) {
+            double gapWidth = spreadEnd - prevEnd;
+            if (gapWidth > bestWidth) {
+                bestWidth = gapWidth;
+                bestCenter = (prevEnd + spreadEnd) / 2;
+            }
+        }
+    
+        openingSpan = bestWidth;
+        double derivedDeg = normalize180(bestCenter);
+        System.out.printf("🟤 derivedOpenAngleDeg  : %.2f° (from %.2f° wide gap)%n", derivedDeg, bestWidth);
+        return derivedDeg;
+    }
+
+    private void secondaryLiftTypeAngleAdjustent() {
+        // Define the target anchor angles (0° or 180°)
+        double target = (Math.abs(openingAngle - 180) < Math.abs(openingAngle - 0)) ? 180 : 0;
+    
+        // Calculate how far span exceeds the threshold
+        double excess = Math.max(0, openingSpan - 75);
+    
+        // Max allowed adjustment is half of the excess
+        double maxAdjust = excess / 2;
+    
+        // Find how far openingAngle is from the target
+        double diffToTarget = target - openingAngle;
+    
+        // Clamp the adjustment to not overshoot maxAdjust
+        double adjustAmount = Math.max(-maxAdjust, Math.min(maxAdjust, diffToTarget));
+    
+        // Apply adjustment
+        openingAngle += adjustAmount;
+    
+        // Optional: normalize the final angle to [-180, 180] or [0, 360]
+        openingAngle = normalize180(openingAngle);
+    
+        System.out.printf("🔧 Adjusted openingAngle to %.2f° (moved %.2f° toward %d°)%n", 
+                          openingAngle, adjustAmount, (int) target);
+    }
+    
+    
+
+    private void addImageAtAngle(String imageResourcePath, double angleDeg, double radius, double size) {
+        try {
+            String imagePath = getClass().getResource(imageResourcePath).toExternalForm();
+            Image image = new Image(imagePath);
+            Image recoloredImage = recolorImage(image, Color.web(Config.getTertiaryColor()));
+            ImageView imageView = new ImageView(recoloredImage);
+    
+            imageView.setFitWidth(size);
+            imageView.setPreserveRatio(true);
+            imageView.setSmooth(true);
+    
+            // Center image on its origin
+            imageView.setTranslateX(-imageView.getFitWidth() / 2);
+            imageView.setTranslateY(-imageView.getFitHeight() / 2);
+    
+            DropShadow glow = new DropShadow();
+            glow.setColor(Color.web("#F4F4F4"));
+           // imageView.setEffect(glow);
+
+            Group imageGroup = new Group(imageView);
+    
+            // === Distance-from-anchor logic ===
+            double normalized = normalize180(angleDeg);
+    
+            double distTo0 = Math.abs(normalized - 0);
+            double distTo180 = Math.abs(normalized - 180);
+            double distToNeg180 = Math.abs(normalized + 180);
+    
+            double closestDist = Math.min(distTo0, Math.min(distTo180, distToNeg180));
+    
+            // Apply radius expansion rules
+            if (closestDist > 25) {
+                radius += 5;
+            }
+            if (closestDist > 40) {
+                radius += 10;
+            }
+    
+            // === Position image in polar coords ===
+            double angleRad = Math.toRadians(angleDeg);
+            double x = radius * Math.cos(angleRad);
+            double y = radius * Math.sin(angleRad);
+    
+            imageGroup.setTranslateX(x);
+            imageGroup.setTranslateY(y);
+    
+            getChildren().add(imageGroup);
+    
+        } catch (Exception e) {
+            System.err.println("❌ Failed to load image: " + imageResourcePath);
+            e.printStackTrace();
+        }
+    }
+    
+    
+
+
+    private Image recolorImage(Image original, Color newColor) {
+        int width = (int) original.getWidth();
+        int height = (int) original.getHeight();
+        WritableImage recolored = new WritableImage(width, height);
+        PixelReader reader = original.getPixelReader();
+        PixelWriter writer = recolored.getPixelWriter();
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                Color pixel = reader.getColor(x, y);
+                if (pixel.getOpacity() == 0.0) {
+                    writer.setColor(x, y, Color.TRANSPARENT);
+                } else {
+                    // Replace all visible pixels with new color, keeping original opacity
+                    writer.setColor(x, y, new Color(
+                        newColor.getRed(), newColor.getGreen(), newColor.getBlue(), pixel.getOpacity()
+                    ));
+                }
+            }
+        }
+
+        return recolored;
+    }
+
+    private Color interpolateColor(Color c1, Color c2, double factor) {
+        double r = c1.getRed() * (1 - factor) + c2.getRed() * factor;
+        double g = c1.getGreen() * (1 - factor) + c2.getGreen() * factor;
+        double b = c1.getBlue() * (1 - factor) + c2.getBlue() * factor;
+        double a = c1.getOpacity() * (1 - factor) + c2.getOpacity() * factor;
+        return new Color(r, g, b, a);
+    }
+
+    private double normalize360(double angle) {
+        angle %= 360;
+        if (angle < 0) angle += 360;
+        return angle;
+    }
+    
+    private double normalize180(double angle) {
+        angle = normalize360(angle);
+        return (angle > 180) ? angle - 360 : angle;
+    }
+    
+    
+    
+    
+}

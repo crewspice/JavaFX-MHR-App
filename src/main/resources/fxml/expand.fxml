@@ -220,7 +220,7 @@
     -fx-font-size: 12; -fx-text-fill: green;" wrapText="true" prefWidth="300" maxHeight="50" visible="false"/>
 
 
-    <Button fx:id="backButton" text="Back" layoutX="270" layoutY="5" onAction="#handleBack"/>
+    <Button fx:id="backButton" text="Back" layoutX="270" layoutY="5"/>
 
 
 </AnchorPane>

@@ -613,7 +613,7 @@ public class ActivityController extends BaseController {
                 rental.setLocationNotes(locationNotes);
                 rental.setPreTripInstructions(preTripInstructions);
                 rental.setSerialNumber(serialNumber);
-                rental.setInvoiceWritten(isInvoiceWritten != 0);
+                rental.setInvoiceComposed(isInvoiceWritten != 0);
                 boolean deliveryCheck = isWithinBusinessDays(deliveryDate, 40);
                 boolean callOffCheck = isWithinBusinessDays(callOffDate, 40);
                 boolean lastBilledCheck = isWithinBusinessDays(lastBilledDate, 40);
@@ -630,7 +630,7 @@ public class ActivityController extends BaseController {
         Comparator<Rental> comparator = Comparator.comparingDouble(item -> {
             String status = item.getStatus();
             String deliveryDateString = item.getDeliveryDate();
-            boolean isInvoiceWritten = item.isInvoiceWritten();
+            boolean isInvoiceWritten = item.isInvoiceComposed();
             LocalDate today = LocalDate.now();
             LocalDate nextWorkDay = getNextWorkDay(today);
             LocalDate deliveryDate = parseDate(deliveryDateString);
@@ -691,7 +691,7 @@ public class ActivityController extends BaseController {
            int i = 0;
            // Assuming your scroll bars are part of the dbTableView's skin
            for (Node node : tableView.lookupAll(".scroll-bar")) {
-               System.out.println("animating for:" + node);
+               //System.out.println("animating for:" + node);
                if (node instanceof ScrollBar) {
                    // Create a glow effect for the scroll bar
                    DropShadow glowEffect = new DropShadow();

@@ -182,7 +182,8 @@
     <TableView fx:id="scheduledRentalsTableView" layoutX="14" layoutY="375" prefWidth="260" prefHeight="60"
                 styleClass="schedule-delivery-table" visible="false">
         <columns>
-            <TableColumn fx:id="rentalDateColumn" text="Rental Date" prefWidth="70"/>
+            <TableColumn fx:id="expandColumn" text="" prefWidth='24' />
+            <TableColumn fx:id="rentalDateColumn" text="Rental Date" prefWidth="40"/>
             <TableColumn fx:id="liftTypeColumn" text="Lift Type" prefWidth="123"/>
             <TableColumn fx:id="deliveryTimeColumn" text="Delivery Time" prefWidth="47"/> <!-- Add Delivery Time column -->
         </columns>

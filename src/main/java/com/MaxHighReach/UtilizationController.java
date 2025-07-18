@@ -396,11 +396,11 @@ public class UtilizationController extends BaseController {
                 double longitude = rs.getLong("longitude");
                 String liftType = rs.getString("lift_type");
 
-                // Create CustomerRental objects for each row and add them to the list
+                // Create Rental objects for each row and add them to the list
                 customerRentals.add(new Rental(customerId, name, deliveryDate, callOffDate, poNumber,
                         orderedByName, orderedByPhone, autoTerm, addressBlockOne, addressBlockTwo,
                         addressBlockThree, rentalItemId, serialNumber, singleItemOrder, rentalOrderId,
-                        siteContactName, siteContactPhone, latitude, longitude, liftType));
+                        siteContactName, siteContactPhone, latitude, longitude, liftType, ""));
             }
         } catch (SQLException e) {
             throw new RuntimeException("Error loading customer rental data", e);

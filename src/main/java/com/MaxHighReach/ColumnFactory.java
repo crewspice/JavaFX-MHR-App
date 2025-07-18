@@ -1002,7 +1002,7 @@ public class ColumnFactory {
     	driverColumn.setCellValueFactory(new PropertyValueFactory<>("driver"));
     	driverColumn.setPrefWidth(63);  // minimum is 63 for those combo boxes
     	setClosedDriverColumn(driverColumnType);
-    	System.out.println("Getting driver column for status: " + driverComboBoxOpenOrClosed);
+    	// System.out.println("Getting driver column for status: " + driverComboBoxOpenOrClosed);
     	return driverColumn;
 	}
 
@@ -1124,7 +1124,7 @@ public class ColumnFactory {
 
 
                 	// Bottom section handling (invoice status and check/X icon)
-                	HBox bottomBox = createBottomPane(rental.isInvoiceWritten(), rental.getNeedsInvoice());
+                	HBox bottomBox = createBottomPane(rental.isInvoiceComposed(), rental.getNeedsInvoice());
                 	bottomBox.setStyle("-fx-padding: 0 0 13 0;");
                 	vBox.getChildren().add(bottomBox);
                	 
@@ -1424,7 +1424,7 @@ public class ColumnFactory {
 
 
 	private void handleExpandSelection(int index) {
-    	MaxReachPro.setRentalForExpanding(dbTableView.getItems().get(index), "Activity");
+    	MaxReachPro.setRentalForExpanding(dbTableView.getItems().get(index), null);
     	imageCache.clear();
     	try {
         	MaxReachPro.loadScene("/fxml/expand.fxml");
@@ -1534,7 +1534,7 @@ public class ColumnFactory {
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-		System.out.println("Loaded existing driver assignments and got: " + existingDrivers);
+	//	System.out.println("Loaded existing driver assignments and got: " + existingDrivers);
 	}
 	
 
@@ -1813,7 +1813,7 @@ public class ColumnFactory {
     
         	for (Rental rental : selectedRentals) {
             	if (rental != null && rentalItemIds.contains(rental.getRentalItemId())) {
-                	rental.setInvoiceWritten(true);
+                	rental.setInvoiceComposed(true);
                 	rental.setWritingInvoice(false);
                 	System.out.println("Updated rental ID: " + rental.getRentalItemId());
             	}

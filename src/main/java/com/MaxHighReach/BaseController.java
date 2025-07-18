@@ -5,6 +5,7 @@ import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.animation.TranslateTransition;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
@@ -56,8 +57,9 @@ public abstract class BaseController {
         System.out.println("Initializing BaseController...");
     
         if (backButton != null) {
-            backButton.setOnAction(this::handleBack);
+            backButton.setOnAction(getBackHandler());
         }
+        
     }
     
 
@@ -121,6 +123,10 @@ public abstract class BaseController {
         System.out.println("Minimize mouse pressed");
     }
 
+    protected EventHandler<ActionEvent> getBackHandler() {
+        return this::handleBack;
+    }    
+
     @FXML
     protected void handleBack(ActionEvent event) {
         try {
@@ -150,4 +156,9 @@ public abstract class BaseController {
             System.out.println("Drag area is null, cannot expand top bar.");
         }
     }
+
+    public ObservableList<Rental> getActiveRentalList() {
+        return null;  // default implementation
+    }
+
 }
