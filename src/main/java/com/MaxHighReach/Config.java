@@ -12,7 +12,7 @@ import java.util.Set;
 
 import javafx.scene.paint.Color;
 
-public class Config {
+public class Configg {
     // --------------------------------------------------
     // Window and UI Dimensions
     // --------------------------------------------------

@@ -589,6 +589,7 @@ public class ActivityController extends BaseController {
                 String poNumber = resultSet.getString("po_number");
                 String locationNotes = resultSet.getString("location_notes");
                 String preTripInstructions = resultSet.getString("pre_trip_instructions");
+                int needsInvoice = resultSet.getInt("needs_invoice");
                 int isInvoiceWritten = resultSet.getInt("invoice_composed");
                 String lastBilledDate = resultSet.getString("last_billed_date");
 
@@ -614,6 +615,7 @@ public class ActivityController extends BaseController {
                 rental.setPreTripInstructions(preTripInstructions);
                 rental.setSerialNumber(serialNumber);
                 rental.setInvoiceComposed(isInvoiceWritten != 0);
+                rental.setNeedsInvoice(needsInvoice == 1);
                 boolean deliveryCheck = isWithinBusinessDays(deliveryDate, 40);
                 boolean callOffCheck = isWithinBusinessDays(callOffDate, 40);
                 boolean lastBilledCheck = isWithinBusinessDays(lastBilledDate, 40);

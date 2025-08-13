@@ -32,6 +32,7 @@ import java.awt.datatransfer.StringSelection;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.ObjectInputFilter.Config;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
@@ -281,7 +282,6 @@ public class ColumnFactory {
 
                 	boolean shouldShow = false;
                 	boolean shouldShowExpandIcons = false;
-
 
                 	if ("calling-off".equals(lastActionType) && "Active".equals(rental.getStatus())) {
                     	shouldShow = true;
@@ -1355,7 +1355,7 @@ public class ColumnFactory {
            	 
            	 
                     	// Path to the Python script
-                        String scriptPath = Paths.get(PathConfig.INVOICES_DIR, ".venv", "Scripts", "make_invoices_from_queue.py").toString();
+                        String scriptPath = Paths.get(PathConfig.INVOICES_DIR,"make_invoices_from_queue.py").toString();
                     	System.out.println("Python script path: " + scriptPath);
            	 
            	 
@@ -1905,17 +1905,13 @@ public class ColumnFactory {
     	try {
         	System.out.println("Preparing to execute Python script...");
     
-    
         	// Set up the Python interpreter path (modify if needed)
-            String pythonPath = Paths.get(System.getProperty("user.home"), 
-            "OneDrive", "Documents", "MaxReachPro", "SMM Filing", "venv", "Scripts", "python.exe").toString();
-            String scriptPath = Paths.get(PathConfig.BASE_DIR, "Composing Invoices", ".venv", "Scripts", "make_invoices_from_queue.py").toString();
-    
+			String pythonPath = Paths.get(PathConfig.BASE_DIR, "Composing Invoices", ".venv", "Scripts", "python.exe").toString();
+            String scriptPath = Paths.get(PathConfig.BASE_DIR, "Composing Invoices", "make_invoices_from_queue.py").toString();
     
         	// Create the process builder with Python and the script path
         	ProcessBuilder processBuilder = new ProcessBuilder(pythonPath, scriptPath);
-    
-    
+
         	// Set working directory to ensure relative paths in the script work
             File workingDirectory = new File(PathConfig.INVOICES_DIR);
         	if (workingDirectory.exists() && workingDirectory.isDirectory()) {
@@ -1926,18 +1922,14 @@ public class ColumnFactory {
             	return false;
         	}
     
-    
         	// Log the full command for debugging
         	System.out.println("Executing command: " + String.join(" ", processBuilder.command()));
-    
     
         	// Redirect error stream to merge with standard output
         	processBuilder.redirectErrorStream(true);
     
-    
         	// Start the Python process
         	Process process = processBuilder.start();
-    
     
         	// Capture and print output from the Python script
         	System.out.println("Python script output:");
@@ -1948,11 +1940,9 @@ public class ColumnFactory {
             	}
         	}
     
-    
         	// Wait for the process to finish and capture the exit code
         	int exitCode = process.waitFor();
         	System.out.println("Python script exited with code: " + exitCode);
-    
     
         	// Check exit code for success or failure
         	if (exitCode != 0) {

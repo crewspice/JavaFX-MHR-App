@@ -10,8 +10,6 @@ public class PathConfig {
 
     private static final boolean atWork = true;
 
-    
-
     public static final String BASE_DIR = Paths.get(USER_HOME, "OneDrive", "Documents", "MaxReachPro").toString();
     public static final String CONTRACTS_DIR = Paths.get(BASE_DIR, "Composing Contracts").toString();
     public static final String INVOICES_DIR = Paths.get(BASE_DIR, "Composing Invoices").toString();
