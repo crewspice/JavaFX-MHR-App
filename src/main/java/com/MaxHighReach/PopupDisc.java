@@ -1,5 +1,10 @@
 package com.MaxHighReach;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -8,6 +13,12 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.function.BiConsumer;
 
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.awt.Graphics2D;
+import javax.imageio.ImageIO;
+
+import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Pos;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.CycleMethod;
@@ -51,8 +62,17 @@ public class PopupDisc extends StackPane {
     private double openingSpan;
 
     public PopupDisc(MapController mapController, Rental rental, double x, double y) {
-        System.out.println("\n----- constructing PopupDisc2 -----");
-    
+        // System.out.println(
+        //     "PopupDisc constructor called: " +
+        //     "mapController=" + mapController +
+        //     ", rental=" + rental +
+        //     ", x=" + x +
+        //     ", y=" + y
+        // );
+
+        // existing constructor code...
+
+
         setPrefSize(SIZE, SIZE);
         setAlignment(Pos.CENTER);
     
@@ -130,6 +150,7 @@ public class PopupDisc extends StackPane {
         getChildren().add(seamlessWedges);
         seamlessWedges.toBack(); */
 
+        double wedgeSpan = wedgeEndDeg - wedgeStartDeg; // angle length in degrees
 
         for (int i = 0; i < wedgeCount; i++) {
             double rotation = spreadCenterDegrees + i * wedgeAngle;
@@ -137,13 +158,15 @@ public class PopupDisc extends StackPane {
             double bandInner = 16;
             double bandOuter = 54;
             double bandSplit = 50; // Major band ends, minor band begins
+            double bandPeripheral = 105;
+            double bandSplit2 = 54;
         
             int iNorm = i + 1;
             String routeName = "route" + iNorm;
             String[] colors = mapController.getRouteColors(routeName);
             Color c0 = Color.web(colors[0]); // Major band color
             Color c1 = Color.web(colors[1]); // Minor outer band color
-        
+
             // === Major Band (inner) ===
             Path majorBand = createInteractiveBand(bandInner, bandSplit, wedgeAngle);
             majorBand.getTransforms().add(new Rotate(rotation, 0, 0));
@@ -154,7 +177,7 @@ public class PopupDisc extends StackPane {
             final int index = i;
             majorBand.setOnMouseClicked(event -> {
                 mapController.addStopToRoute(routeName, rental);
-                System.out.println("calling mapController.addStopToRoute with routeName = " + routeName);
+             //   System.out.println("calling mapController.addStopToRoute with routeName = " + routeName);
             });
         
             // === Minor Band (outer) ===
@@ -164,9 +187,17 @@ public class PopupDisc extends StackPane {
             minorBand.setStroke(Color.TRANSPARENT);
             minorBand.setTranslateX(43);
             minorBand.setTranslateY(19);
-        
+
+            // === Peripheral band (outermost) ===
+            Path peripheralBand = createInteractiveBand(bandSplit2, bandPeripheral, wedgeAngle);
+            peripheralBand.getTransforms().add(new Rotate(rotation, 0, 0));
+            peripheralBand.setFill(Color.rgb(255, 255, 255, 0.6));
+            peripheralBand.setStroke(Color.TRANSPARENT);
+            peripheralBand.setTranslateX(70);
+            peripheralBand.setTranslateY(37);
+
             // Add both bands to scene (minor first so it appears behind)
-            getChildren().addAll(minorBand, majorBand);
+            getChildren().addAll(minorBand, majorBand, peripheralBand);
         
             Node truckVisual;
             Optional<String> maybeAssignedTruck;
@@ -175,7 +206,7 @@ public class PopupDisc extends StackPane {
             if (mapController.routeAssignments != null && mapController.routeAssignments.containsKey(routeName)) {
                 // ✅ Top-priority override: routeAssignments
                 String labelText = mapController.routeAssignments.get(routeName);
-                System.out.println("🟩 routeAssignments has route " + routeName + " → '" + labelText + "'");
+           //     System.out.println("🟩 routeAssignments has route " + routeName + " → '" + labelText + "'");
                 Text truckLabel = new Text(labelText);
                 truckLabel.setFont(Font.font("Verdana", FontWeight.BOLD, 11));
                 truckLabel.setFill(Color.web(colors[2]));
@@ -193,7 +224,7 @@ public class PopupDisc extends StackPane {
             
                 if (maybeAssignedTruck.isPresent()) {
                     String assignedTruckName = "'" + maybeAssignedTruck.get();
-                    System.out.println("🟨 truckAssignments has route " + routeName + " → " + assignedTruckName);
+               //     System.out.println("🟨 truckAssignments has route " + routeName + " → " + assignedTruckName);
                     Text truckLabel = new Text(assignedTruckName);
                     truckLabel.setFont(Font.font("Verdana", FontWeight.BOLD, 11));
                     truckLabel.setFill(Color.web(colors[2]));
@@ -201,7 +232,7 @@ public class PopupDisc extends StackPane {
                     truckLabel.setTranslateY(truckLabel.getLayoutBounds().getHeight() / 4);
                     truckVisual = truckLabel;
                 } else {
-                    System.out.println("🟥 No assignment found for " + routeName + ", using fallback image");
+               //     System.out.println("🟥 No assignment found for " + routeName + ", using fallback image");
                     String imagePath = getClass().getResource("/images/truck-face.png").toExternalForm();
                     Image rawTruckImage = new Image(imagePath);
                     Color symbolColor = Color.web(colors[2]); // Tertiary color
@@ -313,7 +344,7 @@ public class PopupDisc extends StackPane {
         }
         addStreetAddressVisual(siteText, adjustedLabelCenterRad, totalAngle, 65, "site");
                 addStreetAddressVisual(rental.getAddressBlockTwo(), adjustedLabelCenterRad, totalAngle, 56, "street");
-        String cityText = rental.getAddressBlockThree() + " ◆ " + rental.getDeliveryTime();
+        String cityText = rental.getAddressBlockThree() + " \u25C6 " + rental.getDeliveryTime();
         addStreetAddressVisual(cityText, adjustedLabelCenterRad, totalAngle, 48, "city");
         
         openingAngle = getWidestOpenAngleDeg();
@@ -352,8 +383,14 @@ public class PopupDisc extends StackPane {
 
         getChildren().addAll(startDot, endDot, nameStartDot, nameEndDot, addressStartDot, addressEndDot, openAngleDot);
     */
-        addImageAtAngle("/images/" + rental.getLiftType() + ".png", openingAngle, 79, 38);
-
+        if (rental.isSingleItemOrder()) {
+            addImageAtAngle("/images/" + rental.getLiftType() + ".png", openingAngle, 79, 38);
+        } else {
+            List<Rental> relatedRentals = fetchRelatedRentals(rental);
+            Image compoundImage = buildCompoundPeekImage(relatedRentals); // Creates stacked image
+            addImageAtAngle(compoundImage, openingAngle, 79, 38);
+        }
+        /*
         System.out.println("\n===== ANGLE DIAGNOSTICS =====");
         System.out.printf("🔵 angleToCenter       : %.2f°\n", Math.toDegrees(angleToCenter));
         System.out.printf("🟠 spreadCenter        : %s\n", 
@@ -367,7 +404,7 @@ public class PopupDisc extends StackPane {
         System.out.printf("🟤 derivedOpenAngleDeg  : %.2f°\n", openingAngle);
         System.out.printf("🟤 derivedOpeningSpan  : %.2f°\n", openingSpan);
         System.out.println("================================\n");
-        /*
+        
         Circle clipCircle = new Circle(125, 125, 110);  // center is (125,125) for StackPane
         setClip(clipCircle);
         
@@ -633,9 +670,9 @@ public class PopupDisc extends StackPane {
         double adjustedCenterDeg = desiredCenterDeg + shift;
         double adjustedCenterRad = Math.toRadians(adjustedCenterDeg);
     
-        System.out.printf("📍 Address label span: %.1f° → %.1f° (%.1f° total)\n", 
+        /*System.out.printf("📍 Address label span: %.1f° → %.1f° (%.1f° total)\n", 
             adjustedCenterDeg - arcSpanDeg / 2, adjustedCenterDeg + arcSpanDeg / 2, arcSpanDeg);
-    
+        */
         // Step 3: Draw label
         double[] addressSpan = addSemiCircleLabel(
             street,
@@ -685,7 +722,7 @@ public class PopupDisc extends StackPane {
         double spreadEnd = normalize360(spreadEndAngle);
         if (spreadEnd <= spreadStart) spreadEnd += 360;
     
-        System.out.printf("🌀 Normalized spread: [%.2f°, %.2f°]%n", spreadStart, spreadEnd);
+      //  System.out.printf("🌀 Normalized spread: [%.2f°, %.2f°]%n", spreadStart, spreadEnd);
     
         // === Normalize label angles and shift forward if needed ===
         double[] labelArcs = {
@@ -714,10 +751,11 @@ public class PopupDisc extends StackPane {
         // === Sort arcs for gap detection ===
         occupiedArcs.sort(Comparator.comparingDouble(a -> a[0]));
     
+        /*
         System.out.println("📌 Occupied Arcs:");
         for (double[] arc : occupiedArcs) {
             System.out.printf("   🔻 [%.2f°, %.2f°]%n", arc[0], arc[1]);
-        }
+        } */
     
         // === Find widest open segment ===
         double bestWidth = -1;
@@ -750,7 +788,7 @@ public class PopupDisc extends StackPane {
     
         openingSpan = bestWidth;
         double derivedDeg = normalize180(bestCenter);
-        System.out.printf("🟤 derivedOpenAngleDeg  : %.2f° (from %.2f° wide gap)%n", derivedDeg, bestWidth);
+      //  System.out.printf("🟤 derivedOpenAngleDeg  : %.2f° (from %.2f° wide gap)%n", derivedDeg, bestWidth);
         return derivedDeg;
     }
 
@@ -776,42 +814,51 @@ public class PopupDisc extends StackPane {
         // Optional: normalize the final angle to [-180, 180] or [0, 360]
         openingAngle = normalize180(openingAngle);
     
-        System.out.printf("🔧 Adjusted openingAngle to %.2f° (moved %.2f° toward %d°)%n", 
-                          openingAngle, adjustAmount, (int) target);
+   /*     System.out.printf("🔧 Adjusted openingAngle to %.2f° (moved %.2f° toward %d°)%n", 
+                          openingAngle, adjustAmount, (int) target);  */
     }
     
-    
-
+        
     private void addImageAtAngle(String imageResourcePath, double angleDeg, double radius, double size) {
         try {
             String imagePath = getClass().getResource(imageResourcePath).toExternalForm();
             Image image = new Image(imagePath);
+            addImageAtAngle(image, angleDeg, radius, size); // Delegate
+        } catch (Exception e) {
+            System.err.println("❌ Failed to load image: " + imageResourcePath);
+            e.printStackTrace();
+        }
+    }
+
+
+    private void addImageAtAngle(Image image, double angleDeg, double radius, double size) {
+        try {
             Image recoloredImage = recolorImage(image, Color.web(Config.getTertiaryColor()));
             ImageView imageView = new ImageView(recoloredImage);
-    
+
             imageView.setFitWidth(size);
             imageView.setPreserveRatio(true);
             imageView.setSmooth(true);
-    
+
             // Center image on its origin
             imageView.setTranslateX(-imageView.getFitWidth() / 2);
             imageView.setTranslateY(-imageView.getFitHeight() / 2);
-    
+
             DropShadow glow = new DropShadow();
             glow.setColor(Color.web("#F4F4F4"));
-           // imageView.setEffect(glow);
+            // imageView.setEffect(glow);
 
             Group imageGroup = new Group(imageView);
-    
+
             // === Distance-from-anchor logic ===
             double normalized = normalize180(angleDeg);
-    
+
             double distTo0 = Math.abs(normalized - 0);
             double distTo180 = Math.abs(normalized - 180);
             double distToNeg180 = Math.abs(normalized + 180);
-    
+
             double closestDist = Math.min(distTo0, Math.min(distTo180, distToNeg180));
-    
+
             // Apply radius expansion rules
             if (closestDist > 25) {
                 radius += 5;
@@ -819,25 +866,22 @@ public class PopupDisc extends StackPane {
             if (closestDist > 40) {
                 radius += 10;
             }
-    
+
             // === Position image in polar coords ===
             double angleRad = Math.toRadians(angleDeg);
             double x = radius * Math.cos(angleRad);
             double y = radius * Math.sin(angleRad);
-    
+
             imageGroup.setTranslateX(x);
             imageGroup.setTranslateY(y);
-    
+
             getChildren().add(imageGroup);
-    
+
         } catch (Exception e) {
-            System.err.println("❌ Failed to load image: " + imageResourcePath);
+            System.err.println(" Failed to process provided image object");
             e.printStackTrace();
         }
     }
-    
-    
-
 
     private Image recolorImage(Image original, Color newColor) {
         int width = (int) original.getWidth();
@@ -881,8 +925,135 @@ public class PopupDisc extends StackPane {
         angle = normalize360(angle);
         return (angle > 180) ? angle - 360 : angle;
     }
+
     
-    
-    
+    private List<Rental> fetchRelatedRentals(Rental baseRental) {
+        List<Rental> rentals = new ArrayList<>();
+
+        // SQL to fetch all rentals with the same order ID, delivery date, and delivery time
+        String query = """
+            SELECT ro.customer_id, c.customer_name, ri.item_delivery_date, ri.item_call_off_date, ro.po_number,
+                ordered_contacts.first_name AS ordered_contact_name, ordered_contacts.phone_number AS ordered_contact_phone,
+                ri.auto_term, ro.site_name, ro.street_address, ro.city, ri.rental_item_id, ri.item_status, l.lift_type,
+                l.serial_number, ro.single_item_order, ri.rental_order_id, ro.longitude, ro.latitude,
+                site_contacts.first_name AS site_contact_name, site_contacts.phone_number AS site_contact_phone,
+                ri.driver, ri.driver_number, ri.driver_initial, ri.delivery_truck, ri.pick_up_truck, ri.delivery_time, 
+                ri.invoice_composed
+            FROM customers c
+            JOIN rental_orders ro ON c.customer_id = ro.customer_id
+            JOIN rental_items ri ON ro.rental_order_id = ri.rental_order_id
+            JOIN lifts l ON ri.lift_id = l.lift_id
+            LEFT JOIN contacts AS ordered_contacts ON ri.ordered_contact_id = ordered_contacts.contact_id
+            LEFT JOIN contacts AS site_contacts ON ri.site_contact_id = site_contacts.contact_id
+            WHERE ri.rental_order_id = ?
+            AND ri.item_delivery_date = ?
+            AND ri.delivery_time = ?
+        """;
+
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+            PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+
+            preparedStatement.setInt(1, baseRental.getRentalOrderId());
+            preparedStatement.setString(2, baseRental.getDeliveryDate());
+            preparedStatement.setString(3, baseRental.getDeliveryTime());
+
+            try (ResultSet rs = preparedStatement.executeQuery()) {
+                while (rs.next()) {
+                    Rental r = new Rental(
+                        rs.getString("customer_id"),
+                        rs.getString("customer_name"),
+                        rs.getString("item_delivery_date"),
+                        rs.getString("item_call_off_date"),
+                        rs.getString("po_number"),
+                        rs.getString("ordered_contact_name"),
+                        rs.getString("ordered_contact_phone"),
+                        rs.getBoolean("auto_term"),
+                        rs.getString("site_name"),
+                        rs.getString("street_address"),
+                        rs.getString("city"),
+                        rs.getInt("rental_item_id"),
+                        rs.getString("serial_number"),
+                        rs.getBoolean("single_item_order"),
+                        rs.getInt("rental_order_id"),
+                        rs.getString("site_contact_name"),
+                        rs.getString("site_contact_phone"),
+                        rs.getDouble("latitude"),
+                        rs.getDouble("longitude"),
+                        rs.getString("lift_type"),
+                        rs.getString("item_status")
+                    );
+                    r.setDriver(rs.getString("driver"));
+                    r.setDriverInitial(rs.getString("driver_initial"));
+                    r.setDriverNumber(rs.getInt("driver_number"));
+                    r.setDeliveryTruck(rs.getString("delivery_truck"));
+                    r.setPickUpTruck(rs.getString("pick_up_truck"));
+                    r.setDeliveryTime(rs.getString("delivery_time"));
+                    r.setInvoiceComposed(rs.getBoolean("invoice_composed"));
+                    r.decapitalizeLiftType();
+                    rentals.add(r);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return rentals;
+    }
+
+    private Image buildCompoundPeekImage(List<Rental> rentals) {
+        try {
+            if (rentals.isEmpty()) {
+                return null;
+            }
+
+            List<BufferedImage> croppedImages = new java.util.ArrayList<>();
+
+            for (Rental r : rentals) {
+                String path = "/images/" + r.getLiftType() + "-peek.png";
+                Image fxImage = new Image(getClass().getResource(path).toExternalForm());
+                BufferedImage bImage = SwingFXUtils.fromFXImage(fxImage, null);
+
+                int cropHeight = (int) (bImage.getHeight() * 0.42);
+                BufferedImage cropped = bImage.getSubimage(0, 0, bImage.getWidth(), cropHeight);
+
+                croppedImages.add(cropped);
+            }
+
+            int totalHeight = croppedImages.stream().mapToInt(BufferedImage::getHeight).sum();
+            int width = croppedImages.get(0).getWidth();
+
+            BufferedImage finalImage = new BufferedImage(width, totalHeight, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g2d = finalImage.createGraphics();
+
+            int y = 0;
+            for (BufferedImage img : croppedImages) {
+                g2d.drawImage(img, 0, y, null);
+                y += img.getHeight();
+            }
+            g2d.dispose();
+
+            return SwingFXUtils.toFXImage(finalImage, null);
+
+        } catch (Exception e) {
+            System.err.println(" Failed to build compound peek image");
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private BufferedImage loadBufferedImage(String resourcePath) throws IOException {
+        return ImageIO.read(getClass().getResource(resourcePath));
+    }
+
+    private Image loadImage(String resourcePath) {
+        try {
+            return SwingFXUtils.toFXImage(loadBufferedImage(resourcePath), null);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+
     
 }

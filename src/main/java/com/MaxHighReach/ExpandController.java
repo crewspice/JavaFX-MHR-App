@@ -38,8 +38,13 @@ import java.sql.Date;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.Month;
+import java.time.MonthDay;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAccessor;
 import java.util.*;
 
 import static com.itextpdf.kernel.pdf.PdfName.Event;
@@ -187,18 +192,24 @@ public class ExpandController extends BaseController {
 
     private Rental expandedRental;
 
+    private static final DateTimeFormatter[] dateFormatters = new DateTimeFormatter[] {
+        DateTimeFormatter.ISO_LOCAL_DATE,                              // 2024-07-30
+        DateTimeFormatter.ofPattern("MMM-dd", Locale.ENGLISH),         // Aug-12
+        DateTimeFormatter.ofPattern("MM/dd/yyyy"),                     // 08/12/2024
+        DateTimeFormatter.ofPattern("MM/dd")                           // 08/12
+    };
+
 
     public void initialize() {
 
         expandedRental = MaxReachPro.getRentalForExpanding();
-
+        System.out.println("lift type upon expanding: " + expandedRental.getLiftType());
         try {
 
             System.out.println("Initilizng expandController");
             super.initialize(dragArea);
             lifts = MaxReachPro.getLifts();
             customers = MaxReachPro.getCustomers();
-            setRentalDate();
 
             customerNameField.setOnKeyPressed(event -> {
                 if (event.getCode() == KeyCode.ENTER) {
@@ -562,13 +573,14 @@ public class ExpandController extends BaseController {
             }
     
             updateWeekdayToggleButtons(deliveryWeeksRowTilePane,
-                expandedRental.getDeliveryDate() != null ? LocalDate.parse(expandedRental.getDeliveryDate()) : null);
-    
+                tryParseDate(expandedRental.getDeliveryDate()));
+
             updateWeekdayToggleButtons(callOffWeeksRowTilePane,
-                expandedRental.getCallOffDate() != null ? LocalDate.parse(expandedRental.getCallOffDate()) : null);
+                tryParseDate(expandedRental.getCallOffDate()));
+
     
             setDeliveryTime(expandedRental.getDeliveryTime());
-            setLiftType(expandedRental.getLiftType());
+            setLiftType(normalizeLiftString(expandedRental.getLiftType()));
             serialNumberField.setText(expandedRental.getSerialNumber());
     
         } catch (Exception e) {
@@ -579,30 +591,23 @@ public class ExpandController extends BaseController {
     }
     
 
-
     private void prepareInvoiceArea() {
-        System.out.println("🧾 Preparing invoice area...");
         invoiceBox.setSpacing(0);
         invoiceBox.setAlignment(Pos.CENTER_LEFT);
-        System.out.println("✅ invoiceBox spacing and alignment set.");
-    
+
         String imagePath = "/images/create-invoices.png";
         Image image = new Image(Objects.requireNonNull(getClass().getResourceAsStream(imagePath)));
         ImageView statusImage = new ImageView(image);
         statusImage.setFitHeight(30);
         statusImage.setPreserveRatio(true);
-        System.out.println("🖼️ Status image loaded and styled.");
-        System.out.println("expandedRental.isInvoiceWritten() returns: " + expandedRental.isInvoiceComposed());
+
         Label statusLabel = new Label();
         if (expandedRental.isInvoiceComposed()) {
-            System.out.println("✅ Rental has invoice");
             Label checkSymbol = new Label("\u2713");
             checkSymbol.setStyle("-fx-text-fill: green; -fx-font-size: 22px; -fx-padding: 0;");
             statusLabel = new Label(" Has invoice");
             invoiceBox.getChildren().addAll(statusImage, checkSymbol, statusLabel);
-            System.out.println("✔️ Check symbol and label added to invoiceBox");
         } else {
-            System.out.println("❗ Rental needs invoice");
             Label xSymbol = new Label("\u2717");
             xSymbol.setStyle("-fx-text-fill: red; -fx-font-size: 22px; -fx-padding: -2;");
             VBox labelBox = new VBox();
@@ -614,13 +619,11 @@ public class ExpandController extends BaseController {
             labelBox.getChildren().addAll(statusLabelTop, statusLabelBottom);
             statusLabelTop.setTranslateX(2);
             invoiceBox.getChildren().addAll(statusImage, xSymbol, labelBox);
-            System.out.println("❌ X symbol and labelBox added to invoiceBox");
         }
-        System.out.println("📦 invoiceBox populated based on invoice status.");
-    
+
         statusLabel.setStyle("-fx-font-size: 12; -fx-padding: 0 -2 0 -5;");
         invoiceBox.setAlignment(Pos.CENTER);
-    
+
         Label topInvoiceLabel = new Label("Mark as");
         topInvoiceLabel.setStyle("-fx-font-size: 12");
         Label bottomInvoiceLabel = new Label();
@@ -629,15 +632,13 @@ public class ExpandController extends BaseController {
         } else {
             bottomInvoiceLabel.setText("'Has Invoice'");
         }
-        System.out.println("🪧 Invoice toggle labels prepared.");
-    
+
         switchInvoiceLabelBox.getChildren().addAll(topInvoiceLabel, bottomInvoiceLabel);
         switchInvoiceLabelBox.setSpacing(-4);
         switchInvoiceLabelBox.setAlignment(Pos.CENTER);
-        System.out.println("🔄 switchInvoiceLabelBox updated.");
-    
+
         switchInvoiceButton.getStyleClass().remove("button");
-    
+
         invoiceBox.setOnMouseEntered(event -> {
             switchInvoiceButton.setVisible(true);
             invoiceBox.setVisible(false);
@@ -652,10 +653,7 @@ public class ExpandController extends BaseController {
                 switchInvoiceButton.setStyle("-fx-background-color: #F4F4F4");
             });
         });
-    
-        System.out.println("✅ prepareInvoiceArea completed.");
     }
-    
 
     private void autoFillSerialNumber(String input) {
         selectedLift = null;
@@ -739,9 +737,9 @@ public class ExpandController extends BaseController {
     private void populateComboBoxesForCustomer(String customerId) {
        ObservableList<String> orderingContacts = FXCollections.observableArrayList();
        ObservableList<String> siteContacts = FXCollections.observableArrayList();
-
+        // OBFUSCATE_OFF
        String query = "SELECT first_name, phone_number, is_ordering_contact, is_site_contact, contact_id FROM contacts WHERE customer_id = ?";
-
+        // OBFUSCATE_ON
 
        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
@@ -840,13 +838,7 @@ public class ExpandController extends BaseController {
         }
     }
 
-
-
-    private void setRentalDate(){
-
-    }
-
-
+    // found and wasnt using as of 7/29/25 vvv
     // private void updateSuggestions(String input) {
     //     addressSuggestions.clear(); // Clear previous suggestions
 
@@ -1003,7 +995,7 @@ public class ExpandController extends BaseController {
         if (date == null) {
             noCallOffMemory = true;
             // Default to delivery date if no date is provided
-            date = LocalDate.parse(expandedRental.getDeliveryDate());
+            date = tryParseDate(expandedRental.getDeliveryDate());
         }
 
         // Determine the start of the week (Monday)
@@ -1135,17 +1127,18 @@ public class ExpandController extends BaseController {
         // Find the corresponding button text
         String buttonText = Config.LIFT_BUTTON_TEXT_MAP.getOrDefault(liftType, null);
         if (buttonText == null) {
-            System.err.println("No matching button text for lift type: " + liftType);
+            System.err.println("❌ No matching button text for lift type: \"" + liftType + "\"");
+            System.err.println("📋 Available keys in LIFT_BUTTON_TEXT_MAP: " + Config.LIFT_BUTTON_TEXT_MAP.keySet());
             return;
         }
 
         Platform.runLater(() -> {
-            // Iterate through the toggles to match the button text
             for (Toggle toggle : liftTypeToggleGroup.getToggles()) {
                 if (toggle instanceof ToggleButton) {
                     ToggleButton button = (ToggleButton) toggle;
+
                     if (button.getText().equals(buttonText)) {
-                        liftTypeToggleGroup.selectToggle(button); // Ensure the selected button is set
+                        liftTypeToggleGroup.selectToggle(button); 
                         button.setSelected(true);
                     } else {
                         button.setSelected(false);
@@ -1154,6 +1147,7 @@ public class ExpandController extends BaseController {
             }
         });
     }
+
 
     @FXML
     public void handleOpenCalendar(ActionEvent event) {
@@ -1383,14 +1377,11 @@ public class ExpandController extends BaseController {
 
     @FXML
     private void handleUpdateRental() {
-       System.out.println("handleUpdateRental called");
        // Chunk of code for getting page settings
        String deliveryDate = getDateForDB(weeksRowToggleGroup);
        String callOffDate = "";
        if (!noCallOffMemory) {
-           System.out.println("boolean noCallOffMemory remembers that there's a call off date");
            callOffDate = getDateForDB(weeksRowToggleGroupAT);
-           System.out.println("call off date derived from buttons is: " + callOffDate);
        }
        String deliveryTime;
        if (customButton.isSelected()) {
@@ -1478,7 +1469,7 @@ public class ExpandController extends BaseController {
         int rentalOrderId = expandedRental.getRentalOrderId();
 
         String liftType = liftTypeToggleGroup.getSelectedToggle() != null ? ((ToggleButton) liftTypeToggleGroup.getSelectedToggle()).getText() : Config.LIFT_BUTTON_TEXT_MAP.getOrDefault(expandedRental.getLiftType(), "");
-
+        // OBFUSCATE_OFF
         String checkOrdersTableQuery = """
                 SELECT 
                     ri.*, 
@@ -1495,7 +1486,7 @@ public class ExpandController extends BaseController {
                 LEFT JOIN contacts sc ON ri.site_contact_id = sc.contact_id 
                 WHERE ri.rental_item_id = ?
                 """;
-
+        // OBFUSCATE_ON
         try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
                 PreparedStatement preparedStatement = connection.prepareStatement(checkOrdersTableQuery)) {
 
@@ -1530,6 +1521,7 @@ public class ExpandController extends BaseController {
 
                     if (selectedCustomer != null) {
                         if (!customerId.equals(selectedCustomer.getCustomerId())) {
+                            statusLabel.setTextFill(Color.RED);
                             statusLabel.setText("Customer ID mismatch");
                             statusLabel.setVisible(true);
                         }
@@ -1553,6 +1545,7 @@ public class ExpandController extends BaseController {
                             }
                         }
                         if (!anyCustomer) {
+                            statusLabel.setTextFill(Color.RED);
                             statusLabel.setText("New customer additions currently only supported in Quickbooks");
                             statusLabel.setVisible(true);
                             return;
@@ -1560,11 +1553,12 @@ public class ExpandController extends BaseController {
                     }
 
                     if (!dbPoNumber.equals(poNumber) || !dbSiteName.equals(site) || !dbFullAddress.equals(address) || !customerMatch) {
-
+                        // OBFUSCATE_OFF
                         String createRentalOrderQuery = """
                                 INSERT INTO rental_orders (customer_id, po_number, site_name, street_address, city, order_date, delivery_date)
                                 VALUES (?, ?, ?, ?, ?, ?, ?)
                                 """;
+                                // OBFUSCATE_ON
                                 try (PreparedStatement createOrderStmt = connection.prepareStatement(createRentalOrderQuery, Statement.RETURN_GENERATED_KEYS)) {
                                     createOrderStmt.setString(1, selectedCustomer.getCustomerId());
                                     createOrderStmt.setString(2, poNumber);
@@ -1581,23 +1575,27 @@ public class ExpandController extends BaseController {
                                             rentalOrderId = generatedKeys.getInt(1);
                                             expandedRental.setRentalOrderId(rentalOrderId);
                                             System.out.println("Generated rental order ID: " + rentalOrderId);
-
+                                            statusLabel.setTextFill(Color.GREEN);
                                             statusLabel.setText("Order updated. ");
                                             statusLabel.setVisible(true);
 
                                             if (isBaseLift) {
+                                                // OBFUSCATE_OFF
                                                 String updateRentalItemQuery = """
                                                         UPDATE rental_items
                                                         SET rental_order_id = ?
                                                         WHERE rental_item_id = ?
                                                         """;
+                                                // OBFUSCATE_ON
                                                 try (PreparedStatement updateRentalItemStmt = connection.prepareStatement(updateRentalItemQuery)) {
                                                     updateRentalItemStmt.setInt(1, rentalOrderId);
                                                     updateRentalItemStmt.setInt(2, rentalItemId);
                                                     updateRentalItemStmt.executeUpdate();
                                                 } catch (SQLException e) {
                                                     e.printStackTrace();
+                                                    statusLabel.setTextFill(Color.RED);
                                                     statusLabel.setText("Error updating rental item: " + e.getMessage());
+                                                    System.out.println(e.getMessage());
                                                     statusLabel.setVisible(true);
                                                     return;
                                                 }
@@ -1606,6 +1604,7 @@ public class ExpandController extends BaseController {
                                     }
                                 } catch (SQLException e) {
                                     e.printStackTrace();
+                                    statusLabel.setTextFill(Color.RED);
                                     statusLabel.setText("Error creating rental order: " + e.getMessage());
                                     statusLabel.setVisible(true);
                                     return;
@@ -1652,7 +1651,7 @@ public class ExpandController extends BaseController {
                                System.out.println("Mismatch: dbDeliveryTime (" + dbDeliveryTime + ") != deliveryTime (" + deliveryTime + ")");
                            }
 
-
+                            // OBFUSCATE_OFF
                             String updateRentalItemQuery = """
                             
                             UPDATE rental_items
@@ -1671,6 +1670,7 @@ public class ExpandController extends BaseController {
                             WHERE rental_item_id = ?
                             """;
 
+                           // OBFUSCATE_ON
                            System.out.println("About to engage updateRentalItemStatement and deliveryDate is: " +
                                    deliveryDate + ", and callOffDate is: " + callOffDate + ", and noCallOffMemory is: " +
                                    noCallOffMemory);
@@ -1696,11 +1696,14 @@ public class ExpandController extends BaseController {
 
                                 updateRentalItemStmt.executeUpdate();
 
+                                statusLabel.setTextFill(Color.GREEN);
                                 statusLabel.setText("Item updated. " + statusLabel.getText());
                                 statusLabel.setVisible(true);
                             } catch (SQLException e) {
                                 e.printStackTrace();
+                                statusLabel.setTextFill(Color.RED);
                                 statusLabel.setText("Error updating rental item: " + e.getMessage());
+                                System.out.println(e.getMessage());
                                 statusLabel.setVisible(true);
                                 return;
                             }
@@ -1719,6 +1722,7 @@ public class ExpandController extends BaseController {
 
             } catch (SQLException e) {
                 e.printStackTrace();
+                statusLabel.setTextFill(Color.RED);
                 statusLabel.setText("Error checking orders table: " + e.getMessage());
                 statusLabel.setVisible(true);
                 return;
@@ -1727,13 +1731,14 @@ public class ExpandController extends BaseController {
 
         if (!isBaseLift) {
             // Insert a whole new rental item if not baseLift
+            // OBFUSCATE_OFF
             String createRentalItemQuery = """
                     INSERT INTO rental_items (rental_order_id, lift_id, ordered_contact_id, site_contact_id,
                           item_delivery_date, item_call_off_date, delivery_time, customer_ref_number, location_notes,
                           pre_trip_instructions, item_order_date, item_status, invoice_composed, auto_term)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """;
-
+            // OBFUSCATE_ON
             try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
                  PreparedStatement preparedStatement = connection.prepareStatement(createRentalItemQuery)) {
 
@@ -1756,11 +1761,12 @@ public class ExpandController extends BaseController {
                 // Execute the query
                 preparedStatement.executeUpdate();
                 System.out.println("New rental item inserted successfully.");
-
+                statusLabel.setTextFill(Color.GREEN);
                 statusLabel.setText("New item inserted. " + statusLabel.getText());
                 statusLabel.setVisible(true);
             } catch (SQLException e) {
                 e.printStackTrace();
+                statusLabel.setTextFill(Color.RED);
                 statusLabel.setText("Error inserting new rental item: " + e.getMessage());
                 statusLabel.setVisible(true);
                 return;
@@ -1832,7 +1838,7 @@ public class ExpandController extends BaseController {
            System.out.println("The provided serial number does not exist in the database.");
            return;
        }
-
+       // OBFUSCATE_OFF
        String updateQuery = """
           UPDATE rental_items
           SET lift_id = (
@@ -1843,7 +1849,7 @@ public class ExpandController extends BaseController {
           )
           WHERE rental_item_id = ?;
        """;
-
+       // OBFUSCATE_ON
        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
             PreparedStatement preparedStatement = connection.prepareStatement(updateQuery)) {
 
@@ -1854,6 +1860,7 @@ public class ExpandController extends BaseController {
            // Execute the update
            int rowsAffected = preparedStatement.executeUpdate();
            if (rowsAffected > 0) {
+               statusLabel.setTextFill(Color.GREEN);
                statusLabel.setText("Serial updated. " + statusLabel.getText());
                System.out.println("Rental item updated successfully.");
            } else {
@@ -1867,7 +1874,9 @@ public class ExpandController extends BaseController {
     }
 
     private boolean checkSerialNumberExists(String serialNumber) {
+        // OBFUSCATE_OFF
         String checkQuery = "SELECT COUNT(*) FROM lifts WHERE serial_number = ?;";
+        // OBFUSCATE_ON
         try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
              PreparedStatement preparedStatement = connection.prepareStatement(checkQuery)) {
             preparedStatement.setString(1, serialNumber);
@@ -1880,6 +1889,55 @@ public class ExpandController extends BaseController {
         }
         return false;
     }
+
+    private LocalDate tryParseDate(String input) {
+        if (input == null || input.isBlank()) return null;
+
+        for (DateTimeFormatter formatter : dateFormatters) {
+            try {
+                TemporalAccessor parsed = formatter.parse(input);
+                LocalDate date;
+
+                // If year is missing, decide between past month or upcoming 11 months
+                if (!parsed.isSupported(ChronoField.YEAR)) {
+                    Month month = Month.from(parsed);
+                    int day = parsed.get(ChronoField.DAY_OF_MONTH);
+                    LocalDate today = LocalDate.now();
+
+                    LocalDate candidateThisYear = LocalDate.of(today.getYear(), month, day);
+                    LocalDate candidateNextYear = candidateThisYear.plusYears(1);
+
+                    if (candidateThisYear.isAfter(today.minusDays(30)) &&
+                        candidateThisYear.isBefore(today.plusDays(335))) {
+                        date = candidateThisYear;
+                    } else {
+                        // Pick whichever is closer in time
+                        long diffThis = Math.abs(ChronoUnit.DAYS.between(today, candidateThisYear));
+                        long diffNext = Math.abs(ChronoUnit.DAYS.between(today, candidateNextYear));
+                        date = (diffThis <= diffNext) ? candidateThisYear : candidateNextYear;
+                    }
+                } else {
+                    date = LocalDate.from(parsed);
+                }
+                return date;
+            } catch (DateTimeParseException e) {
+                // Continue trying with the next formatter
+            }
+        }
+        return null;
+    }
+
+    private String normalizeLiftString(String input) {
+        for (Map.Entry<String, String> entry : Config.LIFT_BUTTON_TEXT_MAP.entrySet()) {
+            if (entry.getValue().equals(input)) {
+                System.out.println("✅ Matched value \"" + input + "\" → returning key \"" + entry.getKey() + "\"");
+                return entry.getKey();
+            }
+        }
+        System.out.println("❌ \"" + input + "\" not found as a value → returning original");
+        return input;
+    }
+
 
     private String safeGetString(ResultSet resultSet, String columnName) throws SQLException {
         String value = resultSet.getString(columnName);

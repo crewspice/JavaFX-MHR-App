@@ -352,6 +352,7 @@ public class UtilizationController extends BaseController {
 
 
     private void loadCustomerRentalData() {
+        // OBFUSCATE_OFF
         // SQL query to get customer rental data
         String query = """
             SELECT ro.customer_id, c.customer_name, ri.item_delivery_date, ri.item_call_off_date, ro.po_number,
@@ -366,6 +367,7 @@ public class UtilizationController extends BaseController {
             LEFT JOIN contacts AS ordered_contacts ON ri.ordered_contact_id = ordered_contacts.contact_id
             LEFT JOIN contacts AS site_contacts ON ri.site_contact_id = site_contacts.contact_id
         """;
+        // OBFUSCATE_ON
 
         try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
              PreparedStatement preparedStatement = connection.prepareStatement(query);

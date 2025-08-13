@@ -1,20 +1,15 @@
 plugins {
     id 'application'
     id 'org.openjfx.javafxplugin' version '0.0.13'
-   // id 'org.jetbrains.gradle.plugin.idea-ext' version '1.1.8' // Optional: IDEA support
     id 'java'
-    id 'com.github.johnrengelman.shadow' version '8.1.1' // Fat JAR creation
-} 
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    // JavaFX
-    implementation 'org.openjfx:javafx-controls:17.0.14'
-    implementation 'org.openjfx:javafx-fxml:17.0.14'
-
     // HTTP Client
     implementation 'com.squareup.okhttp3:okhttp:4.9.3'
 
@@ -29,21 +24,21 @@ dependencies {
 
     // MySQL Connector
     implementation 'mysql:mysql-connector-java:8.0.31'
-
-    
-    // Google Routing
-    // implementation 'com.google.maps:maps-routing:2.0.0'
 }
 
+// Detect JavaFX SDK path
+def javafxPathProp = hasProperty('javafxPath') ? javafxPath : ''
+
+// Optional metadata for IntelliJ / plugin tooling
 javafx {
-    version = "17.0.14"
+    version = "22.0.2"
     modules = ['javafx.controls', 'javafx.fxml']
 }
 
 application {
     mainClass.set('com.MaxHighReach.Main')
     applicationDefaultJvmArgs = [
-        '--module-path', 'C:/Users/offic/OneDrive/Documents/MaxReachPro/program_files/javafx-sdk-17.0.14/lib',
+        '--module-path', javafxPathProp,
         '--add-modules', 'javafx.controls,javafx.fxml'
     ]
 }
@@ -56,15 +51,14 @@ java {
     targetCompatibility = JavaVersion.VERSION_17
 }
 
-
 shadowJar {
-    archiveClassifier.set('all') // Creates a fat JAR with all dependencies
+    archiveClassifier.set('all')
 }
 
-tasks.withType(JavaExec) {
+tasks.withType(JavaExec).configureEach {
     doFirst {
         jvmArgs = [
-            '--module-path', 'C:/Users/offic/OneDrive/Documents/MaxReachPro/program_files/javafx-sdk-17.0.14/lib',
+            '--module-path', javafxPathProp,
             '--add-modules', 'javafx.controls,javafx.fxml'
         ]
     }
@@ -93,7 +87,7 @@ task jpackage(type: Exec) {
         def jpackageCmd = "jpackage"
         def mainJarName = "MaxReachPro-all.jar"
         def mainClass = 'com.MaxHighReach.Main'
-        def outputDir = "C:/Users/offic/OneDrive/Documents/MaxReachPro/MaxReachPro App/build/installer"
+        def outputDir = "$buildDir/installer"
         def jarInputDir = "$buildDir/libs"
 
         commandLine jpackageCmd,
@@ -103,6 +97,6 @@ task jpackage(type: Exec) {
             '--main-class', mainClass,
             '--main-jar', mainJarName,
             '--dest', outputDir,
-            '--java-options', '--module-path=C:/Users/offic/OneDrive/Documents/MaxReachPro/program_files/javafx-sdk-17.0.14/lib --add-modules=javafx.controls,javafx.fxml'
+            '--java-options', "--module-path=${javafxPathProp} --add-modules=javafx.controls,javafx.fxml"
     }
 }

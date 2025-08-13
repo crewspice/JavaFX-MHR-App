@@ -940,6 +940,10 @@ public class Rental {
         return pickUpTruck;
     }
 
+    public boolean isSingleItemOrder() {
+        return singleItemOrder.get();
+    }
+
     // Getter and Setter for rentalId
     public int getRentalOrderId() {
         return rentalOrderId.get();

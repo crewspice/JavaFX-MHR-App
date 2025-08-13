@@ -854,12 +854,9 @@ public class ScheduleDeliveryController extends BaseController {
     	ObservableList<String> orderingContacts = FXCollections.observableArrayList();
     	ObservableList<String> siteContacts = FXCollections.observableArrayList();
 
-
+		// OBFUSCATE_OFF
     	String query = "SELECT first_name, phone_number, is_ordering_contact, is_site_contact, contact_id FROM contacts WHERE customer_id = ?";
-
-
-
-
+		// OBFUSCATE_ON
     	try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
          	PreparedStatement preparedStatement = connection.prepareStatement(query)) {
 
@@ -1917,7 +1914,6 @@ public class ScheduleDeliveryController extends BaseController {
         	return;
     	}
 
-
     	ToggleButton selectedLiftTypeButton = (ToggleButton) liftTypeToggleGroup.getSelectedToggle();
     	if (selectedLiftTypeButton == null && liftCount == 0) {
         	statusLabel.setText("Please select a lift type."); // Show error message
@@ -1925,9 +1921,6 @@ public class ScheduleDeliveryController extends BaseController {
         	statusLabel.setVisible(true);
         	return; // Exit the method early
     	}
-
-
-
 
     	try {
         	String customerId = selectedCustomer.getCustomerId(); // Get customer ID as String
@@ -1984,21 +1977,13 @@ public class ScheduleDeliveryController extends BaseController {
             	}
             	deliveryTime = selectedDeliveryTimeButton.getText(); // Get the selected delivery time
         	}
-
-
         	LocalDate today = LocalDate.now(); // Get the current date
         	String orderDate = today.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-
-
         	String site = siteField.getText();
-
-
         	String address = addressField.getText();
         	String addressParts[] = getAddressParts(address); // Format the address for the database
         	String streetAddress = addressParts[0]; // Get the street address
         	String city = addressParts[1]; // Get the city
-
-
         	String po = POField.getText();
 			String orderedByNameValue = orderedByField.getText();
 			String orderedByNumberValue = orderedByPhoneField.getText();
@@ -2006,8 +1991,6 @@ public class ScheduleDeliveryController extends BaseController {
 			String siteContactNumberValue = siteContactPhoneField.getText();
 			String locationNotes = locationNotesButton.getStyleClass().contains("schedule-delivery-button-has-value") ? locationNotesField.getText() : "";
 			String preTripInstructions = preTripInstructionsButton.getStyleClass().contains("schedule-delivery-button-has-value") ? preTripInstructionsField.getText() : "";
-
-
 
         	currentCustomerRental = new Rental(customerId, customerName, deliveryDate, deliveryTime,
             	null, "", 0, "Upcoming", po, rentalsList.size() + 1,
@@ -2035,14 +2018,8 @@ public class ScheduleDeliveryController extends BaseController {
             	statusLabel.setText("Rental order scheduled successfully!"); // Show success message
             	statusLabel.setTextFill(Color.GREEN); // Set the text color to green
             	statusLabel.setVisible(true); // Make the status label visible
-
-
             	// Add the newly scheduled rental to the rentalsList for this session
             	currentCustomerRental.setRentalOrderId(rentalOrderId); // Set the rental_order_id
-
-
-
-
             	// Reset fields after successful scheduling
         	} else {
             	statusLabel.setText("Failed to schedule a new Rental Order."); // Show error message
@@ -2055,16 +2032,14 @@ public class ScheduleDeliveryController extends BaseController {
             	liftCount++;
         	}
         	boolean insertedRentalItem = false;
+			System.out.println("addedLifts before iterating: " + addedLifts);
         	for (int i = 0; i < liftCount; i++){
             	System.out.println("iteration number: " + i);
             	String liftType =  addedLifts.get(i); // Get the text of the selected button
+				System.out.println("adding lift type:" + liftType);
             	int liftId = getLiftIdFromType(liftType);
             	currentCustomerRental.setLiftType(liftType);
             	currentCustomerRental.setLiftId(liftId);
-
-
-
-
 				boolean insertRentalItem = insertRentalItem(currentCustomerRental, rentalOrderId, liftId, currentCustomerRental.getOrderDate(), dbDeliveryDate, dbCallOffDate, deliveryTime, po, orderedByNameValue, orderedByNumberValue, siteContactNameValue, siteContactNumberValue, locationNotes, preTripInstructions) && rentalOrderScheduled;
             	if (insertRentalItem && rentalOrderScheduled) {
                 	// Update the status label for successful scheduling
@@ -2114,9 +2089,10 @@ public class ScheduleDeliveryController extends BaseController {
 	private boolean insertRentalOrder(String customerId, String deliveryDate, String orderDate,
 									String site, String streetAddress, String city, String po,
 									double latitude, double longitude) {
-		String query = "INSERT INTO rental_orders (customer_id, delivery_date, order_date, site_name, street_address, city, po_number, latitude, longitude) " +
-					"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-		
+		// OBFUSCATE_OFF
+		String query = "INSERT INTO rental_orders (customer_id, delivery_date, order_date, site_name, street_address, city, po_number, latitude, longitude, single_item_order) " +
+					"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+		// OBFUSCATE_ON
 		try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
 			PreparedStatement preparedStatement = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
 
@@ -2129,6 +2105,7 @@ public class ScheduleDeliveryController extends BaseController {
 			preparedStatement.setString(7, po);
 			preparedStatement.setDouble(8, latitude);
 			preparedStatement.setDouble(9, longitude);
+			preparedStatement.setInt(10, liftCount == 0 ? 1 : 0);
 
 			if (preparedStatement.executeUpdate() > 0) {
 				// Get the generated rental_order_id
@@ -2181,11 +2158,11 @@ public class ScheduleDeliveryController extends BaseController {
 		}
 	
 		System.out.println("Inserting rental item with lift_id: " + liftId);
-	
+		// OBFUSCATE_OFF
 		String query = "INSERT INTO rental_items (rental_order_id, lift_id, ordered_contact_id, site_contact_id, " +
 					   "item_order_date, item_delivery_date, item_call_off_date, auto_term, delivery_time, customer_ref_number, location_notes, " +
 					   "pre_trip_instructions, item_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-	
+		// OBFUSCATE_ON
 		try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
 			 PreparedStatement preparedStatement = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
 	
@@ -2240,8 +2217,10 @@ public class ScheduleDeliveryController extends BaseController {
 	private String insertContactInDB(String name, String number, boolean isOrderingContact){
     	System.out.println("Inserting contact in DB with name: " + name + " and number: " + number);
     	String newContactId = null;
+		// OBFUSCATE_OFF
     	String query = "INSERT INTO contacts (customer_id, first_name, phone_number, is_ordering_contact, is_site_contact) VALUES (?, ?, ?, ?, ?)";
-    	try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+    	// OBFUSCATE_ON
+		try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
          	PreparedStatement preparedStatement = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
 
 
@@ -2323,6 +2302,7 @@ public class ScheduleDeliveryController extends BaseController {
 
 
 	private void handleExpandClick(Rental rental) {
+		
 		// Open detail pane, modal, etc.
 		MaxReachPro.setRentalForExpanding(rental, rentalsList);
 		try {

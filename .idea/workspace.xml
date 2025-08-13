@@ -85,39 +85,39 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ASKED_ADD_EXTERNAL_FILES": "true",
-    "Application.MaxReachPro.executor": "Run",
-    "Gradle.Build JavaFX-MHR-App.executor": "Run",
-    "Gradle.Build MaxReachPro App.executor": "Run",
-    "Gradle.Build MaxReachPro.executor": "Run",
-    "Gradle.JavaFX-MHR-App [:Main.main()].executor": "Run",
-    "Gradle.JavaFX-MHR-App [:MaxReachPro.main()].executor": "Run",
-    "Gradle.MaxReachPro App [:Main.main()].executor": "Run",
-    "Gradle.MaxReachPro App [:MaxReachPro.main()].executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "git-widget-placeholder": "master",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "C:/Users/maxhi/OneDrive/Documents/MaxReachPro/MaxReachPro App",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "project.structure.last.edited": "Libraries",
-    "project.structure.proportion": "0.15",
-    "project.structure.side.proportion": "0.3234649",
-    "settings.editor.selected.configurable": "preferences.pluginManager",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
+    &quot;Application.MaxReachPro.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Build JavaFX-MHR-App.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Build MaxReachPro App.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Build MaxReachPro.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.JavaFX-MHR-App [:Main.main()].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.JavaFX-MHR-App [:MaxReachPro.main()].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.MaxReachPro App [:Main.main()].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.MaxReachPro App [:MaxReachPro.main()].executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/maxhi/OneDrive/Documents/MaxReachPro/MaxReachPro App&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Libraries&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.3234649&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   },
-  "keyToStringList": {
-    "com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File": [
-      "JAVA"
+  &quot;keyToStringList&quot;: {
+    &quot;com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File&quot;: [
+      &quot;JAVA&quot;
     ]
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\Users\maxhi\OneDrive\Documents\Quickbooks\QBProgram Development\IdeaProjects\JavaFX-MHR-App\src\main\resources\db" />
@@ -209,6 +209,8 @@
       <workItem from="1736801378069" duration="298000" />
       <workItem from="1736801687684" duration="1051000" />
       <workItem from="1736802805277" duration="3326000" />
+      <workItem from="1753721056269" duration="6000" />
+      <workItem from="1754868290952" duration="9000" />
     </task>
     <task id="LOCAL-00001" summary="intial commit">
       <option name="closed" value="true" />

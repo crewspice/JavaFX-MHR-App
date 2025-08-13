@@ -158,7 +158,7 @@ public class MapController {
 
     // New trials for syncing up route polylines in deletions
    // private Map<String, List<Polyline[]>> polylines = new HashMap<>();
-    private Map<String, List<String>> encodedPolylines = new HashMap<>();
+    private Map<String, List<List<double[]>>> decodedPolylines = new HashMap<>();
     private Map<String, Circle> pinpointersV = new HashMap<>();
     private Map<String, Circle> innerPinpointersV = new HashMap<>();
     private Map<String, Label> driverLabelsV = new HashMap<>();
@@ -202,7 +202,6 @@ public class MapController {
     private int cardWidthUnit = 100;
     private String[] truckNames = {"25", "06", "08", "16", "20"};
     private Timeline progressTicker;
-    private Button completeStopButtonDeleteLater;
     private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
 
@@ -240,7 +239,6 @@ public class MapController {
             setupMetroMap();
             // Start loading rental data after setupMetroMap() finishes
             loadRentalDataAsync();  // We load data asynchronously
-            completeStopButtonDeleteLater.toFront();
         });
     
         timeline.play();
@@ -259,7 +257,7 @@ public class MapController {
             Circle innerPinpointerV = new Circle(6);
             Circle innerPinpointerH = new Circle(6);
             Label driverLabelV = new Label("?");
-            Label driverLabelH = new Label("H");
+            Label driverLabelH = new Label("?");
             StackPane pictoralTruckV = new StackPane();
             StackPane pictoralTruckH = new StackPane();
     
@@ -274,7 +272,7 @@ public class MapController {
             routes.put("route" + (i + 1), routeRentalStops);
             intervals.put("route" + (i + 1), intervalList);
             routeBoxes.put("route" + (i + 1), routeVBox);
-            encodedPolylines.put("route" + (i + 1), new ArrayList<>());
+            decodedPolylines.put("route" + (i + 1), new ArrayList<>());
             pinpointersV.put("route" + (i + 1), pinpointerV);
             pinpointersH.put("route" + (i + 1), pinpointerH);
             innerPinpointersV.put("route" + (i + 1), innerPinpointerV);
@@ -432,69 +430,6 @@ public class MapController {
             pictoralTruckH.setMaxHeight(25);
             pictoralTruckH.setMaxWidth(82);
         }
-
-
-        completeStopButtonDeleteLater = new Button("complete a stop");
-        anchorPane.getChildren().add(completeStopButtonDeleteLater);
-        completeStopButtonDeleteLater.setOnAction(e -> {
-            for (int i = 0; i < 5; i++) {
-                System.out.println("🔁 Processing route index: " + i);
-
-
-                String routeKey = "route" + (i + 1);
-                System.out.println("🔑 Using routeKey: " + routeKey);
-
-                StackPane pictoralTruck = pictoralTrucksV.get(routeKey);
-                if (pictoralTruck == null) {
-                    System.out.println("⚠️ pictoralTruck HBox not found for " + routeKey);
-                    continue;
-                }
-
-                // Retain base image
-                if (pictoralTruck.getChildren().isEmpty()) {
-                    System.out.println("⚠️ No children in pictoralTruck for " + routeKey);
-                    continue;
-                }
-
-                ImageView baseImageView = (ImageView) pictoralTruck.getChildren().get(0);
-                pictoralTruck.getChildren().clear();
-                pictoralTruck.getChildren().add(baseImageView);
-                System.out.println("🔄 Reset pictoralTruck view for " + routeKey);
-
-                List<String> cargoList = inventories.get(routeKey);
-                if (cargoList == null) {
-                    System.out.println("⚠️ No cargo list found for " + routeKey);
-                    continue;
-                }
-
-                cargoList.add("19s"); // Example item being added
-                System.out.println("➕ Added cargo item '19s' to " + routeKey);
-                int counter = 1;
-                String[] colors = getRouteColors(routeKey);
-
-                for (String item : cargoList) {
-                    String imageName = item + "-peek.png";
-                    InputStream imageStream = getClass().getClassLoader().getResourceAsStream("images/" + imageName);
-
-                    if (imageStream != null) {
-                        Image image = new Image(imageStream);
-                        Image imageRecolored = recolorImage(image, Color.web(colors[2]), null);
-                        ImageView imageView = new ImageView(imageRecolored);
-                        imageView.setFitWidth(20);
-                        imageView.setFitHeight(27);
-                        imageView.setTranslateX(-59 + (counter * 19));
-                //     imageView.setTranslateX(-100);
-                        pictoralTruck.getChildren().add(imageView);
-                        System.out.println("✅ Added image for item: " + item);
-                    } else {
-                        System.err.println("❌ Image not found for item: " + item);
-                    }
-                    counter++;
-                }
-            }
-        });
-
-        completeStopButtonDeleteLater.setTranslateY(20);
     
     }
     
@@ -553,7 +488,7 @@ public class MapController {
 
     public void updateTruckCoordinates() {
         try {
-            URL url = new URL("http://api.maxhighreach.com:8080/routes/fleet");
+            URL url = new URL("http://5.78.73.173:8080/routes/fleet");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
     
@@ -601,7 +536,7 @@ public class MapController {
     
     
     private void loadRentalDataFromAPI() {
-        String apiUrl = "http://api.maxhighreach.com:8080/routes/stops";
+        String apiUrl = "http://5.78.73.173:8080/routes/stops";
 
         try {
             // Call the API
@@ -637,6 +572,7 @@ public class MapController {
                 placeholders.append(",?");
             }
 
+            // OBFUSCATE_OFF
             String query = """
                 SELECT ro.customer_id, c.customer_name, ri.item_delivery_date, ri.item_call_off_date, ro.po_number,
                     ordered_contacts.first_name AS ordered_contact_name, ordered_contacts.phone_number AS ordered_contact_phone,
@@ -653,6 +589,8 @@ public class MapController {
                 LEFT JOIN contacts AS site_contacts ON ri.site_contact_id = site_contacts.contact_id
                 WHERE ri.rental_item_id IN (%s)
             """.formatted(placeholders);
+            // OBFUSCATE_ON
+
 
             try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
                 PreparedStatement preparedStatement = connection.prepareStatement(query)) {
@@ -708,6 +646,7 @@ public class MapController {
 
     private void loadRentalDataFromSQL() {
         // SQL query to get rental data with the new filters
+        // OBFUSCATE_OFF
         String query = """
             SELECT ro.customer_id, c.customer_name, ri.item_delivery_date, ri.item_call_off_date, ro.po_number,
                 ordered_contacts.first_name AS ordered_contact_name, ordered_contacts.phone_number AS ordered_contact_phone,
@@ -725,6 +664,7 @@ public class MapController {
             AND ro.latitude > 0
             AND ro.longitude < 0
         """;
+        // OBFUSCATE_ON
     
         try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
             PreparedStatement preparedStatement = connection.prepareStatement(query);
@@ -768,6 +708,7 @@ public class MapController {
     }
     
     private void syncRoutingToDB() {
+        // OBFUSCATE_OFF
         String queryUpdateWithTruck = """
             UPDATE rental_items
             SET driver_initial = ?, driver_number = ?, driver = ?, delivery_truck = ?
@@ -785,6 +726,7 @@ public class MapController {
             SET driver_initial = NULL, driver_number = 0, driver = NULL, delivery_truck = NULL
             WHERE rental_item_id NOT IN (%s)
         """;
+        // OBFUSCATE_ON
     
         try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
              PreparedStatement psWithTruck = connection.prepareStatement(queryUpdateWithTruck);
@@ -924,7 +866,7 @@ public class MapController {
             //System.out.println("Serialized JSON payload: " + requestBody);
             HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("http://api.maxhighreach.com:8080/routes/update"))  // Fixed URI
+                    .uri(URI.create("http://5.78.73.173:8080/routes/update"))  // Fixed URI
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                     .build();
@@ -962,11 +904,12 @@ public class MapController {
     
         // Step 4: Create routes and populate the global routes map
         for (Map.Entry<String, List<Rental>> entry : groupedByDriverInitial.entrySet()) {
-            String routeKey = getARouteNoPreference()[0]; // Get route key (customizable)
+            String[] route = getARouteNoPreference();
+            String routeKey = route[0]; // Get route key (customizable)
+            int routeIndex = Integer.valueOf(route[1]);
             String[] colors = getRouteColors(routeKey);
             routes.put(routeKey, entry.getValue());
             routeAssignments.put(routeKey, entry.getKey());
-            int routeIndex = getRouteIndex(routeKey);
             StackPane vBoxPane = routeVBoxPanes.get(routeIndex);
             StackPane hBoxPane = routeHBoxPanes.get(routeIndex);
 
@@ -1015,7 +958,7 @@ public class MapController {
             driverLabelsV.get(routeKey).setText(entry.getKey());
             driverLabelsH.get(routeKey).setText(entry.getKey());
         }
-        // Step 5: Done
+
     }
 
 
@@ -1077,51 +1020,64 @@ public class MapController {
      *               MAPPING               *
     /*                                     */
     
-    // Shared logic for creating rental location dots
-    private void createRentalDot(double x, double y, Rental rental, String status) {
+    // Returns a Shape for a rental dot, agnostic of position/event handling
+    private Shape createRentalDot(Rental rental, String status) {
         Shape dotShape;
-    
+
         if ("Called Off".equals(status)) {
             // Create an octagon (stop-sign style)
             double radius = 7;
             Polygon octagon = new Polygon();
             for (int i = 0; i < 8; i++) {
-                double angle = Math.toRadians(45 * i + 22.5); // 22.5° offset for flat top
-                double px = x + radius * Math.cos(angle);
-                double py = y + radius * Math.sin(angle);
+                double angle = Math.toRadians(45 * i + 22.5); // flat top offset
+                double px = radius * Math.cos(angle);
+                double py = radius * Math.sin(angle);
                 octagon.getPoints().addAll(px, py);
             }
             dotShape = octagon;
             dotShape.setFill(Color.RED);
         } else {
-            Circle circle = new Circle(x, y, 7);
+            Circle circle = new Circle(0, 0, 7); // center at 0,0, position later
             circle.setFill(Color.web(Config.getPrimaryColor()));
             dotShape = circle;
         }
-    
+
         // Stroke logic
         String strokeUnderneath = Config.COLOR_TEXT_MAP.get(Config.getPrimaryColor()) == 1
             ? Config.getTertiaryColor()
             : "WHITE";
         dotShape.setStroke(Color.web(strokeUnderneath));
         dotShape.setStrokeWidth(2);
-    
+
+        return dotShape;
+    }
+
+    // Handles coordinate placement, adding to mapContainer, and event logic
+    private void createMapDot(double x, double y, Rental rental, String status) {
+        Shape dotShape = createRentalDot(rental, status);
+
+        // Apply position
+        dotShape.setTranslateX(x);
+        dotShape.setTranslateY(y);
+
         mapContainer.getChildren().add(dotShape);
-    
-        final double finalX = x > 150 ? x - 205 : x;
-        final double finalY = y > 410 ? y - 150 : y;
-    
+
+        // Adjusted popup positioning
+        // final double finalX = x > 150 ? x - 205 : x;
+        // final double finalY = y > 410 ? y - 150 : y;
+
+        // Mouse click behavior
         dotShape.setOnMouseClicked(event -> {
             anchorPane.getChildren().removeIf(node -> node instanceof PopupDisc);
             if (lastPopup != null && anchorPane.getChildren().contains(lastPopup)) {
                 anchorPane.getChildren().remove(lastPopup);
             }
-    
+
             lastClickedRental = rental;
             PopupDisc disc = new PopupDisc(this, rental, x, y);
             anchorPane.getChildren().add(disc);
             lastPopup = disc;
-    
+
             anchorPane.setOnMouseClicked(e -> {
                 if (!disc.getBoundsInParent().contains(e.getX(), e.getY())) {
                     anchorPane.getChildren().remove(disc);
@@ -1129,11 +1085,10 @@ public class MapController {
                     lastPopup = null;
                 }
             });
-    
+
             event.consume();
         });
     }
-    
 
 
     private void plotRentalLocations() {
@@ -1142,7 +1097,7 @@ public class MapController {
             double y = mapLatitudeToY(rental.getLatitude());
 
             if (rental.getLongitude() < 0 && rental.getLatitude() > 0) {
-                createRentalDot(x, y, rental, rental.getStatus());
+                createMapDot(x, y, rental, rental.getStatus());
             }
         }
     }
@@ -1160,56 +1115,54 @@ public class MapController {
 
 
             if (rental.getLongitude() < 0 && rental.getLatitude() > 0) {
-                createRentalDot(x, y, rental, rental.getStatus());
+                createMapDot(x, y, rental, rental.getStatus());
             }
         }
     }
 
 
-    private Polyline[] drawRoutePolyline(String encodedPolyline, String[] colors) {
-        List<double[]> polylinePoints = decodePolyline(encodedPolyline);
-    
-        // **1️⃣ First glow (larger gray glow)**
+    private Polyline[] drawRoutePolyline(List<double[]> polylinePoints, String[] colors) {
+        // 1️⃣ First glow (larger gray glow)
         Polyline glowPolyline1 = new Polyline();
-        glowPolyline1.setStroke(Color.web(Config.getTertiaryColor(), .3));  // Larger gray glow
-        glowPolyline1.setStrokeWidth(11);  // Larger width for strong glow
-        glowPolyline1.setOpacity(0.5);  // Slight transparency for the glow
-        glowPolyline1.setEffect(new GaussianBlur(15));  // Larger blur for stronger glow
-    
-        // **2️⃣ Second glow (shorter gradient glow)**
+        glowPolyline1.setStroke(Color.web(Config.getTertiaryColor(), .3));
+        glowPolyline1.setStrokeWidth(11);
+        glowPolyline1.setOpacity(0.5);
+        glowPolyline1.setEffect(new GaussianBlur(15));
+
+        // 2️⃣ Second glow (shorter gradient glow)
         Polyline glowPolyline2 = new Polyline();
-        glowPolyline2.setStroke(Color.web(colors[0]));  // Shorter glow with colors[0]
-        glowPolyline2.setStrokeWidth(9);  // Slightly smaller width
-        glowPolyline2.setOpacity(1);  // Some transparency
-        glowPolyline2.setEffect(new GaussianBlur(8));  // Smaller blur for a subtler glow
-    
-        // **3️⃣ Main polyline with gradient**
+        glowPolyline2.setStroke(Color.web(colors[0]));
+        glowPolyline2.setStrokeWidth(9);
+        glowPolyline2.setOpacity(1);
+        glowPolyline2.setEffect(new GaussianBlur(8));
+
+        // 3️⃣ Main polyline with gradient
         Polyline mainPolyline = new Polyline();
-        mainPolyline.setStrokeWidth(4);  // Standard polyline width
-        mainPolyline.setStroke(Color.web(colors[1]));  // Apply gradient to the main line
-    
-        // **4️⃣ Add points to all polylines**
+        mainPolyline.setStrokeWidth(4);
+        mainPolyline.setStroke(Color.web(colors[1]));
+
+        // 4️⃣ Add points to all polylines
         for (double[] point : polylinePoints) {
             double x = mapLongitudeToX(point[1]);
             double y = mapLatitudeToY(point[0]);
-            glowPolyline1.getPoints().addAll(x, y); // Add to first glow (larger, gray)
-            glowPolyline2.getPoints().addAll(x, y); // Add to second glow (shorter, gradient)
-            mainPolyline.getPoints().addAll(x, y);  // Add to main polyline
+
+            glowPolyline1.getPoints().addAll(x, y);
+            glowPolyline2.getPoints().addAll(x, y);
+            mainPolyline.getPoints().addAll(x, y);
         }
-    
-        // **5️⃣ Add all polylines to the map container**
-        mapContainer.getChildren().add(glowPolyline1);  // Add larger gray glow first (behind)
-        mapContainer.getChildren().add(glowPolyline2);  // Add smaller gradient glow second (middle)
-        mapContainer.getChildren().add(mainPolyline);  // Add main polyline last (on top)
-    
-        // Ensure proper layering
+
+        // 5️⃣ Add to map
+        mapContainer.getChildren().addAll(glowPolyline1, glowPolyline2, mainPolyline);
+
+        // Layering
         mainPolyline.toBack();
-        glowPolyline1.toBack();  // Glow1 at the very back
-        glowPolyline2.toBack();  // Glow2 behind the main line
-        metroMapView.toBack();   // Ensure map is behind everything else
-    
+        glowPolyline1.toBack();
+        glowPolyline2.toBack();
+        metroMapView.toBack();
+
         return new Polyline[]{mainPolyline, glowPolyline1, glowPolyline2};
     }
+
 
 
 
@@ -1225,13 +1178,15 @@ public class MapController {
         //     drawRoutePolyline(encodedPolyline, colors);
         // }
     
-        for (Map.Entry<String, List<String>> entry : encodedPolylines.entrySet()) {
-            List<String> routeSegments = entry.getValue();
+        for (Map.Entry<String, List<List<double[]>>> entry : decodedPolylines.entrySet()) {
+            List<List<double[]>> routeSegments = entry.getValue();
             String[] colors = getRouteColors(entry.getKey());
-            for (String segmentPolyline : routeSegments) {
-                drawRoutePolyline(segmentPolyline, colors);
+
+            for (List<double[]> segmentPoints : routeSegments) {
+                drawRoutePolyline(segmentPoints, colors);
             }
         }
+
     
     }
 
@@ -1529,14 +1484,31 @@ public class MapController {
     }
 
     private void configureTruckDot(String driverInitial, String truckId, String[] colors) {
+        System.out.printf("▶ Configuring truck dot: driverInitial=%s, truckId=%s%n", driverInitial, truckId);
+
         StackPane truckPane = truckPanes.get(truckId);
+        if (truckPane == null) {
+            System.out.println("❌ No StackPane found for truckId=" + truckId);
+            return;
+        }
+        System.out.println("✔ Found truckPane: " + truckPane);
+
+        if (truckPane.getChildren().isEmpty() || !(truckPane.getChildren().get(0) instanceof Circle)) {
+            System.out.println("❌ First child is missing or not a Circle.");
+            return;
+        }
+
         Circle truck = (Circle) truckPane.getChildren().get(0);
         truck.setFill(Color.web(colors[0]));
+        System.out.println("✔ Outer truck circle color set to " + colors[0]);
+
         Circle innerTruck = new Circle(6);
         innerTruck.setFill(Color.web(colors[1]));
         innerTruck.setTranslateX(-5);
         innerTruck.setTranslateY(-5);
         truckPane.getChildren().add(innerTruck);
+        System.out.println("✔ Inner truck circle added with color " + colors[1]);
+
         Label driverLabel = new Label(driverInitial);
         driverLabel.setTextFill(Color.web(colors[2]));
         driverLabel.setTranslateX(-5);
@@ -1544,11 +1516,15 @@ public class MapController {
         driverLabel.setStyle("-fx-font-weight: bold");
         driverLabel.setMinWidth(Label.USE_PREF_SIZE);
         driverLabel.setPrefWidth(Label.USE_COMPUTED_SIZE);
-        driverLabel.setMaxWidth(Double.MAX_VALUE); // or a specific value if needed
+        driverLabel.setMaxWidth(Double.MAX_VALUE);
         driverLabel.setWrapText(false);
-        driverLabel.setEllipsisString(null); // Optional: prevent ellipsis entirely if using custom skin
+        driverLabel.setEllipsisString(null);
         truckPane.getChildren().add(driverLabel);
+        System.out.println("✔ Driver label added with initial '" + driverInitial + "' and color " + colors[2]);
+
+        System.out.println("✅ Finished configuring truck dot for truckId=" + truckId);
     }
+
 
 
     // -------------   Methods for fully synchronized visual revamp    ------------- //
@@ -1633,9 +1609,6 @@ public class MapController {
                         counter++;
                     }
 
-
-
-
                     // If no assigned route found, assign a new one
                     if (matchedRoute == null) {
                         matchedRoute = "Route " + (routes.size() + 1);
@@ -1652,13 +1625,24 @@ public class MapController {
                 index = wordToNumber(matchedRoute.replace("route","")) - 1;
             }
         }
-
-
         // Add stop to the selected route
         routes.get(matchedRoute).add(rental);
         latestRouteEdited = routes.get(matchedRoute);
         // Update UI for the route
         updateRoutePane(matchedRoute, rental, "insertion", 99, index, "user");
+    
+        if (!rental.isSingleItemOrder()) {
+            int rentalOrderIdToMatch = rental.getRentalOrderId();
+            for (Rental r : rentalsForCharting) {
+                if (r.getRentalOrderId() == rentalOrderIdToMatch) {
+                    if (r != rental) {
+                        routes.get(matchedRoute).add(r);
+                        updateRoutePane(matchedRoute, r, "insertion", 99, index, "user");
+                    }
+                }
+            }   
+        }
+    
     }
 
 
@@ -1700,9 +1684,9 @@ public class MapController {
 
 
     private void removeFromRoute(Rental rental, int closestMultiple, int routeIndex) {
-        // System.out.println("**    removeFromRoute called with:" +
-        //     "\n- closestMultiple: " + closestMultiple +
-        //     "\n- routeIndex: " + routeIndex + " **");
+        System.out.println("**    removeFromRoute called with:" +
+            "\n- closestMultiple: " + closestMultiple +
+            "\n- routeIndex: " + routeIndex + " **");
             // Get route key from index
         String routeKey = getRouteNameFromIndex(routeIndex);
         List<Rental> stopList;
@@ -1720,6 +1704,9 @@ public class MapController {
         }
         Rental removed = stopList.remove(closestMultiple);
         removeCardCovers();
+        
+        StackPane routeVBoxPane = routeVBoxPanes.get(routeIndex);
+
         updateRoutePane(routeKey, rental, "deletion", closestMultiple, routeIndex, "user");
     }
     
@@ -1805,17 +1792,7 @@ public class MapController {
     private void updateRoutePane(String routeName, Rental rental, String orientation,
                                 int closestMultiple, int index, String agent) {
 
-
-        /*
-        System.out.println("Updating route pane with: " +
-            "\n- routeName: " + routeName +
-            "\n- rental: " + rental +
-            "\n- orientation: " + orientation +
-            "\n- closestMultiple: " + closestMultiple +
-            "\n- index: " + index + 
-            "-------------------------");
-        */
-
+        StackPane routeHBoxPane2 = routeHBoxPanes.get(index);
 
         int tempIndex = index;
         if (orientation.equals("insertion") && agent.equals("user")) {
@@ -1847,10 +1824,79 @@ public class MapController {
         Label driverLabelH = driverLabelsH.get(numeralRouteName);
         boolean hasTruckAssigned = truckAssignments.containsValue(routeName);
         List<Integer> intervalList = intervals.get(routeName);
-        List<String> polylineList = encodedPolylines.get(routeName);
+        List<List<double[]>> polylineList = decodedPolylines.get(routeName);
         StackPane pictoralTruckV = pictoralTrucksV.get(numeralRouteName);
         StackPane pictoralTruckH = pictoralTrucksH.get(numeralRouteName);
         
+/*
+        System.out.println("Updating route pane with: " +
+            "\n- routeName: " + routeName +
+            "\n- rental: " + rental +
+            "\n- orientation: " + orientation +
+            "\n- closestMultiple: " + closestMultiple +
+            "\n- index: " + index + 
+            "\n- routeSize " + routeSize +
+            "-------------------------");
+
+        // Print all child nodes, preserving order
+        System.out.println("Children (pre-update) of routeHBoxPane (index " + index + "):");
+        for (Node child : routeHBoxPane2.getChildren()) {
+            System.out.println(" - " + child);
+        }  */
+
+        List<Node> vInts = routeVBoxPane.getChildren().stream()
+            .filter(node -> node.getClass().getName().contains("MapController$"))
+            .collect(Collectors.toList());
+
+        Map<Integer, Integer> paneIndexToVIntIndex = new LinkedHashMap<>();
+
+      //  System.out.println("vInts contents (pre-update):");
+        for (int vIntIdx = 0; vIntIdx < vInts.size(); vIntIdx++) {
+            Node n = vInts.get(vIntIdx);
+            
+            // Find the index of this node in the full children list
+            int paneIndex = routeVBoxPane.getChildren().indexOf(n);
+            
+            // Map full-list index → vInts index
+            paneIndexToVIntIndex.put(paneIndex, vIntIdx);
+
+            // Collect label text
+            // StringBuilder labelText = new StringBuilder();
+            // collectLabelText(n, labelText);
+            
+            // System.out.println(" - " + n + "   text: " + labelText + "   paneIndex=" + paneIndex + ", vIntIndex=" + vIntIdx);
+        }
+
+        List<Node> hInts = routeHBoxPane.getChildren().stream()
+            .filter(node -> node.getClass().getName().contains("MapController$"))
+            .collect(Collectors.toList());
+
+        Map<Integer, Integer> paneIndexToHIntIndex = new LinkedHashMap<>();
+
+  //  System.out.println("hInts contents (pre-update):");
+    for (int hIntIdx = 0; hIntIdx < hInts.size(); hIntIdx++) {
+        Node n = hInts.get(hIntIdx);
+        int paneIndex = routeHBoxPane.getChildren().indexOf(n);
+        paneIndexToHIntIndex.put(paneIndex, hIntIdx);
+/*
+        // Collect label text
+        StringBuilder labelText = new StringBuilder();
+        collectLabelText(n, labelText);
+
+        // Get translateX
+        double tx = n.getTranslateX();
+
+        // Try to get alignment if parent is a StackPane
+        Pos alignment = null;
+        if (n.getParent() instanceof StackPane) {
+            alignment = StackPane.getAlignment(n);
+        }
+
+        System.out.println(" - " + n
+            + "   text: " + labelText
+            + "   translateX: " + tx);   */
+    }
+
 
         if (orientation.equals("insertion")) {
             if (routeSize == 1) {
@@ -1932,7 +1978,13 @@ public class MapController {
                     StackPane.setAlignment(downArrowRightH, Pos.TOP_LEFT);
 
                     Color defaultColor = Color.web(colors[1]);
-                    Color hoverColor = routeName == "route2" || routeName == "routeTwo" ? Color.web("#FFFFFF") : Color.web(colors[2]);
+                    Color hoverColor;
+                    if (routeName.equals("route2")) {
+                        hoverColor = Color.web("#FFFFFF");
+                    } else {
+                        hoverColor = Color.web(colors[2]);
+                    }
+
 
                     Shape[] rightGroupV = {rightArrowTopV, rightArrowBottomV};
                     Shape[] downGroupH = {downArrowLeftH, downArrowRightH};
@@ -2009,31 +2061,26 @@ public class MapController {
                 Rental firstRental = route.get(routeSize - 2);
                 Rental secondRental = route.get(routeSize - 1);
             
-                String[] googleResults = {"unknown", "unknown"};
+                RouteInfo googleRoute = new RouteInfo(0, 0, null);
                 try {
-                    googleResults = getGoogleRoute(firstRental.getLatitude(), firstRental.getLongitude(),
-                                                    secondRental.getLatitude(), secondRental.getLongitude());
-                    // Check googleResults after fetching
-                    //System.out.println("Google Results: " + googleResults[0] + ", " + googleResults[1]);
+                    googleRoute = getGoogleRoute(firstRental.getLatitude(), firstRental.getLongitude(),
+                                        secondRental.getLatitude(), secondRental.getLongitude());
                 } catch (Exception e) {
                 }
 
-
-                String driveTimeStr = googleResults[0].replace("s", "");
-                int driveTimeInSeconds = Integer.parseInt(driveTimeStr);
-                int driveTimeInMinutes = (int) Math.round(driveTimeInSeconds / 60.0);
+                int driveTimeInMinutes = (int) Math.round(googleRoute.getDurationSeconds() / 60.0);
                 
                 intervalList.add(driveTimeInMinutes);
 
 
                 // Check if the intermediary VBox is created correctly
-                Region intermediaryRegionV = createStopIntermediary(googleResults[0], colors, "vertical");
-                Region intermediaryRegionH = createStopIntermediary(googleResults[0], colors, "horizontal");
+                Region intermediaryRegionV = createStopIntermediary(driveTimeInMinutes, colors, "vertical");
+                Region intermediaryRegionH = createStopIntermediary(driveTimeInMinutes, colors, "horizontal");
                 VBox intermediaryV = (VBox) intermediaryRegionV;
                 HBox intermediaryH = (HBox) intermediaryRegionH;
 
-                int singleDigitSpacerV = isSingleDigitMinutes(googleResults[0]) ? 7 : 0;
-                int singleDigitSpacerH = isSingleDigitMinutes(googleResults[0]) ? 5 : 0;
+                int singleDigitSpacerV = driveTimeInMinutes < 11 ? 7 : 0;
+                int singleDigitSpacerH = driveTimeInMinutes < 11 ? 5 : 0;
 
                 // Insert intermediaryV before the first Circle in routeVBoxPane, or at the end
                 ObservableList<Node> vboxChildren = routeVBoxPane.getChildren();
@@ -2056,29 +2103,35 @@ public class MapController {
                     }
                 }
                 hboxChildren.add(hInsertIndex, intermediaryH);
+                StackPane.setAlignment(intermediaryH, Pos.TOP_LEFT);
 
                 intermediaryV.setTranslateY(((routeSize - 1) * cardHeightUnit) - 26 + singleDigitSpacerV);
-                intermediaryH.setTranslateY(8);
+                intermediaryH.setTranslateY(9);
                 intermediaryV.setTranslateX(-1);
-                intermediaryH.setTranslateX(((routeSize - 1) * cardWidthUnit) - 27 + singleDigitSpacerH);
+                intermediaryH.setTranslateX(((routeSize - 1) * cardWidthUnit) - 29 + singleDigitSpacerH);
 
                 intermediaryV.setClip(new Rectangle(15, 45));
             //    intermediaryH.setClip(new Rectangle(45, 30));
-
                 //drawRoutePolyline(googleResults[1], colors);
-                polylineList.add(googleResults[1]);
+                polylineList.add(googleRoute.getPolylinePoints());
                 //  storedEncodedPolylines.add(googleResults[1]);
                 updateRoutePolylines();
                 routeVBoxPane.toFront();
                 routeVBox.toFront();
+
             }
 
 
 
 
+            System.out.println("[DEBUG] Creating vertical chunk for: " + rental);
             StackPane rentalChunkV = createRentalChunk(rental, colors, "vertical", routeName, closestMultiple);
+            System.out.println("[DEBUG] Created vertical chunk: " + rentalChunkV);
             StackPane rentalChunkH = createRentalChunk(rental, colors, "horizontal", routeName, closestMultiple);
+
+            System.out.println("[DEBUG] routeVBox children before add: " + routeVBox.getChildren().size());
             routeVBox.getChildren().add(rentalChunkV);
+            System.out.println("[DEBUG] routeVBox children after add: " + routeVBox.getChildren().size());
             routeHBox.getChildren().add(rentalChunkH);
             routeVBoxPane.setPickOnBounds(false);
             routeHBoxPane.setPickOnBounds(false);
@@ -2089,6 +2142,8 @@ public class MapController {
             rentalChunkH.setTranslateX(5);
             rentalChunkV.setTranslateY(3);
     
+
+
         } else if (orientation.equals("deletion")) {
             int accountForTruck = hasTruckAssigned ? -1 : 0;
 
@@ -2122,6 +2177,10 @@ public class MapController {
                 truckAssignments.containsValue(routeName));  */
             /////////////////////////////////////////////////////////////
 
+
+
+
+   
             if (routeSize == 0) {
                 routeVBox.setVisible(false);
                 routeHBox.setVisible(false);
@@ -2131,14 +2190,14 @@ public class MapController {
                 anchorPane.getChildren().remove(routeHBoxPane);
             } else {
                 if (routeSize == 1) {
-                    routeVBoxPane.getChildren().remove(2);
-                    routeHBoxPane.getChildren().remove(2);
+                    routeVBoxPane.getChildren().remove(vInts.get(0));
+                    routeHBoxPane.getChildren().remove(hInts.get(0));
                     polylineList.remove(0);
                     intervalList.remove(0);
                     // no longer need for any int's
                 } else if (closestMultiple == 0) {
-                    routeVBoxPane.getChildren().remove(2);
-                    routeHBoxPane.getChildren().remove(2);
+                    routeVBoxPane.getChildren().remove(vInts.get(0));
+                    routeHBoxPane.getChildren().remove(hInts.get(0));
                     intervalList.remove(0);
                     
                     for (int i = 2; i < routeVBoxPane.getChildren().size(); i++) {
@@ -2165,22 +2224,15 @@ public class MapController {
                 } else if (closestMultiple == routeSize) {
                     //                ***  closestMultiple == routeSize
                     // Remove the last VBox from routeVBoxPane
-                    for (int i = routeVBoxPane.getChildren().size() - 1; i >= 0; i--) {
-                        Node node = routeVBoxPane.getChildren().get(i);
-                        if (node instanceof VBox) {
-                            routeVBoxPane.getChildren().remove(i);
-                            break;
-                        }
+                    if (!vInts.isEmpty()) {
+                        Node lastVBoxNode = vInts.get(vInts.size() - 1);
+                        routeVBoxPane.getChildren().remove(lastVBoxNode);
                     }
 
 
-                    // Remove the last HBox from routeHBoxPane
-                    for (int i = routeHBoxPane.getChildren().size() - 1; i >= 0; i--) {
-                        Node node = routeHBoxPane.getChildren().get(i);
-                        if (node instanceof HBox) {
-                            routeHBoxPane.getChildren().remove(i);
-                            break;
-                        }
+                    if (!hInts.isEmpty()) {
+                        Node lastHBoxNode = hInts.get(hInts.size() - 1);
+                        routeHBoxPane.getChildren().remove(lastHBoxNode);
                     }
 
 
@@ -2189,65 +2241,174 @@ public class MapController {
                     
                     // no shifting int's
                 } else {
-                    routeVBoxPane.getChildren().remove(closestMultiple + 1);
-                    routeHBoxPane.getChildren().remove(closestMultiple + 1);
-                    // recalculating: 
-                    //      - removing at index closestMultiple + 3 too
-                    // shifting int's also
-                    for (int i = closestMultiple + 1; i < routeVBoxPane.getChildren().size(); i++) {
-                        Node node = routeVBoxPane.getChildren().get(i);
-                        if (node instanceof VBox) {
-                            VBox vbox = (VBox) node;
-                            double currentY = vbox.getTranslateY();
-                            vbox.setTranslateY(currentY - cardHeightUnit);
+                    int targetVIntIndex1 = closestMultiple - 1;
+                    int targetVIntIndex2 = closestMultiple; // the next one
+
+                    int targetVFullIndex1 = -1;
+                    int targetVFullIndex2 = -1;
+
+                    for (Map.Entry<Integer, Integer> entry : paneIndexToVIntIndex.entrySet()) {
+                        int fullIndex = entry.getKey();
+                        int vIntIndex = entry.getValue();
+
+                        if (vIntIndex == targetVIntIndex1) {
+                            targetVFullIndex1 = fullIndex;
                         }
-                    }
-                    
-                    for (int i = closestMultiple + 1; i < routeHBoxPane.getChildren().size(); i++) {
-                        Node node = routeHBoxPane.getChildren().get(i);
-                        if (node instanceof HBox) {
-                            HBox hbox = (HBox) node;
-                            double currentX = hbox.getTranslateX();
-                            hbox.setTranslateX(currentX - cardWidthUnit);
+                        if (vIntIndex == targetVIntIndex2) {
+                            targetVFullIndex2 = fullIndex;
                         }
                     }
 
+                    if (targetVFullIndex1 == -1 || targetVFullIndex2 == -1) {
+                        System.out.println("No matching full index found for one or both vInt indices.");
+                    } else {
+
+                        // Debug: Show the whole paneIndexToVIntIndex map
+                    //    System.out.println("paneIndexToVIntIndex contents:");
+                        // paneIndexToVIntIndex.forEach((fullIndex, vIntIndex) ->
+                        //     System.out.println("  fullIndex=" + fullIndex + ", vIntIndex=" + vIntIndex)
+                        // );
+
+                        int startVIntShiftIndex = closestMultiple;
+
+                    //    System.out.println("\nFiltering for vIntIndex >= " + startVIntShiftIndex + "...");
+
+                        // Collect full indices of all vInts from startVIntShiftIndex to end
+                        List<Integer> fullVIndicesToShift = paneIndexToVIntIndex.entrySet().stream()
+                            .filter(e -> e.getValue() >= startVIntShiftIndex)
+                      //      .peek(e -> System.out.println("  Keeping entry: fullIndex=" + e.getKey() + ", vIntIndex=" + e.getValue()))
+                            .map(Map.Entry::getKey)
+                            .sorted()
+                            .collect(Collectors.toList());
+
+                    //    System.out.println("\nFull indices to shift: " + fullIndicesToShift);
+
+                        
+                        for (int fullIndex : fullVIndicesToShift) {
+                            Node nodeV = routeVBoxPane.getChildren().get(fullIndex);
+                            if (nodeV instanceof VBox) {
+                      //          System.out.println("Made it to a shift for fullIndex: " + fullIndex); 
+                                VBox vbox = (VBox) nodeV;
+                                double currentY = vbox.getTranslateY();
+                                vbox.setTranslateY(currentY - cardHeightUnit);
+                            }
+                            
+                        }
+
+                        // Remove higher index first to avoid shifting problems
+                        if (targetVFullIndex1 > targetVFullIndex2) {
+                            routeVBoxPane.getChildren().remove(targetVFullIndex1);
+                            routeVBoxPane.getChildren().remove(targetVFullIndex2);
+                        } else {
+                            routeVBoxPane.getChildren().remove(targetVFullIndex2);
+                            routeVBoxPane.getChildren().remove(targetVFullIndex1);
+                        }
+
+                    }
+
+                    int targetHIntIndex1 = closestMultiple - 1;
+                    int targetHIntIndex2 = closestMultiple; // the next one
+
+                    int targetHFullIndex1 = -1;
+                    int targetHFullIndex2 = -1;
+
+                    for (Map.Entry<Integer, Integer> entry : paneIndexToHIntIndex.entrySet()) {
+                        int fullIndex = entry.getKey();
+                        int hIntIndex = entry.getValue();
+
+                        if (hIntIndex == targetHIntIndex1) {
+                            targetHFullIndex1 = fullIndex;
+                        }
+                        if (hIntIndex == targetHIntIndex2) {
+                            targetHFullIndex2 = fullIndex;
+                        }
+                    }
+
+                    if (targetHFullIndex1 == -1 || targetHFullIndex2 == -1) {
+                        System.out.println("No matching full index found for one or both vInt indices.");
+                    } else {
+
+                        //Debug: Show the whole paneIndexToVIntIndex map
+                    //    System.out.println("paneIndexToHIntIndex contents:");
+                    //     paneIndexToVIntIndex.forEach((fullIndex, hIntIndex) ->
+                    //         System.out.println("  fullIndex=" + fullIndex + ", hIntIndex=" + hIntIndex)
+                    //     );
+
+                        int startHIntShiftIndex = closestMultiple;
+
+                     //   System.out.println("\nFiltering for hIntIndex >= " + startHIntShiftIndex + "...");
+
+                        // Collect full indices of all vInts from startVIntShiftIndex to end
+                        List<Integer> fullHIndicesToShift = paneIndexToHIntIndex.entrySet().stream()
+                            .filter(e -> e.getValue() >= startHIntShiftIndex)
+                      //      .peek(e -> System.out.println("  Keeping entry: fullIndex=" + e.getKey() + ", hIntIndex=" + e.getValue()))
+                            .map(Map.Entry::getKey)
+                            .sorted()
+                            .collect(Collectors.toList());
+
+                   //     System.out.println("\nFull indices to shift: " + fullHIndicesToShift);
+
+                        
+                        for (int fullIndex : fullHIndicesToShift) {
+                           
+                            Node nodeH = routeHBoxPane.getChildren().get(fullIndex);
+                            if (nodeH instanceof HBox) {
+                        //        System.out.println("Made it to a shift for fullIndex: " + fullIndex); 
+                                HBox hbox = (HBox) nodeH;
+                                double currentX = hbox.getTranslateX();
+                                hbox.setTranslateX(currentX - cardWidthUnit);
+                            }
+                        }
+
+                        // Remove higher index first to avoid shifting problems
+                        if (targetHFullIndex1 > targetHFullIndex2) {
+                            routeHBoxPane.getChildren().remove(targetHFullIndex1);
+                            routeHBoxPane.getChildren().remove(targetHFullIndex2);
+                        } else {
+                            routeHBoxPane.getChildren().remove(targetHFullIndex2);
+                            routeHBoxPane.getChildren().remove(targetHFullIndex1);
+                        }
+
+                    }
 
                     Rental newLinkStart = route.get(closestMultiple - 1/* + accountForTruck*/);
                     Rental newLinkEnd = route.get(closestMultiple/* + accountForTruck*/);
-                    String [] newLink = {"unknown", "unknown"};
-                    try {   
+      
+                    RouteInfo newLink = new RouteInfo(0, 0, null);
+                    try {
                         newLink = getGoogleRoute(newLinkStart.getLatitude(), 
                                 newLinkStart.getLongitude(), newLinkEnd.getLatitude(),
                                 newLinkEnd.getLongitude());
                     } catch (Exception e) {
                     }
-                    Region newIntV = createStopIntermediary(newLink[0], colors, "vertical");
-                    Region newIntH = createStopIntermediary(newLink[0], colors, "horizontal");
+
+                    int driveTimeInMinutes = (int) Math.round(newLink.getDurationSeconds() / 60.0);
+                    Region newIntV = createStopIntermediary(driveTimeInMinutes, colors, "vertical");
+                    Region newIntH = createStopIntermediary(driveTimeInMinutes, colors, "horizontal");
                     VBox newIntVBox = (VBox) newIntV;
                     HBox newIntHBox = (HBox) newIntH;
-                    int singleDigitSpacerV = isSingleDigitMinutes(newLink[0]) ? 7 : 0;
-                    int singleDigitSpacerH = isSingleDigitMinutes(newLink[0]) ? 10 : 0;
-                    String driveTimeStr = newLink[0].replace("s", "");
-                    int driveTimeInSeconds = Integer.parseInt(driveTimeStr);
-                    int driveTimeInMinutes = (int) Math.round(driveTimeInSeconds / 60.0);
+                    int singleDigitSpacerV = driveTimeInMinutes < 11 ? 7 : 0;
+                    int singleDigitSpacerH = driveTimeInMinutes < 11 ? 0 : 10;
                     newIntVBox.setTranslateY(((closestMultiple) * cardHeightUnit) - 26 + singleDigitSpacerV);
-                    newIntHBox.setTranslateY(1);
+                    newIntHBox.setTranslateY(9);
                     newIntVBox.setTranslateX(-1);
-                    newIntHBox.setTranslateX((closestMultiple * cardWidthUnit) - 23 + singleDigitSpacerH);
-                    routeVBoxPane.getChildren().set(closestMultiple + 1, newIntVBox);
-                    routeHBoxPane.getChildren().set(closestMultiple + 1, newIntHBox);
+                    newIntHBox.setTranslateX(((closestMultiple) * cardWidthUnit) - 36 + singleDigitSpacerH);
+                    routeVBoxPane.getChildren().add(targetVFullIndex1, newIntVBox);
+                    routeHBoxPane.getChildren().add(targetHFullIndex1, newIntHBox);
+                    StackPane.setAlignment(newIntHBox, Pos.TOP_LEFT);
                     polylineList.remove(closestMultiple - 1/* + accountForTruck*/);
-                    polylineList.set(closestMultiple - 1/* + accountForTruck*/, newLink[1]);
+                    polylineList.set(closestMultiple - 1/* + accountForTruck*/, newLink.getPolylinePoints());
                     intervalList.remove(closestMultiple - 1);
                     intervalList.set(closestMultiple - 1, driveTimeInMinutes);
-                    //  VBox vbox = (VBox) routeVBoxPane.getChildren().get(closestMultiple + 1);
                     newIntVBox.setClip(new Rectangle(15, 45));
                 }
             updateRoutePolylines();
             }
             routeVBox.getChildren().remove(closestMultiple);
             routeHBox.getChildren().remove(closestMultiple);
+
+
+
 
             ////////////// Print System for child/parent shifting ////////////////
     /*      System.out.println("📦 routeVBoxPane children AFTER deletion:");
@@ -2274,10 +2435,8 @@ public class MapController {
             ///////////////////////////////////////////////////
 
 
-            System.out.println("routeName: " + routeName);
             // delete truck assignment in memory and assignment ui elements
             // TODO: drop driver assignment as well
-            System.out.println("truckAssignments is: " + truckAssignments);
             if (closestMultiple == 0 && truckAssignments.containsValue(routeName)) {
                 System.out.println("Going to try to wipe off pinpointers");
                 for (Map.Entry<String, String> entry : truckAssignments.entrySet()) {
@@ -2290,6 +2449,20 @@ public class MapController {
                         routeHBoxPane.getChildren().remove(innerPinpointersH.get(numeralRouteName));
                         routeVBoxPane.getChildren().remove(driverLabelsV.get(numeralRouteName));
                         routeHBoxPane.getChildren().remove(driverLabelsH.get(numeralRouteName));
+                        routeVBoxPane.getChildren().remove(pictoralTruckV);
+                        routeHBoxPane.getChildren().remove(pictoralTruckH);
+                        routeVBoxPane.getChildren().removeIf(node -> node instanceof Rectangle);
+                        routeHBoxPane.getChildren().removeIf(node -> node instanceof Rectangle);
+                     
+                
+                        StackPane pane = truckPanes.get(entry.getKey());
+                        Circle truckCircle = (Circle) pane.getChildren().get(0);
+                        pane.getChildren().clear();
+                        truckCircle.setFill(Color.TRANSPARENT);
+                        pane.getChildren().add(truckCircle);
+                        routeAssignments.remove(routeName);
+                        driverLabelsV.get(numeralRouteName).setText("?");
+                        driverLabelsH.get(numeralRouteName).setText("?");
                         break;
                     }
                 }
@@ -2317,38 +2490,36 @@ public class MapController {
             }            
 
 
-            String[] googleResults = {"unknown", "unknown"};
+            RouteInfo googleRoute = new RouteInfo(0, 0, null);
             try {
-                googleResults = getGoogleRoute(firstRental.getLatitude(), firstRental.getLongitude(),
-                                                secondRental.getLatitude(), secondRental.getLongitude());
-                // Check googleResults after fetching
-                // System.out.println("Google Results: " + googleResults[0] + ", " + googleResults[1]);
+                googleRoute = getGoogleRoute(firstRental.getLatitude(), firstRental.getLongitude(),
+                                    secondRental.getLatitude(), secondRental.getLongitude());
             } catch (Exception e) {
             }
-            String driveTimeStr = googleResults[0].replace("s", "");
-            int driveTimeInSeconds = Integer.parseInt(driveTimeStr);
+            int driveTimeInSeconds = googleRoute.getDurationSeconds();
             int driveTimeInMinutes = (int) Math.round(driveTimeInSeconds / 60.0);
 
             // Check if the intermediary VBox is created correctly
-            Region intermediaryRegionV = createStopIntermediary(googleResults[0], colors, "vertical");
-            Region intermediaryRegionH = createStopIntermediary(googleResults[0], colors, "horizontal");
+            Region intermediaryRegionV = createStopIntermediary(driveTimeInMinutes, colors, "vertical");
+            Region intermediaryRegionH = createStopIntermediary(driveTimeInMinutes, colors, "horizontal");
             VBox intermediaryV = (VBox) intermediaryRegionV;
             HBox intermediaryH = (HBox) intermediaryRegionH;
-            int singleDigitSpacerV = isSingleDigitMinutes(googleResults[0]) ? 7 : 0;
-            int singleDigitSpacerH = isSingleDigitMinutes(googleResults[0]) ? 10 : 0;
+            int singleDigitSpacerV = driveTimeInMinutes < 11 ? 7 : 0;
+            int singleDigitSpacerH = driveTimeInMinutes < 11 ? 10 : 0;
 
             routeVBoxPane.getChildren().add(2, intermediaryV);
-            routeHBoxPane.getChildren().add(2, intermediaryH);
-/*
+            routeHBoxPane.getChildren().add(0, intermediaryH);
+            StackPane.setAlignment(intermediaryH, Pos.TOP_LEFT);
+            /* 
             System.out.println("routeVBoxPane children:");
             for (Node node : routeVBoxPane.getChildren()) {
                 System.out.println(" - " + node);
-            }
+            }   */
             
-            System.out.println("routeHBoxPane children:");
-            for (Node node : routeHBoxPane.getChildren()) {
-                System.out.println(" - " + node);
-            }      */  
+            // System.out.println("routeHBoxPane children:");
+            // for (Node node : routeHBoxPane.getChildren()) {
+            //     System.out.println(" - " + node);
+            // }        
 
             intermediaryV.setTranslateY((cardHeightUnit) - 26 + singleDigitSpacerV);
             intermediaryH.setTranslateY(8);
@@ -2358,15 +2529,14 @@ public class MapController {
 
 
             //drawRoutePolyline(googleResults[1], colors);
-            polylineList.add(0, googleResults[1]);
+            polylineList.add(0, googleRoute.getPolylinePoints());
             intervalList.add(0, driveTimeInMinutes);
             //  storedEncodedPolylines.add(googleResults[1]);
             updateRoutePolylines();
         
             routeVBoxPane.toFront();
             routeVBox.toFront();
-            intermediaryH.toFront();
-
+         //   intermediaryH.toFront();
 
             StackPane rentalChunkV = createRentalChunk(rental, colors, "vertical-truck", routeName, closestMultiple);
             StackPane rentalChunkH = createRentalChunk(rental, colors, "horizontal-truck", routeName, closestMultiple);
@@ -2412,15 +2582,11 @@ public class MapController {
             truckCatcherV.setTranslateY(5);
             StackPane.setAlignment(truckCatcherV, Pos.TOP_LEFT);
 
-
             // new image views
             Image originalFlatbedImage = new Image(getClass().getResourceAsStream("/images/flatbed.png"));
             Image infoFlatbedImage = new Image(getClass().getResourceAsStream("/images/flatbed-info.png"));
-
-
             Image modifiedBase = changePixelColor(originalFlatbedImage, colors);
             Image modifiedHover = changePixelColor(infoFlatbedImage, colors);
-
             
             ImageView imageViewV = new ImageView(modifiedBase);
             imageViewV.setFitWidth(98);
@@ -2436,6 +2602,12 @@ public class MapController {
             // pictoralTruckV.setMaxWidth(82);
             StackPane.setAlignment(pictoralTruckV, Pos.TOP_LEFT);
 
+            Rectangle truckCatcherH = new Rectangle(85, 26);
+            truckCatcherH.setFill(Color.TRANSPARENT);
+            truckCatcherH.setTranslateX(0);
+            truckCatcherH.setTranslateY(0);
+            StackPane.setAlignment(truckCatcherH, Pos.CENTER_LEFT);
+
 
             ImageView imageViewH = new ImageView(modifiedBase);
             imageViewH.setFitWidth(82);
@@ -2445,12 +2617,16 @@ public class MapController {
             imageViewH.setMouseTransparent(true);
             StackPane.setAlignment(imageViewH, Pos.CENTER_LEFT);
 
+            pictoralTruckH.getChildren().removeAll();
+            pictoralTruckH.getChildren().add(imageViewH);
+            pictoralTruckH.setMouseTransparent(true);
+            StackPane.setAlignment(pictoralTruckH, Pos.CENTER_LEFT);
 
             // truckCatcherV.setOnMouseEntered(e -> showDetailedTruck(pictoralTruckV, imageViewV, modifiedHover, routeName));
             // truckCatcherV.setOnMouseExited(e -> showDefaultTruck(pictoralTruckV, imageViewV, modifiedBase, routeName));
 
 
-            routeVBoxPane.getChildren().addAll(pinpointerV, innerPinpointerV, driverLabelV, truckCatcherV, pictoralTruckV);
+            routeVBoxPane.getChildren().addAll(truckCatcherV, pictoralTruckV, pinpointerV, innerPinpointerV, driverLabelV);
 
 
             // H variant
@@ -2475,16 +2651,19 @@ public class MapController {
             innerPinpointerH.setFill(Color.web(colors[1]));
             innerPinpointerH.setTranslateY(20);
             innerPinpointerH.setMouseTransparent(true);
+            StackPane.setAlignment(innerPinpointerH, Pos.CENTER_LEFT);
+            StackPane.setAlignment(pinpointerH, Pos.CENTER_LEFT);
             driverLabelH.setTextFill(Color.web(colors[2]));
             driverLabelH.setStyle("-fx-font-weight: bold");
             driverLabelH.setTranslateY(20);
+            driverLabelH.setTranslateX(15);
             driverLabelH.setMouseTransparent(true);
+            StackPane.setAlignment(driverLabelH, Pos.CENTER_LEFT);
 
 
             // new image views
 
-
-            routeHBoxPane.getChildren().addAll(pinpointerH, innerPinpointerH, driverLabelH, imageViewH);
+            routeHBoxPane.getChildren().addAll(truckCatcherH, pictoralTruckH, pinpointerH, innerPinpointerH, driverLabelH);
         }
         
         routeVBox.toBack();
@@ -2508,6 +2687,39 @@ public class MapController {
         if (agent.equals("user")) {
             syncRoutingToDB();
         }
+/*
+        hInts = routeHBoxPane.getChildren().stream()
+            .filter(node -> node.getClass().getName().contains("MapController$"))
+            .collect(Collectors.toList());
+
+        System.out.println("hInts contents (post-update):");
+        for (Node n : hInts) {
+            StringBuilder labelText = new StringBuilder();
+
+            // Walk the hierarchy recursively to collect label texts
+            collectLabelText(n, labelText);
+
+            // Get translateX
+            double tx = n.getTranslateX();
+
+            // Try to get alignment if parent is a StackPane
+            Pos alignment = null;
+            if (n.getParent() instanceof StackPane) {
+                alignment = StackPane.getAlignment(n);
+            }
+
+            System.out.println(" - " + n 
+                + "   text: " + labelText
+                + "   translateX: " + tx);
+        }
+
+
+        // Print all child nodes, preserving order
+        System.out.println("Children (post-update) of routeHBoxPane (index " + index + "):");
+        for (Node child : routeHBoxPane2.getChildren()) {
+            System.out.println(" - " + child);
+        }
+*/
     }
 
 
@@ -2573,7 +2785,7 @@ public class MapController {
             // Name label (bold)
             String rawName = Config.CUSTOMER_NAME_MAP.getOrDefault(rental.getName(), rental.getName());
             String name = rawName.replace(".", "");
-            Label nameLabel = new Label(truncateTextToWidth(name, maxLabelWidth, boldFont));
+            Label nameLabel = new Label(truncateTextToWidth(name, maxLabelWidth - cityLineDeduction, boldFont));
             nameLabel.setFont(boldFont);
             nameLabel.setStyle("-fx-text-fill: " + colors[2] + ";");
             nameLabel.setMaxWidth(maxLabelWidth);
@@ -2614,6 +2826,12 @@ public class MapController {
           //  if (orientation.equals("horizontal-truck") || orientation.equals("vertical-truck")) {
             labelBox.getChildren().addAll(nameLabel, address2, address3);
 
+            Shape dot = createRentalDot(rental, rental.getStatus());
+            rentalChunk.getChildren().add(dot);
+            StackPane.setAlignment(dot, Pos.TOP_RIGHT);
+            dot.setTranslateX(orientation.equals("vertical") ? -2 : -7);
+            dot.setTranslateY(orientation.equals("vertical") ? 5 : 3);
+
         } else if (orientation.equals("horizontal-truck") || orientation.equals("vertical-truck")) {
             truckPane.setBackground(new Background(new BackgroundFill(gradient, CornerRadii.EMPTY, Insets.EMPTY)));
             int timelineCapRange = cardWidthUnit / 2 - 10;
@@ -2646,11 +2864,7 @@ public class MapController {
     }
 
 
-    private Region createStopIntermediary(String driveTimeStr, String[] colors, String orientation) {
-        // Extract and convert drive time
-        driveTimeStr = driveTimeStr.replace("s", "");
-        int driveTimeInSeconds = Integer.parseInt(driveTimeStr);
-        int driveTimeInMinutes = (int) Math.round(driveTimeInSeconds / 60.0);
+    private Region createStopIntermediary(int driveTimeInMinutes, String[] colors, String orientation) {
     
         String timeNumber = String.valueOf(driveTimeInMinutes);
         String timeUnit = "m";
@@ -2932,7 +3146,7 @@ public class MapController {
                 label.setOnMouseExited(e -> label.setStyle("-fx-font-size: 10px; -fx-text-fill: " + colors[1] + "; -fx-font-weight: bold"));
         
                 // Click action
-                label.setOnMouseClicked(e -> handleAssignTruck(vboxPane, text, routeName));
+                label.setOnMouseClicked(e -> handleAssignTruck(vboxPane, hboxPane, text, routeName));
         
                 labelColumn.getChildren().add(label);
             }
@@ -2967,7 +3181,7 @@ public class MapController {
                 label.setOnMouseExited(e -> label.setStyle("-fx-font-size: 14px; -fx-text-fill: " + colors[1] + "; -fx-font-weight: bold"));
         
                 // Click action
-                label.setOnMouseClicked(e -> handleAssignTruck(hboxPane, text, routeName));
+                label.setOnMouseClicked(e -> handleAssignTruck(hboxPane, vboxPane, text, routeName));
         
                 labelRow.getChildren().add(label);
             }
@@ -2979,72 +3193,17 @@ public class MapController {
     }
     
     
-    private void handleAssignTruck(StackPane routePane, String labelString, String routeName) {
-        if (!routePane.getChildren().isEmpty()) {
-            Node firstChild = routePane.getChildren().get(0);
-            if (firstChild instanceof Parent parent) {
-                for (Node node : parent.getChildrenUnmodifiable()) {
-                    if (node instanceof Label label) {
-                        label.setText(labelString);
-                        label.setStyle("-fx-font-size: 12px; -fx-font-weight: bold;");
-                        label.setScaleX(0.75);
-                        label.setTranslateX(-1);
-                        break;
-                    }
-                }
-            }
-        }
-
-
-        for (Map.Entry<String, String> entry : truckAssignments.entrySet()) {
-        }
+    private void handleAssignTruck(StackPane routePane, StackPane routePane2, String labelString, String routeName) {
         removeCardCovers();
-        if (truckAssignments.containsValue(routeName)) {    
+        if (truckAssignments.containsValue(routeName)) {
             removeFromRoute(routes.get(routeName).get(0), 0, getRouteIndex(routeName));
-        } 
-
-
-
-
-        System.out.println("Making it to just before addTruckToRoute on handleAssignTruck");
-        addTruckToRoute(routeName, labelString, "user");
-        System.out.println("Made it through addTruckToRoute");
-
-
-
-
-        Node cardsNode = routePane.getChildren().get(0);
-        if (cardsNode instanceof VBox || cardsNode instanceof HBox) {
-            Pane cardStack = (Pane) cardsNode;
-            System.out.println("Found Pane (VBox/HBox) as cardsNode");
-        
-            if (!cardStack.getChildren().isEmpty() && cardStack.getChildren().get(0) instanceof StackPane) {
-                StackPane truckStack = (StackPane) cardStack.getChildren().get(0);
-                System.out.println("Found StackPane as first child of cardStack");
-        
-                for (Node child : truckStack.getChildren()) {
-                    if (child instanceof StackPane) {
-                        StackPane innerStack = (StackPane) child;
-                        System.out.println("Found inner StackPane");
-        
-                        for (Node innerChild : innerStack.getChildren()) {
-                            if (innerChild instanceof Label) {
-                                System.out.println("Found Label. Setting text to: " + labelString);
-                                ((Label) innerChild).setText(labelString);
-                                return; // Exit once we've updated one label
-                            }
-                        }
-                    }
-                }
-            } else {
-                System.out.println("First child of cardStack is not a StackPane or is empty");
-            }
-        } else {
-            System.out.println("cardsNode is not a VBox or HBox");
         }
-        
+        addTruckToRoute(routeName, labelString, "user");
+        updateInnerTruckLabel(routePane, labelString);
+        updateInnerTruckLabel(routePane2, labelString);
         syncRoutingToDB();
     }
+
 
     private void handleDriverExpander(String routeName, String numeralRouteName, String[] colors, String orientation) {
         removeCardCovers();
@@ -3134,6 +3293,40 @@ public class MapController {
         
     }
 
+    private void updateInnerTruckLabel(StackPane parentPane, String labelText) {
+        if (parentPane.getChildren().isEmpty()) return;
+
+        Node cardsNode = parentPane.getChildren().get(0);
+        if (cardsNode instanceof VBox || cardsNode instanceof HBox) {
+            Pane cardStack = (Pane) cardsNode;
+            System.out.println("Found Pane (VBox/HBox) as cardsNode");
+
+            if (!cardStack.getChildren().isEmpty() && cardStack.getChildren().get(0) instanceof StackPane) {
+                StackPane truckStack = (StackPane) cardStack.getChildren().get(0);
+                System.out.println("Found StackPane as first child of cardStack");
+
+                for (Node child : truckStack.getChildren()) {
+                    if (child instanceof StackPane) {
+                        StackPane innerStack = (StackPane) child;
+                        System.out.println("Found inner StackPane");
+
+                        for (Node innerChild : innerStack.getChildren()) {
+                            if (innerChild instanceof Label) {
+                                System.out.println("Found Label. Setting text to: " + labelText);
+                                ((Label) innerChild).setText(labelText);
+                                return;
+                            }
+                        }
+                    }
+                }
+            } else {
+                System.out.println("First child of cardStack is not a StackPane or is empty");
+            }
+        } else {
+            System.out.println("cardsNode is not a VBox or HBox");
+        }
+    }
+
 
     private void handleAssignDriver(StackPane routePane, String labelString, String routeName, String[] colors) {
         String truckId = getTruckIdForRoute(routeName);
@@ -3167,9 +3360,6 @@ public class MapController {
 
     }
 
-    private void editRouteInventory2(Rental rental, int index, int routeIndex, String actionType){
-
-    }
 
     
 
@@ -3181,16 +3371,7 @@ public class MapController {
     
         Runnable task = () -> Platform.runLater(() -> {
             try {
-                Map<String, Double> currentProportions = getProgressReport();
-    
-               //  loadRentalDataFromAPI(); best order of events for getting new rentals added on??
-                // just call routes/prepare more frequently in api
-                // call routes/stops
-                // organize work into background if you can
-
-                // then 
-                // introduce p.u.s on map schema
-
+                Map<String, Double> currentProportions = getProgressReport("geometric");
                 // === NEW: Handle completed stops first ===
                 List<Rental> completedRentals = findCompletedStops();
                 List<Rental> rentalsToRemoveFromCharting = new ArrayList<>();
@@ -3204,7 +3385,7 @@ public class MapController {
                             removeFromRoute(rental, index, routeIndex);
                             if (rental.getStatus().equals("Upcoming")) {
                             } else if (rental.getStatus().equals("Called Off")) {
-                                editVisualCargo(rental, index, "picking-up");
+                                editVisualCargo(rental, routeIndex, "picking-up");
                             }
                             break; // Rental is only in one route
                         }
@@ -3215,11 +3396,22 @@ public class MapController {
                 loadRentalDataFromAPI();
 
                 // ✅ Safely remove afterward
-                for (Rental rental : rentalsToRemoveFromCharting) {
-                    if (rentalsForCharting.contains(rental)) {
-                        rentalsForCharting.remove(rental);
+                for (Rental rentalToRemove : rentalsToRemoveFromCharting) {
+                    int idToRemove = rentalToRemove.getRentalItemId();
+
+                    Rental match = null;
+                    for (Rental rental : rentalsForCharting) {
+                        if (rental.getRentalItemId() == idToRemove) {
+                            match = rental;
+                            break;
+                        }
+                    }
+
+                    if (match != null) {
+                        rentalsForCharting.remove(match);
                     }
                 }
+
 
                 updateRentalLocations();
     
@@ -3229,30 +3421,53 @@ public class MapController {
                     double current = entry.getValue();
                     double previous = lastProportions.getOrDefault(routeKey, current);
     
-                    double visualCompletionRatio = 15.0 / 17.0;
-                    double prevScaled = Math.min(previous / visualCompletionRatio, 1.0);
-                    double currScaled = Math.min(current / visualCompletionRatio, 1.0);
+                    double visualCompletionRatioV = 15.0 / 17.0;
+                    double prevScaledV = Math.min(previous / visualCompletionRatioV, 1.0);
+                    double currScaledV = Math.min(current / visualCompletionRatioV, 1.0);
+                    double visualCompletionRatioH = 15.0 / 22.0;
+                    double prevScaledH = Math.min(previous / visualCompletionRatioH, 1.0);
+                    double currScaledH = Math.min(current / visualCompletionRatioH, 1.0);
     
-                    double prevX = -22 + prevScaled * 55;
-                    double currX = -22 + currScaled * 55;
+                    double prevXV = -22 + prevScaledV * 55;
+                    double currXV = -22 + currScaledV * 55;
+                    double prevXH = 15 + prevScaledH * 55;
+                    double currXH = 15 + currScaledH * 55;
     
-                    Timeline timeline = new Timeline(
-                            new KeyFrame(Duration.ZERO, new KeyValue(pinpointersV.get(routeKey).translateXProperty(), prevX)),
-                            new KeyFrame(Duration.minutes(1), new KeyValue(pinpointersV.get(routeKey).translateXProperty(), currX))
+                    Timeline timelineV = new Timeline(
+                            new KeyFrame(Duration.ZERO, new KeyValue(pinpointersV.get(routeKey).translateXProperty(), prevXV)),
+                            new KeyFrame(Duration.minutes(1), new KeyValue(pinpointersV.get(routeKey).translateXProperty(), currXV))
                     );
-                    timeline.play();
-    
-                    Timeline innerPinpointerTimeline = new Timeline(
-                            new KeyFrame(Duration.ZERO, new KeyValue(innerPinpointersV.get(routeKey).translateXProperty(), prevX)),
-                            new KeyFrame(Duration.minutes(1), new KeyValue(innerPinpointersV.get(routeKey).translateXProperty(), currX))
+                    timelineV.play();
+
+                    Timeline timelineH = new Timeline(
+                            new KeyFrame(Duration.ZERO, new KeyValue(pinpointersH.get(routeKey).translateXProperty(), prevXH)),
+                            new KeyFrame(Duration.minutes(1), new KeyValue(pinpointersH.get(routeKey).translateXProperty(), currXH))
                     );
-                    innerPinpointerTimeline.play();
+                    timelineH.play();
     
-                    Timeline driverLabelTimeline = new Timeline(
-                            new KeyFrame(Duration.ZERO, new KeyValue(driverLabelsV.get(routeKey).translateXProperty(), prevX)),
-                            new KeyFrame(Duration.minutes(1), new KeyValue(driverLabelsV.get(routeKey).translateXProperty(), currX))
+                    Timeline innerPinpointerTimelineV = new Timeline(
+                            new KeyFrame(Duration.ZERO, new KeyValue(innerPinpointersV.get(routeKey).translateXProperty(), prevXV)),
+                            new KeyFrame(Duration.minutes(1), new KeyValue(innerPinpointersV.get(routeKey).translateXProperty(), currXV))
                     );
-                    driverLabelTimeline.play();
+                    innerPinpointerTimelineV.play();
+
+                    Timeline innerPinpointerTimelineH = new Timeline(
+                            new KeyFrame(Duration.ZERO, new KeyValue(innerPinpointersH.get(routeKey).translateXProperty(), prevXH)),
+                            new KeyFrame(Duration.minutes(1), new KeyValue(innerPinpointersH.get(routeKey).translateXProperty(), currXH + 4))
+                    );
+                    innerPinpointerTimelineH.play();
+    
+                    Timeline driverLabelTimelineV = new Timeline(
+                            new KeyFrame(Duration.ZERO, new KeyValue(driverLabelsV.get(routeKey).translateXProperty(), prevXV)),
+                            new KeyFrame(Duration.minutes(1), new KeyValue(driverLabelsV.get(routeKey).translateXProperty(), currXV))
+                    );
+                    driverLabelTimelineV.play();
+
+                    Timeline driverLabelTimelineH = new Timeline(
+                            new KeyFrame(Duration.ZERO, new KeyValue(driverLabelsH.get(routeKey).translateXProperty(), prevXH)),
+                            new KeyFrame(Duration.minutes(1), new KeyValue(driverLabelsH.get(routeKey).translateXProperty(), currXH + 6))
+                    );
+                    driverLabelTimelineH.play();
     
                     lastProportions.put(routeKey, current);
     
@@ -3263,10 +3478,10 @@ public class MapController {
     
                     if (assignedTruck.isEmpty()) return;
     
-                    if (encodedPolylines.containsKey(routeKey) && trucks.containsKey(assignedTruck.get())) {
-                        List<double[]> decodedPolyline = decodePolyline(encodedPolylines.get(routeKey).get(0));
+                    if (decodedPolylines.containsKey(routeKey) && trucks.containsKey(assignedTruck.get())) {
+                        List<double[]> decodedPolyline = decodedPolylines.get(routeKey).get(0);
                         StackPane truckPane = truckPanes.get(assignedTruck.get());
-                        animateTruckAlongPolyline(assignedTruck.get(), decodedPolyline, previous, Math.random(), truckPane);
+                        animateTruckAlongPolyline(assignedTruck.get(), decodedPolyline, previous, /*Math.random()*/current, truckPane);
                     }
                 }
     
@@ -3276,6 +3491,7 @@ public class MapController {
         });
     
         scheduler.scheduleAtFixedRate(task, 0, 1, TimeUnit.MINUTES);
+        System.out.println("");
     }
     
 
@@ -3370,19 +3586,19 @@ public class MapController {
     
 
     // Hybrid inputs: real driver progress and linear ETA simulation
-    public Map<String, Double> getProgressReport() {
+    public Map<String, Double> getProgressReport(String type) {
         Map<String, Double> proportions = new HashMap<>();
-    
+
         try {
-            new URL("http://api.maxhighreach.com:8080/routes/fleet/refresh").openConnection().getInputStream().close();
+            new URL("http://5.78.73.173:8080/routes/fleet/refresh").openConnection().getInputStream().close();
             updateTruckCoordinates();
-    
-            URL url = new URL("http://api.maxhighreach.com:8080/routes/fetch");
+
+            URL url = new URL("http://5.78.73.173:8080/routes/fetch");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             JsonNode root = new ObjectMapper().readTree(conn.getInputStream());
             conn.disconnect();
-    
+
             Map<Integer, JsonNode> stopIdToNode = new HashMap<>();
             for (JsonNode routeNode : root) {
                 JsonNode stops = routeNode.get("stops");
@@ -3392,138 +3608,154 @@ public class MapController {
                     }
                 }
             }
-    
+
             for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
                 String key = entry.getKey();
                 String truckId = truckAssignments.entrySet().stream()
                     .filter(e -> e.getValue().equals(key))
                     .map(Map.Entry::getKey)
                     .findFirst().orElse(null);
-    
+
                 if (truckId == null) continue;
-    
                 List<Rental> rentalList = entry.getValue();
                 if (rentalList == null || rentalList.isEmpty()) continue;
-    
-                Rental rentalToUse = rentalList.stream().filter(r -> r.getRentalItemId() != 0).findFirst().orElse(null);
+
+                Rental rentalToUse = rentalList.stream()
+                    .filter(r -> r.getRentalItemId() != 0)
+                    .findFirst().orElse(null);
                 if (rentalToUse == null) continue;
-    
+
                 JsonNode stopMatch = stopIdToNode.get(rentalToUse.getRentalItemId());
                 if (stopMatch == null || !stopMatch.has("departedTime") || stopMatch.get("departedTime").isNull()) continue;
-    
-                LocalDateTime departedTimeLocal = LocalDateTime.parse(stopMatch.get("departedTime").asText());
-                long elapsedMinutes = java.time.Duration.between(
-                    departedTimeLocal.atZone(ZoneId.of("America/Denver")),
-                    ZonedDateTime.now(ZoneId.of("America/Denver"))
-                ).toMinutes();
-    
+
+                String departedTimeString = stopMatch.get("departedTime").asText();
+                LocalDateTime departedTimeLocal = LocalDateTime.parse(departedTimeString);
+                ZonedDateTime departedZoned = departedTimeLocal.atZone(ZoneId.of("America/Denver"));
+                ZonedDateTime nowZoned = ZonedDateTime.now(ZoneId.of("America/Denver"));
+                long elapsedMinutes = java.time.Duration.between(departedZoned, nowZoned).toMinutes();
+
                 List<Integer> etaList = intervals.get(key);
                 if (etaList == null || etaList.isEmpty()) continue;
-    
                 int etaMinutes = etaList.get(0);
+
                 double elapsedProportion = Math.min((double) elapsedMinutes / etaMinutes, 1.0);
-    
+
                 double[] truckLocation = truckCoords.get(truckId);
                 if (truckLocation == null || truckLocation[0] == 0 || truckLocation[1] == 0) continue;
-    
-                double[] destination = {rentalToUse.getLatitude(), rentalToUse.getLongitude()};
-                String[] googleRoute = getGoogleRoute(truckLocation[0], truckLocation[1], destination[0], destination[1]);
-                int remainingSeconds = Integer.parseInt(googleRoute[0].replace("s", ""));
-                double gpsProportion = 1.0 - Math.min((double) remainingSeconds / (etaMinutes * 60), 1.0);
-    
+
+                double gpsProportion;
+
+                if (type.equalsIgnoreCase("geometric")) {
+                    List<List<double[]>> routeSegments = decodedPolylines.get(key);
+                    if (routeSegments == null || routeSegments.isEmpty()) continue;
+
+                    List<double[]> activePolyline = routeSegments.get(0);
+                    gpsProportion = estimatePolylineProgress(activePolyline, truckLocation);
+
+                } else { // fallback to ETA-based
+                    double[] destination = {rentalToUse.getLatitude(), rentalToUse.getLongitude()};
+                    RouteInfo googleRoute = getGoogleRoute(truckLocation[0], truckLocation[1], destination[0], destination[1]);
+                    int remainingSeconds = googleRoute.getDurationSeconds();
+                    gpsProportion = 1.0 - Math.min((double) remainingSeconds / (etaMinutes * 60), 1.0);
+                }
+
                 double faster = Math.max(elapsedProportion, gpsProportion);
                 double slower = Math.min(elapsedProportion, gpsProportion);
                 double dynamicProportion = 0.3 * faster + 0.7 * slower;
+
                 proportions.put(key, dynamicProportion);
             }
-    
+
         } catch (Exception e) {
             System.out.println("🔥 Exception in getProgressReport: " + e);
             e.printStackTrace();
         }
-    
+
         return proportions;
     }
+
     
     private void editVisualCargo(Rental rental, int routeIndex, String orientation) {
-        System.out.println("\n📦 [editVisualCargo] Invoked with rental ID: " + rental.getRentalItemId() +
-                           ", routeIndex: " + routeIndex +
-                           ", orientation: " + orientation +
-                           ", rental status: " + rental.getStatus());
-    
         if (!"picking-up".equals(orientation)) {
-            System.out.println("🚫 Skipping visual cargo edit due to non-pickup orientation.");
             return;
         }
-    
+
         String routeKey = "route" + (routeIndex + 1);
-        System.out.println("🔑 Computed routeKey: " + routeKey);
-    
-        StackPane pictoralTruck = pictoralTrucksV.get(routeKey);
-        if (pictoralTruck == null) {
-            System.out.println("❌ pictoralTruck is null for routeKey: " + routeKey);
+
+        StackPane pictoralTruckV = pictoralTrucksV.get(routeKey);
+        StackPane pictoralTruckH = pictoralTrucksH.get(routeKey);
+
+        if (pictoralTruckV == null || pictoralTruckH == null) {
             return;
         }
-        if (pictoralTruck.getChildren().isEmpty()) {
-            System.out.println("⚠️ pictoralTruck has no base image, skipping cargo overlay.");
+
+        if (pictoralTruckV.getChildren().isEmpty() || pictoralTruckH.getChildren().isEmpty()) {
             return;
         }
-    
-        System.out.println("🖼️ Found pictoralTruck with existing children, preserving base image...");
-        ImageView baseImageView = (ImageView) pictoralTruck.getChildren().get(0);
-        pictoralTruck.getChildren().clear();
-        pictoralTruck.getChildren().add(baseImageView);
-    
+
+        ImageView baseImageViewV = (ImageView) pictoralTruckV.getChildren().get(0);
+        ImageView baseImageViewH = (ImageView) pictoralTruckH.getChildren().get(0);
+
+        pictoralTruckV.getChildren().clear();
+        pictoralTruckH.getChildren().clear();
+
+        pictoralTruckV.getChildren().add(baseImageViewV);
+        pictoralTruckH.getChildren().add(baseImageViewH);
+
         // Add cargo to route inventory
         List<String> cargoList = inventories.computeIfAbsent(routeKey, k -> new ArrayList<>());
         String cargoName = rental.getLiftType();
         cargoList.add(cargoName);
-    
-        System.out.println("➕ Added cargo item to inventory list: '" + cargoName + "' for " + routeKey);
-    
-        // Draw all peeks
+
         int counter = 1;
         String[] colors = getRouteColors(routeKey);
-        System.out.println("🎨 Using cargo highlight color: " + colors[2]);
-    
+        Color highlightColor = Color.web(colors[2]);
+
         for (String item : cargoList) {
             String imageName = item + "-peek.png";
-            System.out.println("🔍 Attempting to load image: " + imageName);
-    
-            InputStream imageStream = getClass().getClassLoader().getResourceAsStream("images/" + imageName);
-    
-            if (imageStream != null) {
-                Image image = new Image(imageStream);
-                Image imageRecolored = recolorImage(image, Color.web(colors[2]), null);
-                ImageView imageView = new ImageView(imageRecolored);
-                imageView.setFitWidth(20);
-                imageView.setFitHeight(27);
-                imageView.setTranslateX(-59 + (counter * 19));
-    
-                pictoralTruck.getChildren().add(imageView);
-                System.out.println("✅ Successfully added cargo image for item: '" + item + "'");
-            } else {
-                System.err.println("❌ Could not find image file for: " + imageName);
+
+            InputStream imageStreamV = getClass().getClassLoader().getResourceAsStream("images/" + imageName);
+
+            if (imageStreamV != null) {
+                Image imageV = new Image(imageStreamV);
+                Image imageRecoloredV = recolorImage(imageV, highlightColor, null);
+
+                // Vertical peek
+                ImageView imageViewV = new ImageView(imageRecoloredV);
+                imageViewV.setFitWidth(20);
+                imageViewV.setFitHeight(27);
+                imageViewV.setTranslateX(-59 + (counter * 19));
+                pictoralTruckV.getChildren().add(imageViewV);
+
+                // Horizontal peek
+                ImageView imageViewH = new ImageView(imageRecoloredV);
+                imageViewH.setFitWidth(27);
+                imageViewH.setFitHeight(20);
+                imageViewH.setTranslateY(-25 + (counter * 19));
+                pictoralTruckH.getChildren().add(imageViewH);
             }
-    
+
             counter++;
         }
-    
-        System.out.println("✅ [editVisualCargo] Complete for routeKey: " + routeKey + "\n");
     }
-    
-    
-
-
-
-
-
 
 
 
     /*                                    /*
      *              UTILITIES              *
     /*                                     */
+
+    // debugging delete
+    private void collectLabelText(Node node, StringBuilder sb) {
+        if (node instanceof Label) {
+            sb.append(((Label) node).getText());
+        } else if (node instanceof Pane) {
+            for (Node child : ((Pane) node).getChildren()) {
+                collectLabelText(child, sb);
+            }
+        }
+    }
+
 
     public double mapLongitudeToX(double lon) {
         double visibleMinX = visibleBounds[3];
@@ -3784,18 +4016,27 @@ public class MapController {
     }    
 
 
-    private String[] getGoogleRoute(double originLat, double originLong, double destinationLat, double destinationLong) throws Exception {
+    private RouteInfo getGoogleRoute(double originLat, double originLong, double destinationLat, double destinationLong) throws Exception {
+        if (originLat == destinationLat && originLong == destinationLong) {
+            System.out.println("[DEBUG] Same coordinates — returning placeholder route");
+            List<double[]> placeholderPolyline = List.of(
+                new double[]{originLat, originLong},
+                new double[]{originLat, originLong}
+            );
+            return new RouteInfo(0, 0.0, placeholderPolyline);
+        }
+       
         // Construct JSON request body
         String requestBody = String.format(
             "{ \"origin\": { \"location\": { \"latLng\": { \"latitude\": %f, \"longitude\": %f } } }, " +
             "\"destination\": { \"location\": { \"latLng\": { \"latitude\": %f, \"longitude\": %f } } }, " +
             "\"travelMode\": \"DRIVE\", " +
             "\"polylineQuality\": \"OVERVIEW\", " +
-            "\"routingPreference\": \"TRAFFIC_AWARE\", " +
-            "\"departureTime\": \"2025-10-23T15:00:00Z\" }",
+            "\"routingPreference\": \"TRAFFIC_UNAWARE\" }",
             originLat, originLong, destinationLat, destinationLong
         );
-    
+
+
         // Set up HTTP connection
         URL url = new URL("https://routes.googleapis.com/directions/v2:computeRoutes");
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -3803,25 +4044,16 @@ public class MapController {
         connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
         connection.setRequestProperty("X-Goog-Api-Key", Config.GOOGLE_KEY);
         connection.setRequestProperty("X-Goog-FieldMask", "routes.duration,routes.polyline,routes.distanceMeters");
-    
-        // Convert JSON body to bytes
+
         byte[] input = requestBody.getBytes(StandardCharsets.UTF_8);
-    
-        // Explicitly set Content-Length header
         connection.setRequestProperty("Content-Length", String.valueOf(input.length));
-    
-        // Enable sending request body
         connection.setDoOutput(true);
-    
-        // Send JSON request body
+
         try (OutputStream os = connection.getOutputStream()) {
             os.write(input);
         }
-    
-        // Get response code
+
         int responseCode = connection.getResponseCode();
-    
-        // Handle non-200 response
         if (responseCode != 200) {
             BufferedReader errorReader = new BufferedReader(new InputStreamReader(connection.getErrorStream(), StandardCharsets.UTF_8));
             StringBuilder errorResponse = new StringBuilder();
@@ -3832,8 +4064,7 @@ public class MapController {
             errorReader.close();
             throw new Exception("HTTP request failed with response code: " + responseCode);
         }
-    
-        // Read response
+
         BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8));
         StringBuilder response = new StringBuilder();
         String line;
@@ -3841,31 +4072,29 @@ public class MapController {
             response.append(line);
         }
         reader.close();
-    
-        // Parse the response JSON
+
         JSONObject jsonResponse = new JSONObject(response.toString());
         if (!jsonResponse.has("routes") || jsonResponse.getJSONArray("routes").isEmpty()) {
             throw new Exception("No routes found in response");
         }
-    
+
         JSONObject route = jsonResponse.getJSONArray("routes").getJSONObject(0);
         if (!route.has("duration")) {
             throw new Exception("Duration not found in response");
         }
-    
+
         String durationString = route.getString("duration"); // e.g., "1441s"
-        String polylineString = route.getJSONObject("polyline").getString("encodedPolyline");
+        int durationSeconds = Integer.parseInt(durationString.replace("s", ""));
+
         int distanceMeters = route.getInt("distanceMeters");
         double distanceMiles = distanceMeters / 1609.34;
 
+        String encodedPolyline = route.getJSONObject("polyline").getString("encodedPolyline");
+        List<double[]> polylinePoints = decodePolyline(encodedPolyline);
 
-        // Convert duration to minutes and seconds
-        int durationInSeconds = Integer.parseInt(durationString.replace("s", ""));
-        int minutes = durationInSeconds / 60;
-        int seconds = durationInSeconds % 60;
-    
-        return new String[]{durationString, polylineString, String.format("%.2f", distanceMiles)};
+        return new RouteInfo(durationSeconds, distanceMiles, polylinePoints);
     }
+
 
 
 
@@ -3928,17 +4157,6 @@ public class MapController {
     }
 
 
-    private boolean isSingleDigitMinutes(String durationString) {
-        // Remove the 's' character and convert to integer (assuming format like "1441s")
-        int durationInSeconds = Integer.parseInt(durationString.replace("s", ""));
-        
-        // Convert seconds to minutes
-        int minutes = durationInSeconds / 60;
-        
-        // Check if minutes are less than 10
-        return minutes < 11;
-    }
-
     private List<double[]> decodePolyline(String encoded) {
         List<double[]> polylinePoints = new ArrayList<>();
         int index = 0, len = encoded.length();
@@ -3968,35 +4186,70 @@ public class MapController {
             double longitude = lon / 1E5;
             polylinePoints.add(new double[]{latitude, longitude});
         }
-    
         return polylinePoints;
     }
 
     private String[] getARouteNoPreference() {
+        // Try routes in explicit order route1 to route5
+        for (int i = 1; i <= 5; i++) {
+            String routeKey = "route" + i;
+            List<Rental> routeList = routes.get(routeKey);
 
-        // Find the first empty route
-        int index = 0;
-        for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
-            if (entry.getValue().isEmpty()) {
-                return new String[] { entry.getKey(), String.valueOf(index) };
+            if (routeList != null && routeList.isEmpty()) {
+                return new String[]{ routeKey, String.valueOf(i - 1) };
             }
-            index++;
         }
-    
-        index = 0;
-        // Use the last edited route
+
+        // Look for latestRouteEdited
         if (latestRouteEdited != null) {
-            for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
-                if (entry.getValue() == latestRouteEdited) {
-                    return new String[] { entry.getKey(), String.valueOf(index) };
+            int index = 0;
+            for (int i = 1; i <= 5; i++) {
+                String routeKey = "route" + i;
+                List<Rental> routeList = routes.get(routeKey);
+                if (routeList == latestRouteEdited) {
+                    return new String[]{ routeKey, String.valueOf(index) };
                 }
+                index++;
             }
-            index++;
         }
-    
-        // Default to Route 1
+
+        // Final fallback
         return new String[]{ "route1", "0" };
     }
+
+
+
+    private double estimatePolylineProgress(List<double[]> polyline, double[] truckLocation) {
+        if (polyline == null || polyline.size() < 2) return 0.0;
+
+        double minDistance = Double.MAX_VALUE;
+        int closestIndex = 0;
+
+        // Find closest point on the polyline
+        for (int i = 0; i < polyline.size(); i++) {
+            double[] pt = polyline.get(i);
+            double dist = haversine(truckLocation[0], truckLocation[1], pt[0], pt[1]);
+            if (dist < minDistance) {
+                minDistance = dist;
+                closestIndex = i;
+            }
+        }
+
+        // Sum up the total length
+        double totalLength = 0.0;
+        for (int i = 1; i < polyline.size(); i++) {
+            totalLength += haversine(polyline.get(i - 1)[0], polyline.get(i - 1)[1], polyline.get(i)[0], polyline.get(i)[1]);
+        }
+
+        // Sum up the length to the closest point
+        double traveledLength = 0.0;
+        for (int i = 1; i <= closestIndex; i++) {
+            traveledLength += haversine(polyline.get(i - 1)[0], polyline.get(i - 1)[1], polyline.get(i)[0], polyline.get(i)[1]);
+        }
+
+        return totalLength == 0 ? 0.0 : Math.min(traveledLength / totalLength, 1.0);
+    }
+
 
 
 
@@ -4156,6 +4409,40 @@ public class MapController {
         }
         return text;
     }
+
+    private void removeIntermediaryNode(Pane pane, Class<? extends Pane> type, String which, int routeSize) {
+        List<Node> matching = new ArrayList<>();
+
+        // Collect only anonymous inner class instances (e.g., MapController$1)
+        for (Node child : pane.getChildren()) {
+            Class<?> clazz = child.getClass();
+            if (type.isInstance(child) && clazz.getName().contains("MapController$")) {
+                matching.add(child);
+            }
+        }
+
+        if (matching.isEmpty()) return;
+
+        Node toRemove = null;
+
+        switch (which) {
+            case "first" -> toRemove = matching.get(0);
+            case "last" -> toRemove = matching.get(matching.size() - 1);
+            case "second" -> {
+                if (matching.size() >= 2) toRemove = matching.get(1);
+            }
+            case "routeSizeMinus1" -> {
+                int index = Math.min(matching.size() - 1, matching.size() - (routeSize - 1));
+                if (index >= 0) toRemove = matching.get(index);
+            }
+            default -> System.out.println("Unknown removal spec: " + which);
+        }
+
+        if (toRemove != null) {
+            pane.getChildren().remove(toRemove);
+        }
+    }
+
 
     @FXML
     private void resetStage() {

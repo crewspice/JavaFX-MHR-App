@@ -1760,6 +1760,7 @@ public class ColumnFactory {
     
     
     	// SQL query for batch processing
+		// OBFUSCATE_OFF
     	String updateQuery = """
         	UPDATE rental_items
         	SET
@@ -1771,7 +1772,7 @@ public class ColumnFactory {
             	composing_invoice = 0
         	WHERE rental_item_id IN (%s);
     	""";
-    
+		// OBFUSCATE_ON
     
     	// Convert rentalItemIds to a comma-separated string
     	String idList = rentalItemIds.stream()

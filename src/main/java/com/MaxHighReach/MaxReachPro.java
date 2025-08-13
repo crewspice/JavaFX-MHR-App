@@ -266,7 +266,9 @@ public class MaxReachPro extends Application {
 
     public static void loadScene(String fxmlPath) throws Exception {
         if (currentScenePath != null && fxmlPath.equals("/fxml/expand.fxml")) {
-            sceneBeforeExpandName = currentScenePath;
+            if (!currentScenePath.equals("/fxml/expand.fxml")) {
+                sceneBeforeExpandName = currentScenePath;
+            }
         }
     
         if (mainPane != null) {
