@@ -31,7 +31,7 @@ public class PathConfig {
     public static final String SCRIPT_PATH = Paths.get(SRCDIR, "scripts", "orchestrate_process.py").toString();
     public static final String INVOICE_QUERY = Paths.get(SRCDIR, "scripts", "invoice_query.xml").toString();
     public static final String SDK_OUTPUT = Paths.get(SRCDIR, "outputs", "QBResponse.xml").toString();
-    public static final String SDK_PATH = Paths.get(BASE_DIR, "Intuit Applications", "IDN", "QBSDK16.0", 
+    public static final String SDK_PATH = Paths.get(BASE_DIR, "program_files", "Intuit", "IDN", "QBSDK16.0", 
                                                      "tools", "SDKTest", "SDKTestPlus3.exe").toString();
 
     // --------------------------------------------------

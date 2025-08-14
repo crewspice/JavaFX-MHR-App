@@ -32,7 +32,7 @@ import java.awt.datatransfer.StringSelection;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.ObjectInputFilter.Config;
+//import java.io.ObjectInputFilter.Config;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
@@ -1285,143 +1285,83 @@ public class ColumnFactory {
 
 
 	private void handleSelection(boolean isSelected, int index, String actionType) {
-    	dbTableView.getItems().get(index).setSelected(isSelected);
-
-
-    	// Show the update button only if at least one row is selected
-    	boolean anySelected = dbTableView.getItems().stream().anyMatch(Rental::isSelected);
-    	updateRentalButton.setVisible(anySelected);
-
-
-    	if (actionType.equals("composing-contracts")) {
-        	batchButton.setText("Batch Contracts");
-            batchButton.setVisible(anySelected);
-            updateRentalButton.setVisible(false);
-
-			
-            if (anySelected) {
+		dbTableView.getItems().get(index).setSelected(isSelected);
+	
+		// Show the update button only if at least one row is selected
+		boolean anySelected = dbTableView.getItems().stream().anyMatch(Rental::isSelected);
+		updateRentalButton.setVisible(anySelected);
+	
+		if (actionType.equals("composing-contracts")) {
+			batchButton.setText("Batch Contracts");
+			batchButton.setVisible(anySelected);
+			updateRentalButton.setVisible(false);
+	
+			if (anySelected) {
 				List<String> createdPdfFiles = new ArrayList<>();
-                handleBatchContracts(createdPdfFiles);
-            }
-        }
-
-
-    	if (actionType.equals("composing-invoices")) {
-        	batchButton.setText("Batch Invoices");
-        	batchButton.setVisible(anySelected);
-        	updateRentalButton.setVisible(false);
-        	if (anySelected) {
-            	batchButton.setText("Batch Invoices");
-            	batchButton.setVisible(true);
-            	updateRentalButton.setVisible(false);
-            	batchButton.setOnAction(event -> {
-                	System.out.println("Batch button clicked."); // Debugging entry point
-               	 
-                	// Filter selected rentals
-                	ObservableList<Rental> selectedRentals = dbTableView.getItems().filtered(Rental::isSelected);
-                	System.out.println("Selected rentals: " + selectedRentals.size());
-           	 
-           	 
-                	if (selectedRentals.isEmpty()) {
-                    	System.out.println("No rentals selected. Cannot compose invoices.");
-                    	return;
-                	}
-           	 
-           	 
-                	System.out.println("Clearing all composing invoices in the database...");
-                	clearAllComposingInvoiceInDB();
-           	 
-           	 
-                	// Loop through each selected rental and flag it in the database
-                	boolean anyUpdated = false;
-                	for (Rental rental : selectedRentals) {
-                    	System.out.println("Flagging rental item ID: " + rental.getRentalItemId());
-                    	boolean updateSuccess = flagComposingInvoiceInDB(rental.getRentalItemId());
-           	 
-           	 
-                    	if (updateSuccess) {
-                        	anyUpdated = true;
-                        	rental.setWritingInvoice(true);
-                        	System.out.println("Successfully flagged rental item ID: " + rental.getRentalItemId());
-                    	} else {
-                        	System.out.println("Failed to update rental item ID: " + rental.getRentalItemId());
-                    	}
-                	}
-           	 
-           	 
-                	// Show confirmation if any updates were successful
-                	if (anyUpdated) {
-                    	System.out.println("At least one rental item flagged successfully.");
-           	 
-           	 
-                    	// Path to the Python script
-                        String scriptPath = Paths.get(PathConfig.INVOICES_DIR,"make_invoices_from_queue.py").toString();
-                    	System.out.println("Python script path: " + scriptPath);
-           	 
-           	 
-                    	// Execute the Python script
-                    	System.out.println("Attempting to execute the Python script...");
-                    	boolean scriptExecutionSuccess = executePythonScript();
-           	 
-           	 
-                    	if (scriptExecutionSuccess) {
-                        	System.out.println("Python script executed successfully.");
-                    	} else {
-                        	System.out.println("Python script execution failed.");
-                    	}
-           	 
-           	 
-                    	// Prepare secondary button for invoices
-                    	prepareSecondaryButtonForInvoices();
-                    	secondInProcessButton.setVisible(true);
-                	} else {
-                    	System.out.println("No rental items were updated.");
-                	}
-           	 
-           	 
-                	System.out.println("Refreshing the table view...");
-                	dbTableView.refresh();
-            	});
-           	 
-
-
-
-
-            	ObservableList<Rental> selectedRentals = dbTableView.getItems().filtered(Rental::isSelected);
-            	secondInProcessButton.setOnAction(event -> {
-
-
-                	if (invoiceSecondarySwitcher == "open-sdk") {
-                    	runSDKTool();
-                    	// copy request file string
-                    	prepareSecondaryButtonForConfirmation();
-
-                        String filePath = Paths.get(PathConfig.INVOICES_DIR, "invoice_batch.xml").toString();
-                    	StringSelection stringSelection = new StringSelection(filePath);
-                    	Toolkit.getDefaultToolkit().getSystemClipboard().setContents(stringSelection, null);
-                	} else if (invoiceSecondarySwitcher == "confirmation") {
-                    	System.out.println("secondary button pressed and about to update invoice vars");
-                    	updateInvoiceVarsInSQL(selectedRentals);
-                    	System.out.println("Made it past the invoice vars sql call");
-                    	resetCheckboxes();
-                    	batchButton.setVisible(false);
-                    	secondInProcessButton.setVisible(false);
-                    	showSelectableCheckboxes(false, lastActionType);
-                    	dbTableView.refresh();
-                    	parent.shiftSidebarHighlighter(null);
-                    	lastActionType = null;
-
-
-                	}
-            	});
-        	}
-
-
-    	}
+				handleBatchContracts(createdPdfFiles);
+			}
+		}
+	
+		if (actionType.equals("composing-invoices")) {
+			batchButton.setText("Batch Invoices");
+			batchButton.setVisible(anySelected);
+			updateRentalButton.setVisible(false);
+	
+			if (anySelected) {
+				batchButton.setOnAction(event -> {
+					// Filter selected rentals
+					ObservableList<Rental> selectedRentals = dbTableView.getItems().filtered(Rental::isSelected);
+	
+					if (selectedRentals.isEmpty()) {
+						return;
+					}
+	
+					clearAllComposingInvoiceInDB();
+	
+					boolean anyUpdated = false;
+					for (Rental rental : selectedRentals) {
+						boolean updateSuccess = flagComposingInvoiceInDB(rental.getRentalItemId());
+						if (updateSuccess) {
+							anyUpdated = true;
+							rental.setWritingInvoice(true);
+						}
+					}
+	
+					if (anyUpdated) {
+						String scriptPath = Paths.get(PathConfig.INVOICES_DIR,"make_invoices_from_queue.py").toString();
+						executePythonScript();
+	
+						prepareSecondaryButtonForInvoices();
+						secondInProcessButton.setVisible(true);
+					}
+	
+					dbTableView.refresh();
+				});
+	
+				ObservableList<Rental> selectedRentals = dbTableView.getItems().filtered(Rental::isSelected);
+				secondInProcessButton.setOnAction(event -> {
+					if ("open-sdk".equals(invoiceSecondarySwitcher)) {
+						runSDKTool();
+						prepareSecondaryButtonForConfirmation();
+	
+						String filePath = Paths.get(PathConfig.INVOICES_DIR, "invoice_batch.xml").toString();
+						StringSelection stringSelection = new StringSelection(filePath);
+						Toolkit.getDefaultToolkit().getSystemClipboard().setContents(stringSelection, null);
+					} else if ("confirmation".equals(invoiceSecondarySwitcher)) {
+						updateInvoiceVarsInSQL(selectedRentals);
+						resetCheckboxes();
+						batchButton.setVisible(false);
+						secondInProcessButton.setVisible(false);
+						showSelectableCheckboxes(false, lastActionType);
+						dbTableView.refresh();
+						parent.shiftSidebarHighlighter(null);
+						lastActionType = null;
+					}
+				});
+			}
+		}
 	}
-
-
-
+	
 
 	private void handleExpandSelection(int index) {
     	MaxReachPro.setRentalForExpanding(dbTableView.getItems().get(index), null);
@@ -1902,99 +1842,94 @@ public class ColumnFactory {
 
 
 	private boolean executePythonScript() {
-    	try {
-        	System.out.println("Preparing to execute Python script...");
-    
-        	// Set up the Python interpreter path (modify if needed)
+		try {
+			// Set up the Python interpreter and script paths
 			String pythonPath = Paths.get(PathConfig.BASE_DIR, "Composing Invoices", ".venv", "Scripts", "python.exe").toString();
-            String scriptPath = Paths.get(PathConfig.BASE_DIR, "Composing Invoices", "make_invoices_from_queue.py").toString();
-    
-        	// Create the process builder with Python and the script path
-        	ProcessBuilder processBuilder = new ProcessBuilder(pythonPath, scriptPath);
-
-        	// Set working directory to ensure relative paths in the script work
-            File workingDirectory = new File(PathConfig.INVOICES_DIR);
-        	if (workingDirectory.exists() && workingDirectory.isDirectory()) {
-            	processBuilder.directory(workingDirectory);
-            	System.out.println("Working directory set to: " + workingDirectory.getAbsolutePath());
-        	} else {
-            	System.err.println("Invalid working directory: " + workingDirectory.getAbsolutePath());
-            	return false;
-        	}
-    
-        	// Log the full command for debugging
-        	System.out.println("Executing command: " + String.join(" ", processBuilder.command()));
-    
-        	// Redirect error stream to merge with standard output
-        	processBuilder.redirectErrorStream(true);
-    
-        	// Start the Python process
-        	Process process = processBuilder.start();
-    
-        	// Capture and print output from the Python script
-        	System.out.println("Python script output:");
-        	try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-            	String line;
-            	while ((line = reader.readLine()) != null) {
-                	System.out.println("[Python]: " + line);
-            	}
-        	}
-    
-        	// Wait for the process to finish and capture the exit code
-        	int exitCode = process.waitFor();
-        	System.out.println("Python script exited with code: " + exitCode);
-    
-        	// Check exit code for success or failure
-        	if (exitCode != 0) {
-            	System.err.println("Python script returned an error. Exit code: " + exitCode);
-            	return false;
-        	}
-    
-    
-    	} catch (IOException e) {
-        	System.err.println("IOException while executing Python script: " + e.getMessage());
-        	e.printStackTrace();
-        	return false;
-    	} catch (InterruptedException e) {
-        	System.err.println("Script execution was interrupted: " + e.getMessage());
-        	e.printStackTrace();
-        	return false;
-    	} catch (Exception e) {
-        	System.err.println("Unexpected error: " + e.getMessage());
-        	e.printStackTrace();
-        	return false;
-    	}
-    
-    
-    	System.out.println("Python script executed successfully.");
-    	return true;
+			String scriptPath = Paths.get(PathConfig.BASE_DIR, "Composing Invoices", "make_invoices_from_queue.py").toString();
+	
+			// Create the process builder
+			ProcessBuilder processBuilder = new ProcessBuilder(pythonPath, scriptPath);
+	
+			// Set working directory
+			File workingDirectory = new File(PathConfig.INVOICES_DIR);
+			if (!workingDirectory.exists() || !workingDirectory.isDirectory()) {
+				System.err.println("Invalid working directory: " + workingDirectory.getAbsolutePath());
+				return false;
+			}
+			processBuilder.directory(workingDirectory);
+	
+			// Merge error stream with standard output
+			processBuilder.redirectErrorStream(true);
+	
+			// Start the process
+			Process process = processBuilder.start();
+	
+			// Capture Python output (optional: could remove if silent execution is desired)
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+				while (reader.readLine() != null) {
+					// Output can be logged if needed
+				}
+			}
+	
+			// Wait for process to finish
+			int exitCode = process.waitFor();
+			if (exitCode != 0) {
+				System.err.println("Python script returned an error. Exit code: " + exitCode);
+				return false;
+			}
+	
+		} catch (IOException e) {
+			e.printStackTrace();
+			return false;
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+			return false;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
+	
+		return true;
 	}
+	
    
 	private void runSDKTool() {
-    	// Debug output path
-
-
-    	File sdkToolFile = new File(Config.SDK_PATH);
-    	if (!sdkToolFile.exists()) {
-        	return;
-    	}
-
-
-
-
-    	new Thread(() -> {
-        	try {
-            	ProcessBuilder processBuilder = new ProcessBuilder(Config.SDK_PATH);
-            	processBuilder.redirectErrorStream(true);
-            	Process process = processBuilder.start();
-
-
-        	} catch (IOException e) {
-            	e.printStackTrace();
-        	}
-    	}).start();
+		File sdkToolFile = new File(PathConfig.SDK_PATH);
+	
+		if (!sdkToolFile.exists()) {
+			System.err.println("SDK tool not found at: " + PathConfig.SDK_PATH);
+			return;
+		}
+	
+		new Thread(() -> {
+			try {
+				ProcessBuilder processBuilder = new ProcessBuilder(PathConfig.SDK_PATH);
+				processBuilder.redirectErrorStream(true);
+				Process process = processBuilder.start();
+	
+				// Print only critical output from the SDK tool
+				try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+					String line;
+					while ((line = reader.readLine()) != null) {
+						System.out.println(line);
+					}
+				}
+	
+				int exitCode = process.waitFor();
+				if (exitCode != 0) {
+					System.err.println("SDK tool exited with code: " + exitCode);
+				}
+	
+			} catch (IOException e) {
+				System.err.println("IOException while running SDK tool: " + e.getMessage());
+				e.printStackTrace();
+			} catch (InterruptedException e) {
+				System.err.println("SDK tool execution was interrupted: " + e.getMessage());
+				e.printStackTrace();
+			}
+		}).start();
 	}
-
+	
 
 	private void prepareSecondaryButtonForInvoices(){
     	invoiceSecondarySwitcher = "open-sdk";
