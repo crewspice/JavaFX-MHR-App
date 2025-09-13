@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
 
 
 public class Rental {
-    private final StringProperty customerId;  // Changed to SimpleIntegerProperty
+    private final StringProperty customerId;  
     private final StringProperty name;
     private final StringProperty orderedByName;
     private final StringProperty orderedByPhone;
@@ -69,6 +69,8 @@ public class Rental {
     private final StringProperty latestBilledDate;
     private final StringProperty deliveryTruck;
     private final StringProperty pickUpTruck;
+    private Service service;
+    private final SimpleIntegerProperty latestServiceId;
    
     // Constructor with all relevant fields
     public Rental(String customerId, String name, String deliveryDate, String deliveryTime, String callOffDate,
@@ -99,7 +101,7 @@ public class Rental {
         this.driver = new SimpleStringProperty(driver);
         this.driverInitial = new SimpleStringProperty(driver);
         this.driverNumber = new SimpleIntegerProperty(driverNumber);
-        this.serialNumber = new SimpleStringProperty("118280");
+        this.serialNumber = new SimpleStringProperty("");
         this.liftId = new SimpleIntegerProperty(0);
         this.liftType = new SimpleStringProperty("Unknown");
         this.shortLiftType = new SimpleStringProperty("Unknown");
@@ -116,8 +118,8 @@ public class Rental {
         this.latestBilledDate = new SimpleStringProperty(latestBilledDate);
         this.deliveryTruck = new SimpleStringProperty(null);
         this.pickUpTruck = new SimpleStringProperty(null);
-
-    }
+        this.latestServiceId = new SimpleIntegerProperty(0);
+        }
    
     // Constructor without driver and status
     public Rental(String customerId, String name, String orderDate, String deliveryTime) {
@@ -169,6 +171,7 @@ public class Rental {
         this.latestBilledDate = new SimpleStringProperty("Unknown");
         this.deliveryTruck = new SimpleStringProperty(null);
         this.pickUpTruck = new SimpleStringProperty(null);
+        this.latestServiceId = new SimpleIntegerProperty(0);
     }
 
 
@@ -944,6 +947,10 @@ public class Rental {
         return singleItemOrder.get();
     }
 
+    public void setIsSingleItemOrder(boolean isSingleItemOrder) {
+        this.singleItemOrder.set(isSingleItemOrder);
+    }
+
     // Getter and Setter for rentalId
     public int getRentalOrderId() {
         return rentalOrderId.get();
@@ -973,6 +980,34 @@ public class Rental {
     public SimpleIntegerProperty rentalItemIdProperty() {
         return rentalItemId;// Return the property for binding
     }
+
+    public Service getService() {
+        return service;
+    }
+
+    public void setService(Service service) {
+        this.service = service;
+    }
+
+    public boolean isService() {
+        return service != null;
+    }
+
+    public void setLatestServiceId(int latestServiceId) {
+        this.latestServiceId.set(latestServiceId);
+    }
+
+
+    public int getLatestServiceId() {
+        return latestServiceId.get();
+    }
+
+
+    public SimpleIntegerProperty latestServiceIdProperty() {
+        return latestServiceId;
+    }
+
+
 }
 
 

@@ -383,13 +383,33 @@ public class PopupDisc extends StackPane {
 
         getChildren().addAll(startDot, endDot, nameStartDot, nameEndDot, addressStartDot, addressEndDot, openAngleDot);
     */
-        if (rental.isSingleItemOrder()) {
+        if (rental.isService()) {
+            String serviceType = rental.getService().getServiceType();
+            String serviceImageName;
+            switch (serviceType) {
+                case "Move" -> serviceImageName = "move.png";
+                case "Change Out" -> serviceImageName = "change-out.png";
+                case "Service Change Out" -> serviceImageName = "service-change-out.png";
+                case "Service" -> serviceImageName = "service.png";
+                default -> serviceImageName = "change-out.png";
+            }
+        
+            Image compoundImage = buildServiceCompoundPeekImage(serviceImageName, rental);
+            addImageAtAngle(compoundImage, openingAngle, 79, 48);
+        
+        } else if (rental.isSingleItemOrder()) {
             addImageAtAngle("/images/" + rental.getLiftType() + ".png", openingAngle, 79, 38);
+        
         } else {
             List<Rental> relatedRentals = fetchRelatedRentals(rental);
-            Image compoundImage = buildCompoundPeekImage(relatedRentals); // Creates stacked image
+            List<String> liftTypes = relatedRentals.stream()
+                    .map(Rental::getLiftType)
+                    .toList();
+            Image compoundImage = buildCompoundPeekImage(liftTypes);
             addImageAtAngle(compoundImage, openingAngle, 79, 38);
         }
+    
+    
         /*
         System.out.println("\n===== ANGLE DIAGNOSTICS =====");
         System.out.printf("🔵 angleToCenter       : %.2f°\n", Math.toDegrees(angleToCenter));
@@ -464,7 +484,12 @@ public class PopupDisc extends StackPane {
         getChildren().add(clipPath); // Comment this out in production
 
         */
+        // Make the entire PopupDisc transparent to mouse clicks
+        setPickOnBounds(false);
 
+        // For every child that should NOT block clicks (like backgrounds), disable pick
+     //   getChildren().forEach(node -> node.setMouseTransparent(true));
+        
     }
 
     private double interpolateAngle(double from, double to, double weight) {
@@ -713,6 +738,7 @@ public class PopupDisc extends StackPane {
         path.getElements().add(new ArcTo(innerR, innerR, 0, x4, y4, angleDeg > 180, false));
         path.getElements().add(new ClosePath());
     
+      //  path.setMouseTransparent(false);
         return path;
     }
 
@@ -1000,46 +1026,159 @@ public class PopupDisc extends StackPane {
         return rentals;
     }
 
-    private Image buildCompoundPeekImage(List<Rental> rentals) {
+    private Image buildCompoundPeekImage(List<String> liftTypes) {
         try {
-            if (rentals.isEmpty()) {
+            if (liftTypes.isEmpty()) {
                 return null;
             }
-
-            List<BufferedImage> croppedImages = new java.util.ArrayList<>();
-
-            for (Rental r : rentals) {
-                String path = "/images/" + r.getLiftType() + "-peek.png";
-                Image fxImage = new Image(getClass().getResource(path).toExternalForm());
-                BufferedImage bImage = SwingFXUtils.fromFXImage(fxImage, null);
-
-                int cropHeight = (int) (bImage.getHeight() * 0.42);
-                BufferedImage cropped = bImage.getSubimage(0, 0, bImage.getWidth(), cropHeight);
-
-                croppedImages.add(cropped);
+    
+            List<BufferedImage> croppedImages = new ArrayList<>();
+    
+            for (String liftType : liftTypes) {
+                BufferedImage cropped = loadAndCropLiftType(liftType);
+                if (cropped != null) {
+                    croppedImages.add(cropped);
+                }
             }
-
+    
+            if (croppedImages.isEmpty()) {
+                return null;
+            }
+    
             int totalHeight = croppedImages.stream().mapToInt(BufferedImage::getHeight).sum();
             int width = croppedImages.get(0).getWidth();
-
+    
             BufferedImage finalImage = new BufferedImage(width, totalHeight, BufferedImage.TYPE_INT_ARGB);
             Graphics2D g2d = finalImage.createGraphics();
-
+    
             int y = 0;
             for (BufferedImage img : croppedImages) {
                 g2d.drawImage(img, 0, y, null);
                 y += img.getHeight();
             }
             g2d.dispose();
-
+    
             return SwingFXUtils.toFXImage(finalImage, null);
-
+    
         } catch (Exception e) {
-            System.err.println(" Failed to build compound peek image");
+            System.err.println("Failed to build compound peek image");
             e.printStackTrace();
             return null;
         }
     }
+    
+
+    private Image buildServiceCompoundPeekImage(String serviceImageName, Rental rental) {
+        try {
+            List<BufferedImage> stackedImages = new ArrayList<>();
+            // --- Load service image (top, unmodified) ---
+            String servicePath = "/images/" + serviceImageName;
+            System.out.println("about to load service image at: " + servicePath);
+            Image fxServiceImage = new Image(getClass().getResource(servicePath).toExternalForm());
+            BufferedImage serviceBImage = SwingFXUtils.fromFXImage(fxServiceImage, null);
+            stackedImages.add(serviceBImage);
+    
+            // --- Special case: "change-out.png" ---
+            if ("change-out.png".equalsIgnoreCase(serviceImageName)) {
+                List<BufferedImage> rowImages = new ArrayList<>();
+    
+                // 1. Old lift type
+                if (rental.getLiftType() != null && !rental.getLiftType().isBlank()) {
+                    rowImages.add(loadAndCropLiftType(rental.getLiftType()));
+                }
+    
+                // 2. Arrow image
+                String arrowPath = "/images/arrow.png";
+                Image fxArrow = new Image(getClass().getResource(arrowPath).toExternalForm());
+                rowImages.add(SwingFXUtils.fromFXImage(fxArrow, null));
+    
+                // 3. New lift type
+                if (rental.getService() != null &&
+                    rental.getService().getNewLiftType() != null &&
+                    !rental.getService().getNewLiftType().isBlank()) {
+                    rowImages.add(loadAndCropLiftType(rental.getService().getNewLiftType()));
+                }
+    
+                // --- Scale row images proportionally so total width = service image width ---
+                int targetTotalWidth = serviceBImage.getWidth();
+                int totalOriginalWidth = rowImages.stream().mapToInt(BufferedImage::getWidth).sum();
+    
+                List<BufferedImage> scaledRow = new ArrayList<>();
+                int rowHeight = 0;
+                for (BufferedImage img : rowImages) {
+                    double scale = (double) targetTotalWidth / totalOriginalWidth;
+                    int newW = (int) (img.getWidth() * scale);
+                    int newH = (int) (img.getHeight() * scale);
+    
+                    BufferedImage scaled = new BufferedImage(newW, newH, BufferedImage.TYPE_INT_ARGB);
+                    Graphics2D g2 = scaled.createGraphics();
+                    g2.drawImage(img, 0, 0, newW, newH, null);
+                    g2.dispose();
+    
+                    scaledRow.add(scaled);
+                    rowHeight = Math.max(rowHeight, newH);
+                }
+    
+                // --- Merge row into single row image ---
+                BufferedImage rowCombined = new BufferedImage(targetTotalWidth, rowHeight, BufferedImage.TYPE_INT_ARGB);
+                Graphics2D gRow = rowCombined.createGraphics();
+                int x = 0;
+                for (BufferedImage img : scaledRow) {
+                    gRow.drawImage(img, x, 0, null);
+                    x += img.getWidth();
+                }
+                gRow.dispose();
+    
+                stackedImages.add(rowCombined);
+            }
+            // --- Normal case: one liftType image ---
+            else if (rental.getLiftType() != null && !rental.getLiftType().isBlank()) {
+                BufferedImage liftTypeImg = loadAndCropLiftType(rental.getLiftType());
+    
+                // Scale to service image width
+                int targetWidth = serviceBImage.getWidth();
+                int targetHeight = (int) ((double) liftTypeImg.getHeight() * targetWidth / liftTypeImg.getWidth());
+    
+                BufferedImage scaled = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_ARGB);
+                Graphics2D g2 = scaled.createGraphics();
+                g2.drawImage(liftTypeImg, 0, 0, targetWidth, targetHeight, null);
+                g2.dispose();
+    
+                stackedImages.add(scaled);
+            }
+    
+            // --- Stack all vertically (service + row or service + liftType) ---
+            int totalHeight = stackedImages.stream().mapToInt(BufferedImage::getHeight).sum();
+            int width = serviceBImage.getWidth();
+            BufferedImage finalImage = new BufferedImage(width, totalHeight, BufferedImage.TYPE_INT_ARGB);
+    
+            Graphics2D gFinal = finalImage.createGraphics();
+            int y = 0;
+            for (BufferedImage img : stackedImages) {
+                gFinal.drawImage(img, 0, y, null);
+                y += img.getHeight();
+            }
+            gFinal.dispose();
+    
+            return SwingFXUtils.toFXImage(finalImage, null);
+    
+        } catch (Exception e) {
+            System.err.println("Failed to build service compound peek image");
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private BufferedImage loadAndCropLiftType(String liftType) throws Exception {
+        String path = "/images/" + liftType + "-peek.png";
+        System.out.println("about to get the path for cropping: " + path);
+        Image fxImage = new Image(getClass().getResource(path).toExternalForm());
+        BufferedImage bImage = SwingFXUtils.fromFXImage(fxImage, null);
+    
+        int cropHeight = (int) (bImage.getHeight() * 0.42);
+        return bImage.getSubimage(0, 0, bImage.getWidth(), cropHeight);
+    }
+    
 
     private BufferedImage loadBufferedImage(String resourcePath) throws IOException {
         return ImageIO.read(getClass().getResource(resourcePath));

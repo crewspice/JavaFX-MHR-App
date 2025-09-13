@@ -281,10 +281,12 @@ public class ColumnFactory {
 
 
                 	boolean shouldShow = false;
-                	boolean shouldShowExpandIcons = false;
+                	boolean shouldShowMiniatureIcons = false;
 
                 	if ("calling-off".equals(lastActionType) && "Active".equals(rental.getStatus())) {
                     	shouldShow = true;
+                	} else if ("scheduling-service".equals(lastActionType) && "Active".equals(rental.getStatus())) {
+						shouldShowMiniatureIcons = true;
                 	} else if ("dropping-off".equals(lastActionType) && "Upcoming".equals(rental.getStatus())) {
                     	shouldShow = true;
                 	} else if ("picking-up".equals(lastActionType) && "Called Off".equals(rental.getStatus())) {
@@ -296,7 +298,7 @@ public class ColumnFactory {
                 	} else if ("deleting".equals(lastActionType)) {
                     	shouldShow = true;
                 	} else if ("expanding".equals(lastActionType)) {
-                    	shouldShowExpandIcons = true;
+                    	shouldShowMiniatureIcons = true;
                 	}
 
 
@@ -312,24 +314,59 @@ public class ColumnFactory {
                     	StackPane stackPane = new StackPane(checkBox);
                     	stackPane.setAlignment(Pos.CENTER);
                     	setGraphic(stackPane);
-                	} else if (shouldShowExpandIcons) {
+                	} else if (shouldShowMiniatureIcons) {
                     	Button button = new Button();
-                    	String imagePath = "/images/small-expand.png";
+						String imagePath;
+						if (lastActionType.equals("expanding")) {
+							imagePath = "/images/small-expand.png";
+						} else {
+							imagePath = "/images/small-service.png";
+						}
                     	ImageView imageView = createImageView(imagePath, 13);
                     	imageView.setFitWidth(13);
                     	button.setGraphic(imageView);
                     	button.getStyleClass().add("expand-button");
                     	int rowIndex = getIndex();
-                    	button.setOnAction(event -> handleExpandSelection(rowIndex));
+                    	button.setOnAction(event -> handleMiniatureSelection(rowIndex));
                     	StackPane stackPane = new StackPane(button);
                     	stackPane.setAlignment(Pos.CENTER);
                     	setGraphic(stackPane);
-                	} else {
+                	} else if (rental.isService()) {
+						String serviceType = rental.getService().getServiceType();
+						String imagePath;
+						switch (serviceType) {
+							case "Change Out":
+								imagePath = "/images/change-out.png";
+								break;
+							case "Service Change Out":
+								imagePath = "/images/service-change-out.png";
+								break;
+							case "Service":
+								imagePath = "/images/service.png";	
+								break;
+							case "Move":
+								imagePath = "/images/move.png";
+								break;
+							default:
+								imagePath = "/images/move.png";
+								break;
+						}
+						ImageView imageView = createImageView(imagePath, 20);
+						imageView.setFitWidth(20);
+						Tooltip tooltip = new Tooltip(serviceType);
+						tooltip.setShowDelay(Duration.ZERO);
+						tooltip.setStyle("-fx-background-color: " + Config.getPrimaryColor() + "; -fx-text-fill: black;");
+						Tooltip.install(imageView, tooltip);
+						imageView.setPickOnBounds(true);
+						StackPane stackPane = new StackPane(imageView);
+						stackPane.setAlignment(Pos.CENTER);
+						setGraphic(stackPane);
+					} else {
                     	Circle circle = new Circle(8);
-                    	String status = rental.getStatus();
-                    	Tooltip tooltip = new Tooltip(status);
+						String status = rental.getStatus();
+						Tooltip tooltip = new Tooltip(status);
                     	tooltip.setShowDelay(Duration.ZERO);
-
+						
 
                     	if (status.equals("Upcoming")) {
                         	if (MaxReachPro.getUser()[0] == "Sandy Mulberry") {
@@ -353,7 +390,10 @@ public class ColumnFactory {
                     	} else if (status.equals("Picked Up")) {
                         	circle.setFill(Color.BLACK);
                         	tooltip.setStyle("-fx-background-color: black; -fx-text-fill: white;");
-                    	}
+                    	} else {
+							circle.setFill(Color.PINK);
+							tooltip.setStyle("-fx-background-color: pink; -fx-text-fill: black;");
+						}
 
 
                     	Tooltip.install(circle, tooltip);
@@ -1292,8 +1332,6 @@ public class ColumnFactory {
 		updateRentalButton.setVisible(anySelected);
 	
 		if (actionType.equals("composing-contracts")) {
-			batchButton.setText("Batch Contracts");
-			batchButton.setVisible(anySelected);
 			updateRentalButton.setVisible(false);
 	
 			if (anySelected) {
@@ -1306,7 +1344,7 @@ public class ColumnFactory {
 			batchButton.setText("Batch Invoices");
 			batchButton.setVisible(anySelected);
 			updateRentalButton.setVisible(false);
-	
+
 			if (anySelected) {
 				batchButton.setOnAction(event -> {
 					// Filter selected rentals
@@ -1360,15 +1398,22 @@ public class ColumnFactory {
 				});
 			}
 		}
+
+
 	}
 	
 
-	private void handleExpandSelection(int index) {
+	private void handleMiniatureSelection(int index) {
     	MaxReachPro.setRentalForExpanding(dbTableView.getItems().get(index), null);
     	imageCache.clear();
     	try {
-        	MaxReachPro.loadScene("/fxml/expand.fxml");
-        	GradientAnimator.initialize();
+        	if (lastActionType.equals("expanding")) {
+				MaxReachPro.loadScene("/fxml/expand.fxml");
+			} else {
+				System.out.println("About to call service loadScene");
+				MaxReachPro.loadScene("/fxml/service.fxml");
+			}
+			GradientAnimator.initialize();
     	} catch (Exception e) {
         	e.printStackTrace();
     	}
@@ -1378,6 +1423,7 @@ public class ColumnFactory {
 	public void showSelectableCheckboxes(boolean visible, String actionType) {
     	lastActionType = actionType;
     	boolean shouldShow = "dropping-off".equals(actionType) ||
+				"scheduling-service".equals(actionType) ||
             	"calling-off".equals(actionType) ||
             	"picking-up".equals(actionType) ||
             	"composing-invoices".equals(actionType) ||
@@ -1390,9 +1436,9 @@ public class ColumnFactory {
 	}
 
 
-	public void showExpandIcons(boolean visible) {
+	public void showMiniatureIcons(boolean visible, String actionType) {
     	if (visible) {
-        	lastActionType = "expanding";
+        	lastActionType = actionType;
     	} else {
         	lastActionType = null;
     	}
@@ -2057,95 +2103,120 @@ public class ColumnFactory {
 	}
 
 	private void handleBatchContracts(List<String> createdPdfFiles) {
-		ObservableList<Rental> selectedRentals = dbTableView.getItems().filtered(Rental::isSelected);
 
+		ObservableList<Rental> selectedRentals = dbTableView.getItems().filtered(Rental::isSelected);
+	
 		if (selectedRentals.isEmpty()) {
 			return;
 		}
-
+	
 		String sourceFile = Paths.get(PathConfig.CONTRACTS_DIR, "contract template.pdf").toString();
-
+	
+		String todayDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+		String finalContractPath = PathConfig.getFinalContractFilePath(todayDate);
+	
 		for (Rental rental : selectedRentals) {
-			String outputFile = Paths.get(PathConfig.CONTRACTS_DIR, "contract_" + rental.getRentalItemId() + ".pdf").toString();
+			String outputFile = Paths.get(PathConfig.CONTRACTS_DIR,
+							   "contract_" + rental.getRentalItemId() + ".pdf").toString();
+	
 			double latitude = rental.getLatitude();
 			double longitude = rental.getLongitude();
 			String mapPage = getGridNameFromCoords(latitude, longitude);
-
+	
 			try {
-				// Open the source PDF
 				PdfDocument pdfDoc = new PdfDocument(new PdfReader(sourceFile), new PdfWriter(outputFile));
 				Document document = new Document(pdfDoc);
-
-				// Get page 1 of the PDF
 				PdfCanvas canvas = new PdfCanvas(pdfDoc.getPage(1));
-
-				// Add text to specific coordinates
+	
 				canvas.beginText();
 				canvas.setFontAndSize(com.itextpdf.kernel.font.PdfFontFactory.createFont(), 12);
-
+	
 				String dateString = rental.getDeliveryDate();
 				LocalDate date = LocalDate.parse(dateString, DateTimeFormatter.ISO_LOCAL_DATE);
 				DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM'.' d");
 				String formattedDate = date.format(formatter);
-				int day = date.getDayOfMonth();
-				String suffix = getDaySuffix(day);
-				String formattedDeliveryDate = formattedDate + suffix;
-				canvas.setTextMatrix(435, 711); // Delivery Date
+				String formattedDeliveryDate = formattedDate + getDaySuffix(date.getDayOfMonth());
+				canvas.setTextMatrix(435, 711);
 				canvas.showText(formattedDeliveryDate);
-
+	
 				// Additional fields
-				canvas.setTextMatrix(440 ,747); // Delivery Time
+				canvas.setTextMatrix(440, 747);
 				canvas.showText("P" + rental.getRentalItemId());
-				canvas.setTextMatrix(355, 631); // Address Block One
+				canvas.setTextMatrix(355, 631);
 				canvas.showText(rental.getAddressBlockOne());
-				canvas.setTextMatrix(346, 613); // Address Block Two
+				canvas.setTextMatrix(346, 613);
 				canvas.showText(rental.getAddressBlockTwo());
-				canvas.setTextMatrix(364, 595); // Address Block Three
+				canvas.setTextMatrix(364, 595);
 				canvas.showText(rental.getAddressBlockThree());
 				canvas.setTextMatrix(454, 559);
 				canvas.showText(mapPage);
-
+	
 				if (rental.getSiteContactName() != null) {
-					canvas.setTextMatrix(371, 577); // Address Block Four
+					canvas.setTextMatrix(371, 577);
 					canvas.showText(rental.getSiteContactName());
-					canvas.setTextMatrix(454, 577); // Address Block Five
+					canvas.setTextMatrix(454, 577);
 					canvas.showText(formatPhoneNumber(rental.getSiteContactPhone()));
 				}
-
+	
 				if (rental.getOrderedByName() != null) {
-					canvas.setTextMatrix(119, 559); // Address Block Four
+					canvas.setTextMatrix(119, 559);
 					canvas.showText(rental.getOrderedByName());
-					canvas.setTextMatrix(76, 577); // Address Block Five
+					canvas.setTextMatrix(76, 577);
 					canvas.showText(formatPhoneNumber(rental.getOrderedByPhone()));
 				}
-
-				canvas.setTextMatrix(194, 559); // PO Number
+	
+				canvas.setTextMatrix(194, 559);
 				canvas.showText(rental.getPoNumber());
 				canvas.setTextMatrix(43, 523);
 				canvas.showText(rental.getLocationNotes());
-				canvas.setTextMatrix(81, 630); // Name
+				canvas.setTextMatrix(81, 630);
 				canvas.showText(rental.getName());
 				canvas.setTextMatrix(43, 652);
 				canvas.showText(rental.getPreTripInstructions());
-				canvas.setTextMatrix(99, 481); // Lift Type
+				canvas.setTextMatrix(99, 481);
 				canvas.showText(rental.getLiftType());
-
+	
 				canvas.endText();
-
-				// Close the document
 				document.close();
-
-				// Track the generated PDF file
+	
 				createdPdfFiles.add(outputFile);
-
-			secondInProcessButton.setVisible(true);
+	
 			} catch (Exception e) {
-				System.out.println("Error creating contract for rental ID " + rental.getRentalItemId() + ": " + e.getMessage());
 				e.printStackTrace();
 			}
 		}
+	
+		// Merge all individual PDFs into the final single PDF
+		if (!createdPdfFiles.isEmpty()) {
+			try {
+				PdfDocument finalPdf = new PdfDocument(new PdfWriter(finalContractPath));
+				PdfMerger merger = new PdfMerger(finalPdf);
+	
+				for (String pdfFile : createdPdfFiles) {
+					PdfDocument tempDoc = new PdfDocument(new PdfReader(pdfFile));
+					merger.merge(tempDoc, 1, tempDoc.getNumberOfPages());
+					tempDoc.close();
+				}
+	
+				finalPdf.close();
+	
+				// Optional: clean up individual PDFs
+				for (String pdfFile : createdPdfFiles) {
+					File file = new File(pdfFile);
+					if (file.exists()) {
+						file.delete();
+					}
+				}
+	
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+	
+		secondInProcessButton.setVisible(true);
 	}
-
+	
+	
 
 	private Image getCachedImage(String path) {
     	return imageCache.computeIfAbsent(path, p -> new Image(getClass().getResourceAsStream(p)));

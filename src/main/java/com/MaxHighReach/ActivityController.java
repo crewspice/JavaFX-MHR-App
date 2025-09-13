@@ -65,9 +65,13 @@ public class ActivityController extends BaseController {
     @FXML
     private Button editDriverButton;
     @FXML
+    private Button cancellingButton;
+    @FXML
     private Button droppingOffButton;
     @FXML
     private Button callingOffButton;
+    @FXML
+    private Button schedulingServiceButton;
     @FXML
     private Button pickingUpButton;
     @FXML
@@ -93,8 +97,10 @@ public class ActivityController extends BaseController {
     private Button openSDKButton;
     private final Tooltip composeContractsTooltip = new Tooltip("Compose Contracts");
     private final Tooltip assignDriverTooltip = new Tooltip("Assign Driver");
+    private final Tooltip cancellingTooltip = new Tooltip("Cancel");    
     private final Tooltip droppingOffTooltip = new Tooltip("Record Drop Off");
     private final Tooltip callingOffTooltip = new Tooltip("Record Call Off");
+    private final Tooltip schedulingServiceTooltip = new Tooltip("Schedule Service");
     private final Tooltip pickingUpTooltip = new Tooltip("Record Pick Up");
     private final Tooltip composeInvoicesTooltip = new Tooltip("Compose Invoices");
     private final Tooltip expandTooltip = new Tooltip("Expand Rental");
@@ -249,8 +255,10 @@ public class ActivityController extends BaseController {
         updateRentalButton.setVisible(false); // Start with the button hidden
 
         createCustomTooltip(editDriverButton, 38, 10, assignDriverTooltip);
+        createCustomTooltip(cancellingButton, 38, 10, cancellingTooltip);
         createCustomTooltip(droppingOffButton, 38, 10, droppingOffTooltip);
         createCustomTooltip(callingOffButton, 38, 10, callingOffTooltip);
+        createCustomTooltip(schedulingServiceButton, 38, 10, schedulingServiceTooltip);
         createCustomTooltip(pickingUpButton, 38, 10, pickingUpTooltip);
         createCustomTooltip(composeInvoicesButton, 38, 10, composeInvoicesTooltip);
         createCustomTooltip(expandButton, 38, 10, expandTooltip);
@@ -346,7 +354,7 @@ public class ActivityController extends BaseController {
         customerComboBox.setOnAction(event -> {
             handleViewAndCustomerSelect();
         });
-
+/*
         String storedViewType = MaxReachPro.getSelectedViewSetting();
         String storedDriver = MaxReachPro.getSelectedDriverName();
         String storedCustomer = MaxReachPro.getSelectedCustomerName();
@@ -376,9 +384,9 @@ public class ActivityController extends BaseController {
             });
             //viewsToggleGroup.selectToggle(driverButton);
             driverComboBox.setValue(storedDriver);
-            /*TranslateTransition transition = new TranslateTransition(Duration.millis(300), driverButton);
-            transition.setToX(-driverButton.getLayoutX() - 4);
-            transition.play();*/
+            //TranslateTransition transition = new TranslateTransition(Duration.millis(300), driverButton);
+            //transition.setToX(-driverButton.getLayoutX() - 4);
+            //transition.play();
              if (storedDate1 != null && storedDate2 == null) {
                 datePickerOne.setValue(storedDate1);
                 handleViewSettingSelect("Driver One Date", storedDriver);
@@ -419,9 +427,9 @@ public class ActivityController extends BaseController {
             } else {
                 handleViewSettingSelect("Status", storedStatusSetting);
             }
-        } else {
+        } else {  */
             loadDataAsync("All Rentals");
-        }
+    //    }
 
 
     }
@@ -457,6 +465,7 @@ public class ActivityController extends BaseController {
         ordersList.clear();
         groupedRentals.clear();
         currentViewInitials.clear();
+        String filterSuffix = "";
 
         String query = "SELECT customers.*, rental_orders.*, rental_items.*, lifts.*, " +
                 "ordered_contacts.first_name AS ordered_contact_name, " +
@@ -466,7 +475,7 @@ public class ActivityController extends BaseController {
                 "FROM customers " +
                 "JOIN rental_orders ON customers.customer_id = rental_orders.customer_id " +
                 "JOIN rental_items ON rental_orders.rental_order_id = rental_items.rental_order_id " +
-                "JOIN lifts ON rental_items.lift_id = lifts.lift_id " +
+                "LEFT JOIN lifts ON rental_items.lift_id = lifts.lift_id " +
                 "LEFT JOIN contacts AS ordered_contacts ON rental_items.ordered_contact_id = ordered_contacts.contact_id " +
                 "LEFT JOIN contacts AS site_contacts ON rental_items.site_contact_id = site_contacts.contact_id ";
 
@@ -484,67 +493,67 @@ public class ActivityController extends BaseController {
 
         switch (filter) {
             case "Active":
-                query += " WHERE rental_items.item_status = 'Active'";
+                filterSuffix = " WHERE rental_items.item_status = 'Active'";
                 break;
             case "Billable":
-                query += " WHERE rental_items.item_status IN ('Called Off', 'Picked Up') AND rental_items.invoice_composed = 0";
+                filterSuffix = " WHERE rental_items.item_status IN ('Called Off', 'Picked Up') AND rental_items.invoice_composed = 0";
                 break;
             case "Upcoming":
-                query += " WHERE rental_items.item_status = 'Upcoming'";
+                filterSuffix = " WHERE rental_items.item_status = 'Upcoming'";
                 break;
             case "Called Off":
-                query += " WHERE rental_items.item_status = 'Called Off'";
+                filterSuffix = " WHERE rental_items.item_status = 'Called Off'";
                 break;
             case "Active One Date":
-                query += " WHERE rental_items.item_status = 'Active' AND rental_orders.delivery_date = '" + date + "'";
+                filterSuffix = " WHERE rental_items.item_status = 'Active' AND rental_orders.delivery_date = '" + date + "'";
                 break;
             case "Billable One Date":
-                query += " WHERE rental_items.item_status IN ('Called Off', 'Picked Up') AND rental_items.invoice_composed = 0 " +
+                filterSuffix = " WHERE rental_items.item_status IN ('Called Off', 'Picked Up') AND rental_items.invoice_composed = 0 " +
                          "AND rental_orders.delivery_date = '" + date + "'";
                 break;
             case "Upcoming One Date":
-                query += " WHERE rental_items.item_status = 'Upcoming' AND rental_orders.delivery_date = '" + date + "'";
+                filterSuffix = " WHERE rental_items.item_status = 'Upcoming' AND rental_orders.delivery_date = '" + date + "'";
                 break;
             case "Called Off One Date":
-                query += " WHERE rental_items.item_status = 'Called Off' AND rental_orders.delivery_date = '" + date + "'";
+                filterSuffix = " WHERE rental_items.item_status = 'Called Off' AND rental_orders.delivery_date = '" + date + "'";
                 break;
             case "Active Interval":
-                query += " WHERE rental_items.item_status = 'Active' AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
+                filterSuffix = " WHERE rental_items.item_status = 'Active' AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
                 break;
             case "Billable Interval":
-                query += " WHERE rental_items.item_status IN ('Called Off', 'Picked Up') AND rental_items.invoice_composed = 0 " +
+                filterSuffix = " WHERE rental_items.item_status IN ('Called Off', 'Picked Up') AND rental_items.invoice_composed = 0 " +
                          "AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
                 break;
             case "Upcoming Interval":
-                query += " WHERE rental_items.item_status = 'Upcoming' AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
+                filterSuffix = " WHERE rental_items.item_status = 'Upcoming' AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
                 break;
             case "Called Off Interval":
-                query += " WHERE rental_items.item_status = 'Called Off' AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
+                filterSuffix = " WHERE rental_items.item_status = 'Called Off' AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
                 break;
             case "Customer":
-                query += " WHERE customers.customer_name = '" + customerName + "'";
+                filterSuffix = " WHERE customers.customer_name = '" + customerName + "'";
                 break;
             case "Customer One Date":
-                query += " WHERE customers.customer_name = '" + customerName + "' AND rental_orders.delivery_date = '" + date + "'";
+                filterSuffix = " WHERE customers.customer_name = '" + customerName + "' AND rental_orders.delivery_date = '" + date + "'";
                 break;
             case "Customer Interval":
-                query += " WHERE customers.customer_name = '" + customerName + "' AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
+                filterSuffix = " WHERE customers.customer_name = '" + customerName + "' AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
                 break;
             case "Driver":
-                query += " WHERE rental_items.driver_initial = '" + driverComboBox.getValue() + "'";
+                filterSuffix = " WHERE rental_items.driver_initial = '" + driverComboBox.getValue() + "'";
                 break;
             case "Driver One Date":
-                query += " WHERE rental_items.driver_initial = '" + driverComboBox.getValue() + "' AND rental_orders.delivery_date = '" + date + "'";
+                filterSuffix = " WHERE rental_items.driver_initial = '" + driverComboBox.getValue() + "' AND rental_orders.delivery_date = '" + date + "'";
                 break;
             case "Driver Interval":
-                query += " WHERE rental_items.driver_initial = '" + driverComboBox.getValue() + "' " +
+                filterSuffix = " WHERE rental_items.driver_initial = '" + driverComboBox.getValue() + "' " +
                          "AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
                 break;
             case "One Date":
-                query += " WHERE rental_orders.delivery_date = '" + date + "'";
+                filterSuffix = " WHERE rental_orders.delivery_date = '" + date + "'";
                 break;
             case "Interval":
-                query += " WHERE rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
+                filterSuffix = " WHERE rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
                 break;
             case "All Rentals":
                 break;
@@ -554,14 +563,15 @@ public class ActivityController extends BaseController {
 
 
         // Add LIMIT clause at the end
-       // query += " LIMIT 1000";
-        //System.out.println(query);
+      //  filterSuffix = " LIMIT 1000";
+        System.out.println(query + filterSuffix);
 
         try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
              Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(query)) {
+             ResultSet resultSet = statement.executeQuery(query + filterSuffix)) {
 
             while (resultSet.next()) {
+                String customerId = resultSet.getString("customer_id");
                 String name = resultSet.getString("customer_name");
                 String nameWithCodes = resultSet.getString("name_with_codes");
                 String orderedContactName = resultSet.getString("ordered_contact_name");
@@ -592,8 +602,9 @@ public class ActivityController extends BaseController {
                 int needsInvoice = resultSet.getInt("needs_invoice");
                 int isInvoiceWritten = resultSet.getInt("invoice_composed");
                 String lastBilledDate = resultSet.getString("last_billed_date");
+                int latestServiceId = resultSet.getInt("last_service_id");
 
-                Rental rental = new Rental("0", name, deliveryDate, deliveryTime, callOffDate,
+                Rental rental = new Rental(customerId, name, deliveryDate, deliveryTime, callOffDate,
                         driver != null ? driver : "", driverNumber, status != null ? status : "Unknown", 
                         poNumber, rental_id, 
                         false, lastBilledDate);
@@ -616,72 +627,196 @@ public class ActivityController extends BaseController {
                 rental.setSerialNumber(serialNumber);
                 rental.setInvoiceComposed(isInvoiceWritten != 0);
                 rental.setNeedsInvoice(needsInvoice == 1);
+                rental.setLatestServiceId(latestServiceId);
                 boolean deliveryCheck = isWithinBusinessDays(deliveryDate, 40);
                 boolean callOffCheck = isWithinBusinessDays(callOffDate, 40);
                 boolean lastBilledCheck = isWithinBusinessDays(lastBilledDate, 40);
         
-                if (deliveryCheck || callOffCheck || lastBilledCheck) {
+           //     if (deliveryCheck || callOffCheck || lastBilledCheck) {
                     ordersList.add(rental);
-                }
+           //     }
                 
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
 
-        Comparator<Rental> comparator = Comparator.comparingDouble(item -> {
+        String servicesQuery = """
+            SELECT 
+                s.*,
+                rental_items.rental_order_id,
+                rental_items.lift_id,
+                rental_items.customer_ref_number,
+                rental_orders.*,
+                customers.*,
+                lifts.*,
+                -- New lift info
+                nl.lift_type AS new_lift_type,
+                -- New rental order info
+                nro.site_name AS new_site_name,
+                nro.street_address AS new_street_address,
+                nro.city AS new_city,
+                nro.latitude AS new_latitude,
+                nro.longitude AS new_longitude,
+                ordered_contacts.first_name AS ordered_contact_name,
+                ordered_contacts.phone_number AS ordered_contact_phone,
+                site_contacts.first_name AS site_contact_name,
+                site_contacts.phone_number AS site_contact_phone
+            FROM services s
+            JOIN rental_items ON s.rental_item_id = rental_items.rental_item_id
+            JOIN rental_orders ON rental_items.rental_order_id = rental_orders.rental_order_id
+            JOIN customers ON rental_orders.customer_id = customers.customer_id
+            LEFT JOIN lifts ON rental_items.lift_id = lifts.lift_id
+            LEFT JOIN lifts nl ON s.new_lift_id = nl.lift_id
+            LEFT JOIN rental_orders nro ON s.new_rental_order_id = nro.rental_order_id
+            LEFT JOIN contacts AS ordered_contacts ON s.ordered_contact_id = ordered_contacts.contact_id
+            LEFT JOIN contacts AS site_contacts ON s.site_contact_id = site_contacts.contact_id
+        """;
+        
+        
+        
+        try (Connection conn = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(servicesQuery + filterSuffix)) {
+
+            while (rs.next()) {
+                String customerId = rs.getString("customer_id");
+                String name = rs.getString("customer_name");
+                String serviceDate = rs.getString("service_date");
+                String serviceTime = rs.getString("time");
+                String serviceDriver = rs.getString("driver");
+                int serviceDriverNumber = rs.getInt("driver_number");
+                String serviceStatus = rs.getString("service_status");
+                String poNumber = rs.getString("customer_ref_number");
+                int rentalOrderId = rs.getInt("rental_order_id");
+                int rentalItemId = rs.getInt("rental_item_id");
+                boolean billable = rs.getInt("billable") == 1; // services will use needsInvoice for "billable" property
+                int liftId = rs.getInt("lift_id");
+                String liftType = rs.getString("lift_type");
+                String serialNumber = rs.getString("serial_number");
+                String siteName = rs.getString("site_name");
+                String streetAddress = rs.getString("street_address");
+                String city = rs.getString("city");
+                int serviceId = rs.getInt("service_id");
+                String serviceType = rs.getString("service_type");
+                String reason = rs.getString("reason");
+                int previousServiceId = rs.getInt("previous_service_id");
+                int newRentalOrderId = rs.getInt("new_rental_order_id");
+                int newLiftId = rs.getInt("new_lift_id");
+                String orderedContactName = rs.getString("ordered_contact_name");
+                String orderedContactNumber = rs.getString("ordered_contact_phone");
+                String siteContactName = rs.getString("site_contact_name");
+                String siteContactNumber = rs.getString("site_contact_phone");
+                String locationNotes = rs.getString("location_notes");
+                String preTripInstructions = rs.getString("pre_trip_instructions");
+                String driver = rs.getString("driver");
+                String driverInitial = rs.getString("driver_initial");
+                int driverNumber = rs.getInt("driver_number");
+                String orderDate = rs.getString("order_date");
+                boolean singleItemOrder = rs.getInt("single_item_order") == 1;
+                double latitude = rs.getLong("latitude");
+                double longitude = rs.getLong("longitude");
+                String newLiftType = rs.getString("new_lift_type");
+                String newSiteName = rs.getString("new_site_name");
+                String newStreetAddress = rs.getString("new_street_address");
+                String newCity = rs.getString("new_city");
+                double newLatitude = rs.getLong("new_latitude");
+                double newLongitude = rs.getLong("new_longitude");
+
+                Rental rental = new Rental(customerId, name, serviceDate, serviceTime,
+                 "", serviceDriver, serviceDriverNumber, serviceStatus, reason,
+                rentalOrderId, billable, "");
+                rental.setLiftId(liftId);
+                rental.setLiftType(liftType);
+                rental.setSerialNumber(serialNumber);
+                rental.setAddressBlockOne(siteName);
+                rental.setAddressBlockTwo(streetAddress);
+                rental.setAddressBlockThree(city);
+                rental.setOrderedByName(orderedContactName);
+                rental.setOrderedByPhone(orderedContactNumber);
+                rental.setSiteContactName(siteContactName);
+                rental.setSiteContactPhone(siteContactNumber);
+                rental.setRentalItemId(rentalItemId);
+                rental.setLocationNotes(locationNotes);
+                rental.setPreTripInstructions(preTripInstructions);
+                rental.setDriver(driver);
+                rental.setDriverInitial(driverInitial);
+                rental.setDriverNumber(driverNumber);
+                rental.setOrderDate(orderDate);
+                rental.setIsSingleItemOrder(singleItemOrder);
+                rental.setLatitude(latitude);
+                rental.setLongitude(longitude);
+
+                Service service = new Service(serviceId, serviceType, reason, billable,
+                     previousServiceId, newRentalOrderId, newLiftId, newLiftType, newSiteName,
+                     newStreetAddress, newCity, newLatitude, newLongitude);
+                rental.setService(service);
+
+                ordersList.add(rental);
+            }
+        
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        
+
+        Comparator<Rental> comparator = Comparator.comparingDouble((Rental item) -> {
             String status = item.getStatus();
             String deliveryDateString = item.getDeliveryDate();
-            boolean isInvoiceWritten = item.isInvoiceComposed();
             LocalDate today = LocalDate.now();
             LocalDate nextWorkDay = getNextWorkDay(today);
             LocalDate deliveryDate = parseDate(deliveryDateString);
+            String deliveryTime = item.getDeliveryTime();
         
-            // Check if filter's first word is "Driver"
             if (filter != null && filter.startsWith("Driver")) {
-                // Prioritize items with non-zero driverNumber
                 if (item.getDriverNumber() != 0) {
                     switch (status) {
-                        case "Upcoming": 
-                            return -1.0;
-                        case "Called Off": 
-                            return -0.5;
-
+                        case "Upcoming": return -1.0;
+                        case "Called Off": return -0.5;
                     }
                 }
-        
             }
         
-
-            // Existing rules
             if ("Upcoming".equals(status)) {
                 if (deliveryDate != null && deliveryDate.isEqual(today)) {
-                    return 0; // Upcoming and delivery date is today
+                    return 0;
                 } else if (deliveryDate != null && deliveryDate.isEqual(nextWorkDay)) {
-                    return 1; // Upcoming and delivery date is the next work day
+                    return 1;
+                } else if (deliveryDate != null && deliveryDate.isEqual(getNextWorkDay(nextWorkDay))
+                           && "Any".equals(deliveryTime)) {
+                    return 1.5;
                 }
             }
             if ("Called Off".equals(status)) {
-                return 2; // Called Off
+                return 2;
             }
             if ("Active".equals(status)) {
-                if (!isInvoiceWritten) {
-                    return 3; // Active and invoice not written
-                } else {
-                    return 4; // Active and invoice written
-                }
+                return 3;
             }
             if ("Upcoming".equals(status)) {
-                return 5; // Remaining Upcoming
+                return 5;
             }
-            if (!isInvoiceWritten) {
-                return 6; // All else where invoice is not written
+        
+            return 10; // fallback
+        }).thenComparing((Rental a, Rental b) -> {
+            LocalDate callOffA = parseDate(a.getCallOffDate());
+            LocalDate callOffB = parseDate(b.getCallOffDate());
+            LocalDate deliveryA = parseDate(a.getDeliveryDate());
+            LocalDate deliveryB = parseDate(b.getDeliveryDate());
+        
+            if (callOffA != null && callOffB != null) {
+                return callOffB.compareTo(callOffA); // latest first
             }
-            return 7; // All else
+            if (callOffA != null) return -1;
+            if (callOffB != null) return 1;
+        
+            if (deliveryA != null && deliveryB != null) {
+                return deliveryB.compareTo(deliveryA); // latest first
+            }
+            return 0;
         });
         
-
-
+        
         // Sort the list using the comparator
         FXCollections.sort(ordersList, comparator);
         dbTableView.setItems(ordersList);
@@ -853,32 +988,40 @@ public class ActivityController extends BaseController {
                 sideBarHighlighter.setTranslateY(downset * 1 * direction);
                 sideBarHighlighter.setTranslateX(direction * -1);
                 break;
+            case "cancelling":
+                sideBarHighlighter.setTranslateY(downset * 2 * direction);
+                sideBarHighlighter.setTranslateX(direction * -1);
+                break;
             case "dropping-off":
-                sideBarHighlighter.setTranslateY(downset * 2 * direction - 2);
+                sideBarHighlighter.setTranslateY(downset * 3 * direction - 2);
                 sideBarHighlighter.setTranslateX(direction * 1);
                 break;
+            case "scheduling-service":
+                sideBarHighlighter.setTranslateY(downset * 4 * direction - 1);
+                sideBarHighlighter.setTranslateX(direction * 0);
+                break;
             case "calling-off":
-                sideBarHighlighter.setTranslateY(downset * 3 * direction - 1);
+                sideBarHighlighter.setTranslateY(downset * 5 * direction - 1);
                 sideBarHighlighter.setTranslateX(direction * 0);
                 break;
             case "picking-up":
-                sideBarHighlighter.setTranslateY(downset * 4 * direction - 1);
+                sideBarHighlighter.setTranslateY(downset * 6 * direction - 1);
                 sideBarHighlighter.setTranslateX(direction * 1);
                 break;
             case "composing-invoices":
-                sideBarHighlighter.setTranslateY(downset * 5 * direction);
+                sideBarHighlighter.setTranslateY(downset * 7 * direction);
                 sideBarHighlighter.setTranslateX(direction * 0);
                 break;
             case "expanding":
-                sideBarHighlighter.setTranslateY(downset * 6 * direction);
+                sideBarHighlighter.setTranslateY(downset * 8 * direction);
                 sideBarHighlighter.setTranslateX(direction * 0);
                 break;
             case "refreshing-data":
-                sideBarHighlighter.setTranslateY(downset * 7 * direction);
+                sideBarHighlighter.setTranslateY(downset * 9 * direction);
                 sideBarHighlighter.setTranslateX(direction * -1);
                 break;
             case "deleting":
-                sideBarHighlighter.setTranslateY(downset * 8 * direction);
+                sideBarHighlighter.setTranslateY(downset * 10 * direction);
                 sideBarHighlighter.setTranslateX(direction * 0);
                 break;
             default:
@@ -907,8 +1050,12 @@ public class ActivityController extends BaseController {
             imageUrl = isInverted ? IMAGE_PATH_BASE + "create-contracts" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "create-contracts.png";
         } else if (button == editDriverButton) {
             imageUrl = isInverted ? IMAGE_PATH_BASE + "driver-icon" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "driver-icon.png";
+        } else if (button == cancellingButton) {
+            imageUrl = isInverted ? IMAGE_PATH_BASE + "cancelling" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "cancelling.png";
         } else if (button == droppingOffButton) {
             imageUrl = isInverted ? IMAGE_PATH_BASE + "dropping-off" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "dropping-off.png";
+        } else if (button == schedulingServiceButton) {
+            imageUrl = isInverted ? IMAGE_PATH_BASE + "scheduling-service" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "scheduling-service.png";
         } else if (button == callingOffButton) {
             imageUrl = isInverted ? IMAGE_PATH_BASE + "calling-off" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "calling-off.png";
         } else if (button == pickingUpButton) {
@@ -1085,6 +1232,27 @@ public class ActivityController extends BaseController {
     }
 
 
+    @FXML
+    private void handleCancelling() {
+        String actionType = "cancelling";
+        if (actionType.equals(lastActionType)) {
+            updateRentalButton.setVisible(false); // Hide the update button
+            workingColumnFactory.setClosedDriverColumn(driverColumnType); // Reset driver column
+            shiftSidebarHighlighter(null); // Reset sidebar highlighter
+            System.out.println("Cancel mode deactivated.");
+        } else {
+            batchButton.setVisible(false);
+            secondInProcessButton.setVisible(false);
+            updateRentalButton.setVisible(false); // Show the update button
+            workingColumnFactory.setOpenDriverColumn(driverColumnType); // Open driver column for assignment
+            shiftSidebarHighlighter(actionType); // Highlight the sidebar for driver assignment
+            workingColumnFactory.showSelectableCheckboxes(false, actionType);
+            System.out.println("Cancel mode activated.");
+        }
+        dbTableView.refresh(); // Refresh the table view
+    }  
+
+
    @FXML
     private void handleDroppingOff(ActionEvent event) {
         String actionType = "dropping-off";
@@ -1103,6 +1271,23 @@ public class ActivityController extends BaseController {
             serialNumberField.setVisible(true);
             shiftSidebarHighlighter(actionType); // Update sidebar highlighter
             shiftUpdateButtonHalf();
+        }
+    }
+
+    @FXML
+    private void handleSchedulingService(ActionEvent event) {
+        String actionType = "scheduling-service";
+        if (actionType.equals(lastActionType)) {
+            workingColumnFactory.showMiniatureIcons(false, actionType);
+            shiftSidebarHighlighter(null);
+        } else {
+            closeDriverBoxesIfOpen();
+            batchButton.setVisible(false);
+            secondInProcessButton.setVisible(false);
+            workingColumnFactory.showMiniatureIcons(true, actionType);
+            serialNumberField.setVisible(false);
+            shiftSidebarHighlighter(actionType);
+            shiftUpdateButtonFull();
         }
     }
 
@@ -1194,13 +1379,13 @@ public class ActivityController extends BaseController {
     private void handleExpand(ActionEvent event) {
         String actionType = "expanding";
         if (actionType.equals(lastActionType)) {
-            workingColumnFactory.showExpandIcons(false);
+            workingColumnFactory.showMiniatureIcons(false, actionType);
             shiftSidebarHighlighter(null);
         } else {
             closeDriverBoxesIfOpen();
             batchButton.setVisible(false);
             secondInProcessButton.setVisible(false);
-            workingColumnFactory.showExpandIcons(true);
+            workingColumnFactory.showMiniatureIcons(true, actionType);
             serialNumberField.setVisible(false);
             shiftSidebarHighlighter(actionType);
             shiftUpdateButtonFull();
@@ -1215,6 +1400,7 @@ public class ActivityController extends BaseController {
     private void handleRefreshData() {
         dbTableView.refresh();
         loadData(latestFilter);
+        sendPrepareRequest();
     }
 
 
@@ -1262,6 +1448,8 @@ public class ActivityController extends BaseController {
             handleAssignDrivers();
             lastActionType = "assigning-drivers"; // correcting for above line which causes it to be set to null
             statusUpdated = true;
+        } else if (lastActionType.equals("cancelling")) {
+            System.out.println("cancelling");
         } else if (lastActionType.equals("dropping-off")) {
             for (Rental order : selectedRentals) {
                 String newStatus = "Active";
@@ -1285,6 +1473,8 @@ public class ActivityController extends BaseController {
                 }
             }
             droppingOffButton.setStyle("-fx-background-color: transparent");
+        } else if (lastActionType.equals("scheudling-service")) {
+            System.out.println("schedule seravice logic");
         } else if (lastActionType.equals("calling-off")) {
             for (Rental order : selectedRentals) {
                 String newStatus = "Called Off";
@@ -1345,44 +1535,41 @@ public class ActivityController extends BaseController {
     }
 
 
-
     private void updateSerialNumberInDB(int rentalItemId, String serialNumber) {
-       if (!checkSerialNumberExists(serialNumber)) {
-           System.out.println("The provided serial number does not exist in the database.");
-           return;
-       }
-
-       String updateQuery = """
-          UPDATE rental_items
-          SET lift_id = (
-              SELECT lift_id
-              FROM lifts
-              WHERE serial_number = ?
-              LIMIT 1        
-          )
-          WHERE rental_item_id = ?;
-       """;
-
-       try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-            PreparedStatement preparedStatement = connection.prepareStatement(updateQuery)) {
-
-           // Set the parameters for the query
-           preparedStatement.setString(1, serialNumber);
-           preparedStatement.setInt(2, rentalItemId);
-
-           // Execute the update
-           int rowsAffected = preparedStatement.executeUpdate();
-           if (rowsAffected > 0) {
-               System.out.println("Rental item updated successfully.");
-           } else {
-               System.out.println("No matching rental item found or serial number does not exist.");
-           }
-
-       } catch (SQLException e) {
-           System.err.println("Error while updating the rental item: " + e.getMessage());
-           e.printStackTrace();
-       }
+        if (!checkSerialNumberExists(serialNumber)) {
+            System.out.println("The provided serial number does not exist in the database.");
+            return;
+        }
+    
+        String updateQuery = """
+            UPDATE rental_items
+            SET lift_id = (
+                SELECT lift_id
+                FROM lifts
+                WHERE serial_number = ?
+                LIMIT 1        
+            )
+            WHERE rental_item_id = ?;
+        """;
+    
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+             PreparedStatement preparedStatement = connection.prepareStatement(updateQuery)) {
+    
+            preparedStatement.setString(1, serialNumber);
+            preparedStatement.setInt(2, rentalItemId);
+    
+            int rowsAffected = preparedStatement.executeUpdate();
+            if (rowsAffected == 0) {
+                System.out.println("No matching rental item found or serial number does not exist.");
+            }
+    
+        } catch (SQLException e) {
+            System.err.println("Error while updating the rental item: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
+    
+    
 
 
     private void updateRentalStatusInDB(int rentalItemId, String newStatus) {
@@ -1454,6 +1641,31 @@ public class ActivityController extends BaseController {
                 System.out.println("Rental item with ID " + rentalItemId + " successfully deleted.");
             }
         } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    
+    private void sendPrepareRequest() {
+        try {
+            String endpoint = Config.API_BASE_URL + "/routes/prepare";
+            java.net.URL url = new java.net.URL(endpoint);
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json");
+
+            // Optional: Body payload
+            try (java.io.OutputStream os = conn.getOutputStream()) {
+                byte[] input = "{}".getBytes("utf-8");
+                os.write(input, 0, input.length);
+            }
+
+            int responseCode = conn.getResponseCode();
+            System.out.println("POST Response Code: " + responseCode);
+
+            conn.disconnect();
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

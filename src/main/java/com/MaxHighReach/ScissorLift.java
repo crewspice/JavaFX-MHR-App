@@ -170,6 +170,8 @@ public class ScissorLift extends Pane {
     }
 
     public void animateTransition(double newHeight) {
+
+        
         double measuredHeight = 0;
         Timeline timeline = new Timeline();
 

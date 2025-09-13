@@ -697,6 +697,21 @@
     -fx-text-fill: #000000;
 }
 
+.service-type-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent; /* optional */
+    -fx-padding: 0;
+}
+
+.service-type-button:hover {
+    -fx-background-color: #FFDEAD; /* your chosen hover color */
+}
+
+.service-type-button-selected {
+    -fx-background-color: #FFDEAD;
+}
+
+
 .transparent-text-field {
     -fx-background-color: transparent; /* Make background transparent */
     -fx-border-color: transparent transparent black transparent; /* var(--dynamic-primary-color) bottom border */

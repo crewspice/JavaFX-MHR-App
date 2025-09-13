@@ -48,6 +48,7 @@ public class Config {
     public static final String SPIREON_EMAIL = "office@maxhighreach.com";
     public static final String SPIREON_TOKEN = "e2cfc07a-255a-4677-8f4f-07b8ae7149e8";
 
+    public static final String API_BASE_URL = "http://5.78.73.173:8080";
 
     // --------------------------------------------------
     // SDK Path (Using PathConfig)
@@ -316,6 +317,7 @@ public class Config {
         Map.entry("Wildwood Serivces", "Wildwood"),
         Map.entry("Capital Electric", "Capital"),
         Map.entry("Noble Overhead Door, llc", "Noble"),
+        Map.entry("Noble OH Door, llc", "Noble"),
         Map.entry("Harmon Construction", "Harmon"),
         Map.entry("New Life Tree Triming", "New Life"), 
                                 
@@ -341,6 +343,8 @@ public class Config {
     public static String simplifyCustomerName(String fullName) {
         return CUSTOMER_NAME_MAP.getOrDefault(fullName, fullName);
     }
+
+    public static final String A_TEST_CUSTOMER_ID = "80000D36-1727373143";
 
     //''                                                                        ''//
     //*****''//////***********''    M E T H O D S    '''************///////''*****//

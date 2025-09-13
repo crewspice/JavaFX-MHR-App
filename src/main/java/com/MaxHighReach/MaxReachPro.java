@@ -105,6 +105,7 @@ public class MaxReachPro extends Application {
         sceneHierarchy.put("/fxml/sync_with_qb.fxml", "/fxml/home.fxml");
         sceneHierarchy.put("/fxml/utilization.fxml", "/fxml/home.fxml");
         sceneHierarchy.put("/fxml/expand_imaginary.fxml", "/fxml/utilization.fxml");
+        sceneHierarchy.put("/fxml/service.fxml", "/fxml/home.fxml");
 
         // Load the initial scene
         // Now includes calls to makeMainPane() and makeMapPane()
@@ -267,7 +268,11 @@ public class MaxReachPro extends Application {
     public static void loadScene(String fxmlPath) throws Exception {
         if (currentScenePath != null && fxmlPath.equals("/fxml/expand.fxml")) {
             if (!currentScenePath.equals("/fxml/expand.fxml")) {
-                sceneBeforeExpandName = currentScenePath;
+                if (currentScenePath.equals("/fxml/activity.fxml")) {
+                    sceneBeforeExpandName = "/fxml/home.fxml";
+                } else {
+                    sceneBeforeExpandName = currentScenePath;
+                }
             }
         }
     
@@ -819,6 +824,7 @@ public class MaxReachPro extends Application {
 
     public static void goBackFromExpand() throws Exception {
         System.out.println("🔙 goBackFromExpand called. Returning to: " + sceneBeforeExpandName);
+
         if (sceneBeforeExpandName != null) {
             loadScene(sceneBeforeExpandName);
         } else {

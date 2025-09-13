@@ -29,6 +29,9 @@ import javafx.util.Duration;
 // import org.json.JSONArray;
 // import org.json.JSONException;
 // import org.json.JSONObject;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -46,6 +49,8 @@ import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAccessor;
 import java.util.*;
+
+import org.json.JSONObject;
 
 import static com.itextpdf.kernel.pdf.PdfName.Event;
 
@@ -551,7 +556,8 @@ public class ExpandController extends BaseController {
             updateStatusToggleButtons(expandedRental.getStatus());
             orderedByField.setText(expandedRental.getOrderedByName());
             orderedByPhoneField.setText(expandedRental.getOrderedByPhone());
-    
+            selectedOrderingContactId = selectedCustomer.getOrderingContactId(expandedRental.getOrderedByName());
+
             if (expandedRental.isAutoTerm()) {
                 autoTermButton.getStyleClass().add("schedule-delivery-button-has-value");
             }
@@ -560,6 +566,7 @@ public class ExpandController extends BaseController {
             addressField.setText(expandedRental.getAddressBlockTwo() + ", " + expandedRental.getCity());
             siteContactField.setText(expandedRental.getSiteContactName());
             siteContactPhoneField.setText(expandedRental.getSiteContactPhone());
+            selectedSiteContactId = selectedCustomer.getSiteContactId(expandedRental.getSiteContactName());
             POField.setText(expandedRental.getPoNumber());
     
             if (expandedRental.getLocationNotes() != null && !expandedRental.getLocationNotes().isEmpty()) {
@@ -1469,6 +1476,8 @@ public class ExpandController extends BaseController {
         int rentalOrderId = expandedRental.getRentalOrderId();
 
         String liftType = liftTypeToggleGroup.getSelectedToggle() != null ? ((ToggleButton) liftTypeToggleGroup.getSelectedToggle()).getText() : Config.LIFT_BUTTON_TEXT_MAP.getOrDefault(expandedRental.getLiftType(), "");
+        String liftTypeShort = normalizeLiftString(liftType);
+        System.out.println("button derived lift type is: " + liftTypeShort);
         // OBFUSCATE_OFF
         String checkOrdersTableQuery = """
                 SELECT 
@@ -1478,7 +1487,7 @@ public class ExpandController extends BaseController {
                     oc.phone_number AS ordered_contact_phone_number, 
                     sc.first_name AS site_contact_first_name, 
                     sc.phone_number AS site_contact_phone_number,
-                    l.lift_id, l.serial_number
+                    l.lift_id, l.serial_number, l.lift_type
                 FROM rental_items ri 
                 INNER JOIN rental_orders ro ON ri.rental_order_id = ro.rental_order_id 
                 INNER JOIN lifts l ON ri.lift_id = l.lift_id
@@ -1518,6 +1527,7 @@ public class ExpandController extends BaseController {
                     int dbIsInvoiceWritten = resultSet.getInt("invoice_composed");
                     int dbAutoTerm = resultSet.getInt("auto_term");
                     String dbSerialNumber = safeGetString(resultSet, "serial_number");
+                    String dbLiftType = safeGetString(resultSet, "lift_type");
 
                     if (selectedCustomer != null) {
                         if (!customerId.equals(selectedCustomer.getCustomerId())) {
@@ -1553,10 +1563,12 @@ public class ExpandController extends BaseController {
                     }
 
                     if (!dbPoNumber.equals(poNumber) || !dbSiteName.equals(site) || !dbFullAddress.equals(address) || !customerMatch) {
+                        double[] coords = calculateLongAndLat(streetAddress, city);
+                        
                         // OBFUSCATE_OFF
                         String createRentalOrderQuery = """
-                                INSERT INTO rental_orders (customer_id, po_number, site_name, street_address, city, order_date, delivery_date)
-                                VALUES (?, ?, ?, ?, ?, ?, ?)
+                                INSERT INTO rental_orders (customer_id, po_number, site_name, street_address, city, order_date, delivery_date, latitude, longitude)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                                 """;
                                 // OBFUSCATE_ON
                                 try (PreparedStatement createOrderStmt = connection.prepareStatement(createRentalOrderQuery, Statement.RETURN_GENERATED_KEYS)) {
@@ -1567,7 +1579,8 @@ public class ExpandController extends BaseController {
                                     createOrderStmt.setString(5, city);
                                     createOrderStmt.setDate(6, Date.valueOf(LocalDate.now()));
                                     createOrderStmt.setString(7, deliveryDate);
-
+                                    createOrderStmt.setDouble(8, coords[0]);
+                                    createOrderStmt.setDouble(9, coords[1]);
                                     createOrderStmt.executeUpdate();
 
                                     try (ResultSet generatedKeys = createOrderStmt.getGeneratedKeys()) {
@@ -1619,7 +1632,7 @@ public class ExpandController extends BaseController {
                         if (!dbOrderedBy.equals(orderedBy) || !dbOrderedByPhone.equals(orderedByPhone) || !dbSiteContact.equals(siteContact)
                                 || !dbSiteContactPhone.equals(siteContactPhone) || !dbLocationNotes.equals(locationNotes)
                                 || !dbPreTripInstructions.equals(preTripInstructions) || !dbDeliveryTime.equals(deliveryTime)
-                                || !dbDeliveryDate.equals(deliveryDate) || !dbCallOffDate.equals(callOffDate)
+                                || !dbDeliveryDate.equals(deliveryDate) || !Objects.equals(dbCallOffDate, callOffDate)
                                 || dbIsInvoiceWritten != invoiceWritten || dbAutoTerm != autoTerm || !dbStatus.equals(status)) {
 
                             // Log specific mismatches
@@ -1644,8 +1657,8 @@ public class ExpandController extends BaseController {
                            if (!dbDeliveryDate.equals(deliveryDate)) {
                                System.out.println("Mismatch: dbDeliveryDate (" + dbDeliveryDate + ") != deliveryDate (" + deliveryDate + ")");
                            }
-                           if (!dbCallOffDate.equals(callOffDate)) {
-                               System.out.println("Mismatch: dbCallOffDate (" + dbCallOffDate + ") != callOffDate (" + callOffDate + ")");
+                           if (!Objects.equals(dbCallOffDate, callOffDate)) {
+                                System.out.println("Mismatch: dbCallOffDate (" + dbCallOffDate + ") != callOffDate (" + callOffDate + ")");
                            }
                            if (!dbDeliveryTime.equals(deliveryTime)) {
                                System.out.println("Mismatch: dbDeliveryTime (" + dbDeliveryTime + ") != deliveryTime (" + deliveryTime + ")");
@@ -1673,13 +1686,14 @@ public class ExpandController extends BaseController {
                            // OBFUSCATE_ON
                            System.out.println("About to engage updateRentalItemStatement and deliveryDate is: " +
                                    deliveryDate + ", and callOffDate is: " + callOffDate + ", and noCallOffMemory is: " +
-                                   noCallOffMemory);
+                                   noCallOffMemory + ", and orderedContactId is: " + selectedOrderingContactId +
+                                   ", and siteContactId is: " + selectedSiteContactId + ", and liftId is: " + expandedRental.getLiftId());
 
                             try (PreparedStatement updateRentalItemStmt = connection.prepareStatement(updateRentalItemQuery)) {
                                 updateRentalItemStmt.setInt(1, rentalOrderId);
                                 updateRentalItemStmt.setString(2, selectedOrderingContactId);
                                 updateRentalItemStmt.setString(3, selectedSiteContactId);
-                                updateRentalItemStmt.setInt(4, getLiftIdFromType(liftType)); // Adjust index if necessary
+                                updateRentalItemStmt.setInt(4, expandedRental.getLiftId()); // Adjust index if necessary
                                 updateRentalItemStmt.setDate(5, java.sql.Date.valueOf(deliveryDate));
                                 if (callOffDate != null && callOffDate != "") {
                                     updateRentalItemStmt.setDate(6, java.sql.Date.valueOf(callOffDate));
@@ -1715,6 +1729,9 @@ public class ExpandController extends BaseController {
                         if (!dbSerialNumber.equals(serialNumber)) {
                             updateSerialNumberInDB(rentalItemId, serialNumber);
                             expandedRental.setSerialNumber(serialNumber);
+                        } else if (!dbLiftType.equals(liftTypeShort)) {
+                            updateLiftTypeInDB(rentalItemId, liftType);
+                            expandedRental.setSerialNumber("");
                         }
                     }
 
@@ -1890,6 +1907,46 @@ public class ExpandController extends BaseController {
         return false;
     }
 
+    private void updateLiftTypeInDB(int rentalItemId, String fullLiftTypeName) {
+        // Lookup the lift_id from the map
+        Integer liftId = Config.LIFT_TYPE_MAP.get(fullLiftTypeName);
+        if (liftId == null) {
+            System.out.println("No lift ID found for lift type: " + fullLiftTypeName);
+            return;
+        }
+    
+        String updateQuery = """
+            UPDATE rental_items
+            SET lift_id = ?
+            WHERE rental_item_id = ?;
+        """;
+    
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+             PreparedStatement preparedStatement = connection.prepareStatement(updateQuery)) {
+    
+            preparedStatement.setInt(1, liftId);
+            preparedStatement.setInt(2, rentalItemId);
+    
+            int rowsAffected = preparedStatement.executeUpdate();
+            if (rowsAffected > 0) {
+                statusLabel.setTextFill(Color.GREEN);
+                statusLabel.setText("Lift type updated");
+                System.out.println("Rental item updated successfully with lift type: " + fullLiftTypeName);
+                statusLabel.setVisible(true);
+            } else {
+                System.out.println("No matching rental item found for ID: " + rentalItemId);
+            }
+    
+        } catch (SQLException e) {
+            System.err.println("Error while updating the rental item lift type: " + e.getMessage());
+            e.printStackTrace();
+            statusLabel.setTextFill(Color.RED);
+            statusLabel.setText("Error updating lift type: " + e.getMessage());
+            statusLabel.setVisible(true);
+        }
+    }
+    
+
     private LocalDate tryParseDate(String input) {
         if (input == null || input.isBlank()) return null;
 
@@ -1943,6 +2000,59 @@ public class ExpandController extends BaseController {
         String value = resultSet.getString(columnName);
         return (value == null) ? "" : value;
     }
+
+
+	public double[] calculateLongAndLat(String streetAddress, String city) {
+		if ((streetAddress == null || streetAddress.isEmpty()) && (city == null || city.isEmpty())) {
+			System.out.println("Invalid address: Both street address and city are empty.");
+			return new double[]{0.0, 0.0}; // Default or error value
+		}
+	
+		String address = streetAddress != null ? streetAddress : "";
+		if (city != null && !city.isEmpty()) {
+			address += ", " + city + ", Colorado, USA";
+		}
+	
+		return fetchCoords(address);
+	}
+	
+	public double[] fetchCoords(String address) {
+	
+		OkHttpClient client = new OkHttpClient();
+		String url = "https://maps.googleapis.com/maps/api/geocode/json?address=" + URLEncoder.encode(address, StandardCharsets.UTF_8) + "&key=" + Config.GOOGLE_KEY;
+	
+		Request request = new Request.Builder().url(url).build();
+	
+		try (Response response = client.newCall(request).execute()) {
+			if (response.isSuccessful() && response.body() != null) {
+				String responseData = response.body().string();
+				JSONObject json = new JSONObject(responseData);
+				String status = json.optString("status", "ERROR");
+		
+				if ("OK".equals(status)) {
+					JSONObject location = json.getJSONArray("results")
+							.getJSONObject(0)
+							.getJSONObject("geometry")
+							.getJSONObject("location");
+	
+					double lat = location.getDouble("lat");
+					double lng = location.getDouble("lng");
+	
+					return new double[]{lat, lng};
+				} else {
+					System.out.println("No results found for address: " + address);
+				}
+			} else {
+				System.out.println("Request failed with HTTP status code: " + response.code());
+			}
+		} catch (IOException e) {
+			System.out.println("Request failed: " + e.getMessage());
+			e.printStackTrace();
+		}
+	
+		return new double[]{0.0, 0.0}; // Return default values on failure
+	}
+
 
     @Override
     protected EventHandler<ActionEvent> getBackHandler() {

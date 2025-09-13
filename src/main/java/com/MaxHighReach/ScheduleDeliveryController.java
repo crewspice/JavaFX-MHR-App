@@ -1565,10 +1565,6 @@ public class ScheduleDeliveryController extends BaseController {
 	}
 
 
-
-
-
-
 	private String formatSelectedSuggestion(String selectedSuggestion) {
     	// Remove the state and country from the suggestion
     	String[] parts = selectedSuggestion.split(",");

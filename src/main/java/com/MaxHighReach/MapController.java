@@ -554,13 +554,19 @@ public class MapController {
 
             // Parse JSON and extract list of IDs
             JsonArray jsonArray = JsonParser.parseString(responseBuilder.toString()).getAsJsonArray();
-            List<Integer> apiIds = new ArrayList<>();
+            List<Integer> rentalIds = new ArrayList<>();
+            List<Integer> serviceIds = new ArrayList<>();
             for (JsonElement element : jsonArray) {
                 JsonObject obj = element.getAsJsonObject();
-                apiIds.add(obj.get("id").getAsInt());
+                String type = obj.get("type").getAsString();
+                if ("RENTAL".equals(type)) {
+                    rentalIds.add(obj.get("id").getAsInt());
+                } else if ("SERVICE".equals(type)) {
+                    serviceIds.add(obj.get("id").getAsInt());
+                }
             }
 
-            if (apiIds.isEmpty()) {
+            if (rentalIds.isEmpty() && serviceIds.isEmpty()) {
                 System.out.println("No stops received from API.");
                 rentalsForCharting = new ArrayList<>();
                 return;
@@ -568,7 +574,7 @@ public class MapController {
 
             // SQL query that filters by rental_item_id from API
             StringBuilder placeholders = new StringBuilder("?");
-            for (int i = 1; i < apiIds.size(); i++) {
+            for (int i = 1; i < rentalIds.size(); i++) {
                 placeholders.append(",?");
             }
 
@@ -580,7 +586,7 @@ public class MapController {
                     l.serial_number, ro.single_item_order, ri.rental_order_id, ro.longitude, ro.latitude,
                     site_contacts.first_name AS site_contact_name, site_contacts.phone_number AS site_contact_phone,
                     ri.driver, ri.driver_number, ri.driver_initial, ri.delivery_truck, ri.pick_up_truck, ri.delivery_time, 
-                    ri.invoice_composed
+                    ri.invoice_composed, ri.location_notes, ri.pre_trip_instructions
                 FROM customers c
                 JOIN rental_orders ro ON c.customer_id = ro.customer_id
                 JOIN rental_items ri ON ro.rental_order_id = ri.rental_order_id
@@ -595,8 +601,8 @@ public class MapController {
             try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
                 PreparedStatement preparedStatement = connection.prepareStatement(query)) {
 
-                for (int i = 0; i < apiIds.size(); i++) {
-                    preparedStatement.setInt(i + 1, apiIds.get(i));
+                for (int i = 0; i < rentalIds.size(); i++) {
+                    preparedStatement.setInt(i + 1, rentalIds.get(i));
                 }
 
                 try (ResultSet rs = preparedStatement.executeQuery()) {
@@ -634,14 +640,152 @@ public class MapController {
                         rental.setDeliveryTime(rs.getString("delivery_time"));
                         rental.setInvoiceComposed(rs.getBoolean("invoice_composed"));
                         rental.decapitalizeLiftType();
+                        rental.setLocationNotes(rs.getString("location_notes"));
+                        rental.setPreTripInstructions(rs.getString("pre_trip_instructions"));
                         rentalsForCharting.add(rental);
+
                     }
                 }
             }
+
+            if (serviceIds == null || serviceIds.isEmpty()) {
+                System.out.println("No serviceIds provided, skipping query.");
+                return;
+            }            
+
+            placeholders = new StringBuilder("?");
+            for (int i = 1; i < serviceIds.size(); i++) {
+                placeholders.append(",?");
+            }
+
+            // OBFUSCATE OFF
+            query = """
+                SELECT
+                    s.*,
+                    ri.rental_order_id,
+                    ri.lift_id,
+                    ri.customer_ref_number,
+                    ro.*,
+                    c.*,
+                    l.*,
+                    nl.lift_type AS new_lift_type,
+                    nro.site_name AS new_site_name,
+                    nro.street_address AS new_street_address,
+                    nro.city AS new_city,
+                    nro.latitude AS new_latitude,
+                    nro.longitude AS new_longitude,
+                    ordered_contacts.first_name AS ordered_contact_name,
+                    ordered_contacts.phone_number AS ordered_contact_phone,
+                    site_contacts.first_name AS site_contact_name,
+                    site_contacts.phone_number AS site_contact_phone
+                FROM services s
+                JOIN rental_items ri ON s.rental_item_id = ri.rental_item_id
+                JOIN rental_orders ro ON ri.rental_order_id = ro.rental_order_id
+                JOIN customers c ON ro.customer_id = c.customer_id
+                LEFT JOIN lifts l ON ri.lift_id = l.lift_id
+                LEFT JOIN lifts nl ON s.new_lift_id = nl.lift_id
+                LEFT JOIN rental_orders nro ON s.new_rental_order_id = nro.rental_order_id
+                LEFT JOIN contacts AS ordered_contacts ON s.ordered_contact_id = ordered_contacts.contact_id
+                LEFT JOIN contacts AS site_contacts ON s.site_contact_id = site_contacts.contact_id
+                WHERE s.service_id in (%s)
+            """.formatted(placeholders);
+            // OBFUSCATE ON
+
+            try (Connection connServices = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+                PreparedStatement ps = connServices.prepareStatement(query)){
+                    
+                for (int i = 0; i < serviceIds.size(); i++) {
+                    ps.setInt(i + 1, serviceIds.get(i));
+                }
+                
+                ResultSet rs = ps.executeQuery();
+
+                while (rs.next()) {
+                    String customerId = rs.getString("customer_id"); 
+                    String name = rs.getString("customer_name");
+                    String serviceDate = rs.getString("service_date");
+                    String serviceTime = rs.getString("time");
+                    String serviceDriver = rs.getString("driver");
+                    int serviceDriverNumber = rs.getInt("driver_number");
+                    String serviceStatus = rs.getString("service_status");
+                    String poNumber = rs.getString("customer_ref_number");
+                    int rentalOrderId = rs.getInt("rental_order_id");
+                    int rentalItemId = rs.getInt("rental_item_id");
+                    boolean billable = rs.getInt("billable") == 1; // services will use needsInvoice for "billable" property
+                    int liftId = rs.getInt("lift_id");
+                    String liftType = rs.getString("lift_type");
+                    String serialNumber = rs.getString("serial_number");
+                    String siteName = rs.getString("site_name");
+                    String streetAddress = rs.getString("street_address");
+                    String city = rs.getString("city");
+                    int serviceId = rs.getInt("service_id");
+                    String serviceType = rs.getString("service_type");
+                    String reason = rs.getString("reason");
+                    int previousServiceId = rs.getInt("previous_service_id");
+                    int newRentalOrderId = rs.getInt("new_rental_order_id");
+                    int newLiftId = rs.getInt("new_lift_id");
+                    String orderedContactName = rs.getString("ordered_contact_name");
+                    String orderedContactNumber = rs.getString("ordered_contact_phone");
+                    String siteContactName = rs.getString("site_contact_name");
+                    String siteContactNumber = rs.getString("site_contact_phone");
+                    String locationNotes = rs.getString("location_notes");
+                    String preTripInstructions = rs.getString("pre_trip_instructions");
+                    String driver = rs.getString("driver");
+                    String driverInitial = rs.getString("driver_initial");
+                    int driverNumber = rs.getInt("driver_number");
+                    String orderDate = rs.getString("order_date");
+                    boolean singleItemOrder = rs.getInt("single_item_order") == 1;
+                    double latitude = rs.getDouble("latitude");
+                    double longitude = rs.getDouble("longitude");
+                    String newLiftType = rs.getString("new_lift_type");
+                    String newSiteName = rs.getString("new_site_name");
+                    String newStreetAddress = rs.getString("new_street_address");
+                    String newCity = rs.getString("new_city");
+                    double newLatitude = rs.getDouble("new_latitude");
+                    double newLongitude = rs.getDouble("new_longitude");
+    
+                    Rental rental = new Rental(customerId, name, serviceDate, serviceTime,
+                     "", serviceDriver, serviceDriverNumber, serviceStatus, reason,
+                    rentalOrderId, billable, "");
+                    rental.setLiftId(liftId);
+                    rental.setLiftType(liftType);
+                    rental.setSerialNumber(serialNumber);
+                    rental.setAddressBlockOne(siteName);
+                    rental.setAddressBlockTwo(streetAddress);
+                    rental.setAddressBlockThree(city);
+                    rental.setOrderedByName(orderedContactName);
+                    rental.setOrderedByPhone(orderedContactNumber);
+                    rental.setSiteContactName(siteContactName);
+                    rental.setSiteContactPhone(siteContactNumber);
+                    rental.setRentalItemId(rentalItemId);
+                    rental.setLocationNotes(locationNotes);
+                    rental.setPreTripInstructions(preTripInstructions);
+                    rental.setDriver(driver);
+                    rental.setDriverInitial(driverInitial);
+                    rental.setDriverNumber(driverNumber);
+                    rental.setOrderDate(orderDate);
+                    rental.setIsSingleItemOrder(singleItemOrder);
+                    rental.setLatitude(latitude);
+                    rental.setLongitude(longitude);
+    
+                    Service service = new Service(serviceId, serviceType, reason, billable,
+                         previousServiceId, newRentalOrderId, newLiftId, newLiftType, newSiteName,
+                         newStreetAddress, newCity, newLatitude, newLongitude);
+                    rental.setService(service);
+    
+                    rentalsForCharting.add(rental);
+                    System.out.println("added Rental data object and deliveryTime was: " + rental.getDeliveryTime());
+                }
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
         } catch (Exception e) {
             throw new RuntimeException("Failed to load rental data from API guide", e);
         }
     }
+
 
 
     private void loadRentalDataFromSQL() {
@@ -832,51 +976,105 @@ public class MapController {
     private void sendRoutingToRedisAPI() {   
         try {
             List<RoutingRental> routingItems = new ArrayList<>();
+    
             for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
                 String routeKey = entry.getKey();
                 List<Rental> rentals = entry.getValue();
+    
                 String driverInitial = routeAssignments.get(routeKey);   
                 String assignedTruck = truckAssignments.entrySet().stream()
                         .filter(e -> e.getValue().equals(routeKey))
                         .map(Map.Entry::getKey)
                         .findFirst()
-                        .orElse(null); 
+                        .orElse(null);
+    
                 int offset = (assignedTruck != null) ? 0 : 1;
+    
                 for (int i = 0; i < rentals.size(); i++) {
                     Rental rental = rentals.get(i);
                     if (rental.getRentalItemId() == 0) {
-                        continue;
+                        continue; // skip invalid rental
                     }
+                
+                
                     int driverNumber = i + offset;
+                
+                
+                    String stopType;
+                    int id;
+                    if (rental.isService()) {
+                        stopType = "SERVICE";
+                        id = rental.getService().getServiceId();
+                    } else {
+                        stopType = "RENTAL";
+                        id = rental.getRentalItemId();
+                    }
+                
+                
                     RoutingRental dto = new RoutingRental(
-                            rental.getRentalItemId(),
-                            "unknown",
-                            "unknwon",
-                            0.0,
-                            0.0,
+                            id,
+                            rental.getRentalOrderId(),
+                            stopType,
+                            Config.CUSTOMER_NAME_MAP.getOrDefault(rental.getName(), rental.getName()),
+                            rental.getAddressBlockOne(),
+                            rental.getAddressBlockTwo(),
+                            rental.getAddressBlockThree(),
+                            rental.getLiftType(),
+                            rental.getDeliveryTime(),
+                            rental.getLatitude(),
+                            rental.getLongitude(),
                             driverInitial,
                             driverNumber,
-                            assignedTruck
+                            assignedTruck, 
+                            rental.getOrderedByName(),
+                            rental.getOrderedByPhone(),
+                            rental.getSiteContactName(),
+                            rental.getSiteContactPhone(),
+                            rental.getLocationNotes(),
+                            rental.getPreTripInstructions()
                     );
+
+                    if (rental.isService()) {
+                        dto.setServiceType(rental.getService().getServiceType());
+                        dto.setServiceDate(rental.getDeliveryDate());
+                        dto.setReason(rental.getService().getReason());
+                    
+                        // Conditional extra properties
+                        String serviceType = rental.getService().getServiceType();
+                        if ("Move".equalsIgnoreCase(serviceType)) {
+                            dto.setNewSiteName(rental.getService().getNewSiteName());
+                            dto.setNewStreetAddress(rental.getService().getNewStreetAddress());
+                            dto.setNewCity(rental.getService().getNewCity());
+                        } else if ("Change Out".equalsIgnoreCase(serviceType)) {
+                            dto.setNewLiftType(rental.getService().getNewLiftType());
+                        }
+                    } else {
+                        dto.setStatus(rental.getStatus());
+                        dto.setDeliveryDate(rental.getDeliveryDate());
+                    }
                     routingItems.add(dto);
                 }
-            }   
+                
+            }
+    
             ObjectMapper mapper = new ObjectMapper();
             String requestBody = mapper.writeValueAsString(routingItems);
-            //System.out.println("Serialized JSON payload: " + requestBody);
+    
             HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("http://5.78.73.173:8080/routes/update"))  // Fixed URI
+                    .uri(URI.create("http://5.78.73.173:8080/routes/update"))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                     .build();
-   
+    
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            // optionally log response.body()
         } catch (Exception e) {
             System.err.println("Exception occurred while sending routing data:");
             e.printStackTrace();
         }
-    }    
+    }
+    
     
     private void reflectRoutingData() {
         if (rentalsForCharting == null || rentalsForCharting.isEmpty()) {
@@ -1036,7 +1234,7 @@ public class MapController {
             }
             dotShape = octagon;
             dotShape.setFill(Color.RED);
-        } else {
+        } else  {  // if "Upcoming".equals(status)
             Circle circle = new Circle(0, 0, 7); // center at 0,0, position later
             circle.setFill(Color.web(Config.getPrimaryColor()));
             dotShape = circle;
@@ -2826,11 +3024,40 @@ public class MapController {
           //  if (orientation.equals("horizontal-truck") || orientation.equals("vertical-truck")) {
             labelBox.getChildren().addAll(nameLabel, address2, address3);
 
-            Shape dot = createRentalDot(rental, rental.getStatus());
-            rentalChunk.getChildren().add(dot);
-            StackPane.setAlignment(dot, Pos.TOP_RIGHT);
-            dot.setTranslateX(orientation.equals("vertical") ? -2 : -7);
-            dot.setTranslateY(orientation.equals("vertical") ? 5 : 3);
+
+
+            if (rental.isService()) {
+                String serviceType = rental.getService().getServiceType();
+                String imagePath;
+                switch (serviceType) {
+                    case "Change Out" -> imagePath = "/images/change-out.png";
+                    case "Service Change Out" -> imagePath = "/images/service-change-out.png";
+                    case "Service" -> imagePath = "/images/service.png";
+                    case "Move" -> imagePath = "/images/move.png";
+                    default -> imagePath = "/images/move.png";
+                }
+            
+                Image image = new Image(getClass().getResourceAsStream(imagePath));
+                ImageView imageView = new ImageView(image);   // <-- create an ImageView
+                imageView.setFitWidth(20);
+                imageView.setPreserveRatio(true);            // so the aspect ratio isn’t distorted
+                imageView.setPickOnBounds(true);
+            
+                StackPane stackPane = new StackPane(imageView);
+                stackPane.setAlignment(Pos.TOP_RIGHT);
+            
+                rentalChunk.getChildren().add(stackPane);
+                stackPane.setTranslateX(orientation.equals("vertical") ? -2 : -7);
+                stackPane.setTranslateY(orientation.equals("vertical") ? 5 : 3);
+            } else {
+                Shape dot = createRentalDot(rental, rental.getStatus());
+                rentalChunk.getChildren().add(dot);
+                StackPane.setAlignment(dot, Pos.TOP_RIGHT);
+                dot.setTranslateX(orientation.equals("vertical") ? -2 : -7);
+                dot.setTranslateY(orientation.equals("vertical") ? 5 : 3);
+            }
+                
+
 
         } else if (orientation.equals("horizontal-truck") || orientation.equals("vertical-truck")) {
             truckPane.setBackground(new Background(new BackgroundFill(gradient, CornerRadii.EMPTY, Insets.EMPTY)));
@@ -3377,6 +3604,9 @@ public class MapController {
                 List<Rental> rentalsToRemoveFromCharting = new ArrayList<>();
                 
                 for (Rental rental : completedRentals) {
+                    if (rental.isService()) {
+                        break;
+                    }
                     for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
                         List<Rental> rentals = entry.getValue();
                         int index = rentals.indexOf(rental);

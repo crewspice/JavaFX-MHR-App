@@ -38,7 +38,7 @@
         <TextField fx:id="serialNumberField" translateY="174" translateX="-180" minWidth="145" maxWidth="145" styleClass="transparent-text-field" visible="false" promptText="     Serial Number"/>
 
         <Button fx:id="batchButton" text="Batch Contracts" prefWidth="145" translateX="-180"  translateY="174" visible="false"/>
-        <Button fx:id="secondInProcessButton" text="Open Document" onAction="#handleSecondInProcess" prefWidth="145" translateX="-25" translateY="174" visible="false" />
+        <Button fx:id="secondInProcessButton" text="Open Contracts" onAction="#handleSecondInProcess" prefWidth="295" translateX="-99" translateY="174" visible="false" />
 
         <TableView fx:id="dbTableView" minHeight="549" maxHeight="549" minWidth="289" maxWidth="289"  translateX="-120" translateY="-118" />
 
@@ -111,6 +111,14 @@
 
             </Button>
 
+            <Button fx:id="cancellingButton" onAction="#handleCancelling" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
+                <graphic>
+                    <ImageView fitWidth="27" fitHeight="27">
+                        <Image url="@/images/cancelling.png"/>
+                    </ImageView>
+                </graphic>
+            </Button>
+
             <!-- Dropping Off Button with Tooltip -->
             <Button fx:id="droppingOffButton" onAction="#handleDroppingOff" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
                 <graphic>
@@ -119,6 +127,14 @@
                     </ImageView>
                 </graphic>
 
+            </Button>
+
+            <Button fx:id="schedulingServiceButton" onAction="#handleSchedulingService" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
+                <graphic>
+                    <ImageView fitWidth="28" fitHeight="28"> 
+                        <Image url="@/images/scheduling-service.png"/>
+                    </ImageView>
+                </graphic>
             </Button>
 
             <Button fx:id="callingOffButton" onAction="#handleCallingOff" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
@@ -131,7 +147,7 @@
             </Button>
 
             <!-- Picking Up Button with Tooltip -->
-            <Button fx:id="pickingUpButton" onAction="#handlePickingUp" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
+            <Button fx:id="pickingUpButton" onAction="#handlePickingUp" styleClass="sidebar-button-inactive" translateY="40" translateX="-14">
                 <graphic>
                     <ImageView fitWidth="28" fitHeight="29">
                         <Image url="@/images/picking-up.png"/>

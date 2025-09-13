@@ -4,10 +4,11 @@
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.shape.Rectangle?>
+<?import javafx.scene.layout.HBox?>
 
 
 <AnchorPane fx:id="anchorPane" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.HomeController">
-    <Label fx:id="utilizationLabel" text="Lifts on Rent: " layoutX="100" layoutY="30"/>
+    <HBox fx:id="utilizationBox" layoutX="80" layoutY="17" spacing="10"/>
     <Button fx:id="smmTaxButton" text="SMM Tax" layoutX="50" layoutY="50" onAction="#handleSMMTax"/>
     <Button fx:id="syncWithQBButton" text="Sync with QB" layoutX="160" layoutY="50" onAction="#handleSyncWithQB"/>
     <Button fx:id="dbButton" text="Activity" layoutX="50" layoutY="100" onAction="#handleActivity"/>

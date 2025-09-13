@@ -15,8 +15,14 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.Shape;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -57,7 +63,8 @@ public class HomeController extends BaseController {
     private ScissorLift scissorLift;
 
     @FXML
-    private Label utilizationLabel;
+    private HBox utilizationBox; 
+
 
     private List<Stage> stages = new ArrayList<>();
 
@@ -72,8 +79,7 @@ public class HomeController extends BaseController {
         System.out.println("checkpoint 1");
         super.initialize(dragArea);
         animateSourceCodeLabel();
-        utilizationLabel.setText(utilizationLabel.getText() + countUniqueLiftIds());
-
+        updateUtilizationLabels(utilizationBox);
         // clear these to opt out of saving the most recent activity view settings
         MaxReachPro.setSelectedStatusSetting(null);
         MaxReachPro.setSelectedDriverName(null);
@@ -191,27 +197,124 @@ public class HomeController extends BaseController {
         timeline.play();
     }
 
-    private int countUniqueLiftIds() {
-        String query = "SELECT DISTINCT lift_id FROM rental_items WHERE item_status = 'active'";
-        int uniqueCount = 0;
-
+    private int countRowsByStatus(String status) {
+        String query = """
+            SELECT COUNT(*) AS total
+            FROM rental_items ri
+            JOIN rental_orders ro ON ri.rental_order_id = ro.rental_order_id
+            WHERE ri.item_status = ?
+              AND ro.customer_id <> ?
+        """;
+    
+        int count = 0;
+    
         try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-             PreparedStatement preparedStatement = connection.prepareStatement(query);
-             ResultSet resultSet = preparedStatement.executeQuery()) {
-
-            while (resultSet.next()) {
-                int liftId = resultSet.getInt("lift_id");
-                if (liftId < 1001 || liftId > 1008) {
-                    uniqueCount++;
+             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+    
+            preparedStatement.setString(1, status);
+            preparedStatement.setString(2, Config.A_TEST_CUSTOMER_ID);
+    
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                if (resultSet.next()) {
+                    count = resultSet.getInt("total");
                 }
             }
+    
         } catch (SQLException e) {
-            System.err.println("Error counting unique lift IDs: " + e.getMessage());
+            System.err.println("ERROR: SQL exception for status " + status + ": " + e.getMessage());
             e.printStackTrace();
-            return -1; // Error indicator
+            return -1;
         }
+    
+        return count;
+    }
+    
+    
+    
+    private void updateUtilizationLabels(Pane statusPane) {
+        if (statusPane == null) {
+            System.out.println("ERROR: statusPane is null!");
+            return;
+        }
+        statusPane.getChildren().clear();
 
-        return uniqueCount;
+        int calledOffCount = countRowsByStatus("Called Off");
+        int upcomingCount = countRowsByStatus("Upcoming");
+        int activeCount = countRowsByStatus("Active");  // <-- new status
+
+        // Create shapes
+        Shape calledOffIcon = createRentalDot(null, "Called Off");
+        Shape upcomingIcon = createRentalDot(null, "Upcoming");
+        Shape activeIcon = createRentalDot(null, "Active");  // <-- new status
+
+        // Position icons
+        calledOffIcon.setLayoutX(30);
+        calledOffIcon.setLayoutY(20);
+        upcomingIcon.setLayoutX(100);
+        upcomingIcon.setLayoutY(20);
+        activeIcon.setLayoutX(170);  // <-- spaced to the right
+        activeIcon.setLayoutY(20);
+
+        // Create labels
+        Label calledOffLabel = new Label(String.valueOf(calledOffCount));
+        calledOffLabel.setLayoutX(23);
+        calledOffLabel.setLayoutY(40);
+
+        Label upcomingLabel = new Label(String.valueOf(upcomingCount));
+        upcomingLabel.setLayoutX(93);
+        upcomingLabel.setLayoutY(40);
+
+        Label activeLabel = new Label(String.valueOf(activeCount));  // <-- new status
+        activeLabel.setLayoutX(163);
+        activeLabel.setLayoutY(40);
+
+        // Add to pane
+        statusPane.getChildren().addAll(calledOffIcon, calledOffLabel, upcomingIcon, upcomingLabel, activeIcon, activeLabel);
     }
 
+    private Shape createRentalDot(Rental rental, String status) {
+        Shape dotShape;
+    
+        if ("Called Off".equals(status)) {
+            // Red octagon
+            double radius = 7;
+            Polygon octagon = new Polygon();
+            for (int i = 0; i < 8; i++) {
+                double angle = Math.toRadians(45 * i + 22.5);
+                double px = radius * Math.cos(angle);
+                double py = radius * Math.sin(angle);
+                octagon.getPoints().addAll(px, py);
+            }
+            dotShape = octagon;
+            dotShape.setFill(Color.RED);
+    
+        } else if ("Upcoming".equals(status)) {
+            // Original primary color circle
+            Circle circle = new Circle(0, 0, 7);
+            circle.setFill(Color.web(Config.getPrimaryColor()));
+            dotShape = circle;
+    
+        } else if ("Active".equals(status)) {
+            // New green circle
+            Circle circle = new Circle(0, 0, 7);
+            circle.setFill(Color.GREEN);
+            dotShape = circle;
+    
+        } else {
+            // Default fallback
+            Circle circle = new Circle(0, 0, 7);
+            circle.setFill(Color.GRAY);
+            dotShape = circle;
+        }
+    
+        // Stroke logic
+        String strokeUnderneath = Config.COLOR_TEXT_MAP.get(Config.getPrimaryColor()) == 1
+            ? Config.getTertiaryColor()
+            : "WHITE";
+        dotShape.setStroke(Color.web(strokeUnderneath));
+        dotShape.setStrokeWidth(2);
+    
+        return dotShape;
+    }
+    
 }
