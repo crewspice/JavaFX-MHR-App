@@ -1371,7 +1371,7 @@ public class ServiceController extends BaseController {
         return color.getRed() < 0.15 && color.getGreen() < 0.15 && color.getBlue() < 0.15;
     }
 
-        private boolean isBusinessDay(LocalDate date) {
+    private boolean isBusinessDay(LocalDate date) {
         return !(date.getDayOfWeek() == DayOfWeek.SATURDAY ||
                 date.getDayOfWeek() == DayOfWeek.SUNDAY ||
                 Config.COMPANY_HOLIDAYS.contains(date));

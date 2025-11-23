@@ -89,6 +89,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
@@ -98,6 +99,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -122,12 +124,15 @@ public class MapController {
     private Rectangle mapArea = new Rectangle(); // The area where the map (dots) will be placed
     private Pane mapContainer;
     private ImageView metroMapView;
+    private ImageView hqIcon;
     private double zoomFactor = 1.0;
     private Random random = new Random();
     
     //
     private double[] mapBounds = {40.814076, -104.377137, 39.391122, -105.468393};
     private double[] visibleBounds = {0, 0, 0, 0};
+    private double hqLat = 39.79503384433233;
+    private double hqLon = -104.93205143793766;    
     private double lastDragX = -1;
     private double lastDragY = -1;
     // Number of random dots to generate
@@ -203,7 +208,7 @@ public class MapController {
     private String[] truckNames = {"25", "06", "08", "16", "20"};
     private Timeline progressTicker;
     private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-
+    private List<Timeline> activeTimelines = new ArrayList<>();
 
     @FXML
     private void initialize() {
@@ -438,13 +443,15 @@ public class MapController {
         CompletableFuture.runAsync(() -> {
             // Only background work here
             loadRentalDataFromAPI();
+            System.out.println("finished load");
         }).thenRun(() -> {
             // All UI updates happen together here
             Platform.runLater(() -> {
                 plotRentalLocations();
                 updateTruckCoordinates();
                 updateTrucks(true);
-                reflectRoutingData();
+              //  reflectRoutingDataFromApi();
+                syncRoutesFromServer();
                 updateRoutePolylines();
                 setupLiveDriveProgressions();
             });
@@ -539,10 +546,14 @@ public class MapController {
         String apiUrl = "http://5.78.73.173:8080/routes/stops";
 
         try {
+   //         System.out.println("===== STEP 1: Starting API fetch from: " + apiUrl);
+
             // Call the API
             URL url = new URL(apiUrl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(10000);
 
             BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
             StringBuilder responseBuilder = new StringBuilder();
@@ -551,6 +562,8 @@ public class MapController {
                 responseBuilder.append(line);
             }
             reader.close();
+
+     //       System.out.println("===== STEP 2: API fetch complete, parsing JSON...");
 
             // Parse JSON and extract list of IDs
             JsonArray jsonArray = JsonParser.parseString(responseBuilder.toString()).getAsJsonArray();
@@ -566,141 +579,151 @@ public class MapController {
                 }
             }
 
+     //       System.out.println("===== STEP 3: Parsed stops: " + rentalIds.size() +
+      //              " rentals, " + serviceIds.size() + " services.");
+
             if (rentalIds.isEmpty() && serviceIds.isEmpty()) {
-                System.out.println("No stops received from API.");
+       //         System.out.println("===== No stops received from API. Clearing rentalsForCharting...");
                 rentalsForCharting = new ArrayList<>();
                 return;
             }
 
-            // SQL query that filters by rental_item_id from API
-            StringBuilder placeholders = new StringBuilder("?");
-            for (int i = 1; i < rentalIds.size(); i++) {
-                placeholders.append(",?");
-            }
+            // ---------------- RENTALS ----------------
+            if (!rentalIds.isEmpty()) {
+      //          System.out.println("===== STEP 4A: Preparing SQL query for " + rentalIds.size() + " rentals...");
 
-            // OBFUSCATE_OFF
-            String query = """
-                SELECT ro.customer_id, c.customer_name, ri.item_delivery_date, ri.item_call_off_date, ro.po_number,
-                    ordered_contacts.first_name AS ordered_contact_name, ordered_contacts.phone_number AS ordered_contact_phone,
-                    ri.auto_term, ro.site_name, ro.street_address, ro.city, ri.rental_item_id, ri.item_status, l.lift_type,
-                    l.serial_number, ro.single_item_order, ri.rental_order_id, ro.longitude, ro.latitude,
-                    site_contacts.first_name AS site_contact_name, site_contacts.phone_number AS site_contact_phone,
-                    ri.driver, ri.driver_number, ri.driver_initial, ri.delivery_truck, ri.pick_up_truck, ri.delivery_time, 
-                    ri.invoice_composed, ri.location_notes, ri.pre_trip_instructions
-                FROM customers c
-                JOIN rental_orders ro ON c.customer_id = ro.customer_id
-                JOIN rental_items ri ON ro.rental_order_id = ri.rental_order_id
-                JOIN lifts l ON ri.lift_id = l.lift_id
-                LEFT JOIN contacts AS ordered_contacts ON ri.ordered_contact_id = ordered_contacts.contact_id
-                LEFT JOIN contacts AS site_contacts ON ri.site_contact_id = site_contacts.contact_id
-                WHERE ri.rental_item_id IN (%s)
-            """.formatted(placeholders);
-            // OBFUSCATE_ON
-
-
-            try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-                PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-
-                for (int i = 0; i < rentalIds.size(); i++) {
-                    preparedStatement.setInt(i + 1, rentalIds.get(i));
+                StringBuilder placeholders = new StringBuilder("?");
+                for (int i = 1; i < rentalIds.size(); i++) {
+                    placeholders.append(",?");
                 }
 
-                try (ResultSet rs = preparedStatement.executeQuery()) {
-                    rentalsForCharting = new ArrayList<>();
+                String query = """
+                    SELECT ro.customer_id, c.customer_name, ri.item_delivery_date, ri.item_call_off_date, ro.po_number,
+                        ordered_contacts.first_name AS ordered_contact_name, ordered_contacts.phone_number AS ordered_contact_phone,
+                        ri.auto_term, ro.site_name, ro.street_address, ro.city, ri.rental_item_id, ri.item_status, l.lift_type,
+                        l.serial_number, ro.single_item_order, ri.rental_order_id, ro.longitude, ro.latitude,
+                        site_contacts.first_name AS site_contact_name, site_contacts.phone_number AS site_contact_phone,
+                        ri.driver, ri.driver_number, ri.driver_initial, ri.delivery_truck, ri.pick_up_truck, ri.delivery_time, 
+                        ri.invoice_composed, ri.location_notes, ri.pre_trip_instructions
+                    FROM customers c
+                    JOIN rental_orders ro ON c.customer_id = ro.customer_id
+                    JOIN rental_items ri ON ro.rental_order_id = ri.rental_order_id
+                    JOIN lifts l ON ri.lift_id = l.lift_id
+                    LEFT JOIN contacts AS ordered_contacts ON ri.ordered_contact_id = ordered_contacts.contact_id
+                    LEFT JOIN contacts AS site_contacts ON ri.site_contact_id = site_contacts.contact_id
+                    WHERE ri.rental_item_id IN (%s)
+                """.formatted(placeholders);
 
-                    while (rs.next()) {
-                        Rental rental = new Rental(
-                            rs.getString("customer_id"),
-                            rs.getString("customer_name"),
-                            rs.getString("item_delivery_date"),
-                            rs.getString("item_call_off_date"),
-                            rs.getString("po_number"),
-                            rs.getString("ordered_contact_name"),
-                            rs.getString("ordered_contact_phone"),
-                            rs.getBoolean("auto_term"),
-                            rs.getString("site_name"),
-                            rs.getString("street_address"),
-                            rs.getString("city"),
-                            rs.getInt("rental_item_id"),
-                            rs.getString("serial_number"),
-                            rs.getBoolean("single_item_order"),
-                            rs.getInt("rental_order_id"),
-                            rs.getString("site_contact_name"),
-                            rs.getString("site_contact_phone"),
-                            rs.getDouble("latitude"),
-                            rs.getDouble("longitude"),
-                            rs.getString("lift_type"),
-                            rs.getString("item_status")
-                        );
-                        rental.setDriver(rs.getString("driver"));
-                        rental.setDriverInitial(rs.getString("driver_initial"));
-                        rental.setDriverNumber(rs.getInt("driver_number"));
-                        rental.setDeliveryTruck(rs.getString("delivery_truck"));
-                        rental.setPickUpTruck(rs.getString("pick_up_truck"));
-                        rental.setDeliveryTime(rs.getString("delivery_time"));
-                        rental.setInvoiceComposed(rs.getBoolean("invoice_composed"));
-                        rental.decapitalizeLiftType();
-                        rental.setLocationNotes(rs.getString("location_notes"));
-                        rental.setPreTripInstructions(rs.getString("pre_trip_instructions"));
-                        rentalsForCharting.add(rental);
+                try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+                    PreparedStatement preparedStatement = connection.prepareStatement(query)) {
 
+                    for (int i = 0; i < rentalIds.size(); i++) {
+                        preparedStatement.setInt(i + 1, rentalIds.get(i));
+                    }
+
+       //             System.out.println("===== STEP 4B: Executing rental query...");
+                    try (ResultSet rs = preparedStatement.executeQuery()) {
+                        rentalsForCharting = new ArrayList<>();
+                        int rentalCount = 0;
+
+                        while (rs.next()) {
+                            Rental rental = new Rental(
+                                    rs.getString("customer_id"),
+                                    rs.getString("customer_name"),
+                                    rs.getString("item_delivery_date"),
+                                    rs.getString("item_call_off_date"),
+                                    rs.getString("po_number"),
+                                    rs.getString("ordered_contact_name"),
+                                    rs.getString("ordered_contact_phone"),
+                                    rs.getBoolean("auto_term"),
+                                    rs.getString("site_name"),
+                                    rs.getString("street_address"),
+                                    rs.getString("city"),
+                                    rs.getInt("rental_item_id"),
+                                    rs.getString("serial_number"),
+                                    rs.getBoolean("single_item_order"),
+                                    rs.getInt("rental_order_id"),
+                                    rs.getString("site_contact_name"),
+                                    rs.getString("site_contact_phone"),
+                                    rs.getDouble("latitude"),
+                                    rs.getDouble("longitude"),
+                                    rs.getString("lift_type"),
+                                    rs.getString("item_status")
+                            );
+                            rental.setDriver(rs.getString("driver"));
+                            rental.setDriverInitial(rs.getString("driver_initial"));
+                            rental.setDriverNumber(rs.getInt("driver_number"));
+                            rental.setDeliveryTruck(rs.getString("delivery_truck"));
+                            rental.setPickUpTruck(rs.getString("pick_up_truck"));
+                            rental.setDeliveryTime(rs.getString("delivery_time"));
+                            rental.setInvoiceComposed(rs.getBoolean("invoice_composed"));
+                            rental.decapitalizeLiftType();
+                            rental.setLocationNotes(rs.getString("location_notes"));
+                            rental.setPreTripInstructions(rs.getString("pre_trip_instructions"));
+                            rentalsForCharting.add(rental);
+                            rentalCount++;
+                        }
+         //               System.out.println("===== STEP 4C: Loaded " + rentalCount + " rentals from DB.");
                     }
                 }
+            } else {
+       //         System.out.println("===== STEP 4: No rentalIds provided, skipping rental query.");
             }
 
-            if (serviceIds == null || serviceIds.isEmpty()) {
-                System.out.println("No serviceIds provided, skipping query.");
-                return;
-            }            
+            // ---------------- SERVICES ----------------
+            if (serviceIds != null && !serviceIds.isEmpty()) {
+        //        System.out.println("===== STEP 5A: Preparing SQL query for " + serviceIds.size() + " services...");
 
-            placeholders = new StringBuilder("?");
-            for (int i = 1; i < serviceIds.size(); i++) {
-                placeholders.append(",?");
-            }
+                StringBuilder placeholders = new StringBuilder("?");
+                for (int i = 1; i < serviceIds.size(); i++) {
+                    placeholders.append(",?");
+                }
 
             // OBFUSCATE OFF
-            query = """
-                SELECT
-                    s.*,
-                    ri.rental_order_id,
-                    ri.lift_id,
-                    ri.customer_ref_number,
-                    ro.*,
-                    c.*,
-                    l.*,
-                    nl.lift_type AS new_lift_type,
-                    nro.site_name AS new_site_name,
-                    nro.street_address AS new_street_address,
-                    nro.city AS new_city,
-                    nro.latitude AS new_latitude,
-                    nro.longitude AS new_longitude,
-                    ordered_contacts.first_name AS ordered_contact_name,
-                    ordered_contacts.phone_number AS ordered_contact_phone,
-                    site_contacts.first_name AS site_contact_name,
-                    site_contacts.phone_number AS site_contact_phone
-                FROM services s
-                JOIN rental_items ri ON s.rental_item_id = ri.rental_item_id
-                JOIN rental_orders ro ON ri.rental_order_id = ro.rental_order_id
-                JOIN customers c ON ro.customer_id = c.customer_id
-                LEFT JOIN lifts l ON ri.lift_id = l.lift_id
-                LEFT JOIN lifts nl ON s.new_lift_id = nl.lift_id
-                LEFT JOIN rental_orders nro ON s.new_rental_order_id = nro.rental_order_id
-                LEFT JOIN contacts AS ordered_contacts ON s.ordered_contact_id = ordered_contacts.contact_id
-                LEFT JOIN contacts AS site_contacts ON s.site_contact_id = site_contacts.contact_id
-                WHERE s.service_id in (%s)
-            """.formatted(placeholders);
+            String query = """
+                    SELECT
+                        s.*,
+                        ri.rental_order_id,
+                        ri.lift_id,
+                        ri.customer_ref_number,
+                        ro.*,
+                        c.*,
+                        l.*,
+                        nl.lift_type AS new_lift_type,
+                        nro.site_name AS new_site_name,
+                        nro.street_address AS new_street_address,
+                        nro.city AS new_city,
+                        nro.latitude AS new_latitude,
+                        nro.longitude AS new_longitude,
+                        ordered_contacts.first_name AS ordered_contact_name,
+                        ordered_contacts.phone_number AS ordered_contact_phone,
+                        site_contacts.first_name AS site_contact_name,
+                        site_contacts.phone_number AS site_contact_phone
+                    FROM services s
+                    JOIN rental_items ri ON s.rental_item_id = ri.rental_item_id
+                    JOIN rental_orders ro ON ri.rental_order_id = ro.rental_order_id
+                    JOIN customers c ON ro.customer_id = c.customer_id
+                    LEFT JOIN lifts l ON ri.lift_id = l.lift_id
+                    LEFT JOIN lifts nl ON s.new_lift_id = nl.lift_id
+                    LEFT JOIN rental_orders nro ON s.new_rental_order_id = nro.rental_order_id
+                    LEFT JOIN contacts AS ordered_contacts ON s.ordered_contact_id = ordered_contacts.contact_id
+                    LEFT JOIN contacts AS site_contacts ON s.site_contact_id = site_contacts.contact_id
+                    WHERE s.service_id in (%s)
+                """.formatted(placeholders);
             // OBFUSCATE ON
 
-            try (Connection connServices = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-                PreparedStatement ps = connServices.prepareStatement(query)){
-                    
-                for (int i = 0; i < serviceIds.size(); i++) {
-                    ps.setInt(i + 1, serviceIds.get(i));
-                }
-                
-                ResultSet rs = ps.executeQuery();
+                try (Connection connServices = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+                    PreparedStatement ps = connServices.prepareStatement(query)) {
 
-                while (rs.next()) {
+                    for (int i = 0; i < serviceIds.size(); i++) {
+                        ps.setInt(i + 1, serviceIds.get(i));
+                    }
+
+       //             System.out.println("===== STEP 5B: Executing service query...");
+                    ResultSet rs = ps.executeQuery();
+                    int serviceCount = 0;
+
+                    while (rs.next()) {
                     String customerId = rs.getString("customer_id"); 
                     String name = rs.getString("customer_name");
                     String serviceDate = rs.getString("service_date");
@@ -770,22 +793,28 @@ public class MapController {
     
                     Service service = new Service(serviceId, serviceType, reason, billable,
                          previousServiceId, newRentalOrderId, newLiftId, newLiftType, newSiteName,
-                         newStreetAddress, newCity, newLatitude, newLongitude);
+                         newStreetAddress, newCity, newLatitude, newLongitude, locationNotes, preTripInstructions);
                     rental.setService(service);
     
                     rentalsForCharting.add(rental);
-                    System.out.println("added Rental data object and deliveryTime was: " + rental.getDeliveryTime());
+            //        System.out.println("added Rental data object and deliveryTime was: " + rental.getDeliveryTime());
                 }
 
-            } catch (SQLException e) {
-                e.printStackTrace();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            } else {
+       //         System.out.println("===== STEP 5: No serviceIds provided, skipping service query.");
             }
 
+      //      System.out.println("===== STEP 6: Finished loading rental + service data from API.");
+
         } catch (Exception e) {
-            throw new RuntimeException("Failed to load rental data from API guide", e);
+            System.err.println("===== ERROR: Failed to load rental data from API");
+            e.printStackTrace();
+            throw new RuntimeException("Failed to load rental data from API", e);
         }
     }
-
 
 
     private void loadRentalDataFromSQL() {
@@ -858,37 +887,57 @@ public class MapController {
             SET driver_initial = ?, driver_number = ?, driver = ?, delivery_truck = ?
             WHERE rental_item_id = ?
         """;
-    
+
         String queryUpdateWithoutTruck = """
             UPDATE rental_items
             SET driver_initial = ?, driver_number = ?, driver = ?, delivery_truck = NULL
             WHERE rental_item_id = ?
         """;
-    
+
         String queryClearUnassigned = """
             UPDATE rental_items
             SET driver_initial = NULL, driver_number = 0, driver = NULL, delivery_truck = NULL
             WHERE rental_item_id NOT IN (%s)
         """;
+
+        // Services equivalents (use service_id and truck column)
+        String queryUpdateServiceWithTruck = """
+            UPDATE services
+            SET driver_initial = ?, driver_number = ?, driver = ?, truck = ?
+            WHERE service_id = ?
+        """;
+
+        String queryUpdateServiceWithoutTruck = """
+            UPDATE services
+            SET driver_initial = ?, driver_number = ?, driver = ?, truck = NULL
+            WHERE service_id = ?
+        """;
+
+        String queryClearUnassignedServices = """
+            UPDATE services
+            SET driver_initial = NULL, driver_number = 0, driver = NULL, truck = NULL
+            WHERE service_id NOT IN (%s)
+        """;
         // OBFUSCATE_ON
-    
+
         try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-             PreparedStatement psWithTruck = connection.prepareStatement(queryUpdateWithTruck);
-             PreparedStatement psWithoutTruck = connection.prepareStatement(queryUpdateWithoutTruck)) {
-    
+            PreparedStatement psWithTruck = connection.prepareStatement(queryUpdateWithTruck);
+            PreparedStatement psWithoutTruck = connection.prepareStatement(queryUpdateWithoutTruck);
+            PreparedStatement psWithTruckService = connection.prepareStatement(queryUpdateServiceWithTruck);
+            PreparedStatement psWithoutTruckService = connection.prepareStatement(queryUpdateServiceWithoutTruck)) {
+
             connection.setAutoCommit(false);
-            List<Integer> allAssignedIds = new ArrayList<>();
-    
-            List<String> withTruckBatchPreview = new ArrayList<>();
-            List<String> withoutTruckBatchPreview = new ArrayList<>();
-    
+
+            List<Integer> allAssignedRentalIds = new ArrayList<>();
+            List<Integer> allAssignedServiceIds = new ArrayList<>();
+
             for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
                 String routeKey = entry.getKey();
                 List<Rental> rentals = entry.getValue();
-                String driverInitial = routeAssignments.get(routeKey); 
+                String driverInitial = routeAssignments.get(routeKey);
                 boolean hasTruck = false;
                 String assignedTruckId = null;
-    
+
                 for (Map.Entry<String, String> truckEntry : truckAssignments.entrySet()) {
                     if (truckEntry.getValue().equals(routeKey)) {
                         hasTruck = true;
@@ -896,82 +945,102 @@ public class MapController {
                         break;
                     }
                 }
-    
-    
+
                 String truckString = assignedTruckId;
                 int offset = hasTruck ? 0 : 1;
-    
+
                 for (int i = 0; i < rentals.size(); i++) {
                     Rental rental = rentals.get(i);
-                    int rentalId = rental.getRentalItemId();
-    
-                    // 🚫 Skip "ghost" entries where rentalItemId == 0
-                    if (rentalId == 0) continue;
-    
+
+                    int recordId;
+                    boolean isService = rental.isService();
+                    if (isService) {
+                        // service_id comes from rental.getService().getId()
+                        recordId = rental.getService().getServiceId();
+                    } else {
+                        recordId = rental.getRentalItemId();
+                    }
+
+                    // 🚫 Skip "ghost" entries where id == 0
+                    if (recordId == 0) continue;
+
                     int driverNumber = i + offset;
                     String driverFull = (driverInitial != null) ? driverInitial + driverNumber : null;
-    
-                    if (hasTruck) {
-                        psWithTruck.setString(1, driverInitial);
-                        psWithTruck.setInt(2, driverNumber);
-                        psWithTruck.setString(3, driverFull);
-                        psWithTruck.setString(4, truckString);
-                        psWithTruck.setInt(5, rentalId);
-                        psWithTruck.addBatch();
-    
-                        withTruckBatchPreview.add(
-                            String.format("(%s, %d, %s, %s, %d)", driverInitial, driverNumber, driverFull, truckString, rentalId)
-                        );
+
+                    if (isService) {
+                        if (hasTruck) {
+                            psWithTruckService.setString(1, driverInitial);
+                            psWithTruckService.setInt(2, driverNumber);
+                            psWithTruckService.setString(3, driverFull);
+                            psWithTruckService.setString(4, truckString);
+                            psWithTruckService.setInt(5, recordId);
+                            psWithTruckService.addBatch();
+                        } else {
+                            psWithoutTruckService.setString(1, driverInitial);
+                            psWithoutTruckService.setInt(2, driverNumber);
+                            psWithoutTruckService.setString(3, driverFull);
+                            psWithoutTruckService.setInt(4, recordId);
+                            psWithoutTruckService.addBatch();
+                        }
+                        allAssignedServiceIds.add(recordId);
                     } else {
-                        psWithoutTruck.setString(1, driverInitial);
-                        psWithoutTruck.setInt(2, driverNumber);
-                        psWithoutTruck.setString(3, driverFull);
-                        psWithoutTruck.setInt(4, rentalId);
-                        psWithoutTruck.addBatch();
-    
-                        withoutTruckBatchPreview.add(
-                            String.format("(%s, %d, %s, %d)", driverInitial, driverNumber, driverFull, rentalId)
-                        );
+                        if (hasTruck) {
+                            psWithTruck.setString(1, driverInitial);
+                            psWithTruck.setInt(2, driverNumber);
+                            psWithTruck.setString(3, driverFull);
+                            psWithTruck.setString(4, truckString);
+                            psWithTruck.setInt(5, recordId);
+                            psWithTruck.addBatch();
+                        } else {
+                            psWithoutTruck.setString(1, driverInitial);
+                            psWithoutTruck.setInt(2, driverNumber);
+                            psWithoutTruck.setString(3, driverFull);
+                            psWithoutTruck.setInt(4, recordId);
+                            psWithoutTruck.addBatch();
+                        }
+                        allAssignedRentalIds.add(recordId);
                     }
-    
-                    allAssignedIds.add(rentalId);
                 }
             }
-    
-            // Preview batches
-            // System.out.println("\n🟢 WITH TRUCK Batch Preview:");
-            // for (String row : withTruckBatchPreview) {
-            //     System.out.println(row);
-            // }
-    
-            // System.out.println("\n🟡 WITHOUT TRUCK Batch Preview:");
-            // for (String row : withoutTruckBatchPreview) {
-            //     System.out.println(row);
-            // }
-    
-            // Execute batches
+
+            // Execute all batches
             psWithTruck.executeBatch();
             psWithoutTruck.executeBatch();
-    
-            // Clear unassigned
-            if (!allAssignedIds.isEmpty()) {
-                String inClause = allAssignedIds.stream()
+            psWithTruckService.executeBatch();
+            psWithoutTruckService.executeBatch();
+
+            // Clear unassigned rentals
+            if (!allAssignedRentalIds.isEmpty()) {
+                String inClause = allAssignedRentalIds.stream()
                         .map(String::valueOf)
                         .collect(Collectors.joining(","));
                 String finalClearQuery = String.format(queryClearUnassigned, inClause);
-    
+
                 try (Statement clearStatement = connection.createStatement()) {
                     clearStatement.executeUpdate(finalClearQuery);
                 }
             }
-    
+
+            // Clear unassigned services
+            if (!allAssignedServiceIds.isEmpty()) {
+                String inClauseService = allAssignedServiceIds.stream()
+                        .map(String::valueOf)
+                        .collect(Collectors.joining(","));
+                String finalClearServiceQuery = String.format(queryClearUnassignedServices, inClauseService);
+
+                try (Statement clearStatement = connection.createStatement()) {
+                    clearStatement.executeUpdate(finalClearServiceQuery);
+                }
+            }
+
             connection.commit();
-    
+
         } catch (SQLException e) {
             e.printStackTrace(); // or use a logger
         }
-        sendRoutingToRedisAPI();
+      //  sendRoutingToRedisAPI();
     }
+
     
     private void sendRoutingToRedisAPI() {   
         try {
@@ -1034,6 +1103,8 @@ public class MapController {
                             rental.getPreTripInstructions()
                     );
 
+                    System.out.println("built RoutingRental and truck is: " + assignedTruck);
+
                     if (rental.isService()) {
                         dto.setServiceType(rental.getService().getServiceType());
                         dto.setServiceDate(rental.getDeliveryDate());
@@ -1074,8 +1145,222 @@ public class MapController {
             e.printStackTrace();
         }
     }
-    
-    
+
+    private void sendAddStopToServer(Rental rental, String driverInitial, String truck, List<Rental> route) {
+        try {
+            if (rental == null) {
+                System.err.println("⚠️ Skipping null rental in sendAddStopToServer");
+                return;
+            }
+
+            RoutingRental dto = new RoutingRental(
+                    rental.isService() ? rental.getService().getServiceId() : rental.getRentalItemId(),
+                    rental.getRentalOrderId(),
+                    rental.isService() ? "SERVICE" : "RENTAL",
+                    Config.CUSTOMER_NAME_MAP.getOrDefault(rental.getName(), rental.getName()),
+                    rental.getAddressBlockOne(),
+                    rental.getAddressBlockTwo(),
+                    rental.getAddressBlockThree(),
+                    rental.getLiftType(),
+                    rental.getDeliveryTime(),
+                    rental.getLatitude(),
+                    rental.getLongitude(),
+                    driverInitial,
+                    1, // driverNumber placeholder; can refine if known
+                    truck,
+                    rental.getOrderedByName(),
+                    rental.getOrderedByPhone(),
+                    rental.getSiteContactName(),
+                    rental.getSiteContactPhone(),
+                    rental.getLocationNotes(),
+                    rental.getPreTripInstructions()
+            );
+
+            System.out.println("built RoutingRental and truck is: " + truck);
+
+            if (rental.isService()) {
+                dto.setServiceType(rental.getService().getServiceType());
+                dto.setServiceDate(rental.getDeliveryDate());
+                dto.setReason(rental.getService().getReason());
+                if ("Move".equalsIgnoreCase(rental.getService().getServiceType())) {
+                    dto.setNewSiteName(rental.getService().getNewSiteName());
+                    dto.setNewStreetAddress(rental.getService().getNewStreetAddress());
+                    dto.setNewCity(rental.getService().getNewCity());
+                } else if ("Change Out".equalsIgnoreCase(rental.getService().getServiceType())) {
+                    dto.setNewLiftType(rental.getService().getNewLiftType());
+                }
+            } else {
+                dto.setStatus(rental.getStatus());
+                dto.setDeliveryDate(rental.getDeliveryDate());
+            }
+
+            ObjectMapper mapper = new ObjectMapper();
+            String requestBody = mapper.writeValueAsString(dto);
+
+            String safeDriver = (driverInitial != null)
+                    ? URLEncoder.encode(driverInitial, StandardCharsets.UTF_8)
+                    : "null";
+
+            String safeTruck = (truck != null)
+                    ? URLEncoder.encode(truck, StandardCharsets.UTF_8)
+                    : "null";
+
+            // 🔹 Derive nullRouteId from first stop in the list
+            String nullRouteId = null;
+            if ((truck == null || "null".equals(truck)) && (driverInitial == null || "null".equals(driverInitial))) {
+                if (route != null && !route.isEmpty()) {
+                    Rental first = route.get(0);
+                    nullRouteId = first.isService()
+                            ? String.valueOf(first.getService().getServiceId())
+                            : String.valueOf(first.getRentalItemId());
+                }
+            }
+
+            String url = (nullRouteId != null)
+                    ? String.format("http://5.78.73.173:8080/routes/addStop?driver=%s&truck=%s&nullRouteId=%s",
+                                    safeDriver, safeTruck, nullRouteId)
+                    : String.format("http://5.78.73.173:8080/routes/addStop?driver=%s&truck=%s",
+                                    safeDriver, safeTruck);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
+
+            HttpResponse<String> response = HttpClient.newHttpClient()
+                    .send(request, HttpResponse.BodyHandlers.ofString());
+
+            System.out.println("✅ Sent stop " + rental.getRentalItemId() +
+                    " to route " + truck + "-" + driverInitial + ". Response: " + response.body());
+        } catch (Exception e) {
+            System.err.println("❌ Failed to send add-stop for rental " + rental.getRentalItemId());
+            e.printStackTrace();
+        }
+    }
+
+    private void sendRemoveStopToServer(Integer stopId, String driverInitial, String truck, Integer firstStopId) {
+        try {
+            System.out.println("🔹 sendRemoveStopToServer called");
+            System.out.println("   stopId = " + stopId);
+            System.out.println("   driverInitial = " + driverInitial);
+            System.out.println("   truck = " + truck);
+            System.out.println("   firstStopId = " + firstStopId);
+
+            String safeDriver = (driverInitial != null)
+                    ? URLEncoder.encode(driverInitial, StandardCharsets.UTF_8)
+                    : "null";
+
+            String safeTruck = (truck != null)
+                    ? URLEncoder.encode(truck, StandardCharsets.UTF_8)
+                    : "null";
+
+            String url;
+            if ((truck == null || "null".equals(truck)) && (driverInitial == null || "null".equals(driverInitial)) && firstStopId != null) {
+                // 🔹 Include nullRouteId when removing from a null-null route
+                url = String.format(
+                        "http://5.78.73.173:8080/routes/removeStop?driver=%s&truck=%s&stopId=%d&nullRouteId=%d",
+                        safeDriver, safeTruck, stopId, firstStopId
+                );
+                System.out.println("   🚨 Null driver/truck detected. Using nullRouteId = " + firstStopId);
+            } else {
+                url = String.format(
+                        "http://5.78.73.173:8080/routes/removeStop?driver=%s&truck=%s&stopId=%d",
+                        safeDriver, safeTruck, stopId
+                );
+                System.out.println("   ✅ Using driver/truck combo. No nullRouteId needed.");
+            }
+
+            System.out.println("   🔹 Final DELETE URL: " + url);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .DELETE()
+                    .build();
+
+            HttpResponse<String> response = HttpClient.newHttpClient()
+                    .send(request, HttpResponse.BodyHandlers.ofString());
+
+            System.out.println("✅ Removed stop " + stopId +
+                    " from route " + truck + "-" + driverInitial +
+                    " | nullRouteId=" + firstStopId +
+                    ". Response: " + response.body());
+
+        } catch (Exception e) {
+            System.err.println("❌ Failed to remove stop " + stopId);
+            e.printStackTrace();
+        }
+    }
+
+    private void sendRouteKeyRenameToServer(String oldTruck, String oldDriver, String newTruck, String newDriver, Integer nullRouteId) {
+        try {
+            System.out.println("\n===============================");
+            System.out.println("🚚 sendRouteKeyRenameToServer() CALLED");
+            System.out.println("===============================");
+
+            System.out.println("   oldTruck = " + oldTruck);
+            System.out.println("   oldDriver = " + oldDriver);
+            System.out.println("   newTruck = " + newTruck);
+            System.out.println("   newDriver = " + newDriver);
+            System.out.println("   nullRouteId = " + nullRouteId);
+
+            // 🔐 Encode truck and driver identifiers
+            String safeOldTruck = (oldTruck != null) ? URLEncoder.encode(oldTruck, StandardCharsets.UTF_8) : "null";
+            String safeOldDriver = (oldDriver != null) ? URLEncoder.encode(oldDriver, StandardCharsets.UTF_8) : "null";
+            String safeNewTruck = (newTruck != null) ? URLEncoder.encode(newTruck, StandardCharsets.UTF_8) : "null";
+            String safeNewDriver = (newDriver != null) ? URLEncoder.encode(newDriver, StandardCharsets.UTF_8) : "null";
+
+            System.out.println("🔧 Encoded Params:");
+            System.out.println("   oldTruck=" + safeOldTruck);
+            System.out.println("   oldDriver=" + safeOldDriver);
+            System.out.println("   newTruck=" + safeNewTruck);
+            System.out.println("   newDriver=" + safeNewDriver);
+            System.out.println("   nullRouteId=" + nullRouteId);
+
+            // 🌐 Build URL (include nullRouteId if applicable)
+            String url;
+            if ((oldTruck == null || "null".equals(oldTruck)) &&
+                (oldDriver == null || "null".equals(oldDriver)) &&
+                nullRouteId != null) {
+
+                url = String.format(
+                    "http://5.78.73.173:8080/routes/renameKey?oldTruck=%s&oldDriver=%s&newTruck=%s&newDriver=%s&firstStopId=%d",
+                    safeOldTruck, safeOldDriver, safeNewTruck, safeNewDriver, nullRouteId
+                );
+                System.out.println("   🚨 Null driver/truck detected. Using nullRouteId=" + nullRouteId);
+            } else {
+                url = String.format(
+                    "http://5.78.73.173:8080/routes/renameKey?oldTruck=%s&oldDriver=%s&newTruck=%s&newDriver=%s",
+                    safeOldTruck, safeOldDriver, safeNewTruck, safeNewDriver
+                );
+                System.out.println("   ✅ Normal driver/truck combo. No nullRouteId needed.");
+            }
+
+            System.out.println("🌍 Final URL: " + url);
+
+            // 🚀 Send request
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .PUT(HttpRequest.BodyPublishers.noBody())
+                    .build();
+
+            System.out.println("📡 Sending HTTP PUT request...");
+            HttpResponse<String> res = HttpClient.newHttpClient()
+                    .send(req, HttpResponse.BodyHandlers.ofString());
+
+            System.out.println("✅ Response Status Code: " + res.statusCode());
+            System.out.println("🧾 Response Body: " + res.body());
+            System.out.println("===============================\n");
+
+        } catch (Exception e) {
+            System.err.println("💥 Exception during route key rename:");
+            e.printStackTrace();
+            System.out.println("===============================\n");
+        }
+    }
+
+
+
     private void reflectRoutingData() {
         if (rentalsForCharting == null || rentalsForCharting.isEmpty()) {
             return;
@@ -1160,58 +1445,685 @@ public class MapController {
     }
 
 
-    private List<Rental> findCompletedStops() {
-        List<Rental> completedStops = new ArrayList<>();
-    
-        // Collect all rental_item_ids from routes
-        List<Integer> allItemIds = routes.values().stream()
-            .flatMap(List::stream)
-            .map(Rental::getRentalItemId)
-            .distinct()
-            .toList();
-    
-        if (allItemIds.isEmpty()) return completedStops;
-    
-        // Create a comma-separated list of placeholders (e.g., ?, ?, ?, ...)
-        String placeholders = allItemIds.stream().map(id -> "?").collect(Collectors.joining(", "));
-    
-        String query = "SELECT rental_item_id, item_status FROM rental_items WHERE rental_item_id IN (" + placeholders + ")";
-    
-        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-             PreparedStatement ps = connection.prepareStatement(query)) {
-    
-            // Fill placeholders
-            for (int i = 0; i < allItemIds.size(); i++) {
-                ps.setInt(i + 1, allItemIds.get(i));
+    private void reflectRoutingDataFromApi() {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode apiRoutes = mapper.readTree(
+                new URL("http://5.78.73.173:8080/routes/fetch")
+            );
+
+         //   routes.clear();
+       //     routeAssignments.clear();
+       //     truckAssignments.clear();
+
+            for (JsonNode payload : apiRoutes) {
+                // Parse key: "route:25-J:stops"
+                String rawKey = payload.get("key").asText();
+                String keyPart = rawKey.split(":")[1]; // "25-J" or "null-JC"
+                String[] parts = keyPart.split("-");
+                String truckSignifier = parts[0].equals("null") ? null : parts[0];
+                String driverInitial = parts.length > 1 && !"null".equals(parts[1]) ? parts[1] : null;
+
+                String[] route = getARouteNoPreference();
+                String routeKey = route[0];
+                int routeIndex = Integer.parseInt(route[1]);
+                String[] colors = getRouteColors(routeKey);
+
+                // Resolve rentals
+                List<Rental> resolved = new ArrayList<>();
+                for (JsonNode stop : payload.get("stops")) {
+                    int id = stop.get("id").asInt();
+                    String type = stop.get("type").asText();
+                    Rental rental = resolveRentalByJson(type, id);
+                    if (rental != null) {
+                        resolved.add(rental);
+                    }
+                }
+
+                if (resolved.isEmpty()) continue;
+
+                routes.put(routeKey, resolved);
+                routeAssignments.put(routeKey, driverInitial);
+
+                StackPane vBoxPane = routeVBoxPanes.get(routeIndex);
+                StackPane hBoxPane = routeHBoxPanes.get(routeIndex);
+
+                for (Rental rental : resolved) {
+                    int closestMultiple = resolved.indexOf(rental);
+                    updateRoutePane(routeKey, rental, "insertion", closestMultiple, routeIndex, "program");
+                }
+
+                if (truckSignifier != null) {
+                    addTruckToRoute(routeKey, truckSignifier, "program");
+           //         System.out.println("adding truck to route with: " + 
+             //           routeKey + " as routeKey, " + truckSignifier + " as truckSignifier");
+                    updateInnerTruckLabel(vBoxPane, truckSignifier);
+                    updateInnerTruckLabel(hBoxPane, truckSignifier);
+                    configureTruckDot(driverInitial, truckSignifier, colors);
+                }
+
+                driverLabelsV.get(routeKey).setText(driverInitial != null ? driverInitial : "");
+                driverLabelsH.get(routeKey).setText(driverInitial != null ? driverInitial : "");
             }
-    
-            // Execute query and build status map
-            ResultSet rs = ps.executeQuery();
-            Map<Integer, String> statusMap = new HashMap<>();
-            while (rs.next()) {
-                int id = rs.getInt("rental_item_id");
-                String status = rs.getString("item_status");
-                statusMap.put(id, status);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void syncRoutesFromServer() {
+        System.out.println("\n===============================");
+        System.out.println("🛰️ SYNC ROUTES FROM SERVER — START (" + LocalDateTime.now() + ")");
+        System.out.println("===============================");
+
+        // 🧩 DEBUG: Print all rentals in rentalsForCharting at the start of sync
+       /* if (rentalsForCharting == null) {
+            System.out.println("⚠️ rentalsForCharting is NULL");
+        } else {
+            System.out.println("📊 rentalsForCharting size: " + rentalsForCharting.size());
+            int index = 0;
+            for (Rental rental : rentalsForCharting) {
+                if (rental == null) {
+                    System.out.println("   [" + index + "] ⚠️ Null rental entry");
+                    index++;
+                    continue;
+                }
+
+                int identity = System.identityHashCode(rental);
+                int rentalOrderId = rental.getRentalOrderId();
+                boolean isService = rental.isService();
+
+                System.out.print("   [" + index + "] 🧱 Rental@" + identity +
+                        " | rentalOrderId=" + rentalOrderId +
+                        " | isService=" + isService);
+
+                if (isService && rental.getService() != null) {
+                    System.out.print(" | serviceId=" + rental.getService().getServiceId());
+                }
+
+                System.out.println(); // newline
+                index++;
             }
-    
-            // Find rentals with invalid statuses
-            for (List<Rental> rentalList : routes.values()) {
-                for (Rental rental : rentalList) {
-                    int id = rental.getRentalItemId();
-                    String status = statusMap.get(id);
-                    if (status != null && !(status.equals("Upcoming") || status.equals("Called Off"))) {
-                        completedStops.add(rental);
+        }*/
+
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode apiRoutes = mapper.readTree(new URL("http://5.78.73.173:8080/routes/fetch"));
+            System.out.println("🌐 Successfully fetched JSON payload from server.");
+            System.out.println("📦 Total route payloads: " + apiRoutes.size());
+            System.out.println("--------------------------------");
+
+            Map<String, List<Rental>> jsonRouteStops = new HashMap<>();
+            Map<String, String[]> jsonRouteKeys = new HashMap<>();
+
+            // STEP 1: Parse payloads and resolve rentals
+            for (JsonNode payload : apiRoutes) {
+                String rawKey = payload.get("key").asText();
+                String keyPart = rawKey.split(":")[1];
+                String[] parts = keyPart.split("-");
+
+                String truckSignifier = parts[0].equals("null") ? null : parts[0];
+                String driverInitial = parts.length > 1 && !"null".equals(parts[1]) ? parts[1] : null;
+
+                System.out.println("\n--------------------------------");
+                System.out.println("🧩 Processing route payload:");
+                System.out.println("   ↳ Raw key: " + rawKey);
+                System.out.println("   ↳ Truck: " + truckSignifier + ", Driver: " + driverInitial);
+                System.out.println("   ↳ Stops count: " + payload.get("stops").size());
+
+                List<Rental> resolved = new ArrayList<>();
+                int stopIndex = 0;
+
+                for (JsonNode stop : payload.get("stops")) {
+                    System.out.println("\n   🛑 Stop #" + (++stopIndex));
+                    System.out.println("   🔸 Raw stop JSON: " + stop.toPrettyString());
+
+                    int id = stop.has("id") ? stop.get("id").asInt() : -9999;
+                    String type = stop.has("type") ? stop.get("type").asText() : "UNKNOWN";
+                    System.out.println("   🔹 Parsed fields → Type: " + type + ", ID: " + id);
+
+                    Rental rental = resolveRentalByJson(type, id);
+                    if (rental != null) {
+                        System.out.println("   ✅ Resolved Rental → " + rental);
+                        resolved.add(rental);
+                    } else {
+                        System.out.println("   ❌ Could not resolve Rental for Type=" + type + ", ID=" + id);
+                    }
+                }
+
+                System.out.println("   🧮 Total resolved stops: " + resolved.size());
+                jsonRouteStops.put(rawKey, resolved);
+                jsonRouteKeys.put(rawKey, new String[]{truckSignifier, driverInitial});
+            }
+
+            System.out.println("\n===============================");
+            System.out.println("🗺️ MATCHING JSON ROUTES TO LOCAL ROUTES");
+            System.out.println("===============================");
+
+            Set<String> usedJsonKeys = new HashSet<>();
+
+            // STEP 2: Match each local route to its best JSON counterpart
+            for (String localKey : routes.keySet()) {
+                List<Rental> localRentals = routes.get(localKey);
+                if (localRentals == null) continue;
+
+                System.out.println("\n--------------------------------");
+                System.out.println("🔍 Checking local route: " + localKey + " (" + localRentals.size() + " stops)");
+
+                String bestMatchKey = null;
+                int bestOverlap = 0;
+
+                for (Map.Entry<String, List<Rental>> entry : jsonRouteStops.entrySet()) {
+                    if (usedJsonKeys.contains(entry.getKey())) continue;
+
+                    Set<Integer> localIds = localRentals.stream()
+                            .map(Rental::getRentalItemId)
+                            .collect(Collectors.toSet());
+
+                    Set<Integer> jsonIds = entry.getValue().stream()
+                            .map(Rental::getRentalItemId)
+                            .collect(Collectors.toSet());
+
+                    Set<Integer> intersection = new HashSet<>(localIds);
+                    intersection.retainAll(jsonIds);
+
+                    String serverTruck = jsonRouteKeys.get(entry.getKey())[0];
+                    String serverDriver = jsonRouteKeys.get(entry.getKey())[1];
+
+                    // 🔁 Reverse lookup local truck from truckAssignments (truck → route)
+                    String localTruck = truckAssignments.entrySet().stream()
+                            .filter(e -> Objects.equals(e.getValue(), localKey))
+                            .map(Map.Entry::getKey)
+                            .findFirst()
+                            .orElse(null);
+
+                    String localDriver = routeAssignments.get(localKey);
+
+                    int overlapScore = intersection.size();
+
+                    // 🚛 Truck match bonus (ignore null/null matches)
+                    if (!"null".equals(serverTruck) && serverTruck != null &&
+                        !"null".equals(localTruck) && localTruck != null &&
+                        Objects.equals(serverTruck, localTruck)) {
+                        overlapScore++;
+                        System.out.println("   🚛 Truck match bonus (+1)");
+                    }
+
+                    // 👤 Driver match bonus (ignore null/null matches)
+                    if (!"null".equals(serverDriver) && serverDriver != null &&
+                        !"null".equals(localDriver) && localDriver != null &&
+                        Objects.equals(serverDriver, localDriver)) {
+                        overlapScore++;
+                        System.out.println("   👤 Driver match bonus (+1)");
+                    }
+
+                    System.out.println("   Comparing → " + entry.getKey() +
+                                    " overlap=" + intersection.size() +
+                                    " totalScore=" + overlapScore +
+                                    " | localTruck=" + localTruck +
+                                    ", serverTruck=" + serverTruck +
+                                    ", localDriver=" + localDriver +
+                                    ", serverDriver=" + serverDriver);
+
+                    if (overlapScore > bestOverlap) {
+                        bestOverlap = overlapScore;
+                        bestMatchKey = entry.getKey();
+                    }
+                }
+
+
+
+                if (bestMatchKey == null) {
+                    System.out.println("⚠️ No JSON match found for " + localKey);
+
+                    List<Rental> localRentalsList = routes.get(localKey);
+                    if (localRentalsList != null && !localRentalsList.isEmpty()) {
+                        System.out.println("   🧹 Clearing out local route: " + localKey + 
+                                        " (" + localRentalsList.size() + " stops to remove)");
+
+                        // remove in reverse order to avoid shifting indices
+                        for (int i = localRentalsList.size() - 1; i >= 0; i--) {
+                            Rental r = localRentalsList.get(i);
+                            System.out.println("   ❌ Removing local-only rental: " + r.getRentalItemId() +
+                                            " (isService=" + r.isService() + ")");
+                            removeFromRoute(r, i, getRouteIndex(localKey), "sync", false);
+                        }
+
+                        localRentalsList.clear(); // fully empty the list in memory
+                        System.out.println("   ✅ Cleared route " + localKey);
+                    } else {
+                        System.out.println("   (No rentals to clear for " + localKey + ")");
+                    }
+
+                    continue; // go to next local route
+                }
+
+                usedJsonKeys.add(bestMatchKey);
+                List<Rental> jsonRentals = jsonRouteStops.get(bestMatchKey);
+                String[] keyParts = jsonRouteKeys.get(bestMatchKey);
+                String truckSignifier = keyParts[0];
+                String jsonDriver = keyParts[1];
+
+                System.out.println("\n✅ Matched local " + localKey + " ↔ JSON " + bestMatchKey);
+                System.out.println("   → Overlap count: " + bestOverlap);
+
+                // Determine truck offset
+                int offset = 0;
+                System.out.println("🔹 Starting truck offset calculation...");
+                System.out.println("    truckSignifier = " + truckSignifier);
+                System.out.println("    localRentals size = " + localRentals.size());
+
+                if (truckSignifier != null && !localRentals.isEmpty()) {
+                    System.out.println("🔹 truckSignifier is not null and localRentals is not empty, checking first rental...");
+                    Rental first = localRentals.get(0);
+
+                    System.out.println("    first.getRentalItemId() = " + first.getRentalItemId());
+                    System.out.println("    first.getName() = " + first.getName());
+                    System.out.println("    comparing with \"'\" + truckSignifier = '" + "'" + truckSignifier + "'");
+
+                    if (first.getRentalItemId() == 0/* && first.getName().equals("'" + truckSignifier)*/) {
+                        offset = 1; // skip truck for comparisons
+                        System.out.println("✅ Condition met: offset set to 1 (skip truck for comparisons)");
+                    } else {
+                        System.out.println("⚠️ Condition not met: offset remains 0");
+                    }
+                } else {
+                    if (truckSignifier == null) System.out.println("⚠️ truckSignifier is null");
+                    if (localRentals.isEmpty()) System.out.println("⚠️ localRentals is empty");
+                }
+
+                System.out.println("🔹 Final offset = " + offset);
+
+
+                System.out.println("before process removals each localRentals id is:");
+                for (Rental r : localRentals) {
+                    System.out.println(r.getRentalItemId());
+                }
+
+
+                System.out.println("STEP 3: Process removals (skip truck)");
+                for (int i = offset; i < localRentals.size(); i++) {
+                    System.out.println("inside remove loop and i = " + i);
+                    Rental r = localRentals.get(i);
+
+                    boolean foundMatch = false;
+
+                    for (Rental jsonRental : jsonRentals) {
+                        if (r.isService() && jsonRental.isService()) {
+                            if (r.getService() != null && jsonRental.getService() != null &&
+                                r.getService().getServiceId() == jsonRental.getService().getServiceId()) {
+                                foundMatch = true;
+                                break;
+                            }
+                        } else if (!r.isService() && !jsonRental.isService()) {
+                            if (r.getRentalItemId() == jsonRental.getRentalItemId()) {
+                                foundMatch = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!foundMatch) {
+                        System.out.println("   ❌ Removing rental " + r.getRentalItemId() + " from " + localKey);
+                        System.out.println("local rental id: " + r.getRentalItemId() + ", isService: " + r.isService() + ", not found in json rentals:");
+                        System.out.println("id: " + r);
+
+                        for (Rental ren : jsonRentals) {
+                            System.out.println("json rental id: " + ren.getRentalItemId() + ", isService: " + ren.isService());
+                            System.out.println("id--" + ren);
+                        }
+
+                        removeFromRoute(r, i, getRouteIndex(localKey), "sync", false);
+                        i--; // adjust after removal
+                        System.out.println("   ✅ Removed rental " + r.getRentalItemId());
+                    }
+                }
+
+
+
+                System.out.println("before process additions each localRentals id is:");
+                for (Rental r : localRentals) {
+                    System.out.println(r.getRentalItemId());
+                }
+
+
+                System.out.println("STEP 3: Process additions (skip truck)");
+                for (int i = 0; i < jsonRentals.size(); i++) {
+                    System.out.println("inside add loop and i = " + i);
+
+                    Rental r = jsonRentals.get(i);
+                    int insertIndex = i + offset;
+
+                    boolean existsInLocal = false;
+
+                    // 🔍 Look for an existing matching rental in localRentals
+                    for (Rental local : localRentals) {
+                        if (r.isService() && local.isService()) {
+                            if (r.getService() != null && local.getService() != null &&
+                                r.getService().getServiceId() == local.getService().getServiceId()) {
+                                existsInLocal = true;
+                                break;
+                            }
+                        } else if (!r.isService() && !local.isService()) {
+                            if (Integer.valueOf(r.getRentalItemId()).equals(local.getRentalItemId())) {
+                                System.out.println("   ✅ Match found on RENTAL ITEM ID " + r.getRentalItemId());
+                                existsInLocal = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+
+                    if (!existsInLocal) {
+                        System.out.println("   ➕ Adding rental " + r.getRentalItemId() + " to " + localKey);
+
+                        System.out.println("local rental id: " + r.getRentalItemId() + ", isService: " + r.isService() + ", not found in json rentals:");
+                        System.out.println("id: " + r);
+
+                        for (Rental ren : localRentals) {
+                            System.out.println("json rental id: " + ren.getRentalItemId() + ", isService: " + ren.isService());
+                            System.out.println("id--" + ren);
+                        }
+
+                        if (insertIndex > localRentals.size()) {
+                            insertIndex = localRentals.size(); // guard for index overflow
+                        }
+                        localRentals.add(insertIndex, r);
+
+                        updateRoutePane(localKey, r, "insertion", insertIndex, getRouteIndex(localKey), "sync");
+
+                        System.out.println("   ✅ Added rental " + r.getRentalItemId());
+                    }
+                }
+
+
+                // STEP 4: Driver assignment
+                String currentDriver = routeAssignments.get(localKey);
+                if (!Objects.equals(currentDriver, jsonDriver)) {
+                    System.out.println("   🔄 Driver update: " + currentDriver + " → " + jsonDriver);
+                    routeAssignments.put(localKey, jsonDriver);
+                    handleAssignDriver(routeVBoxPanes.get(getRouteIndex(localKey)), jsonDriver, localKey, getRouteColors(localKey), "sync");
+                }
+
+                // STEP 4: Truck assignment
+                String currentTruck = truckAssignments.entrySet().stream()
+                        .filter(e -> e.getValue().equals(localKey))
+                        .map(Map.Entry::getKey)
+                        .findFirst().orElse(null);
+
+                if (!Objects.equals(currentTruck, truckSignifier)) {
+                    System.out.println("\n🚚 Truck comparison triggered:");
+                    System.out.println("   currentTruck = " + currentTruck);
+                    System.out.println("   truckSignifier = " + truckSignifier);
+                    System.out.println("   Objects.equals(currentTruck, truckSignifier)? " + Objects.equals(currentTruck, truckSignifier));
+
+                    System.out.println("   🔄 Truck update: " + currentTruck + " → " + truckSignifier);
+
+                    if (currentTruck != null) {
+                        System.out.println("   🧹 Removing old truck assignment: " + currentTruck);
+                        truckAssignments.remove(currentTruck);
+                    } else {
+                        System.out.println("   ⏩ Skipped removing old truck — currentTruck is null");
+                    }
+
+                    // if (truckSignifier != null) {
+                    //     System.out.println("   🧩 Adding new truck assignment: " + truckSignifier + " → " + localKey);
+                    //     truckAssignments.put(truckSignifier, localKey);
+                    // } else {
+                    //     System.out.println("   ⚠️ Skipped adding new truck — truckSignifier is null");
+                    // }
+
+                    System.out.println("   🚀 Calling handleAssignTruck() with:");
+                    System.out.println("      routeVBoxPanes index: " + getRouteIndex(localKey));
+                    System.out.println("      routeHBoxPanes index: " + getRouteIndex(localKey));
+                    System.out.println("      truckSignifier: " + truckSignifier);
+                    System.out.println("      routeName: " + localKey);
+
+                    handleAssignTruck(
+                        routeVBoxPanes.get(getRouteIndex(localKey)),
+                        routeHBoxPanes.get(getRouteIndex(localKey)),
+                        truckSignifier,
+                        localKey,
+                        "sync"
+                    );
+                } else {
+                    System.out.println("\n✅ Truck unchanged — skipping update for " + localKey);
+                    System.out.println("   currentTruck = " + currentTruck + ", truckSignifier = " + truckSignifier);
+                }
+
+            }
+
+            // STEP 5: Add new JSON routes not yet matched
+            for (String jsonKey : jsonRouteStops.keySet()) {
+                if (usedJsonKeys.contains(jsonKey)) continue;
+
+                System.out.println("\n🆕 Creating new route for unmatched JSON key: " + jsonKey);
+                String newSlot = IntStream.rangeClosed(1, 5)
+                        .mapToObj(i -> "route" + i)
+                        .filter(r -> !routes.containsKey(r) || routes.get(r).isEmpty())
+                        .findFirst()
+                        .orElse(null);
+
+                if (newSlot == null) {
+                    System.out.println("❗ No available route slots for " + jsonKey);
+                    continue;
+                }
+
+                List<Rental> jsonRentals = jsonRouteStops.get(jsonKey);
+                routes.put(newSlot, new ArrayList<>());
+                usedJsonKeys.add(jsonKey);
+
+                String[] keyParts = jsonRouteKeys.get(jsonKey);
+                String truck = keyParts[0];
+                String driver = keyParts[1];
+
+                System.out.println("📦 Assigning new route " + newSlot +
+                        " (Truck=" + truck + ", Driver=" + driver + ") with " + jsonRentals.size() + " stops");
+
+                if (driver != null && !"null".equals(driver)) routeAssignments.put(newSlot, driver);
+                if (truck != null && !"null".equals(truck)) truckAssignments.put(truck, newSlot);
+
+                boolean placeholderInserted = false;
+                Rental placeholderRental = null;
+
+                // 🧱 STEP 5A: Insert placeholder only if we need to assign a truck
+                if (truck != null && !"null".equalsIgnoreCase(truck)) {
+                    placeholderRental = createHQRental();
+                    placeholderRental.setRentalItemId(-77);
+                    routes.get(newSlot).add(placeholderRental);
+                    updateRoutePane(newSlot, placeholderRental, "insertion", 0, getRouteIndex(newSlot), "sync");
+                    placeholderInserted = true;
+                    System.out.println("🧩 Placeholder stop inserted to enable truck assignment.");
+                }
+
+                // 🚛 STEP 5B: Assign truck and driver if present
+                if (truck != null && !"null".equalsIgnoreCase(truck)) {
+                    addTruckToRoute(newSlot, truck, "sync");
+                    updateInnerTruckLabel(routeVBoxPanes.get(getRouteIndex(newSlot)), truck);
+                    updateInnerTruckLabel(routeHBoxPanes.get(getRouteIndex(newSlot)), truck);
+
+                    if (driver != null && !"null".equalsIgnoreCase(driver)) {
+                        handleAssignDriver(
+                                routeVBoxPanes.get(getRouteIndex(newSlot)),
+                                driver,
+                                newSlot,
+                                getRouteColors(newSlot),
+                                "sync"
+                        );
+                    } else {
+                        System.out.println("🚫 Skipping driver assignment for " + newSlot + " (driver is null or \"null\")");
+                    }
+                } else {
+                    System.out.println("🚫 Skipping truck assignment for " + newSlot + " (truck is null or \"null\")");
+                }
+
+                // 🚚 STEP 5C: Add all real JSON stops
+                for (int i = 0; i < jsonRentals.size(); i++) {
+                    Rental rental = jsonRentals.get(i);
+                    routes.get(newSlot).add(rental);
+                    System.out.println("   ↳ Adding stop " + rental.getRentalItemId());
+                    updateRoutePane(newSlot, rental, "insertion", i, getRouteIndex(newSlot), "sync");
+                }
+
+                // 🧹 STEP 5D: Remove placeholder if it was inserted
+                if (placeholderInserted) {
+                    int routeIndex = getRouteIndex(newSlot);
+                    int placeholderIndex = routes.get(newSlot).indexOf(placeholderRental);
+
+                    if (placeholderIndex != -1) {
+                        removeFromRoute(placeholderRental, placeholderIndex, routeIndex, "sync", true);
+                        System.out.println("🧼 Placeholder removed after truck assignment.");
+                    } else {
+                        System.out.println("⚠️ Placeholder not found in route list when trying to remove.");
                     }
                 }
             }
-    
-        } catch (SQLException e) {
-            throw new RuntimeException("Error checking completed rentals", e);
+
+
+            System.out.println("\n===============================");
+            System.out.println("✅ SYNC COMPLETE (" + LocalDateTime.now() + ")");
+            System.out.println("===============================");
+
+        } catch (Exception e) {
+            System.out.println("❌ Exception during sync: " + e.getMessage());
+            e.printStackTrace();
         }
+    }
+
+    private Rental resolveRentalByJson(String type, int id) {
+        System.out.println("\n🔍 resolveRentalByJson() called → Type: " + type + ", ID: " + id);
+
+        if ("RENTAL".equalsIgnoreCase(type)) {
+            System.out.println("➡️  Resolving as RENTAL type...");
+
+            if (id <= -1) {
+                System.out.println("🏢 Detected HQ Rental (special case: id <= -1)");
+
+                // STEP 1: Look for existing HQ rental in all routes
+                for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
+                    for (Rental r : entry.getValue()) {
+                        if (r.getRentalItemId() == id) {
+                            System.out.println("✅ Found existing HQ Rental in routes: " + r);
+                            return r;
+                        }
+                    }
+                }
+
+                // STEP 2: If not found, create a new HQ rental
+                System.out.println("⚠️ HQ Rental not found in routes → Creating new one");
+                Rental hqRental = createHQRental();
+                hqRental.setRentalItemId(id);
+                if (hqRental != null) {
+                    System.out.println("✅ Successfully created HQ Rental: " + hqRental);
+                } else {
+                    System.out.println("❌ Failed to create HQ Rental!");
+                }
+                return hqRental;
+            }
+
+            // Normal rental lookup in rentalsForCharting
+            System.out.println("🔎 Searching rentalsForCharting for Rental ID: " + id);
+            Optional<Rental> rentalOpt = rentalsForCharting.stream()
+                    .filter(r -> r.getRentalItemId() == id)
+                    .findFirst();
+
+            if (rentalOpt.isPresent()) {
+                System.out.println("✅ Found matching RENTAL: " + rentalOpt.get());
+            } else {
+                System.out.println("❌ No RENTAL found with ID: " + id);
+            }
+            return rentalOpt.orElse(null);
+
+        } else if ("SERVICE".equalsIgnoreCase(type)) {
+            System.out.println("➡️  Resolving as SERVICE type...");
+            System.out.println("🔎 Searching rentalsForCharting for Service ID: " + id);
+
+            Optional<Rental> serviceOpt = rentalsForCharting.stream()
+                    .filter(r -> r.getService() != null && r.getService().getServiceId() == id)
+                    .findFirst();
+
+            if (serviceOpt.isPresent()) {
+                System.out.println("✅ Found matching SERVICE Rental: " + serviceOpt.get());
+            } else {
+                System.out.println("❌ No SERVICE found with Service ID: " + id);
+            }
+            return serviceOpt.orElse(null);
+        }
+
+        System.out.println("⚠️ Unknown type received: " + type + " (returning null)");
+        return null;
+    }
+
     
+    private List<Rental> findCompletedStops() {
+        List<Rental> completedStops = new ArrayList<>();
+
+        try {
+            // 1️⃣ Fetch all live Redis routes from API
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("http://5.78.73.173:8080/routes/fetch"))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                return completedStops;
+            }
+
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(response.body());
+
+            // 2️⃣ Collect all IDs currently present in Redis
+            Set<Integer> redisRentalIds = new HashSet<>();
+            Set<Integer> redisServiceIds = new HashSet<>();
+
+            for (JsonNode routeNode : root) {
+                JsonNode stops = routeNode.get("stops");
+                if (stops != null && stops.isArray()) {
+                    for (JsonNode stop : stops) {
+                        String type = stop.hasNonNull("type") ? stop.get("type").asText() : "";
+                        if (stop.hasNonNull("id") && !stop.get("id").isNull()) {
+                            int id = stop.get("id").asInt();
+                            if ("SERVICE".equalsIgnoreCase(type)) {
+                                redisServiceIds.add(id);
+                            } else if ("RENTAL".equalsIgnoreCase(type)) {
+                                redisRentalIds.add(id);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3️⃣ Compare with local routes
+            for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
+                List<Rental> rentalList = entry.getValue();
+
+                for (Rental rental : rentalList) {
+                    if (rental.isService()) {
+                        int serviceId = rental.getService().getServiceId();
+                        if (!redisServiceIds.contains(serviceId)) {
+                            completedStops.add(rental);
+                        }
+                    } else {
+                        int rentalId = rental.getRentalItemId();
+                        if (rentalId == 0) {
+                            continue;
+                        }
+                        if (!redisRentalIds.contains(rentalId)) {
+                            completedStops.add(rental);
+                        }
+                    }
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         return completedStops;
     }
-    
+
 
 
     /*                                    /*
@@ -1302,21 +2214,91 @@ public class MapController {
 
 
 
-
-    // This method is used to update the position of all dots (rental locations)
     private void updateRentalLocations() {
-        mapContainer.getChildren().removeIf(node -> node instanceof Circle || node instanceof Polygon);
-                
+        createHQ();
+
+        mapContainer.getChildren().removeIf(node ->
+            node instanceof Circle || node instanceof Polygon || node.getStyleClass().contains("offscreen-indicator")
+        );
+
         for (Rental rental : rentalsForCharting) {
             double x = mapLongitudeToX(rental.getLongitude());
             double y = mapLatitudeToY(rental.getLatitude());
 
-
             if (rental.getLongitude() < 0 && rental.getLatitude() > 0) {
                 createMapDot(x, y, rental, rental.getStatus());
             }
+
+            // --- Indicator Logic ---
+            double mapWidth = anchorPane.getWidth();
+            double mapHeight = anchorPane.getHeight();
+
+            boolean offLeft = x < -8;
+            boolean offRight = x > mapWidth + 7;
+            boolean offTop = y < 12;
+            boolean offBottom = y > mapHeight + 6;
+
+            if (offLeft || offRight || offTop || offBottom) {
+                double indicatorX = Math.max(10, Math.min(mapWidth - 10, x));
+                double indicatorY = Math.max(10, Math.min(mapHeight - 10, y));
+
+                // Adjust indicator outward for each side
+                if (offTop) {
+                    indicatorY = 20; // Keep as is (perfect placement)
+                } else if (offLeft) {
+                    indicatorX = 0; // Push left 10px outward
+                } else if (offRight) {
+                    indicatorX = mapWidth - 2; // Push right 10px outward
+                } else if (offBottom) {
+                    indicatorY = mapHeight; // Push down 10px outward
+                }
+
+                Polygon triangle = new Polygon();
+                triangle.getStyleClass().add("offscreen-indicator");
+                double size = 12;
+
+                if (offLeft) {
+                    triangle.getPoints().addAll(
+                        indicatorX + size, indicatorY - size,
+                        indicatorX + size, indicatorY + size,
+                        indicatorX, indicatorY
+                    );
+                } else if (offRight) {
+                    triangle.getPoints().addAll(
+                        indicatorX - size, indicatorY - size,
+                        indicatorX - size, indicatorY + size,
+                        indicatorX, indicatorY
+                    );
+                } else if (offTop) {
+                    triangle.getPoints().addAll(
+                        indicatorX - size, indicatorY + size,
+                        indicatorX + size, indicatorY + size,
+                        indicatorX, indicatorY
+                    );
+                } else if (offBottom) {
+                    triangle.getPoints().addAll(
+                        indicatorX - size, indicatorY - size,
+                        indicatorX + size, indicatorY - size,
+                        indicatorX, indicatorY
+                    );
+                }
+
+                // 🔴 Color based on rental status
+                if ("Called Off".equals(rental.getStatus())) {
+                    triangle.setFill(Color.RED);
+                } else {
+                    triangle.setFill(Color.web(Config.getPrimaryColor()));
+                }
+
+                triangle.setStroke(Color.WHITE);
+                triangle.setStrokeWidth(2);
+                triangle.setOpacity(0.9);
+
+                mapContainer.getChildren().add(triangle);
+            }
         }
     }
+
 
 
     private Polyline[] drawRoutePolyline(List<double[]> polylinePoints, String[] colors) {
@@ -1633,7 +2615,7 @@ public class MapController {
             anchorPane.getChildren().add(mapContainer);
             mapArea.toFront();
             updateTrucks(true);
-
+            createHQ();
             
             for (StackPane truckPane : truckPanes.values()) {
                 mapContainer.getChildren().add(truckPane);
@@ -1642,6 +2624,52 @@ public class MapController {
         } catch (Exception e) {
             System.err.println("Failed to load metro map: " + e.getMessage());
         }
+    }
+
+    private void createHQ() {
+        mapContainer.getChildren().remove(hqIcon);
+        
+        Image shopImg = new Image(getClass().getResourceAsStream("/images/shop.png"));
+        Image recoloredImage = recolorImage(shopImg, Color.web(Config.getTertiaryColor()), Color.web(Config.getPrimaryColor()));
+        hqIcon = new ImageView(recoloredImage);
+        hqIcon.setPickOnBounds(true);
+        hqIcon.setFitWidth(24); // scale to desired size
+        hqIcon.setFitHeight(24);
+        hqIcon.setPreserveRatio(true);
+        double x = mapLongitudeToX(hqLon) - 6;
+        double y = mapLatitudeToY(hqLat) - 7;
+        hqIcon.setTranslateX(x);
+        hqIcon.setTranslateY(y);
+
+        // Register click behavior
+        hqIcon.setOnMouseClicked(event -> {
+            System.out.println("HQ clicked! Opening company details…");
+            anchorPane.getChildren().removeIf(node -> node instanceof PopupDisc);
+            if (lastPopup != null && anchorPane.getChildren().contains(lastPopup)) {
+                anchorPane.getChildren().remove(lastPopup);
+            }
+        
+            // Use HQ center instead of top-left
+            double centerX = hqIcon.getTranslateX() + hqIcon.getFitWidth() / 2;
+            double centerY = hqIcon.getTranslateY() + hqIcon.getFitHeight() / 2;
+        
+            PopupDisc disc = new PopupDisc(this, null, centerX, centerY);
+            anchorPane.getChildren().add(disc);
+            lastPopup = disc;
+        
+            anchorPane.setOnMouseClicked(e -> {
+                if (!disc.getBoundsInParent().contains(e.getX(), e.getY())) {
+                    anchorPane.getChildren().remove(disc);
+                    lastClickedRental = null;
+                    lastPopup = null;
+                }
+            });
+        
+            event.consume();
+        });
+        
+
+        mapContainer.getChildren().add(hqIcon);
     }
 
     private void updateVisibleMapBounds(ImageView metroMapView) {
@@ -1682,14 +2710,12 @@ public class MapController {
     }
 
     private void configureTruckDot(String driverInitial, String truckId, String[] colors) {
-        System.out.printf("▶ Configuring truck dot: driverInitial=%s, truckId=%s%n", driverInitial, truckId);
 
         StackPane truckPane = truckPanes.get(truckId);
         if (truckPane == null) {
             System.out.println("❌ No StackPane found for truckId=" + truckId);
             return;
         }
-        System.out.println("✔ Found truckPane: " + truckPane);
 
         if (truckPane.getChildren().isEmpty() || !(truckPane.getChildren().get(0) instanceof Circle)) {
             System.out.println("❌ First child is missing or not a Circle.");
@@ -1698,14 +2724,12 @@ public class MapController {
 
         Circle truck = (Circle) truckPane.getChildren().get(0);
         truck.setFill(Color.web(colors[0]));
-        System.out.println("✔ Outer truck circle color set to " + colors[0]);
 
         Circle innerTruck = new Circle(6);
         innerTruck.setFill(Color.web(colors[1]));
         innerTruck.setTranslateX(-5);
         innerTruck.setTranslateY(-5);
         truckPane.getChildren().add(innerTruck);
-        System.out.println("✔ Inner truck circle added with color " + colors[1]);
 
         Label driverLabel = new Label(driverInitial);
         driverLabel.setTextFill(Color.web(colors[2]));
@@ -1718,9 +2742,7 @@ public class MapController {
         driverLabel.setWrapText(false);
         driverLabel.setEllipsisString(null);
         truckPane.getChildren().add(driverLabel);
-        System.out.println("✔ Driver label added with initial '" + driverInitial + "' and color " + colors[2]);
 
-        System.out.println("✅ Finished configuring truck dot for truckId=" + truckId);
     }
 
 
@@ -1780,108 +2802,230 @@ public class MapController {
      *            ROUTE EDITING            *
     /*                                     */
 
-
-
-
-        
     public void addStopToRoute(String routeSignifier, Rental rental) {
+        System.out.println("addStopToRoute started and rental: " + rental);
+        boolean isHQ = (rental == null);
+
+        if (isHQ) {
+            rental = createHQRental();
+            setIncrementedHQId(rental);
+            System.out.println("HQ rental detected, creating new HQ rental object...");
+        }
+
+        System.out.println("===== addStopToRoute: Starting for rental ID " + rental.getRentalItemId()
+                + " with routeSignifier=" + routeSignifier);
+
         String matchedRoute = null;
         int index = 99;
+
+        // STEP 1: Determine the target route
         if (routeSignifier == null) {
+            System.out.println("STEP 1: No routeSignifier provided, getting a free route...");
             String[] route = getARouteNoPreference();
             matchedRoute = route[0];
             index = Integer.parseInt(route[1]);
+            System.out.println("STEP 1A: Assigned to " + matchedRoute + " (index=" + index + ")");
         } else {
+            System.out.println("STEP 2: RouteSignifier provided: " + routeSignifier);
+
             // Check if routeSignifier is a driver’s initials
             for (String[] employee : Config.EMPLOYEES) {
                 if (routeSignifier.equals(employee[1]) || routeSignifier.equals(employee[2])) {
-                    // Print routeAssignments before checking for an existing route
+                    System.out.println("STEP 2A: Matched routeSignifier to driver initials: " + routeSignifier);
+
                     int counter = 0;
-                    // Find an existing route assigned to this driver
                     for (Map.Entry<String, String> entry : routeAssignments.entrySet()) {
                         if (entry.getValue() != null && entry.getValue().equals(routeSignifier)) {
                             matchedRoute = entry.getKey();
                             index = counter;
+                            System.out.println("STEP 2B: Found existing route " + matchedRoute
+                                    + " already assigned to driver " + routeSignifier + " (index=" + index + ")");
                             break;
                         }
                         counter++;
                     }
 
-                    // If no assigned route found, assign a new one
                     if (matchedRoute == null) {
                         matchedRoute = "Route " + (routes.size() + 1);
                         index = routes.size();
                         routes.put(matchedRoute, new ArrayList<>());
-                    //    routeAssignments.put(matchedRoute, routeSignifier);
+                        System.out.println("STEP 2C: No existing route, creating new route " + matchedRoute
+                                + " (index=" + index + ")");
                     }
-                    break; // Exit the employee loop since we found a match
+                    break;
                 }
             }
-            // If not a driver initial, treat it as a route name directly
+
+            // If not driver initials, treat as route name
+            System.out.println("STEP 2D: Checking if '" + routeSignifier + "' is in routes...");
+            System.out.println("Current available routes: " + routes.keySet());
+
             if (matchedRoute == null && routes.containsKey(routeSignifier)) {
                 matchedRoute = routeSignifier;
-                index = wordToNumber(matchedRoute.replace("route","")) - 1;
+                index = wordToNumber(matchedRoute.replace("route", "")) - 1;
+                System.out.println("STEP 2D: RouteSignifier is a route name. Using "
+                        + matchedRoute + " (index=" + index + ")");
             }
         }
-        // Add stop to the selected route
+
+        // STEP 4: Add to route
+        routes.computeIfAbsent(matchedRoute, k -> new ArrayList<>());
+        System.out.println("STEP 4: Adding rental " + rental.getRentalItemId() + " to route " + matchedRoute);
         routes.get(matchedRoute).add(rental);
         latestRouteEdited = routes.get(matchedRoute);
-        // Update UI for the route
+
+        // STEP 5: Update UI
+        System.out.println("STEP 5: Updating UI for route " + matchedRoute);
         updateRoutePane(matchedRoute, rental, "insertion", 99, index, "user");
-    
-        if (!rental.isSingleItemOrder()) {
+
+        // STEP 6: Handle multi-item orders
+        if (!isHQ && !rental.isSingleItemOrder()) {
+            System.out.println("STEP 6: Rental is part of multi-item order, adding siblings...");
             int rentalOrderIdToMatch = rental.getRentalOrderId();
+
             for (Rental r : rentalsForCharting) {
-                if (r.getRentalOrderId() == rentalOrderIdToMatch) {
-                    if (r != rental) {
-                        routes.get(matchedRoute).add(r);
-                        updateRoutePane(matchedRoute, r, "insertion", 99, index, "user");
-                    }
+                if (r.getRentalOrderId() == rentalOrderIdToMatch && r != rental) {
+                    System.out.println("STEP 6A: Adding sibling rental " + r.getRentalItemId()
+                            + " from same order " + rentalOrderIdToMatch);
+                    routes.get(matchedRoute).add(r);
+                    updateRoutePane(matchedRoute, r, "insertion", 99, index, "user");
+
+                    // Send each sibling individually
+                    sendAddStopToServer(r, routeAssignments.get(matchedRoute), matchedRoute, routes.get(matchedRoute));
                 }
-            }   
+            }
         }
-    
+
+        // Send the main rental individually
+        sendAddStopToServer(rental, routeAssignments.get(matchedRoute), getTruckIdForRoute(matchedRoute), routes.get(matchedRoute));
+
+        System.out.println("===== addStopToRoute: Finished for rental ID "
+                + rental.getRentalItemId() + " on route " + matchedRoute);
     }
-
-
-
-
-
-
 
 
     private void addTruckToRoute(String routeSignifier, String truckSignifier, String agent) {
+        System.out.println("\n==========================");
+        System.out.println("🚚 addTruckToRoute() CALLED");
+        System.out.println("==========================");
+        System.out.println("Route Signifier: " + routeSignifier);
+        System.out.println("Truck Signifier: " + truckSignifier);
+        System.out.println("Agent: " + agent);
+
+        // Print current truckCoords map state
+        if (truckCoords == null) {
+            System.out.println("❌ truckCoords is NULL!");
+            return;
+        } else {
+            System.out.println("truckCoords keys: " + truckCoords.keySet());
+        }
+
+        // Attempt to fetch truck coordinate array
         double[] truck = truckCoords.get(truckSignifier);
+        if (truck == null) {
+            System.out.println("❌ No coordinates found for truckSignifier: " + truckSignifier);
+            return;
+        } else {
+            System.out.println("✅ truckCoords.get('" + truckSignifier + "') succeeded");
+            System.out.println("truck coordinates: [" + truck[0] + ", " + truck[1] + "]");
+        }
+
         String matchedRoute = null;
         int index = 0;
 
+        System.out.println("routes map keys: " + (routes == null ? "NULL" : routes.keySet()));
 
-        // If not a driver initial, treat it as a route name directly
-        if (matchedRoute == null && routes.containsKey(routeSignifier)) {
+        // Try to identify the matched route
+        if (matchedRoute == null && routes != null && routes.containsKey(routeSignifier)) {
             matchedRoute = routeSignifier;
-            index = wordToNumber(matchedRoute.replace("route","")) - 1;
+            index = wordToNumber(matchedRoute.replace("route", "")) - 1;
+            System.out.println("✅ Matched route found: " + matchedRoute + " (index " + index + ")");
+        } else {
+            System.out.println("⚠️ No direct match found for routeSignifier: " + routeSignifier);
         }
 
+        if (matchedRoute == null) {
+            System.out.println("❌ matchedRoute is still NULL — cannot proceed");
+            return;
+        }
 
+        // Safety print: check routes list structure
+        List<Rental> routeList = routes.get(matchedRoute);
+        if (routeList == null) {
+            System.out.println("❌ routes.get(" + matchedRoute + ") returned NULL!");
+            return;
+        } else {
+            System.out.println("✅ routes.get(" + matchedRoute + ") current size: " + routeList.size());
+        }
+
+        // Try to resolve the city from coordinates
         String city = getCityFromCoordinates(truck[0], truck[1]);
-        Rental truckLocation = new Rental(null, "'" + truckSignifier, null,
-            null, null, null, null, false,
-            "", city, "", 0,
-            null, false, 0, null, null, truck[0],
-            truck[1], "", "");
+        System.out.println("City resolved from coordinates: " + city);
 
+        // Create new Rental instance representing truck
+        System.out.println("🚧 Constructing Rental truckLocation object...");
+        Rental truckLocation = new Rental(
+            null,
+            "'" + truckSignifier,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false,
+            "",
+            city,
+            "",
+            0,
+            null,
+            false,
+            0,
+            null,
+            null,
+            truck[0],
+            truck[1],
+            "",
+            ""
+        );
+        System.out.println("✅ TruckLocation created successfully: " + truckLocation);
 
-        routes.get(matchedRoute).add(0, truckLocation);
+        // Add to route list
+        System.out.println("📝 Attempting to insert truckLocation into routes.get(" + matchedRoute + ")");
+        System.out.println("List size before add: " + routeList.size());
+        routeList.add(0, truckLocation);
+        System.out.println("✅ TruckLocation inserted at index 0. New size: " + routeList.size());
+
+        // Update truckAssignments
+        if (truckAssignments == null) {
+            System.out.println("⚠️ truckAssignments map was NULL — initializing new HashMap");
+            truckAssignments = new HashMap<>();
+        }
         truckAssignments.put(truckSignifier, routeSignifier);
-        
-        updateRoutePane(matchedRoute, truckLocation, "insertion-truck", 0, index, agent);
-        
+        System.out.println("✅ truckAssignments updated: " + truckSignifier + " → " + routeSignifier);
+
+        // Call updateRoutePane
+        System.out.println("🚀 Calling updateRoutePane() with parameters:");
+        System.out.println("  matchedRoute: " + matchedRoute);
+        System.out.println("  truckLocation: " + truckLocation);
+        System.out.println("  agent: " + agent);
+        System.out.println("  index: " + index);
+        System.out.println("  routeList size: " + routeList.size());
+
+        try {
+            updateRoutePane(matchedRoute, truckLocation, "insertion-truck", 0, index, agent);
+            System.out.println("✅ updateRoutePane() completed successfully");
+        } catch (Exception e) {
+            System.out.println("❌ Exception in updateRoutePane() from addTruckToRoute(): " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        System.out.println("==========================");
+        System.out.println("✅ addTruckToRoute() FINISHED");
+        System.out.println("==========================\n");
     }
 
 
-
-
-    private void removeFromRoute(Rental rental, int closestMultiple, int routeIndex) {
+    private void removeFromRoute(Rental rental, int closestMultiple, int routeIndex, String agent, boolean skipServerUpdate) {
         System.out.println("**    removeFromRoute called with:" +
             "\n- closestMultiple: " + closestMultiple +
             "\n- routeIndex: " + routeIndex + " **");
@@ -1900,13 +3044,41 @@ public class MapController {
             System.out.println("closestMultiple out of bounds. Exiting method.");
             return;
         }
-        Rental removed = stopList.remove(closestMultiple);
-        removeCardCovers();
+        String currentTruck = getTruckIdForRoute(routeKey);
+        String currentDriver = routeAssignments.get(routeKey);
         
-        StackPane routeVBoxPane = routeVBoxPanes.get(routeIndex);
+        System.out.println("");
+        System.out.println("🔍 Debug info:");
+        System.out.println("currentTruck = " + currentTruck);
+        System.out.println("closestMultiple = " + closestMultiple);
+        System.out.println("stopList.size() = " + stopList.size());
 
-        updateRoutePane(routeKey, rental, "deletion", closestMultiple, routeIndex, "user");
+        int firstStopId = 0;
+        if (rental.getRentalItemId() != 0) {
+            int firstIndex = currentTruck != null && closestMultiple == 0 ? 1 : 0;
+            System.out.println("➡️ Computed firstIndex = " + firstIndex + 
+                            " (since currentTruck " + 
+                            (currentTruck == null ? "is null" : "is NOT null") +
+                            " and closestMultiple = " + closestMultiple + ")");
+            Rental first = routes.get(routeKey).get(firstIndex);
+            firstStopId = first.isService() ? first.getService().getServiceId() : first.getRentalItemId();
+        }
+
+        routes.get(routeKey).remove(closestMultiple);
+        removeCardCovers();
+        updateRoutePane(routeKey, rental, "deletion", closestMultiple, routeIndex, agent);
+       
+        if (!skipServerUpdate) {
+            if (closestMultiple == 0 && rental.getRentalItemId() == 0) {
+                //    syncRoutingToDB();
+                    sendRouteKeyRenameToServer(currentTruck, currentDriver, "null", "null", firstStopId);
+            } else {
+                    int stopId = rental.isService() ? rental.getService().getServiceId() : rental.getRentalItemId();
+                    sendRemoveStopToServer(stopId, routeAssignments.get(routeKey), getTruckIdForRoute(routeKey), firstStopId);
+            }
+        }
     }
+
     
 
     private void editRouteInventory(Rental rental, int index, int routeKey) {
@@ -1986,20 +3158,26 @@ public class MapController {
         
     
 
-
     private void updateRoutePane(String routeName, Rental rental, String orientation,
                                 int closestMultiple, int index, String agent) {
+
+        System.out.println("=== updateRoutePane() CALLED ===");
+        System.out.println("routeName=" + routeName + ", rental=" + rental
+                + ", orientation=" + orientation
+                + ", closestMultiple=" + closestMultiple
+                + ", index=" + index
+                + ", agent=" + agent);
+        System.out.println("--------------------------------------------------");
 
         StackPane routeHBoxPane2 = routeHBoxPanes.get(index);
 
         int tempIndex = index;
         if (orientation.equals("insertion") && agent.equals("user")) {
             tempIndex = getRouteIndex(routeName);
+            System.out.println("Updated tempIndex to getRouteIndex: " + tempIndex);
         }
         final int routeIndex = tempIndex;
-        // ^ maybe not the optimal way but i think this is needed since this method
-        // contains itself in a setOnAction response
-        
+
         StackPane routeVBoxPane = routeVBoxPanes.get(routeIndex);
         StackPane routeHBoxPane = routeHBoxPanes.get(routeIndex);
         Region routeRegion = routeRegions.get(routeIndex);
@@ -2007,12 +3185,24 @@ public class MapController {
         HBox routeHBox = routeHBoxes.get(routeIndex);
         String[] colors = getRouteColors(routeName);
         List<Rental> route = routes.get(routeName);
+
+        if (route == null) {
+            System.out.println("⚠️ route is null for routeName=" + routeName);
+        } else {
+            System.out.println("route.size()=" + route.size());
+            for (int i = 0; i < route.size(); i++) {
+                System.out.println(" - route[" + i + "]=" + route.get(i));
+            }
+        }
+
         int routeSize;
         if (agent.equals("program")) {
             routeSize = closestMultiple + 1;
         } else {
-            routeSize = route.size();
+            routeSize = route != null ? route.size() : 0;
         }
+        System.out.println("Determined routeSize=" + routeSize);
+
         String numeralRouteName = "route" + String.valueOf(routeIndex + 1);
         Circle pinpointerV = pinpointersV.get(numeralRouteName);
         Circle pinpointerH = pinpointersH.get(numeralRouteName);
@@ -2025,75 +3215,55 @@ public class MapController {
         List<List<double[]>> polylineList = decodedPolylines.get(routeName);
         StackPane pictoralTruckV = pictoralTrucksV.get(numeralRouteName);
         StackPane pictoralTruckH = pictoralTrucksH.get(numeralRouteName);
-        
-/*
-        System.out.println("Updating route pane with: " +
-            "\n- routeName: " + routeName +
-            "\n- rental: " + rental +
-            "\n- orientation: " + orientation +
-            "\n- closestMultiple: " + closestMultiple +
-            "\n- index: " + index + 
-            "\n- routeSize " + routeSize +
-            "-------------------------");
 
-        // Print all child nodes, preserving order
-        System.out.println("Children (pre-update) of routeHBoxPane (index " + index + "):");
-        for (Node child : routeHBoxPane2.getChildren()) {
-            System.out.println(" - " + child);
-        }  */
+        // Print children before filtering
+        // System.out.println("routeVBoxPane children (pre-filter): " + routeVBoxPane.getChildren().size());
+        // for (int i = 0; i < routeVBoxPane.getChildren().size(); i++) {
+        //     System.out.println(" - routeVBoxPane child[" + i + "]=" + routeVBoxPane.getChildren().get(i)
+        //             + ", class=" + routeVBoxPane.getChildren().get(i).getClass().getName());
+        // }
 
+        // System.out.println("routeHBoxPane children (pre-filter): " + routeHBoxPane.getChildren().size());
+        // for (int i = 0; i < routeHBoxPane.getChildren().size(); i++) {
+        //     System.out.println(" - routeHBoxPane child[" + i + "]=" + routeHBoxPane.getChildren().get(i)
+        //             + ", class=" + routeHBoxPane.getChildren().get(i).getClass().getName());
+        // }
+
+        // Filter intermediaries
         List<Node> vInts = routeVBoxPane.getChildren().stream()
             .filter(node -> node.getClass().getName().contains("MapController$"))
             .collect(Collectors.toList());
+        System.out.println("vInts.size()=" + vInts.size());
+        for (int i = 0; i < vInts.size(); i++) {
+            System.out.println(" - vInts[" + i + "]=" + vInts.get(i));
+        }
 
         Map<Integer, Integer> paneIndexToVIntIndex = new LinkedHashMap<>();
-
-      //  System.out.println("vInts contents (pre-update):");
         for (int vIntIdx = 0; vIntIdx < vInts.size(); vIntIdx++) {
             Node n = vInts.get(vIntIdx);
-            
-            // Find the index of this node in the full children list
             int paneIndex = routeVBoxPane.getChildren().indexOf(n);
-            
-            // Map full-list index → vInts index
             paneIndexToVIntIndex.put(paneIndex, vIntIdx);
-
-            // Collect label text
-            // StringBuilder labelText = new StringBuilder();
-            // collectLabelText(n, labelText);
-            
-            // System.out.println(" - " + n + "   text: " + labelText + "   paneIndex=" + paneIndex + ", vIntIndex=" + vIntIdx);
+            System.out.println("Mapping VBoxPane: paneIndex=" + paneIndex + ", vIntIndex=" + vIntIdx);
         }
 
         List<Node> hInts = routeHBoxPane.getChildren().stream()
             .filter(node -> node.getClass().getName().contains("MapController$"))
             .collect(Collectors.toList());
-
-        Map<Integer, Integer> paneIndexToHIntIndex = new LinkedHashMap<>();
-
-  //  System.out.println("hInts contents (pre-update):");
-    for (int hIntIdx = 0; hIntIdx < hInts.size(); hIntIdx++) {
-        Node n = hInts.get(hIntIdx);
-        int paneIndex = routeHBoxPane.getChildren().indexOf(n);
-        paneIndexToHIntIndex.put(paneIndex, hIntIdx);
-/*
-        // Collect label text
-        StringBuilder labelText = new StringBuilder();
-        collectLabelText(n, labelText);
-
-        // Get translateX
-        double tx = n.getTranslateX();
-
-        // Try to get alignment if parent is a StackPane
-        Pos alignment = null;
-        if (n.getParent() instanceof StackPane) {
-            alignment = StackPane.getAlignment(n);
+        System.out.println("hInts.size()=" + hInts.size());
+        for (int i = 0; i < hInts.size(); i++) {
+            System.out.println(" - hInts[" + i + "]=" + hInts.get(i));
         }
 
-        System.out.println(" - " + n
-            + "   text: " + labelText
-            + "   translateX: " + tx);   */
-    }
+        Map<Integer, Integer> paneIndexToHIntIndex = new LinkedHashMap<>();
+        for (int hIntIdx = 0; hIntIdx < hInts.size(); hIntIdx++) {
+            Node n = hInts.get(hIntIdx);
+            int paneIndex = routeHBoxPane.getChildren().indexOf(n);
+            paneIndexToHIntIndex.put(paneIndex, hIntIdx);
+            System.out.println("Mapping HBoxPane: paneIndex=" + paneIndex + ", hIntIndex=" + hIntIdx);
+        }
+
+        System.out.println("=== Finished preamble of updateRoutePane ===");
+
 
 
         if (orientation.equals("insertion")) {
@@ -2327,9 +3497,7 @@ public class MapController {
             System.out.println("[DEBUG] Created vertical chunk: " + rentalChunkV);
             StackPane rentalChunkH = createRentalChunk(rental, colors, "horizontal", routeName, closestMultiple);
 
-            System.out.println("[DEBUG] routeVBox children before add: " + routeVBox.getChildren().size());
             routeVBox.getChildren().add(rentalChunkV);
-            System.out.println("[DEBUG] routeVBox children after add: " + routeVBox.getChildren().size());
             routeHBox.getChildren().add(rentalChunkH);
             routeVBoxPane.setPickOnBounds(false);
             routeHBoxPane.setPickOnBounds(false);
@@ -2346,8 +3514,8 @@ public class MapController {
             int accountForTruck = hasTruckAssigned ? -1 : 0;
 
             ////////////// Print System for child/parent shifting ////////////////
-     //      System.out.println("***///  truckAssignments: " + truckAssignments + "///***"); 
-     /*       System.out.println("📦 routeVBoxPane children BEFORE deletion:");
+            //      System.out.println("***///  truckAssignments: " + truckAssignments + "///***"); 
+            /*       System.out.println("📦 routeVBoxPane children BEFORE deletion:");
             ObservableList<Node> children = routeVBoxPane.getChildren();
             // Print each child
             for (int i = 0; i < children.size(); i++) {
@@ -2666,72 +3834,83 @@ public class MapController {
                 }
             }
         } else if (orientation.equals("insertion-truck")) {
-            Rental firstRental = route.get(0);
-            Rental secondRental = route.get(1);
-        
-            for (int i = 2; i < routeVBoxPane.getChildren().size(); i++) {
-                Node node = routeVBoxPane.getChildren().get(i);
-                if (node instanceof VBox) {
-                    VBox vbox = (VBox) node;
-                    double currentY = vbox.getTranslateY();
-                    vbox.setTranslateY(currentY + cardHeightUnit);
+            System.out.println("=== insertion-truck branch entered ===");
+
+            System.out.println("route.size()=" + route.size());
+            if (route.size() < 2) {
+                System.out.println("⚠️ Route has fewer than 2 rentals! Cannot access firstRental and secondRental safely.");
+            } else {
+                Rental firstRental = route.get(0);
+                Rental secondRental = route.get(1);
+                System.out.println("firstRental=" + firstRental);
+                System.out.println("secondRental=" + secondRental);
+
+                System.out.println("Adjusting routeVBoxPane children positions (i >= 2)...");
+                for (int i = 2; i < routeVBoxPane.getChildren().size(); i++) {
+                    Node node = routeVBoxPane.getChildren().get(i);
+                    System.out.println(" - VBox child[" + i + "]=" + node);
+                    if (node instanceof VBox) {
+                        VBox vbox = (VBox) node;
+                        double currentY = vbox.getTranslateY();
+                        vbox.setTranslateY(currentY + cardHeightUnit);
+                        System.out.println("   Updated translateY: " + vbox.getTranslateY());
+                    }
                 }
-            }
-            
-            for (int i = 2; i < routeHBoxPane.getChildren().size(); i++) {
-                Node node = routeHBoxPane.getChildren().get(i);
-                if (node instanceof HBox) {
-                    HBox hbox = (HBox) node;
-                    double currentX = hbox.getTranslateX();
-                    hbox.setTranslateX(currentX + cardWidthUnit);
+
+                System.out.println("Adjusting routeHBoxPane children positions (i >= 2)...");
+                for (int i = 2; i < routeHBoxPane.getChildren().size(); i++) {
+                    Node node = routeHBoxPane.getChildren().get(i);
+                    System.out.println(" - HBox child[" + i + "]=" + node);
+                    if (node instanceof HBox) {
+                        HBox hbox = (HBox) node;
+                        double currentX = hbox.getTranslateX();
+                        hbox.setTranslateX(currentX + cardWidthUnit);
+                        System.out.println("   Updated translateX: " + hbox.getTranslateX());
+                    }
                 }
-            }            
 
+                RouteInfo googleRoute = new RouteInfo(0, 0, null);
+                try {
+                    googleRoute = getGoogleRoute(
+                        firstRental.getLatitude(), firstRental.getLongitude(),
+                        secondRental.getLatitude(), secondRental.getLongitude()
+                    );
+                } catch (Exception e) {
+                    System.out.println("⚠️ Exception in getGoogleRoute: " + e);
+                }
+                int driveTimeInSeconds = googleRoute.getDurationSeconds();
+                int driveTimeInMinutes = (int) Math.round(driveTimeInSeconds / 60.0);
+                System.out.println("Drive time: " + driveTimeInMinutes + " min");
 
-            RouteInfo googleRoute = new RouteInfo(0, 0, null);
-            try {
-                googleRoute = getGoogleRoute(firstRental.getLatitude(), firstRental.getLongitude(),
-                                    secondRental.getLatitude(), secondRental.getLongitude());
-            } catch (Exception e) {
+                System.out.println("Creating intermediary regions...");
+                Region intermediaryRegionV = createStopIntermediary(driveTimeInMinutes, colors, "vertical");
+                Region intermediaryRegionH = createStopIntermediary(driveTimeInMinutes, colors, "horizontal");
+                VBox intermediaryV = (VBox) intermediaryRegionV;
+                HBox intermediaryH = (HBox) intermediaryRegionH;
+                System.out.println("intermediaryV=" + intermediaryV + ", intermediaryH=" + intermediaryH);
+
+                int singleDigitSpacerV = driveTimeInMinutes < 11 ? 7 : 0;
+                int singleDigitSpacerH = driveTimeInMinutes < 11 ? 10 : 0;
+
+                System.out.println("Adding intermediary regions to panes...");
+                routeVBoxPane.getChildren().add(2, intermediaryV);
+                routeHBoxPane.getChildren().add(0, intermediaryH);
+                StackPane.setAlignment(intermediaryH, Pos.TOP_LEFT);
+
+                System.out.println("Setting translate and clip for intermediary regions...");
+                intermediaryV.setTranslateY((cardHeightUnit) - 26 + singleDigitSpacerV);
+                intermediaryH.setTranslateY(8);
+                intermediaryV.setTranslateX(-1);
+                intermediaryH.setTranslateX((cardWidthUnit) - 27 + singleDigitSpacerH);
+                intermediaryV.setClip(new Rectangle(15, 45));
+
+                System.out.println("Updating polyline and interval lists...");
+                polylineList.add(0, googleRoute.getPolylinePoints());
+                intervalList.add(0, driveTimeInMinutes);
+                updateRoutePolylines();
+
+                System.out.println("Adding rental chunks...");
             }
-            int driveTimeInSeconds = googleRoute.getDurationSeconds();
-            int driveTimeInMinutes = (int) Math.round(driveTimeInSeconds / 60.0);
-
-            // Check if the intermediary VBox is created correctly
-            Region intermediaryRegionV = createStopIntermediary(driveTimeInMinutes, colors, "vertical");
-            Region intermediaryRegionH = createStopIntermediary(driveTimeInMinutes, colors, "horizontal");
-            VBox intermediaryV = (VBox) intermediaryRegionV;
-            HBox intermediaryH = (HBox) intermediaryRegionH;
-            int singleDigitSpacerV = driveTimeInMinutes < 11 ? 7 : 0;
-            int singleDigitSpacerH = driveTimeInMinutes < 11 ? 10 : 0;
-
-            routeVBoxPane.getChildren().add(2, intermediaryV);
-            routeHBoxPane.getChildren().add(0, intermediaryH);
-            StackPane.setAlignment(intermediaryH, Pos.TOP_LEFT);
-            /* 
-            System.out.println("routeVBoxPane children:");
-            for (Node node : routeVBoxPane.getChildren()) {
-                System.out.println(" - " + node);
-            }   */
-            
-            // System.out.println("routeHBoxPane children:");
-            // for (Node node : routeHBoxPane.getChildren()) {
-            //     System.out.println(" - " + node);
-            // }        
-
-            intermediaryV.setTranslateY((cardHeightUnit) - 26 + singleDigitSpacerV);
-            intermediaryH.setTranslateY(8);
-            intermediaryV.setTranslateX(-1);
-            intermediaryH.setTranslateX((cardWidthUnit) - 27 + singleDigitSpacerH);
-            intermediaryV.setClip(new Rectangle(15, 45));
-
-
-            //drawRoutePolyline(googleResults[1], colors);
-            polylineList.add(0, googleRoute.getPolylinePoints());
-            intervalList.add(0, driveTimeInMinutes);
-            //  storedEncodedPolylines.add(googleResults[1]);
-            updateRoutePolylines();
-        
             routeVBoxPane.toFront();
             routeVBox.toFront();
          //   intermediaryH.toFront();
@@ -2882,9 +4061,9 @@ public class MapController {
         routeVBoxPane.setClip(new Rectangle(112, routeSize * cardHeightUnit + 28));
         routeHBoxPane.setClip(new Rectangle((routeSize * cardWidthUnit) + 20, 85));
     
-        if (agent.equals("user")) {
-            syncRoutingToDB();
-        }
+        // if (agent.equals("user")) {
+        //     syncRoutingToDB();
+        // }
 /*
         hInts = routeHBoxPane.getChildren().stream()
             .filter(node -> node.getClass().getName().contains("MapController$"))
@@ -2924,63 +4103,61 @@ public class MapController {
 
     // Creates a visually distinct "chunk" for each Rental stop
     private StackPane createRentalChunk(Rental rental, String[] colors, String orientation, String routeName, int closestMultiple) {
-        VBox labelBox = new VBox(0); // Vertical box with no spacing between elements
+        VBox labelBox = new VBox(0); // Vertical box with no spacing
         StackPane truckPane = new StackPane();
-        StackPane rentalChunk = orientation.equals("horizontal") || orientation.equals("vertical") ?
-             new StackPane(labelBox) : new StackPane(truckPane);
+        StackPane rentalChunk = (orientation.equals("horizontal") || orientation.equals("vertical")) ? new StackPane(labelBox) : new StackPane(truckPane);
         rentalChunk.setAlignment(Pos.TOP_RIGHT);
+
         for (Region node : Arrays.asList(labelBox, truckPane)) {
             node.setPadding(new Insets(0, 10, 0, 10));
             node.setMaxWidth(cardWidthUnit);
             node.setMinWidth(cardWidthUnit);
             node.setMinHeight(cardHeightUnit);
             node.setMaxHeight(cardHeightUnit);
-        
-            if (node instanceof VBox vbox) {
-                vbox.setAlignment(Pos.CENTER);
-            } else if (node instanceof StackPane stackPane) {
-                stackPane.setAlignment(Pos.CENTER);
-            }
-        }
 
+            if (node instanceof VBox vbox) vbox.setAlignment(Pos.CENTER);
+            else if (node instanceof StackPane stackPane) stackPane.setAlignment(Pos.CENTER);
+        }
 
         double endX = (orientation.equals("vertical") || orientation.equals("vertical-truck")) ? 0 : 1;
         double endY = (orientation.equals("vertical") || orientation.equals("vertical-truck")) ? 1 : 0;
-        
-        // Define the gradient between colors[1] and colors[0]
+
         LinearGradient gradient = new LinearGradient(
-            0, 0, endX, endY, // Horizontal gradient
+            0, 0, endX, endY,
             true, CycleMethod.NO_CYCLE,
-            new Stop(0.0, Color.web(colors[0])),        
-            new Stop(0.011, Color.web(colors[0]).interpolate(Color.web(colors[1]), 0.1)), 
-            new Stop(0.061, Color.web(colors[0]).interpolate(Color.web(colors[1]), 0.38)), 
-            new Stop(0.1, Color.web(colors[0]).interpolate(Color.web(colors[1]), 0.95)), 
+            new Stop(0.0, Color.web(colors[0])),
+            new Stop(0.011, Color.web(colors[0]).interpolate(Color.web(colors[1]), 0.1)),
+            new Stop(0.061, Color.web(colors[0]).interpolate(Color.web(colors[1]), 0.38)),
+            new Stop(0.1, Color.web(colors[0]).interpolate(Color.web(colors[1]), 0.95)),
             new Stop(0.5, Color.web(colors[1])),
-            new Stop(0.9, Color.web(colors[0]).interpolate(Color.web(colors[1]), 0.95)), 
-            new Stop(0.939, Color.web(colors[0]).interpolate(Color.web(colors[1]), 0.38)), 
+            new Stop(0.9, Color.web(colors[0]).interpolate(Color.web(colors[1]), 0.95)),
+            new Stop(0.939, Color.web(colors[0]).interpolate(Color.web(colors[1]), 0.38)),
             new Stop(0.989, Color.web(colors[0]).interpolate(Color.web(colors[1]), 0.1)),
-            new Stop(1.0, Color.web(colors[0]))        
+            new Stop(1.0, Color.web(colors[0]))
         );
 
-
-        if (orientation.equals("vertical") || orientation.equals("horizontal")) {
-            // Set the background gradient
+        if (rental.getLiftType().equals("HQ")) {
             labelBox.setBackground(new Background(new BackgroundFill(gradient, CornerRadii.EMPTY, Insets.EMPTY)));
+            labelBox.setStyle("-fx-padding: 5;");
+            Image image = new Image(getClass().getResourceAsStream("/images/shop.png"));
+            Image recoloredImage = recolorImage(image, Color.web(colors[2]), null);
+            ImageView imageView = new ImageView(recoloredImage);
+            imageView.setFitWidth(cardHeightUnit * 0.7);  // scale relative to chunk height
+            imageView.setPreserveRatio(true);
+            imageView.setPickOnBounds(true);
+            labelBox.getChildren().add(imageView);
 
-            // Set a border
+        } else if (orientation.equals("vertical") || orientation.equals("horizontal")) {
+            labelBox.setBackground(new Background(new BackgroundFill(gradient, CornerRadii.EMPTY, Insets.EMPTY)));
             labelBox.setStyle("-fx-padding: 5;");
 
-            // Character limit for truncation (increased to fit the new width)
-            int charLimit = orientation.equals("vertical") ? 20 : 17; // Adjusted for 95px width
+            int charLimit = orientation.equals("vertical") ? 20 : 17;
             int sidePadding = orientation.equals("vertical") ? -2 : 1;
-
-            // Create labels with width-based truncation and set padding for left/right buffer
             Font boldFont = Font.font("System", FontWeight.BOLD, 12);
             Font regularFont = Font.font("System", 12);
             double maxLabelWidth = orientation.equals("vertical") ? 101 : 86;
-            double cityLineDeduction = orientation.equals("verical") ? 26 : 20;
+            double cityLineDeduction = orientation.equals("vertical") ? 26 : 20;
 
-            // Name label (bold)
             String rawName = Config.CUSTOMER_NAME_MAP.getOrDefault(rental.getName(), rental.getName());
             String name = rawName.replace(".", "");
             Label nameLabel = new Label(truncateTextToWidth(name, maxLabelWidth - cityLineDeduction, boldFont));
@@ -2989,19 +4166,64 @@ public class MapController {
             nameLabel.setMaxWidth(maxLabelWidth);
             nameLabel.setPadding(new Insets(0, sidePadding, 0, sidePadding));
 
-            // Address block two (regular)
             Label address2 = new Label(truncateTextToWidth(rental.getAddressBlockTwo(), maxLabelWidth, regularFont));
             address2.setFont(regularFont);
             address2.setStyle("-fx-text-fill: " + colors[2] + ";");
             address2.setMaxWidth(maxLabelWidth);
             address2.setPadding(new Insets(0, sidePadding - 2, 0, sidePadding));
 
-            // Address block three (regular, conditional padding/limit preserved)
-            Label address3 = new Label(truncateTextToWidth(rental.getAddressBlockThree(), maxLabelWidth - cityLineDeduction, regularFont));
+            Label liftType = new Label();
+            rentalChunk.getChildren().add(liftType);
+            liftType.setAlignment(Pos.BOTTOM_RIGHT);
+            liftType.setStyle("-fx-font-weight: bold; -fx-text-fill: " + colors[2] + ";");
+
+            Label address3 = new Label();
             address3.setFont(regularFont);
             address3.setStyle("-fx-text-fill: " + colors[2] + ";");
             address3.setMaxWidth(maxLabelWidth);
             address3.setPadding(new Insets(0, sidePadding, 0, sidePadding));
+
+            if (rental.isService() && "Change Out".equals(rental.getService().getServiceType())) {
+                String oldLift = rental.getLiftType();
+                String newLift = rental.getService().getNewLiftType();
+
+                Polygon arrow = new Polygon(0.0, 0.0, 6.0, 5.0, 0.0, 10.0);
+                arrow.setFill(Color.web(colors[2]));
+
+                Label oldLiftLabel = new Label(oldLift);
+                oldLiftLabel.setFont(boldFont);
+                oldLiftLabel.setTextFill(Color.web(colors[2]));
+                Label newLiftLabel = new Label(newLift);
+                newLiftLabel.setFont(boldFont);
+                newLiftLabel.setTextFill(Color.web(colors[2]));
+
+                HBox liftBox = new HBox(2);
+                liftBox.getChildren().addAll(oldLiftLabel, arrow, newLiftLabel);
+                liftBox.setAlignment(Pos.CENTER_RIGHT);
+
+                // Measure arrow + lift width to truncate address3
+                Text arrowMeasure = new Text("➤"); // approximate width
+                arrowMeasure.setFont(boldFont);
+                double liftWidth = oldLiftLabel.getWidth() + 6 + newLiftLabel.getWidth() + 4;
+                address3.setText(truncateTextToWidth(rental.getAddressBlockThree(),
+                        maxLabelWidth - (cityLineDeduction * 1.8) - liftWidth, regularFont));
+
+                rentalChunk.getChildren().add(liftBox);
+                StackPane.setAlignment(liftBox, Pos.BOTTOM_RIGHT);
+                liftBox.setTranslateY(orientation.equals("vertical") ? 17 : 9);
+
+            } else {
+                address3.setText(truncateTextToWidth(rental.getAddressBlockThree(), maxLabelWidth - cityLineDeduction, regularFont));
+                liftType.setText(rental.getLiftType());
+                liftType.setFont(Font.font("System", FontWeight.BOLD, 12));
+            }
+
+            StackPane.setAlignment(liftType, Pos.BOTTOM_RIGHT);
+            int liftTypeTranslateX = orientation.equals("vertical") ? -3 : -8;
+            liftType.setTranslateX(liftTypeTranslateX);
+            if (orientation.equals("horizontal") || orientation.equals("horizontal-truck")) {
+                liftType.setTranslateY(-17);
+            }
 
             if (orientation.equals("horizontal")) {
                 nameLabel.setTranslateX(-2);
@@ -3009,22 +4231,7 @@ public class MapController {
                 address3.setTranslateX(-2);
             }
 
-            Label liftType = new Label(rental.getLiftType());
-            rentalChunk.getChildren().add(liftType);
-            liftType.setAlignment(Pos.BOTTOM_RIGHT);
-            liftType.setStyle("-fx-font-weight: bold; -fx-text-fill: " + colors[2] + ";");
-            int liftTypeTranslateX = orientation.equals("vertical") ? -3 : -8;
-            liftType.setTranslateX(liftTypeTranslateX);
-            StackPane.setAlignment(liftType, Pos.BOTTOM_RIGHT);
-            if (orientation.equals("horizontal") || orientation.equals("horizontal-truck")) {
-                liftType.setTranslateY(-17);
-            }
-
-            // Add labels to the VBox
-          //  if (orientation.equals("horizontal-truck") || orientation.equals("vertical-truck")) {
             labelBox.getChildren().addAll(nameLabel, address2, address3);
-
-
 
             if (rental.isService()) {
                 String serviceType = rental.getService().getServiceType();
@@ -3036,19 +4243,42 @@ public class MapController {
                     case "Move" -> imagePath = "/images/move.png";
                     default -> imagePath = "/images/move.png";
                 }
+                ImageView imageView = null;
+
+                URL url = getClass().getResource(imagePath);
+                if (url == null) {
+                    System.err.println("❌ Resource not found: " + imagePath);
+                }
+
+
+                Image image = new Image(url.toExternalForm());
+
+                if (image.isError()) {
+                    System.err.println("⚠️ Image failed to decode properly. Returning early.");
+                }
+
+                Color color;
+                if (routeName.equals("routeThree")) {
+                    color = Color.web(colors[2]);
+                } else {
+                    color = Color.web("#FFFFFF");
+                }
+                System.out.println("🎨 Using color: " + color);
+
+                Image recoloredImage = recolorImage(image, color, null);
+                System.out.println("✅ Made it through recolorImage()");
+                recoloredImage = image; // fallback to original
             
-                Image image = new Image(getClass().getResourceAsStream(imagePath));
-                ImageView imageView = new ImageView(image);   // <-- create an ImageView
+                imageView = new ImageView(recoloredImage);
                 imageView.setFitWidth(20);
-                imageView.setPreserveRatio(true);            // so the aspect ratio isn’t distorted
+                imageView.setPreserveRatio(true);
                 imageView.setPickOnBounds(true);
-            
                 StackPane stackPane = new StackPane(imageView);
                 stackPane.setAlignment(Pos.TOP_RIGHT);
-            
                 rentalChunk.getChildren().add(stackPane);
                 stackPane.setTranslateX(orientation.equals("vertical") ? -2 : -7);
                 stackPane.setTranslateY(orientation.equals("vertical") ? 5 : 3);
+
             } else {
                 Shape dot = createRentalDot(rental, rental.getStatus());
                 rentalChunk.getChildren().add(dot);
@@ -3056,8 +4286,6 @@ public class MapController {
                 dot.setTranslateX(orientation.equals("vertical") ? -2 : -7);
                 dot.setTranslateY(orientation.equals("vertical") ? 5 : 3);
             }
-                
-
 
         } else if (orientation.equals("horizontal-truck") || orientation.equals("vertical-truck")) {
             truckPane.setBackground(new Background(new BackgroundFill(gradient, CornerRadii.EMPTY, Insets.EMPTY)));
@@ -3070,25 +4298,28 @@ public class MapController {
             rightTimelineCap.setTranslateY(14);
             Line timeline = new Line(-timelineCapRange, 14, timelineCapRange, 14);
             timeline.setTranslateY(14);
-            timeline.setStroke(Color.web(colors[0]));
+
             Label truckLabel = new Label("'##");
             truckLabel.setTranslateX(orientation.equals("horizontal-truck") ? timelineCapRange - 8 : timelineCapRange - 3);
             truckLabel.setTranslateY(orientation.equals("horizontal-truck") ? -14 : -12);
-            Color contentColor = Color.web(colors[2]); 
+            Color contentColor = Color.web(colors[2]);
             truckLabel.setTextFill(contentColor);
             truckLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 9px");
+
             DropShadow glow = new DropShadow();
             glow.setColor(Color.web(colors[1]));
             glow.setRadius(8);
             glow.setSpread(0.9);
             glow.setOffsetX(0);
             glow.setOffsetY(0);
-         //   truckLabel.setEffect(glow);
+
             rentalChunk.setPickOnBounds(false);
             truckPane.getChildren().addAll(leftTimelineCap, rightTimelineCap, timeline, truckLabel);
         }
+
         return rentalChunk;
     }
+
 
 
     private Region createStopIntermediary(int driveTimeInMinutes, String[] colors, String orientation) {
@@ -3207,7 +4438,7 @@ public class MapController {
         deleteIcon.setTranslateY(centerY);
         
         deleteIcon.setOnMouseClicked(event -> {
-            removeFromRoute(rental, closestMultiple, routeIndex);
+            removeFromRoute(rental, closestMultiple, routeIndex, "user", false);
         });
         deleteIcon.setPickOnBounds(true);
         deleteIcon.setMouseTransparent(false);
@@ -3373,7 +4604,7 @@ public class MapController {
                 label.setOnMouseExited(e -> label.setStyle("-fx-font-size: 10px; -fx-text-fill: " + colors[1] + "; -fx-font-weight: bold"));
         
                 // Click action
-                label.setOnMouseClicked(e -> handleAssignTruck(vboxPane, hboxPane, text, routeName));
+                label.setOnMouseClicked(e -> handleAssignTruck(vboxPane, hboxPane, text, routeName, "user"));
         
                 labelColumn.getChildren().add(label);
             }
@@ -3408,7 +4639,7 @@ public class MapController {
                 label.setOnMouseExited(e -> label.setStyle("-fx-font-size: 14px; -fx-text-fill: " + colors[1] + "; -fx-font-weight: bold"));
         
                 // Click action
-                label.setOnMouseClicked(e -> handleAssignTruck(hboxPane, vboxPane, text, routeName));
+                label.setOnMouseClicked(e -> handleAssignTruck(hboxPane, vboxPane, text, routeName, "user"));
         
                 labelRow.getChildren().add(label);
             }
@@ -3420,16 +4651,158 @@ public class MapController {
     }
     
     
-    private void handleAssignTruck(StackPane routePane, StackPane routePane2, String labelString, String routeName) {
+    private void handleAssignTruck(StackPane routePane, StackPane routePane2,
+                                String newTruck, String routeName, String agent) {
+
+        System.out.println("\n===============================");
+        System.out.println("🚛 handleAssignTruck() CALLED");
+        System.out.println("===============================");
+        System.out.println("   ▶ routeName = " + routeName);
+        System.out.println("   ▶ newTruck = " + newTruck);
+        System.out.println("   ▶ agent = " + agent);
+
+        // Normalize values to literal `"null"` if necessary
+        String oldTruck = getTruckIdForRoute(routeName);
+        if (oldTruck == null || oldTruck.trim().isEmpty()) oldTruck = "null";
+
+        String oldDriver = routeAssignments.get(routeName);
+        if (oldDriver == null || oldDriver.trim().isEmpty()) oldDriver = "null";
+
+        if (newTruck == null || newTruck.trim().isEmpty()) newTruck = "null";
+
+        System.out.println("   🧭 oldTruck = " + oldTruck);
+        System.out.println("   🧭 oldDriver = " + oldDriver);
+        System.out.println("   🧭 newTruck = " + newTruck);
+
         removeCardCovers();
-        if (truckAssignments.containsValue(routeName)) {
-            removeFromRoute(routes.get(routeName).get(0), 0, getRouteIndex(routeName));
+        System.out.println("   🧹 Card covers removed.");
+
+        // Get first stop ID or default placeholder for route identification
+        Rental first = null;
+        int nullRouteId = -1;
+
+        if (routes.containsKey(routeName) && !routes.get(routeName).isEmpty()) {
+            first = routes.get(routeName).get(0);
+            nullRouteId = first.isService()
+                    ? first.getService().getServiceId()
+                    : first.getRentalItemId();
+        } else {
+            System.out.println("   ⚠️ Route " + routeName + " currently empty — nullRouteId will be set after placeholder insertion.");
         }
-        addTruckToRoute(routeName, labelString, "user");
-        updateInnerTruckLabel(routePane, labelString);
-        updateInnerTruckLabel(routePane2, labelString);
-        syncRoutingToDB();
+
+        boolean hasDriver = false;
+        String driver = null;
+        if (routeAssignments.containsKey(routeName)) {
+            hasDriver = true;
+            driver = routeAssignments.get(routeName);
+            System.out.println("   👤 Existing driver found: " + driver);
+        } else {
+            System.out.println("   👤 No driver currently assigned.");
+        }
+
+        // 🚫 If another route already owns this truck, clear that association
+        System.out.println("\n   🔍 Checking if truck " + newTruck + " is already assigned to another route...");
+
+        if (truckAssignments.get(newTruck) != null) {
+            String existingRoute = truckAssignments.get(newTruck);
+            System.out.println("   ⚙️ Found existing truck assignment → " + newTruck + " → " + existingRoute);
+
+            if (!existingRoute.equals(routeName)) {
+                System.out.println("   ⚠️ Truck " + newTruck + " currently belongs to route " + existingRoute +
+                        " but we're reassigning it to " + routeName + ".");
+
+                if (!routes.containsKey(existingRoute)) {
+                    System.out.println("   ❗ Warning: existing route " + existingRoute + " not found in local routes map.");
+                } else {
+                    List<Rental> rentals = routes.get(existingRoute);
+                    if (rentals == null || rentals.isEmpty()) {
+                        System.out.println("   ⚠️ Existing route " + existingRoute + " has no stops — skipping removal call.");
+                    } else {
+                        Rental firstRental = rentals.get(0);
+                        System.out.println("   🧹 Removing truck stop from " + existingRoute + " (first stop ID = " +
+                                (firstRental.isService() ? firstRental.getService().getServiceId()
+                                                        : firstRental.getRentalItemId()) + ")");
+                        removeFromRoute(firstRental, 0, getRouteIndex(existingRoute), agent, false);
+                    }
+                }
+            } else {
+                System.out.println("   ✅ Truck " + newTruck + " already belongs to " + routeName +
+                        " — no need to remove.");
+            }
+        } else {
+            System.out.println("   🆕 Truck " + newTruck + " is not currently assigned anywhere.");
+        }
+
+        // 🚮 Remove existing truck assignment for this route before reassigning
+        if (truckAssignments.containsValue(routeName)) {
+            System.out.println("   🔁 Route " + routeName + " already has a truck assigned. Removing old truck before reassignment...");
+            removeFromRoute(routes.get(routeName).get(0), 0, getRouteIndex(routeName), "user", true);
+        }
+
+        // 🧱 STEP A: Insert placeholder if route is now empty before truck add
+        boolean placeholderInserted = false;
+        Rental placeholderRental = null;
+        if (routes.get(routeName).isEmpty()) {
+            placeholderRental = createHQRental();
+            placeholderRental.setRentalItemId(-77);
+            routes.get(routeName).add(placeholderRental);
+            updateRoutePane(routeName, placeholderRental, "insertion", 0, getRouteIndex(routeName), "sync");
+            placeholderInserted = true;
+            System.out.println("   🧩 Placeholder stop inserted so truck can be added safely.");
+        }
+
+        // ✅ STEP B: Assign the new truck
+        System.out.println("   ✅ Assigning truck " + newTruck + " to route " + routeName + "...");
+        addTruckToRoute(routeName, newTruck, agent);
+        updateInnerTruckLabel(routePane, newTruck);
+        updateInnerTruckLabel(routePane2, newTruck);
+        System.out.println("   🏷️ Updated truck labels for route UI.");
+
+        // 🛰️ STEP C: Send rename delta to server if user-triggered
+        if (agent.equals("user")) {
+            System.out.println("   🌐 Sending rename delta to server...");
+            sendRouteKeyRenameToServer(
+                    oldTruck,
+                    oldDriver,
+                    newTruck,
+                    oldDriver,  // driver unchanged here
+                    nullRouteId
+            );
+        } else {
+            System.out.println("   🤖 Rename delta skipped (agent = " + agent + ")");
+        }
+
+        // 👤 STEP D: Re-apply driver assignment if present
+        if (hasDriver) {
+            System.out.println("   🔄 Re-applying driver: " + driver);
+            handleAssignDriver(
+                    routeVBoxPanes.get(getRouteIndex(routeName)),
+                    driver,
+                    routeName,
+                    getRouteColors(routeName),
+                    "assign-truck"
+            );
+            routeAssignments.put(routeName, driver);
+        } else {
+            System.out.println("   👤 No driver to reapply.");
+        }
+
+        // 🧹 STEP E: Remove placeholder if inserted
+        if (placeholderInserted) {
+            int routeIndex = getRouteIndex(routeName);
+            int placeholderIndex = routes.get(routeName).indexOf(placeholderRental);
+            if (placeholderIndex != -1) {
+                removeFromRoute(placeholderRental, placeholderIndex, routeIndex, "sync", true);
+                System.out.println("   🧼 Placeholder removed after truck assignment.");
+            } else {
+                System.out.println("   ⚠️ Placeholder not found when attempting to remove.");
+            }
+        }
+
+        System.out.println("✅ handleAssignTruck() COMPLETE for route: " + routeName);
     }
+
+
 
 
     private void handleDriverExpander(String routeName, String numeralRouteName, String[] colors, String orientation) {
@@ -3469,7 +4842,7 @@ public class MapController {
                 label.setOnMouseExited(e -> label.setStyle("-fx-font-size: 10px; -fx-text-fill: " + colors[1] + "; -fx-font-weight: bold"));
             
                 // Click action
-                label.setOnMouseClicked(e -> handleAssignDriver(vboxPane, initials, numeralRouteName, colors));
+                label.setOnMouseClicked(e -> handleAssignDriver(vboxPane, initials, numeralRouteName, colors, "user"));
             
                 labelColumn.getChildren().add(label);
             }
@@ -3507,7 +4880,7 @@ public class MapController {
                 label.setOnMouseExited(e -> label.setStyle("-fx-font-size: 14px; -fx-text-fill: " + colors[1] + "; -fx-font-weight: bold"));
             
                 // Click action
-                label.setOnMouseClicked(e -> handleAssignDriver(vboxPane, initials, numeralRouteName, colors));
+                label.setOnMouseClicked(e -> handleAssignDriver(vboxPane, initials, numeralRouteName, colors, "user"));
             
                 labelRow.getChildren().add(label);
             }
@@ -3526,20 +4899,16 @@ public class MapController {
         Node cardsNode = parentPane.getChildren().get(0);
         if (cardsNode instanceof VBox || cardsNode instanceof HBox) {
             Pane cardStack = (Pane) cardsNode;
-            System.out.println("Found Pane (VBox/HBox) as cardsNode");
 
             if (!cardStack.getChildren().isEmpty() && cardStack.getChildren().get(0) instanceof StackPane) {
                 StackPane truckStack = (StackPane) cardStack.getChildren().get(0);
-                System.out.println("Found StackPane as first child of cardStack");
 
                 for (Node child : truckStack.getChildren()) {
                     if (child instanceof StackPane) {
                         StackPane innerStack = (StackPane) child;
-                        System.out.println("Found inner StackPane");
 
                         for (Node innerChild : innerStack.getChildren()) {
                             if (innerChild instanceof Label) {
-                                System.out.println("Found Label. Setting text to: " + labelText);
                                 ((Label) innerChild).setText(labelText);
                                 return;
                             }
@@ -3554,27 +4923,79 @@ public class MapController {
         }
     }
 
+    private void handleAssignDriver(StackPane routePane, String labelString, String routeName, String[] colors, String agent) {
+        String currentTruck = getTruckIdForRoute(routeName) != null ? getTruckIdForRoute(routeName) : "null";
+        String currentDriver = routeAssignments.get(routeName) != null ? routeAssignments.get(routeName) : "null";
 
-    private void handleAssignDriver(StackPane routePane, String labelString, String routeName, String[] colors) {
-        String truckId = getTruckIdForRoute(routeName);
-        configureTruckDot(labelString, truckId, colors);
+        configureTruckDot(labelString, currentTruck, colors);
+
+        // Clear duplicate labels in vertical and horizontal labels
         driverLabelsV.forEach((key, label) -> {
             if (!key.equals(routeName) && label.getText().equals(labelString)) {
-                label.setText("");
+                label.setText("?");
             }
         });
+
         driverLabelsH.forEach((key, label) -> {
             if (!key.equals(routeName) && label.getText().equals(labelString)) {
-                label.setText("");
+                label.setText("?");
             }
         });
-        driverLabelsV.get(routeName).setText(labelString);
-        driverLabelsH.get(routeName).setText(labelString);
-        routeAssignments.entrySet().removeIf(entry -> entry.getValue().equals(labelString));
-        routeAssignments.put(routeName, labelString);
+
+        // Update labels for the current route
+        if (driverLabelsV.containsKey(routeName)) {
+            driverLabelsV.get(routeName).setText(labelString);
+        }
+        if (driverLabelsH.containsKey(routeName)) {
+            driverLabelsH.get(routeName).setText(labelString);
+        }
+
+        if (agent.equals("user")) {
+            if (routeAssignments != null) {
+                boolean labelAlreadyAssigned = false;
+                String existingRoute = null;
+
+                for (Map.Entry<String, String> entry : routeAssignments.entrySet()) {
+                    if (labelString.equals(entry.getValue())) {
+                        labelAlreadyAssigned = true;
+                        existingRoute = entry.getKey();
+                        break;
+                    }
+                }
+
+                if (labelAlreadyAssigned) {
+                    System.out.println("⚠️ Label '" + labelString + "' is already assigned to route: " + existingRoute);
+                    routeAssignments.remove(existingRoute);
+                    String truckAssigned = null;
+
+                    for (Map.Entry<String, String> entry : truckAssignments.entrySet()) {
+                        if (existingRoute.equals(entry.getValue())) {
+                            truckAssigned = entry.getKey(); // the truck name (or ID)
+                            break;
+                        }
+                    }
+
+                    sendRouteKeyRenameToServer(truckAssigned, labelString, truckAssigned, "null", null);
+
+                } else {
+                    System.out.println("✅ Assigned label '" + labelString + "' to route: " + routeName);
+
+                }
+
+                routeAssignments.put(routeName, labelString);
+            }
+        }
         removeCardCovers();
-        syncRoutingToDB();
+
+       // syncRoutingToDB();
+        // ✅ New route rename send — minimal change from your truck version
+        if (agent.equals("user")) {   
+            Rental first = routes.get(routeName).get(0); 
+            int nullRouteId = first.isService() ? first.getService().getServiceId() : first.getRentalItemId();
+            sendRouteKeyRenameToServer(currentTruck, currentDriver, currentTruck, labelString, nullRouteId);
+        }
     }
+
 
 
     private void showDefaultTruck(StackPane pane, ImageView imageView, Image flatbedImage, String routeName) {
@@ -3597,31 +5018,63 @@ public class MapController {
         Map<String, Double> lastProportions = new HashMap<>();
     
         Runnable task = () -> Platform.runLater(() -> {
+            System.out.println(routeAssignments);
+            System.out.println(truckAssignments);
+            System.out.println(routes);
+
             try {
-                Map<String, Double> currentProportions = getProgressReport("geometric");
-                // === NEW: Handle completed stops first ===
-                List<Rental> completedRentals = findCompletedStops();
-                List<Rental> rentalsToRemoveFromCharting = new ArrayList<>();
-                
-                for (Rental rental : completedRentals) {
-                    if (rental.isService()) {
-                        break;
-                    }
-                    for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
-                        List<Rental> rentals = entry.getValue();
-                        int index = rentals.indexOf(rental);
-                        if (index != -1) {
-                            int routeIndex = getRouteIndex(entry.getKey());
-                            removeFromRoute(rental, index, routeIndex);
-                            if (rental.getStatus().equals("Upcoming")) {
-                            } else if (rental.getStatus().equals("Called Off")) {
-                                editVisualCargo(rental, routeIndex, "picking-up");
-                            }
-                            break; // Rental is only in one route
+            syncRoutesFromServer();
+            Map<String, Double> currentProportions = getProgressReport("geometric");
+            loadRentalDataFromAPI();
+/*
+            // === NEW: Handle completed stops first ===
+            List<Rental> completedRentals = findCompletedStops();
+            List<Rental> rentalsToRemoveFromCharting = new ArrayList<>();
+
+            // System.out.println("🔎 Found " + completedRentals.size() + " completed rentals to process.");
+
+            for (Rental rental : completedRentals) {
+                // System.out.println("➡️ Checking completed rental: ID=" + rental.getRentalItemId()
+                //         + " | Status=" + rental.getStatus()
+                //         + " | Type=" + (rental.isService() ? "SERVICE" : "RENTAL"));
+
+                // boolean foundInRoute = false;
+
+                for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
+                    List<Rental> rentals = entry.getValue();
+                    int index = rentals.indexOf(rental);
+
+                    if (index != -1) {
+                        // foundInRoute = true;
+                        int routeIndex = getRouteIndex(entry.getKey());
+
+                        // System.out.println("🧭 Found rental in route: " + entry.getKey()
+                        //         + " (routeIndex=" + routeIndex + ", listIndex=" + index + ")");
+
+                        removeFromRoute(rental, index, routeIndex);
+                        // System.out.println("❌ Removed rental " + rental.getRentalItemId() + " from route " + entry.getKey());
+
+                        if (rental.getStatus().equals("Upcoming")) {
+                            // System.out.println("⏩ Rental was 'Upcoming' — skipping visual cargo change.");
+                        } else if (rental.getStatus().equals("Called Off")) {
+                            // System.out.println("🚚 Rental was 'Called Off' — applying visual cargo 'picking-up'.");
+                            editVisualCargo(rental, routeIndex, "picking-up");
                         }
+
+                        break; // Rental is only in one route
                     }
-                    rentalsToRemoveFromCharting.add(rental);
                 }
+
+                // if (!foundInRoute) {
+                //     System.out.println("⚠️ Rental ID " + rental.getRentalItemId() + " not found in any current route.");
+                // }
+
+                rentalsToRemoveFromCharting.add(rental);
+            }
+
+            // System.out.println("✅ Finished processing completed rentals. Total removed from charting: "
+            //         + rentalsToRemoveFromCharting.size());
+
                 
                 loadRentalDataFromAPI();
 
@@ -3640,7 +5093,7 @@ public class MapController {
                     if (match != null) {
                         rentalsForCharting.remove(match);
                     }
-                }
+                }   */
 
 
                 updateRentalLocations();
@@ -3668,12 +5121,14 @@ public class MapController {
                             new KeyFrame(Duration.minutes(1), new KeyValue(pinpointersV.get(routeKey).translateXProperty(), currXV))
                     );
                     timelineV.play();
+                    activeTimelines.add(timelineV);
 
                     Timeline timelineH = new Timeline(
                             new KeyFrame(Duration.ZERO, new KeyValue(pinpointersH.get(routeKey).translateXProperty(), prevXH)),
                             new KeyFrame(Duration.minutes(1), new KeyValue(pinpointersH.get(routeKey).translateXProperty(), currXH))
                     );
                     timelineH.play();
+                    activeTimelines.add(timelineH);
     
                     Timeline innerPinpointerTimelineV = new Timeline(
                             new KeyFrame(Duration.ZERO, new KeyValue(innerPinpointersV.get(routeKey).translateXProperty(), prevXV)),
@@ -3720,6 +5175,7 @@ public class MapController {
             }
         });
     
+        scheduler = Executors.newScheduledThreadPool(1);
         scheduler.scheduleAtFixedRate(task, 0, 1, TimeUnit.MINUTES);
         System.out.println("");
     }
@@ -4246,6 +5702,34 @@ public class MapController {
     }    
 
 
+    private Rental createHQRental() {
+        return new Rental(
+            "HQ-000",
+            "Max High Reach",
+            "Unknown",
+            "Unknown",
+            "HQ-PO",
+            "Admin",
+            "000-000-0000",
+            false,
+            "Max High Reach",
+            "5545 Dahlia St",
+            "Commerce City",
+            -1,
+            "N/A",
+            true,
+            -1,
+            "HQ Contact",
+            "000-000-0000",
+            39.79503384433233,
+            -104.93205143793766,
+            "HQ",
+            "Return"
+        );
+    }
+
+
+
     private RouteInfo getGoogleRoute(double originLat, double originLong, double destinationLat, double destinationLong) throws Exception {
         if (originLat == destinationLat && originLong == destinationLong) {
             System.out.println("[DEBUG] Same coordinates — returning placeholder route");
@@ -4447,7 +5931,26 @@ public class MapController {
         return new String[]{ "route1", "0" };
     }
 
-
+    private void setIncrementedHQId(Rental rental) {
+        int minNegativeId = 0;
+    
+        // Search across ALL routes for existing HQ rentals
+        for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
+            for (Rental r : entry.getValue()) {
+                int id = r.getRentalItemId();
+                if (id < minNegativeId) {
+                    minNegativeId = id;
+                }
+            }
+        }
+    
+        // Assign next lower negative ID globally
+        int newHqId = (minNegativeId == 0) ? -1 : (minNegativeId - 1);
+        rental.setRentalItemId(newHqId);
+    
+        System.out.println("STEP 3A: Assigned globally unique HQ rentalItemId=" + newHqId);
+    }
+ 
 
     private double estimatePolylineProgress(List<double[]> polyline, double[] truckLocation) {
         if (polyline == null || polyline.size() < 2) return 0.0;
@@ -4586,36 +6089,46 @@ public class MapController {
     }
 
     private Image recolorImage(Image source, Color contentColor, Color outlineColor) {
+        if (source == null) {
+            System.err.println("❌ recolorImage(): source image is null");
+            return null;
+        }
+
+        PixelReader reader = source.getPixelReader();
+        if (reader == null) {
+            System.err.println("⚠️ recolorImage(): PixelReader is null — image format may be unsupported. Returning original image.");
+            return source;
+        }
+
         int width = (int) source.getWidth();
         int height = (int) source.getHeight();
-    
         WritableImage newImage = new WritableImage(width, height);
-        PixelReader reader = source.getPixelReader();
         PixelWriter writer = newImage.getPixelWriter();
-    
+
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 Color pixelColor = reader.getColor(x, y);
-    
+
                 if (pixelColor.getOpacity() == 0.0) {
                     writer.setColor(x, y, pixelColor);
                 } else if (isNearBlack(pixelColor)) {
                     writer.setColor(x, y, contentColor);
-                } else if (isNearGray(pixelColor)) {
+                } else if (outlineColor != null && isNearGray(pixelColor)) {
                     writer.setColor(x, y, new Color(
-                        outlineColor.getRed(),
-                        outlineColor.getGreen(),
-                        outlineColor.getBlue(),
-                        pixelColor.getOpacity()
+                            outlineColor.getRed(),
+                            outlineColor.getGreen(),
+                            outlineColor.getBlue(),
+                            pixelColor.getOpacity()
                     ));
                 } else {
                     writer.setColor(x, y, pixelColor);
                 }
             }
         }
-    
+
         return newImage;
     }
+
 
     // Utility method to truncate text
     private String truncateTextToWidth(String text, double maxWidth, Font font) {
@@ -4673,9 +6186,25 @@ public class MapController {
         }
     }
 
+    public void endTimelines() {
+        // Stop all active timelines
+        for (Timeline timeline : activeTimelines) {
+            timeline.stop();
+        }
+        activeTimelines.clear();
+
+        // Stop the scheduled task
+        if (scheduler != null && !scheduler.isShutdown()) {
+            scheduler.shutdownNow();
+            scheduler = null;
+        }
+
+        System.out.println("✅ All timelines and scheduled tasks have been stopped.");
+    }
 
     @FXML
     private void resetStage() {
         MaxReachPro.getInstance().collapseStage();
     }
 }    
+

@@ -335,7 +335,7 @@ public class ActivityController extends BaseController {
             });
         }
 
-        customers = MaxReachPro.getCustomers();
+        customers = MaxReachPro.getCustomers(true);
         ObservableList<String> customerNames = FXCollections.observableArrayList();
         for (Customer customer : customers) {
             customerNames.add(customer.getName());
@@ -749,7 +749,7 @@ public class ActivityController extends BaseController {
 
                 Service service = new Service(serviceId, serviceType, reason, billable,
                      previousServiceId, newRentalOrderId, newLiftId, newLiftType, newSiteName,
-                     newStreetAddress, newCity, newLatitude, newLongitude);
+                     newStreetAddress, newCity, newLatitude, newLongitude, locationNotes, preTripInstructions);
                 rental.setService(service);
 
                 ordersList.add(rental);

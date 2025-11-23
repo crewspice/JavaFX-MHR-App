@@ -1,6 +1,9 @@
 package com.MaxHighReach;
 
 import java.nio.file.Paths;
+import java.time.Month;
+import java.time.format.TextStyle;
+import java.util.Locale;
 
 public class PathConfig {
     // --------------------------------------------------
@@ -76,5 +79,14 @@ public class PathConfig {
 
     public static String getInvoicesDir() {
         return INVOICES_DIR;
+    }
+
+    public static String getUtilizationReportPath(Month currentMonth, int currentYear) {
+        String formattedFileName = String.format(
+                "Utilz %s-%d.pdf",
+                currentMonth.getDisplayName(TextStyle.SHORT, Locale.ENGLISH),
+                currentYear
+        );
+        return Paths.get(PREFIX, formattedFileName).toString();
     }
 }

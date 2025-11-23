@@ -878,3 +878,14 @@
     -fx-font-size: 14px;
 }
 
+.lift-base-button {
+    -fx-border-color: #FFDEAD;
+    -fx-faint-focus-color: gray;
+    -fx-border-width: .5px;
+    -fx-background-color: ORANGE;
+}
+
+.lift-base-button:hover {
+    -fx-background-color: #FFDEAD;
+    -fx-text-fill: #ffffff;
+}

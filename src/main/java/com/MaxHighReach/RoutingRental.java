@@ -27,7 +27,7 @@ public class RoutingRental {
     private int driverNumber;
     private String driverInitial;
     private String driver;
-    private String deliveryTruck;
+    private String truck;
     private String reason;
     private String locationNotes;
     private String preTripInstructions;
@@ -38,7 +38,7 @@ public class RoutingRental {
 
     public RoutingRental(int id, int orderId, String type, String name, String siteName, String streetAddress,
                          String city, String liftType, String time, double latitude, 
-                         double longitude, String driverInitial, int driverNumber, String deliveryTruck,
+                         double longitude, String driverInitial, int driverNumber, String truck,
                          String orderedByContactName, String orderedByContactNumber,
                          String siteContactName, String siteContactNumber,
                          String locationNotes, String preTripInstructions) {
@@ -55,7 +55,7 @@ public class RoutingRental {
         this.longitude = longitude;
         this.driverInitial = driverInitial;
         this.driverNumber = driverNumber;
-        this.deliveryTruck = deliveryTruck;
+        this.truck = truck;
         this.orderedByContactName = orderedByContactName;
         this.orderedByContactNumber = orderedByContactNumber;
         this.siteContactName = siteContactName;
@@ -156,9 +156,9 @@ public class RoutingRental {
     public String getDriver() { return driver; }
     public void setDriver(String driver) { this.driver = driver; }
 
-    @JsonProperty("deliveryTruck")
-    public String getDeliveryTruck() { return deliveryTruck; }
-    public void setDeliveryTruck(String deliveryTruck) { this.deliveryTruck = deliveryTruck; }
+    @JsonProperty("truck")
+    public String gettruck() { return truck; }
+    public void settruck(String truck) { this.truck = truck; }
 
     @JsonProperty("reason")
     public String getReason() { return reason; }
@@ -198,7 +198,7 @@ public class RoutingRental {
                 ", longitude=" + longitude +
                 ", driverInitial='" + driverInitial + '\'' +
                 ", driverNumber=" + driverNumber +
-                ", deliveryTruck='" + deliveryTruck + '\'' +
+                ", truck='" + truck + '\'' +
                 ", orderedByContactName='" + orderedByContactName + '\'' +
                 ", orderedByContactNumber='" + orderedByContactNumber + '\'' +
                 ", siteContactName='" + siteContactName + '\'' +

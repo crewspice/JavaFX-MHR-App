@@ -12,6 +12,8 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 
 import com.itextpdf.kernel.pdf.PdfDocument;
@@ -28,6 +30,8 @@ import java.io.IOException;
 import com.itextpdf.kernel.geom.PageSize;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
+
+import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
@@ -45,6 +49,7 @@ import javafx.scene.effect.DropShadow;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.layout.AnchorPane;
@@ -83,6 +88,7 @@ public class UtilizationController extends BaseController {
     private Month currentMonth;
     private int currentYear;
     private int numBusinessDays;
+    private int rowLabelOffsetY;
 
     // Global variable to hold the list of lifts
     private List<Lift> lifts = MaxReachPro.getLifts();
@@ -93,11 +99,14 @@ public class UtilizationController extends BaseController {
     private Map<Integer, Integer> rentalDayCounts;
     private Map<String, Integer> liftTypeCounts = new HashMap<>();
     private Map<String, Integer> serialCounts = new HashMap<>();
-    private Map<String, Integer> typeHeaderCoords = new HashMap<>();
+    private Map<String, Double> typeHeaderCoords = new HashMap<>();
     private Map<String, Integer> liftTypeSerialCounts = new HashMap<>();
 
     private Timeline[] glowTimelines = new Timeline[2];
     private boolean timelineFlagger = false;
+    private Map<Rental, List<Circle>> rentalCircles = new HashMap<>();
+    private final Map<Rental, Timeline> rentalAnimations = new HashMap<>();
+
 
     @FXML
     public void initialize() {
@@ -115,241 +124,252 @@ public class UtilizationController extends BaseController {
         renderPanes(currentYear, currentMonth);
     }
 
+    private void resetCounts() {
+        serialCounts.replaceAll((k, v) -> 0);
+        liftTypeCounts.replaceAll((k, v) -> 0);
+    }
+    
     @FXML
     private void handleMonthBack() {
         currentMonth = currentMonth.minus(1);
         if (currentMonth == Month.DECEMBER) {
-            currentYear --;
+            currentYear--;
         }
+        resetCounts();
         renderPanes(currentYear, currentMonth);
     }
-
+    
     @FXML
     private void handleMonthForward() {
         currentMonth = currentMonth.plus(1);
         if (currentMonth == Month.JANUARY) {
-            currentYear ++;
+            currentYear++;
         }
+        resetCounts();
         renderPanes(currentYear, currentMonth);
     }
 
     @FXML
     public void handleExportReport() throws Exception {
-        String filePath = getFilePath();
-
-
+        System.out.println("=== handleExportReport started ===");
+    
+        String filePath = PathConfig.getUtilizationReportPath(currentMonth, currentYear);
+        System.out.println("File path resolved: " + filePath);
+    
         PdfWriter writer = new PdfWriter(new File(filePath));
         PdfDocument pdf = new PdfDocument(writer);
         Document document = new Document(pdf);
-
-
+        System.out.println("PDF writer and document initialized.");
+    
         float sizeScalar = 0.75f;
-
-
-        // Set the document margins
-        document.setMargins(5, 5, 5, 5); // Left, top, right, bottom margins
-
-
-        // Draw the Top Pane with downscaled text size
+        document.setMargins(5, 5, 5, 5);
+        System.out.println("Margins set.");
+    
+        // Title
         document.add(new Paragraph(String.format("Utilization Report: %s %d",
                 currentMonth.getDisplayName(TextStyle.FULL, Locale.ENGLISH), currentYear))
-                .setFontSize(16 * sizeScalar) // Downscale font size by 15%
+                .setFontSize(16 * sizeScalar)
                 .setBold());
-
-
-        // Create a Table for the Data
+        System.out.println("Title added.");
+    
+        // Table setup
         int totalColumns = numColumns + 3;
         Table table = new Table(UnitValue.createPercentArray(totalColumns));
         table.setWidth(UnitValue.createPercentValue(100));
-
-
-        // Add headers with downscaled text size
-        table.addCell(new Cell().add(new Paragraph("Model"))
-                .setFontSize(12 * sizeScalar));
-        table.addCell(new Cell().add(new Paragraph("Serial"))
-                .setFontSize(12 * sizeScalar));
-
-
+        System.out.println("Table created with " + totalColumns + " columns.");
+    
+        // Headers
+        table.addCell(new Cell().add(new Paragraph("Model")).setFontSize(12 * sizeScalar));
+        table.addCell(new Cell().add(new Paragraph("Serial")).setFontSize(12 * sizeScalar));
+        System.out.println("Basic headers added.");
+    
         for (int col = 1; col <= numColumns; col++) {
             table.addCell(new Cell().add(new Paragraph(String.valueOf(col)))
                     .setTextAlignment(TextAlignment.CENTER)
                     .setFontSize(12 * sizeScalar));
         }
-
-
-        // Add the "Days on Rent" header
+        System.out.println("Day headers (1.." + numColumns + ") added.");
+    
         table.addCell(new Cell().add(new Paragraph("Sum"))
                 .setTextAlignment(TextAlignment.CENTER)
                 .setFontSize(12 * sizeScalar));
-
-
-        // Add the row for total lifts on rent per day
+        System.out.println("Sum header added.");
+    
+        // Totals row
         table.addCell(new Cell(1, 2).add(new Paragraph("Total on Rent"))
                 .setTextAlignment(TextAlignment.CENTER)
-                .setFontSize(12 * sizeScalar)); // Spanning "Model" and "Serial"
-
-
+                .setFontSize(12 * sizeScalar));
+        System.out.println("Totals row header added.");
+    
         for (int col = 1; col <= numColumns; col++) {
             int count = rentalDayCounts.getOrDefault(col, 0);
-            String countStr = String.valueOf(count);
+            String countStr = count == 0 ? "" : String.valueOf(count);
             Paragraph verticalCount = new Paragraph();
             for (char digit : countStr.toCharArray()) {
-                verticalCount.add(digit + "\n"); // Add each digit vertically
+                verticalCount.add(digit + "\n");
             }
             table.addCell(new Cell().add(verticalCount)
                     .setTextAlignment(TextAlignment.CENTER)
                     .setFontSize(12 * sizeScalar));
         }
-
-
-        // Add an empty cell for alignment under "Sum"
         table.addCell(new Cell().add(new Paragraph("")).setFontSize(12 * sizeScalar));
-
-
-        // Continue populating rows for lifts (existing logic remains unchanged)...
-
-
+        System.out.println("Totals row data added.");
+    
+        // Loop over lifts
         String previousLiftType = null;
-
-
         for (Lift lift : validLifts) {
             String currentLiftType = lift.getLiftType();
-
-
+    
             if (previousLiftType != null && !previousLiftType.equals(currentLiftType)) {
-               int liftTypeCount = liftTypeCounts.getOrDefault(previousLiftType, 0);
-               int liftTypeSerialCount = liftTypeSerialCounts.getOrDefault(previousLiftType, 0);
-
-
-               if (liftTypeSerialCount > 0) {
-                   System.out.println("lifTypeCount: " + liftTypeCount + ", liftTypeSerialCount: "
-                       + liftTypeSerialCount + ", numBusinessDays: " + numBusinessDays);
-
-
-                   // Cast to double to ensure floating-point division
-                   double utilPercent = ((double) liftTypeCount * 100) / (liftTypeSerialCount * numBusinessDays);
-                   utilPercent = Math.round(utilPercent * 10.0) / 10.0;
-
-
-                   table.addCell(new Cell(1, totalColumns - 1).add(new Paragraph(
-                           previousLiftType + ": "
-                                   + utilPercent + "%"))
-                           .setTextAlignment(TextAlignment.CENTER)
-                           .setFontSize(12 * sizeScalar));
-                   table.addCell(new Cell().add(new Paragraph("")));
-               }
+                int liftTypeCount = liftTypeCounts.getOrDefault(previousLiftType, 0);
+                int liftTypeSerialCount = liftTypeSerialCounts.getOrDefault(previousLiftType, 0);
+    
+                if (liftTypeSerialCount > 0) {
+                    double utilPercent = ((double) liftTypeCount * 100) / (liftTypeSerialCount * numBusinessDays);
+                    utilPercent = Math.round(utilPercent * 10.0) / 10.0;
+    
+                    table.addCell(new Cell(1, totalColumns - 1)
+                            .add(new Paragraph(previousLiftType + ": " + utilPercent + "%"))
+                            .setTextAlignment(TextAlignment.CENTER)
+                            .setFontSize(12 * sizeScalar));
+                    table.addCell(new Cell().add(new Paragraph("")));
+                    System.out.println("Added utilization row for liftType: " + previousLiftType);
+                }
             }
-
-
-
+    
+            // Model + Serial
             String model = lift.getModel();
-            table.addCell(new Cell().add(new Paragraph(model))
-                    .setFontSize(12 * sizeScalar));
-
-
             String serialNumber = lift.getSerialNumber();
-            table.addCell(new Cell().add(new Paragraph(serialNumber))
-                    .setFontSize(12 * sizeScalar));
-
-
+            table.addCell(new Cell().add(new Paragraph(model)).setFontSize(12 * sizeScalar));
+            table.addCell(new Cell().add(new Paragraph(serialNumber)).setFontSize(12 * sizeScalar));
+    
+            // Day loop
             for (int col = 1; col <= numColumns; col++) {
                 LocalDate day = LocalDate.of(currentYear, currentMonth, col);
+    
                 boolean isOnRent = customerRentals.stream()
                         .filter(rental -> rental.getSerialNumber().equals(serialNumber))
-                        .anyMatch(rental -> (LocalDate.parse(rental.getDeliveryDate()).isBefore(day) || LocalDate.parse(rental.getDeliveryDate()).isEqual(day)) &&
-                                (rental.getCallOffDate() == null || LocalDate.parse(rental.getCallOffDate()).isAfter(day) || LocalDate.parse(rental.getCallOffDate()).isEqual(day)));
+                        .anyMatch(rental -> isOnRentForDay(rental, day));
+    
                 boolean isBusinessDay = (day.getDayOfWeek().getValue() <= 5 && !Config.COMPANY_HOLIDAYS.contains(day));
+    
                 DeviceRgb color = isOnRent ? new DeviceRgb(0, 255, 0) : new DeviceRgb(255, 0, 0);
                 color = isBusinessDay ? color : new DeviceRgb(255, 255, 255);
-
-
+    
                 Cell dayCell = new Cell().setBackgroundColor(color);
                 dayCell.setMinWidth(11 * sizeScalar);
                 table.addCell(dayCell);
             }
-
-
+    
             int daysOnRent = serialCounts.getOrDefault(serialNumber, 0);
             table.addCell(new Cell().add(new Paragraph(String.valueOf(daysOnRent)))
                     .setTextAlignment(TextAlignment.CENTER)
                     .setFontSize(12 * sizeScalar));
-
-
+            System.out.println("Processed lift: " + model + " (" + serialNumber + "), daysOnRent=" + daysOnRent);
+    
             previousLiftType = currentLiftType;
         }
-
-
+    
+        // Final utilization row
         if (previousLiftType != null) {
             int liftTypeCount = liftTypeCounts.getOrDefault(previousLiftType, 0);
             int liftTypeSerialCount = liftTypeSerialCounts.getOrDefault(previousLiftType, 0);
-
-
+    
             if (liftTypeSerialCount > 0) {
-                double utilPercent = (liftTypeCount * 100) / (liftTypeSerialCount * numBusinessDays);
+                double utilPercent = (liftTypeCount * 100.0) / (liftTypeSerialCount * numBusinessDays);
                 utilPercent = Math.round(utilPercent * 10.0) / 10.0;
-
-
-                table.addCell(new Cell(1, totalColumns - 1).add(new Paragraph(
-                        previousLiftType + ": "
-                                + utilPercent + "%"))
+    
+                table.addCell(new Cell(1, totalColumns - 1)
+                        .add(new Paragraph(previousLiftType + ": " + utilPercent + "%"))
                         .setTextAlignment(TextAlignment.CENTER)
                         .setFontSize(12 * sizeScalar));
                 table.addCell(new Cell().add(new Paragraph("")));
+                System.out.println("Added final utilization row for liftType: " + previousLiftType);
             }
         }
-
-
+    
         document.add(table);
         document.close();
+        System.out.println("PDF export completed: " + filePath);
+        System.out.println("=== handleExportReport finished ===");
     }
-
-
+    
+    /**
+     * Helper method: determines if a rental counts as "on rent" for a given day.
+     */
+    private boolean isOnRentForDay(Rental rental, LocalDate day) {
+        LocalDate delivery = LocalDate.parse(rental.getDeliveryDate());
+        String callOffRaw = rental.getCallOffDate();
+        LocalDate callOff = (callOffRaw == null ? null : LocalDate.parse(callOffRaw));
+    
+        // Exclude: Picked Up with no call-off date
+        if ("Picked Up".equals(rental.getStatus()) && callOff == null) {
+            return false;
+        }
+    
+        // Normal on-rent condition
+        return (delivery.isBefore(day) || delivery.isEqual(day)) &&
+               (callOff == null || callOff.isAfter(day) || callOff.isEqual(day)) &&
+               !"A Test Customer".equals(rental.getName());
+    }
+    
 
     private void renderPanes(int year, Month month) {
         anchorPane.getChildren().remove(currentLayout);
+    
         currentLayout = new VBox();
         currentLayout.setPrefSize(anchorPane.getPrefWidth(), anchorPane.getPrefHeight());
         currentLayout.setLayoutX(6);
         currentLayout.setLayoutY(36);
         currentLayout.setAlignment(Pos.TOP_LEFT);
         currentLayout.setPadding(new Insets(0, 0, -20, 0));
+    
         anchorPane.getChildren().add(currentLayout);
-
-
-        // Create the top pane
+    
+        // --- Top Pane ---
         AnchorPane topPane = new AnchorPane();
         topPane.setPrefHeight(50);
         drawTopPane(topPane, year, month);
         renderedNodes.add(topPane);
-
-        // Create the scrollable pane
-        utilizationCanvas = new Canvas(293, 1708); // Adjust height dynamically
-        gc = utilizationCanvas.getGraphicsContext2D();
+    
+        // --- Middle Scrollable Pane ---
         numColumns = month.length(LocalDate.of(year, month, 1).isLeapYear());
-        drawUtilization(gc, year, month);
-        addAverages();
+    
+        Pane pane = new Pane();
+        drawUtilization(pane, year, month);
+        addAverages(pane);
+    
+        // 👇 force content size so scrolling works
+        double contentWidth = numColumns * 9.5; // adjust based on circle spacing
+        double contentHeight = validLifts.size() * 11.5; // adjust based on row spacing
+        pane.setPrefSize(contentWidth, contentHeight);
+    
+        System.out.println("Were at time of setting pane dims");
+        System.out.println("contentHeight: " + contentHeight);
+        System.out.println("rowLabelOffsetY: " + rowLabelOffsetY);
 
-        scrollPane = new ScrollPane(utilizationCanvas);
-        scrollPane.setFitToWidth(true);
+        scrollPane = new ScrollPane(pane);
+        scrollPane.setFitToWidth(false);
+        scrollPane.setFitToHeight(false);
         scrollPane.setPrefSize(309, 511);
         scrollPane.setStyle("-fx-background-color: transparent; -fx-border-color: transparent;");
         scrollPane.setTranslateY(-31);
+    
         renderedNodes.add(scrollPane);
-
-        // Create the bottom pane
+    
+        // --- Bottom Pane ---
         AnchorPane bottomPane = new AnchorPane();
         bottomPane.setPrefHeight(50);
         drawBottomPane(bottomPane, year, month);
         bottomPane.setTranslateY(-31);
         renderedNodes.add(bottomPane);
-
-        // Add all panes to the layout
+    
+        // --- Add all to layout ---
         currentLayout.getChildren().addAll(topPane, scrollPane, bottomPane);
-
-
+    
         animateScrollBars(scrollPane);
     }
-
+    
 
     private void loadCustomerRentalData() {
         // OBFUSCATE_OFF
@@ -359,7 +379,8 @@ public class UtilizationController extends BaseController {
                    ordered_contacts.first_name AS ordered_contact_name, ordered_contacts.phone_number AS ordered_contact_phone,
                    ri.auto_term, ro.site_name, ro.street_address, ro.city, ri.rental_item_id, l.lift_type,
                    l.serial_number, ro.single_item_order, ri.rental_order_id, ro.longitude, ro.latitude,
-                   site_contacts.first_name AS site_contact_name, site_contacts.phone_number AS site_contact_phone
+                   site_contacts.first_name AS site_contact_name, site_contacts.phone_number AS site_contact_phone,
+                   ri.item_status
             FROM customers c
             JOIN rental_orders ro ON c.customer_id = ro.customer_id  -- Ensure this is correct
             JOIN rental_items ri ON ro.rental_order_id = ri.rental_order_id
@@ -397,153 +418,155 @@ public class UtilizationController extends BaseController {
                 double latitude = rs.getLong("latitude");
                 double longitude = rs.getLong("longitude");
                 String liftType = rs.getString("lift_type");
+                String status = rs.getString("item_status");
+
+                if ("A Test Customer".equals(name)) {
+                    continue;
+                }
 
                 // Create Rental objects for each row and add them to the list
                 customerRentals.add(new Rental(customerId, name, deliveryDate, callOffDate, poNumber,
                         orderedByName, orderedByPhone, autoTerm, addressBlockOne, addressBlockTwo,
                         addressBlockThree, rentalItemId, serialNumber, singleItemOrder, rentalOrderId,
-                        siteContactName, siteContactPhone, latitude, longitude, liftType, ""));
+                        siteContactName, siteContactPhone, latitude, longitude, liftType, status));
             }
         } catch (SQLException e) {
             throw new RuntimeException("Error loading customer rental data", e);
         }
     }
+    
 
-    private void drawUtilization(/*@NotNull*/ GraphicsContext gc, int year, Month month) {
-        // Define circle size and margins
-        final double circleSize = 7;  // Smaller circle size to fit all
-        final double margin = 1.5;  // Margin between circles
-        final double labelMargin = 2;  // Space for the row and column labels
-        final double bufferSize = 5;  // Additional buffer space after every 5 rows
+    private void drawUtilization(Pane pane, int year, Month month) {
+        final double circleSize = 7;
+        final double margin = 1.2;
+        final double labelMargin = 2;
+        final double bufferSize = 5;
         final double sectionLabelMargin = 20;
-
-        // --------------------- Write in the row labels (serial numbers) -------------------------
-        // Get valid lifts (those with serial numbers)
+    
         validLifts = lifts.stream()
             .filter(lift -> lift.getSerialNumber() != null && !lift.getSerialNumber().trim().isEmpty())
             .toList();
         int numRows = validLifts.size();
-
-        // Adjust starting x-coordinate for labels
+    
         double labelOffsetX = 52;
-
-        // Set the font size for column labels (Dates)
-        gc.setFont(Font.font("Yu Gothic UI", 10));  // Use "Yu Gothic UI" font for vertical labels
-        gc.setFill(Color.BLACK);
-
-        // Translate drawing to make space for row labels
-        gc.translate(0, 20);
-
+    
         String currentLiftType = null;
-        double rowLabelOffsetY = -29;
-        int sectionRowCount = 0; // Track rows within the current section
-
+        rowLabelOffsetY = -14;
+        int sectionRowCount = 0;
+    
+        // ------------------ Draw section headers + row labels ------------------
         for (int i = 0; i < numRows; i++) {
             Lift lift = validLifts.get(i);
-
-            // Check if the lift type changes (new section starts)
+    
+            // Section headers (lift type)
             if (!lift.getLiftType().equals(currentLiftType)) {
                 currentLiftType = lift.getLiftType();
+    
+                Label typeLabel = new Label(currentLiftType);
+                typeLabel.setFont(Font.font("Lucida Handwriting", 11));
+                typeLabel.setLayoutX(12);
+                typeLabel.setLayoutY(rowLabelOffsetY + labelMargin +
+                                     (i + 1) * (circleSize + margin) + 2);
+                pane.getChildren().add(typeLabel);
+    
+                // Optional: horizontal line under section header
+                Line line = new Line(36,
+                                     rowLabelOffsetY + labelMargin + (i + 1) * (circleSize + margin) + 14,
+                                     36 + 220,
+                                     rowLabelOffsetY + labelMargin + (i + 1) * (circleSize + margin) + 14);
+                line.setStroke(Color.BLACK);
+                line.setStrokeWidth(0.5);
+                pane.getChildren().add(line);
 
-                double characterNumberOffset = currentLiftType.length() * -2.5;
-                // Draw the section label
-                gc.setFont(Font.font("Lucida Handwriting", 11));
-                gc.setFill(Color.BLACK);
-                gc.fillText(currentLiftType, 12 + characterNumberOffset, rowLabelOffsetY + labelMargin +
-                        (i + 1) * (circleSize + margin) + 9);
-
-                // Draw a horizontal line below the lift type
-                double lineStartX = 36; // Starting X position
-                double lineStartY = rowLabelOffsetY + labelMargin +
-                        (i + 1) * (circleSize + margin) + 9; // Position the line just below the text
-                double lineLength = 220;
-                gc.setStroke(Color.BLACK); // Line color
-                gc.setLineWidth(.5); // Line thickness
-                gc.strokeLine(lineStartX, lineStartY - 3, lineStartX + lineLength, lineStartY - 3);
-
-                // Draw the additional string after the horizontal line
-              //  String additionalText = "Average days on rent:";
-              //  gc.setFont(Font.font("Lucida Handwriting", 10));
-              //  gc.fillText(additionalText, lineStartX + lineLength + 6, lineStartY); // Position the text slightly below the line
-                typeHeaderCoords.put(currentLiftType, (int) lineStartY);
-
-                // Reset the row count for the new section
+                typeHeaderCoords.put(currentLiftType, line.getStartY());
+    
+                // Reset section row count
                 sectionRowCount = 0;
-
-
-                // Add margin after section label
                 rowLabelOffsetY += sectionLabelMargin;
             }
-
-
-            // Increment section-specific row count
+    
             sectionRowCount++;
-
-            // Draw the row label for the lift's serial number
-            gc.setFont(Font.font("Arial", 10));
-            gc.setFill(Color.BLACK);
-
-            double y = rowLabelOffsetY + labelMargin + (i + 1) * (circleSize + margin);
-            gc.fillText(lift.getSerialNumber(), 0, y);
-
-
-            // Add buffer space every 5 rows within the section
-            if (sectionRowCount % 5 == 0) {
-                if (i + 1 < validLifts.size()) {
-                    if (lift.getLiftType().equals(validLifts.get(i + 1).getLiftType())) {
-                        rowLabelOffsetY += bufferSize;
-                    }
-                }
+    
+            // Row label (serial number)
+            Label serialLabel = new Label(lift.getSerialNumber());
+            serialLabel.setFont(Font.font("Arial", 10));
+            serialLabel.setLayoutX(0);
+            serialLabel.setLayoutY(rowLabelOffsetY + labelMargin + (i + 1) * (circleSize + margin));
+            pane.getChildren().add(serialLabel);
+    
+            // Add buffer space every 5 rows
+            if (sectionRowCount % 5 == 0 &&
+                i + 1 < validLifts.size() &&
+                lift.getLiftType().equals(validLifts.get(i + 1).getLiftType())) {
+                rowLabelOffsetY += bufferSize;
             }
-
-
         }
-
-        // Translate to the right for the utilization circles
-        gc.translate(labelOffsetX, -3);
-
-        currentLiftType = null;
-        rowLabelOffsetY = -29;
-        sectionRowCount = 0; // Track rows within the current section
-
-        // Initialize rentalCounts map for all columns before the loops
+    
         for (int col = 0; col < numColumns; col++) {
             rentalDayCounts.put(col + 1, 0);
         }
 
 
-
-        // --------------------------- Draw the circles --------------------------------
+        // ------------------ Draw utilization circles ------------------
+        currentLiftType = null;
+        rowLabelOffsetY = -29;
+        sectionRowCount = 0;
+    
+        // separate offset for circles
+        double circleRowLabelOffsetY = -29;
+    
         for (int row = 0; row < numRows; row++) {
             Lift lift = validLifts.get(row);
-
             String serialNumber = lift.getSerialNumber();
-            int skippedColumns = 0;
-
+    
             if (!lift.getLiftType().equals(currentLiftType)) {
                 currentLiftType = lift.getLiftType();
                 rowLabelOffsetY += sectionLabelMargin;
+                circleRowLabelOffsetY += sectionLabelMargin;
                 sectionRowCount = 0;
             }
-
-            sectionRowCount ++;
-            int rentedCount = 0;
-
+            sectionRowCount++;
+    
             for (int col = 0; col < numColumns; col++) {
                 LocalDate day = LocalDate.of(year, month, col + 1);
-
-                // Skip weekends and holidays
-                if (day.getDayOfWeek().getValue() > 5 || Config.COMPANY_HOLIDAYS.contains(day)) {
-                    skippedColumns++;
+                LocalDate today = LocalDate.now();
+            
+                // Skip weekends, holidays, and days in the future
+                if (day.getDayOfWeek().getValue() > 5 || 
+                    Config.COMPANY_HOLIDAYS.contains(day) || 
+                    day.isAfter(today)) {
                     continue;
                 }
+            
+    
+                // Find rental match
+                Rental rental = customerRentals.stream()
+                    .filter(r -> r.getSerialNumber().equals(serialNumber))
+                    .filter(r -> {
+                        LocalDate delivery = LocalDate.parse(r.getDeliveryDate());
 
-                // Determine if the lift is on rent on this day
-                boolean isOnRent = customerRentals.stream()
-                    .filter(rental -> rental.getSerialNumber().equals(serialNumber)) // Use .get() here
-                    .anyMatch(rental -> (LocalDate.parse(rental.getDeliveryDate()).isBefore(day) || LocalDate.parse(rental.getDeliveryDate()).isEqual(day)) &&
-                            (rental.getCallOffDate() == null || LocalDate.parse(rental.getCallOffDate()).isAfter(day) || LocalDate.parse(rental.getCallOffDate()).isEqual(day)));
+                        // Normalize call-off date
+                        String callOffRaw = r.getCallOffDate();
+                        LocalDate callOff = (callOffRaw == null || callOffRaw.isEmpty())
+                            ? null
+                            : LocalDate.parse(callOffRaw);
 
+                        // Exclude rentals that were picked up but don't have a valid call-off date
+                        if ("Picked Up".equals(r.getStatus()) && callOff == null) {
+                            return false;
+                        }
+
+                        // Normal on-rent condition
+                        return (delivery.isBefore(day) || delivery.isEqual(day)) &&
+                            (callOff == null || callOff.isAfter(day) || callOff.isEqual(day));
+                    })
+                    .findFirst()
+                    .orElse(null);
+
+                boolean isOnRent = rental != null;
+
+            
+    
                 if (isOnRent) {
                     rentalDayCounts.put(col + 1, rentalDayCounts.get(col + 1) + 1);
                     liftTypeCounts.put(currentLiftType, liftTypeCounts.get(currentLiftType) + 1);
@@ -551,34 +574,108 @@ public class UtilizationController extends BaseController {
                 }
 
 
-                // Set the color based on rental status
-                gc.setFill(isOnRent ? Color.GREEN : Color.RED);
 
-                // Calculate position for circles
-                double x = labelMargin + col * (circleSize + margin) - 17 + (skippedColumns * -1);  // X position for circles
-                double y = labelMargin + (row + 1) * (circleSize + margin) + rowLabelOffsetY - 3;  // Y position for circles
-
-                // Draw the circle at each intersection
-                gc.fillOval(x, y, circleSize, circleSize);
-
-            }
-            numBusinessDays = numColumns - skippedColumns;
-            if (sectionRowCount % 5 == 0) {
-                if (validLifts.size() >= row + 2) {
-                    if (lift.getLiftType().equals(validLifts.get(row + 1).getLiftType())) {
-                        rowLabelOffsetY += bufferSize;
-                    }
+                // Circle
+                Circle circle = new Circle(
+                    labelOffsetX + col * (circleSize + margin) - 12,
+                    labelMargin + (row + 1) * (circleSize + margin) + circleRowLabelOffsetY + 21,
+                    circleSize / 2
+                );
+                circle.setFill(isOnRent ? Color.GREEN : Color.RED);
+    
+                // Attach Rental (or serial/date key)
+                circle.setUserData(rental != null ? rental : serialNumber + ":" + day);
+    
+                // Track circles per rental
+                if (rental != null) {
+                    rentalCircles.computeIfAbsent(rental, r -> new ArrayList<>()).add(circle);
                 }
+    
+                // Handle click
+                circle.setOnMouseClicked(e -> {
+                    e.consume();
+                    pane.getChildren().removeIf(node -> node instanceof PopupCard);
+                    Object data = circle.getUserData();
+
+                    if (data instanceof Rental rentalData) {
+                        // Stop previous animations
+                        rentalAnimations.values().forEach(Timeline::stop);
+                        rentalAnimations.clear();
+
+                        // Reset all circle sizes
+                        rentalCircles.values().forEach(list -> {
+                            list.forEach(c -> {
+                                c.radiusProperty().unbind();
+                                c.setRadius(3.5);
+                            });
+                        });
+
+                        // Get circles for this rental
+                        List<Circle> selectedCircles = rentalCircles.get(rentalData);
+                        if (selectedCircles != null && !selectedCircles.isEmpty()) {
+                            // Pulse animation
+                            Circle ref = selectedCircles.get(0);
+                            Timeline pulse = new Timeline(
+                                new KeyFrame(Duration.ZERO, new KeyValue(ref.radiusProperty(), 2.5)),
+                                new KeyFrame(Duration.seconds(0.9), new KeyValue(ref.radiusProperty(), 7)),
+                                new KeyFrame(Duration.seconds(1.8), new KeyValue(ref.radiusProperty(), 2.5))
+                            );
+                            pulse.setCycleCount(Animation.INDEFINITE);
+                            pulse.play();
+                            rentalAnimations.put(rentalData, pulse);
+
+                            // Bind all circles in this set to the same pulse
+                            selectedCircles.forEach(c -> {
+                                if (c != ref) {
+                                    c.radiusProperty().bind(ref.radiusProperty());
+                                }
+                            });
+                        }
+
+                        // Show popup
+                        PopupCard popup = new PopupCard(rentalData, e.getX(), e.getY() + 10);
+                        popup.setLayoutX(45);
+                        popup.setLayoutY(e.getY() + 10);
+                        pane.getChildren().add(popup);
+                    }
+                });
+
+                
+    
+                pane.getChildren().add(circle);
+            }
+    
+            // Add buffer space every 5 rows for circles too
+            if (sectionRowCount % 5 == 0 &&
+                row + 1 < validLifts.size() &&
+                lift.getLiftType().equals(validLifts.get(row + 1).getLiftType())) {
+                circleRowLabelOffsetY += bufferSize;
             }
         }
-
+    
+        // Background click clears popups + resets highlight
+        pane.setOnMouseClicked(e -> {
+            if (e.getTarget() == pane) {
+                pane.getChildren().removeIf(node -> node instanceof PopupCard);
+        
+                // Stop all animations + reset
+                rentalAnimations.values().forEach(Timeline::stop);
+                rentalAnimations.clear();
+                rentalCircles.values().forEach(list ->
+                    list.forEach(c -> {
+                        c.setFill(Color.GREEN);
+                        c.setRadius(3.5);
+                        c.radiusProperty().unbind();
+                    })
+                );
+            }
+        });
+        
     }
+    
+    
 
-    private void addAverages() {
-        // Set the font and style for drawing text
-        gc.setFont(Font.font("Lucida Handwriting", 10));
-        gc.setFill(Color.BLACK);
-
+    private void addAverages(Pane pane) {
         // Iterate over each lift type
         for (String liftType : liftTypeCounts.keySet()) {
             // Get the total days on rent for this lift type
@@ -587,18 +684,34 @@ public class UtilizationController extends BaseController {
             // Get the number of lifts for this lift type
             double numberOfLifts = liftTypeSerialCounts.get(liftType);
 
-            double utilPercent = Math.round(((totalDaysOnRent * 100.0) / (numberOfLifts * numBusinessDays)) * 10.0) / 10.0;
-            utilPercent = Math.round(utilPercent * 10.0) / 10.0;
-            String utilPercentString = utilPercent + "%";
+            // Debug prints
+            System.out.println("---- " + liftType + " ----");
+            System.out.println("Total Days on Rent: " + totalDaysOnRent);
+            System.out.println("Number of Lifts: " + numberOfLifts);
+            System.out.println("Business Days: " + numBusinessDays);
+
+            // Calculate utilization %
+            double rawPercent = (totalDaysOnRent * 100.0) / (numberOfLifts * numBusinessDays);
+            System.out.println("Raw Percent: " + rawPercent);
+
+            // Round to 2 decimals
+            double utilPercent = Math.round(rawPercent * 100.0) / 100.0;
+            String utilPercentString = String.format("%.0f%%", utilPercent);
+
+            System.out.println("Final Percent (Rounded): " + utilPercentString);
 
             // Get the Y-coordinate for this lift type's header
-            double yCoord = typeHeaderCoords.getOrDefault(liftType, 0);
+            double yCoord = typeHeaderCoords.getOrDefault(liftType, 0.0);
 
-            // Draw the average on the canvas
-            gc.fillText(utilPercentString, 206, yCoord + 3.5);
+            Label label = new Label(utilPercentString);
+            label.setTranslateX(259);
+            label.setTranslateY(yCoord - 9);
+            label.setStyle("-fx-font-family: 'Lucida Handwriting'; -fx-font-size: 10;");
+            pane.getChildren().add(label);
         }
-        System.out.println(typeHeaderCoords);
+        System.out.println("Type Header Coords: " + typeHeaderCoords);
     }
+
 
     private void sortLifts() {
         // Clear maps to ensure they only reflect current lift types
@@ -768,6 +881,7 @@ public class UtilizationController extends BaseController {
             }
             gc.restore();
         }
+        numBusinessDays = numColumns - skippedColumns;
 
         pane.getChildren().add(topCanvas);
     }
@@ -811,25 +925,6 @@ public class UtilizationController extends BaseController {
 
         pane.getChildren().add(bottomCanvas);
     }
-
-    private String getFilePath() {
-        String directoryPath = "C:/Users/maxhi/OneDrive/Documents/Max High Reach/MONTH END";
-
-        // Format the file name as "Utilz mm-yy.pdf"
-        String formattedFileName = String.format("Utilz %s-%d.pdf",
-            currentMonth.getDisplayName(TextStyle.SHORT, Locale.ENGLISH), currentYear);
-
-
-        // Ensure the directory path ends with a file separator
-        if (!directoryPath.endsWith(File.separator)) {
-            directoryPath += File.separator;
-        }
-
-
-        // Combine directory path and formatted file name
-        return directoryPath + formattedFileName;
-    }
-
 
     @FXML
     public void handleBack() {

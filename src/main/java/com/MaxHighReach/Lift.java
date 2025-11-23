@@ -14,6 +14,7 @@ public class Lift {
 
     public Lift(String liftId, String liftType) {
         this.liftId = new SimpleStringProperty(liftId);
+        System.out.println("liftType from db is: " + liftType);
         setLiftType(liftType);
     }
 
@@ -28,30 +29,36 @@ public class Lift {
     public String getLiftType() {return liftType.get();}
 
     public void setLiftType(String liftType) {
-        // Convert input liftType to lowercase for case-insensitive matching
-        String result = liftType.toLowerCase();
-        // Step 1: Iterate over the lift types in the map and find matches
+        if (liftType == null) {
+            this.liftType.set(null);
+            return;
+        }
+    
+        String input = liftType.toLowerCase().trim();
+        String result = input; // start with normalized input
+    
+        // Step 1: find exact or close matches
         for (String validLiftType : Config.ASCENDING_LIFT_TYPES) {
-            String lowerCaseLiftType = validLiftType.toLowerCase();  // lowercase of the valid lift type
-            if (result.contains(lowerCaseLiftType)) {
-                // Replace the matched part with the standardized lift type
-                result = lowerCaseLiftType;
+            String lowerCaseLiftType = validLiftType.toLowerCase();
+            if (input.equals(lowerCaseLiftType)) {
+                result = validLiftType; // preserve canonical form
+                break;
             }
         }
+    
+        // Step 2: handle special mappings
         if (result.equals("19")) {
             result = "19s";
-        }
-        if (result.equals("mast")) {
+        } else if (result.equals("mast")) {
             result = "12m";
+        } else if (result.equals("26") && input.contains("s")) {
+            result = "26s";
         }
-        if (result.equals("26")) {
-            if (liftType.contains("S")) {
-                result = "26s";
-            }
-        }
-        // Step 2: Store the processed lift type
+    
+        // Step 3: store
         this.liftType.set(result);
     }
+    
 
     public StringProperty serialNumberProperty() {return serialNumber;}
 

@@ -158,7 +158,7 @@ public class PopupDisc extends StackPane {
             double bandInner = 16;
             double bandOuter = 54;
             double bandSplit = 50; // Major band ends, minor band begins
-            double bandPeripheral = 105;
+            double bandPeripheral = rental == null ? 79 : 105;
             double bandSplit2 = 54;
         
             int iNorm = i + 1;
@@ -193,8 +193,8 @@ public class PopupDisc extends StackPane {
             peripheralBand.getTransforms().add(new Rotate(rotation, 0, 0));
             peripheralBand.setFill(Color.rgb(255, 255, 255, 0.6));
             peripheralBand.setStroke(Color.TRANSPARENT);
-            peripheralBand.setTranslateX(70);
-            peripheralBand.setTranslateY(37);
+            peripheralBand.setTranslateX(rental == null ? 58 : 70);
+            peripheralBand.setTranslateY(rental == null ? 28 : 37);
 
             // Add both bands to scene (minor first so it appears behind)
             getChildren().addAll(minorBand, majorBand, peripheralBand);
@@ -286,9 +286,14 @@ public class PopupDisc extends StackPane {
             //getChildren().add(truckGroup);
         }
         
-        
+        String rawName;    
     
-        String rawName = Config.CUSTOMER_NAME_MAP.getOrDefault(rental.getName(), rental.getName());
+        if (rental != null) {
+            rawName = Config.CUSTOMER_NAME_MAP.getOrDefault(rental.getName(), rental.getName());
+        } else {
+            rawName = "Max High Reach";
+        }
+        
         String name = rawName.replace(".", "");
         int len = name.length();
 
@@ -332,164 +337,178 @@ public class PopupDisc extends StackPane {
         double clampedArcDeg = Math.min(neededArcDeg, maxAvailableDeg);
         double adjustedLabelCenterRad = Math.toRadians(adjustedLabelCenterDeg);
 
-        double[] nameSpan = addSemiCircleLabel(name, adjustedLabelCenterRad, clampedArcDeg, 20, 85, Color.web(Config.getPrimaryColor()), Color.web(Config.getTertiaryColor()));
+        int nameRadius = rental == null ? 58 : 85;
+        double[] nameSpan = addSemiCircleLabel(name, adjustedLabelCenterRad, clampedArcDeg, 20, nameRadius, Color.web(Config.getPrimaryColor()), Color.web(Config.getTertiaryColor()));
         nameStartAngle = nameSpan[0];
         nameEndAngle = nameSpan[1];
-        String line1 = rental.getAddressBlockOne();
-        String line2 = rental.getAddressBlockTwo();
-        int maxChars = (line2 != null) ? line2.length() + 4 : 20; // fallback max
-        String siteText = line1;
-        if (line1 != null && line1.length() > maxChars) {
-            siteText = line1.substring(0, Math.max(0, maxChars - 1)) + "…";
-        }
-        addStreetAddressVisual(siteText, adjustedLabelCenterRad, totalAngle, 65, "site");
-                addStreetAddressVisual(rental.getAddressBlockTwo(), adjustedLabelCenterRad, totalAngle, 56, "street");
-        String cityText = rental.getAddressBlockThree() + " \u25C6 " + rental.getDeliveryTime();
-        addStreetAddressVisual(cityText, adjustedLabelCenterRad, totalAngle, 48, "city");
-        
-        openingAngle = getWidestOpenAngleDeg();
-        secondaryLiftTypeAngleAdjustent();
-
-        /*
-        // === Diagnostics Dots ===
-        Circle startDot = new Circle(4, Color.CYAN);
-        startDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(spreadStartAngle)));
-        startDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(spreadStartAngle)));
-    
-        Circle endDot = new Circle(4, Color.CYAN);
-        endDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(spreadEndAngle)));
-        endDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(spreadEndAngle)));
-    
-        Circle nameStartDot = new Circle(4, Color.web(Config.getPrimaryColor()));
-        nameStartDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(nameStartAngle)));
-        nameStartDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(nameStartAngle)));
-    
-        Circle nameEndDot = new Circle(4, Color.web(Config.getPrimaryColor()));
-        nameEndDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(nameEndAngle)));
-        nameEndDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(nameEndAngle)));
-    
-        Circle addressStartDot = new Circle(4, Color.web(Config.getTertiaryColor()));
-        addressStartDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(addressStartAngle)));
-        addressStartDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(addressStartAngle)));
-    
-        Circle addressEndDot = new Circle(4, Color.web(Config.getTertiaryColor()));
-        addressEndDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(addressEndAngle)));
-        addressEndDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(addressEndAngle)));
-        
-        Circle openAngleDot = new Circle(4, Color.DARKMAGENTA);
-        openAngleDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(openingAngle)));
-        openAngleDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(openingAngle)));
 
 
-        getChildren().addAll(startDot, endDot, nameStartDot, nameEndDot, addressStartDot, addressEndDot, openAngleDot);
-    */
-        if (rental.isService()) {
-            String serviceType = rental.getService().getServiceType();
-            String serviceImageName;
-            switch (serviceType) {
-                case "Move" -> serviceImageName = "move.png";
-                case "Change Out" -> serviceImageName = "change-out.png";
-                case "Service Change Out" -> serviceImageName = "service-change-out.png";
-                case "Service" -> serviceImageName = "service.png";
-                default -> serviceImageName = "change-out.png";
+        if (rental != null) {    
+            String line1 = rental.getAddressBlockOne();
+            String line2 = rental.getAddressBlockTwo();
+            int maxChars = (line2 != null) ? line2.length() + 4 : 20; // fallback max
+            String siteText = line1;
+            if (line1 != null && line1.length() > maxChars) {
+                siteText = line1.substring(0, Math.max(0, maxChars - 1)) + "…";
             }
+            addStreetAddressVisual(siteText, adjustedLabelCenterRad, totalAngle, 65, "site");
+                    addStreetAddressVisual(rental.getAddressBlockTwo(), adjustedLabelCenterRad, totalAngle, 56, "street");
+            String cityText = rental.getAddressBlockThree() + " \u25C6 " + rental.getDeliveryTime();
+            addStreetAddressVisual(cityText, adjustedLabelCenterRad, totalAngle, 48, "city");
+            
+            openingAngle = getWidestOpenAngleDeg();
+            secondaryLiftTypeAngleAdjustent();
+
+            /*
+            // === Diagnostics Dots ===
+            Circle startDot = new Circle(4, Color.CYAN);
+            startDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(spreadStartAngle)));
+            startDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(spreadStartAngle)));
         
-            Image compoundImage = buildServiceCompoundPeekImage(serviceImageName, rental);
-            addImageAtAngle(compoundImage, openingAngle, 79, 48);
+            Circle endDot = new Circle(4, Color.CYAN);
+            endDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(spreadEndAngle)));
+            endDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(spreadEndAngle)));
         
-        } else if (rental.isSingleItemOrder()) {
-            addImageAtAngle("/images/" + rental.getLiftType() + ".png", openingAngle, 79, 38);
+            Circle nameStartDot = new Circle(4, Color.web(Config.getPrimaryColor()));
+            nameStartDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(nameStartAngle)));
+            nameStartDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(nameStartAngle)));
         
-        } else {
-            List<Rental> relatedRentals = fetchRelatedRentals(rental);
-            List<String> liftTypes = relatedRentals.stream()
-                    .map(Rental::getLiftType)
-                    .toList();
-            Image compoundImage = buildCompoundPeekImage(liftTypes);
-            addImageAtAngle(compoundImage, openingAngle, 79, 38);
-        }
-    
-    
-        /*
-        System.out.println("\n===== ANGLE DIAGNOSTICS =====");
-        System.out.printf("🔵 angleToCenter       : %.2f°\n", Math.toDegrees(angleToCenter));
-        System.out.printf("🟠 spreadCenter        : %s\n", 
-            (spreadCenter != null ? String.format("%.2f°", Math.toDegrees(spreadCenter)) : "null"));
-        System.out.printf("🟣 spreadStartAngle    : %.2f°\n", spreadStartAngle);
-        System.out.printf("🟣 spreadEndAngle      : %.2f°\n", spreadEndAngle);
-        System.out.printf("🟢 nameStartAngle      : %.2f°\n", nameStartAngle);
-        System.out.printf("🟢 nameEndAngle        : %.2f°\n", nameEndAngle);
-        System.out.printf("🔴 addressStartAngle   : %.2f°\n", addressStartAngle);
-        System.out.printf("🔴 addressEndAngle     : %.2f°\n", addressEndAngle);
-        System.out.printf("🟤 derivedOpenAngleDeg  : %.2f°\n", openingAngle);
-        System.out.printf("🟤 derivedOpeningSpan  : %.2f°\n", openingSpan);
-        System.out.println("================================\n");
+            Circle nameEndDot = new Circle(4, Color.web(Config.getPrimaryColor()));
+            nameEndDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(nameEndAngle)));
+            nameEndDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(nameEndAngle)));
         
-        Circle clipCircle = new Circle(125, 125, 110);  // center is (125,125) for StackPane
-        setClip(clipCircle);
+            Circle addressStartDot = new Circle(4, Color.web(Config.getTertiaryColor()));
+            addressStartDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(addressStartAngle)));
+            addressStartDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(addressStartAngle)));
         
-        // Optional: for debug visibility
-        clipCircle.setStroke(Color.RED);
-        clipCircle.setFill(Color.color(1, 0, 0, 0.1));
-        getChildren().add(clipCircle);
-        
+            Circle addressEndDot = new Circle(4, Color.web(Config.getTertiaryColor()));
+            addressEndDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(addressEndAngle)));
+            addressEndDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(addressEndAngle)));
+            
+            Circle openAngleDot = new Circle(4, Color.DARKMAGENTA);
+            openAngleDot.setTranslateX(RADIUS * Math.cos(Math.toRadians(openingAngle)));
+            openAngleDot.setTranslateY(RADIUS * Math.sin(Math.toRadians(openingAngle)));
 
 
-
-        // Simple circular clip centered at 0,0 (same as your content)
-        Circle debugClip = new Circle(x, y, 110); // 110 matches your radius cutoff
-        this.setClip(debugClip);
-
-        // Optional debug view
-        debugClip.setStroke(Color.RED);
-        debugClip.setFill(Color.color(1, 0, 0, 0.15));
-        getChildren().add(debugClip);
-
-
-
-        
-        // === Apply Custom Clip to Trim StackPane ===
-        Path clipPath = new Path();
-
-        // Elements are centered at (0, 0), so clip center should match
-        double clipCenterX = 0;
-        double clipCenterY = 0;
-        double radius = 110;
-
-        // Normalize angles into [0, 360)
-        double normalizedStart = normalize360(spreadStartAngle);
-        double normalizedEnd = normalize360(spreadEndAngle);
-        if (normalizedEnd <= normalizedStart) normalizedEnd += 360;
-
-        // Move to center
-        clipPath.getElements().add(new MoveTo(clipCenterX, clipCenterY));
-
-        // Trace arc
-        int steps = 60;
-        for (int i = 0; i <= steps; i++) {
-            double t = (double) i / steps;
-            double angleDeg = normalizedStart + (normalizedEnd - normalizedStart) * t;
-            double angleRad = Math.toRadians(angleDeg);
-            double xx = clipCenterX + radius * Math.cos(angleRad);
-            double yy = clipCenterY + radius * Math.sin(angleRad);
-            clipPath.getElements().add(new LineTo(xx, yy));
-        }
-
-        clipPath.getElements().add(new ClosePath());
-        this.setClip(clipPath);
-
-        // Optional: visualize the clip area for debugging
-        clipPath.setStroke(Color.MAGENTA);
-        clipPath.setFill(Color.color(1, 0, 1, 0.15)); // Light translucent purple
-        getChildren().add(clipPath); // Comment this out in production
-
+            getChildren().addAll(startDot, endDot, nameStartDot, nameEndDot, addressStartDot, addressEndDot, openAngleDot);
         */
-        // Make the entire PopupDisc transparent to mouse clicks
-        setPickOnBounds(false);
+            if (rental.isService()) {
+                String serviceType = rental.getService().getServiceType();
+                String serviceImageName;
+                switch (serviceType) {
+                    case "Move" -> serviceImageName = "move.png";
+                    case "Change Out" -> serviceImageName = "change-out.png";
+                    case "Service Change Out" -> serviceImageName = "service-change-out.png";
+                    case "Service" -> serviceImageName = "service.png";
+                    default -> serviceImageName = "change-out.png";
+                }
+            
+                Image compoundImage = buildServiceCompoundPeekImage(serviceImageName, rental);
+                addImageAtAngle(compoundImage, openingAngle, 79, 48);
+            
+                } else if (rental.isSingleItemOrder()) {
+                    addImageAtAngle("/images/" + rental.getLiftType() + ".png", openingAngle, 79, 38);
 
-        // For every child that should NOT block clicks (like backgrounds), disable pick
-     //   getChildren().forEach(node -> node.setMouseTransparent(true));
+                } else {
+                    List<Rental> relatedRentals = fetchRelatedRentals(rental);
+
+                    if (relatedRentals.size() == 1) {
+                        // Just one related rental → use single image
+                        String liftType = relatedRentals.get(0).getLiftType();
+                        addImageAtAngle("/images/" + liftType + ".png", openingAngle, 79, 38);
+                    } else if (!relatedRentals.isEmpty()) {
+                        // Multiple related rentals → use compound image
+                        List<String> liftTypes = relatedRentals.stream()
+                                .map(Rental::getLiftType)
+                                .toList();
+                        Image compoundImage = buildCompoundPeekImage(liftTypes);
+                        addImageAtAngle(compoundImage, openingAngle, 79, 38);
+                    }
+                }
+
         
+            /*
+            System.out.println("\n===== ANGLE DIAGNOSTICS =====");
+            System.out.printf("🔵 angleToCenter       : %.2f°\n", Math.toDegrees(angleToCenter));
+            System.out.printf("🟠 spreadCenter        : %s\n", 
+                (spreadCenter != null ? String.format("%.2f°", Math.toDegrees(spreadCenter)) : "null"));
+            System.out.printf("🟣 spreadStartAngle    : %.2f°\n", spreadStartAngle);
+            System.out.printf("🟣 spreadEndAngle      : %.2f°\n", spreadEndAngle);
+            System.out.printf("🟢 nameStartAngle      : %.2f°\n", nameStartAngle);
+            System.out.printf("🟢 nameEndAngle        : %.2f°\n", nameEndAngle);
+            System.out.printf("🔴 addressStartAngle   : %.2f°\n", addressStartAngle);
+            System.out.printf("🔴 addressEndAngle     : %.2f°\n", addressEndAngle);
+            System.out.printf("🟤 derivedOpenAngleDeg  : %.2f°\n", openingAngle);
+            System.out.printf("🟤 derivedOpeningSpan  : %.2f°\n", openingSpan);
+            System.out.println("================================\n");
+            
+            Circle clipCircle = new Circle(125, 125, 110);  // center is (125,125) for StackPane
+            setClip(clipCircle);
+            
+            // Optional: for debug visibility
+            clipCircle.setStroke(Color.RED);
+            clipCircle.setFill(Color.color(1, 0, 0, 0.1));
+            getChildren().add(clipCircle);
+            
+
+
+
+            // Simple circular clip centered at 0,0 (same as your content)
+            Circle debugClip = new Circle(x, y, 110); // 110 matches your radius cutoff
+            this.setClip(debugClip);
+
+            // Optional debug view
+            debugClip.setStroke(Color.RED);
+            debugClip.setFill(Color.color(1, 0, 0, 0.15));
+            getChildren().add(debugClip);
+
+
+
+            
+            // === Apply Custom Clip to Trim StackPane ===
+            Path clipPath = new Path();
+
+            // Elements are centered at (0, 0), so clip center should match
+            double clipCenterX = 0;
+            double clipCenterY = 0;
+            double radius = 110;
+
+            // Normalize angles into [0, 360)
+            double normalizedStart = normalize360(spreadStartAngle);
+            double normalizedEnd = normalize360(spreadEndAngle);
+            if (normalizedEnd <= normalizedStart) normalizedEnd += 360;
+
+            // Move to center
+            clipPath.getElements().add(new MoveTo(clipCenterX, clipCenterY));
+
+            // Trace arc
+            int steps = 60;
+            for (int i = 0; i <= steps; i++) {
+                double t = (double) i / steps;
+                double angleDeg = normalizedStart + (normalizedEnd - normalizedStart) * t;
+                double angleRad = Math.toRadians(angleDeg);
+                double xx = clipCenterX + radius * Math.cos(angleRad);
+                double yy = clipCenterY + radius * Math.sin(angleRad);
+                clipPath.getElements().add(new LineTo(xx, yy));
+            }
+
+            clipPath.getElements().add(new ClosePath());
+            this.setClip(clipPath);
+
+            // Optional: visualize the clip area for debugging
+            clipPath.setStroke(Color.MAGENTA);
+            clipPath.setFill(Color.color(1, 0, 1, 0.15)); // Light translucent purple
+            getChildren().add(clipPath); // Comment this out in production
+
+            */
+            // Make the entire PopupDisc transparent to mouse clicks
+            setPickOnBounds(false);
+
+            // For every child that should NOT block clicks (like backgrounds), disable pick
+        //   getChildren().forEach(node -> node.setMouseTransparent(true));
+            
+        }
+
     }
 
     private double interpolateAngle(double from, double to, double weight) {
@@ -974,6 +993,7 @@ public class PopupDisc extends StackPane {
             WHERE ri.rental_order_id = ?
             AND ri.item_delivery_date = ?
             AND ri.delivery_time = ?
+            AND ri.item_status IN ('Upcoming', 'Called Off')
         """;
 
         try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);

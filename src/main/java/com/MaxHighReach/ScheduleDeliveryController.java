@@ -247,7 +247,7 @@ public class ScheduleDeliveryController extends BaseController {
 	public void initialize() {
 
 		super.initialize(dragArea);
-    	customers = MaxReachPro.getCustomers();
+    	customers = MaxReachPro.getCustomers(false);
 
     	customerNameField.setOnKeyPressed(event -> {
         	if (event.getCode() == KeyCode.ENTER) {
@@ -851,74 +851,64 @@ public class ScheduleDeliveryController extends BaseController {
 
 	// Method to populate ComboBoxes with contacts for the selected customer
 	private void populateComboBoxesForCustomer(String customerId) {
-    	ObservableList<String> orderingContacts = FXCollections.observableArrayList();
-    	ObservableList<String> siteContacts = FXCollections.observableArrayList();
+		ObservableList<String> orderingContacts = FXCollections.observableArrayList();
+		ObservableList<String> siteContacts = FXCollections.observableArrayList();
 
 		// OBFUSCATE_OFF
-    	String query = "SELECT first_name, phone_number, is_ordering_contact, is_site_contact, contact_id FROM contacts WHERE customer_id = ?";
+		String query = "SELECT first_name, phone_number, is_ordering_contact, is_site_contact, contact_id FROM contacts WHERE customer_id = ?";
 		// OBFUSCATE_ON
-    	try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-         	PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+		try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+			PreparedStatement preparedStatement = connection.prepareStatement(query)) {
 
+			preparedStatement.setString(1, customerId);
+			try (ResultSet resultSet = preparedStatement.executeQuery()) {
+				while (resultSet.next()) {
+					String contactName = resultSet.getString("first_name");
+					String phoneNumber = resultSet.getString("phone_number");
+					boolean isOrderingContact = resultSet.getBoolean("is_ordering_contact");
+					boolean isSiteContact = resultSet.getBoolean("is_site_contact");
+					String contactId = resultSet.getString("contact_id");
 
+					// Add to ComboBoxes and store phone numbers in the maps
+					if (isOrderingContact) {
+						orderingContacts.add(contactName);
+						for (Customer customer : customers) {
+							if (customer.getCustomerId().equals(customerId)) {
+								customer.addOrderingContact(contactName, phoneNumber, contactId);
+								break;
+							}
+						}
+					}
+					if (isSiteContact) {
+						siteContacts.add(contactName);
+						for (Customer customer : customers) {
+							if (customer.getCustomerId().equals(customerId)) {
+								customer.addSiteContact(contactName, phoneNumber, contactId);
+								break;
+							}
+						}
+					}
+				}
+			}
 
+			// ✅ Alphabetize the lists
+			orderingContacts.sort(String::compareToIgnoreCase);
+			siteContacts.sort(String::compareToIgnoreCase);
 
-        	preparedStatement.setString(1, customerId);
-        	try (ResultSet resultSet = preparedStatement.executeQuery()) {
-            	while (resultSet.next()) {
-                	String contactName = resultSet.getString("first_name");
-                	String phoneNumber = resultSet.getString("phone_number");
-                	boolean isOrderingContact = resultSet.getBoolean("is_ordering_contact");
-                	boolean isSiteContact = resultSet.getBoolean("is_site_contact");
-                	String contactId = resultSet.getString("contact_id");
+			// Populate the ComboBoxes
+			orderedByBox.setItems(orderingContacts);
+			siteContactBox.setItems(siteContacts);
 
+			// Add listeners to handle selection events
+			orderedByBox.setOnAction(event -> handleContactSelection(orderedByBox, true)); // true for ordering
+			siteContactBox.setOnAction(event -> handleContactSelection(siteContactBox, false)); // false for site
 
-
-
-                	// Add to ComboBoxes and store phone numbers in the maps
-                	if (isOrderingContact) {
-                    	orderingContacts.add(contactName);
-                    	for (Customer customer : customers) {
-                        	if (customer.getCustomerId().equals(customerId)) {
-                            	customer.addOrderingContact(contactName, phoneNumber, contactId);
-                            	break;
-                        	}
-                    	}
-                	}
-                	if (isSiteContact) {
-                    	siteContacts.add(contactName);
-                    	for (Customer customer : customers) {
-                        	if (customer.getCustomerId().equals(customerId)) {
-                            	customer.addSiteContact(contactName, phoneNumber, contactId);
-                            	break;
-                        	}
-                    	}
-                	}
-            	}
-        	}
-
-
-
-
-        	// Populate the ComboBoxes
-        	orderedByBox.setItems(orderingContacts);
-        	siteContactBox.setItems(siteContacts);
-
-
-
-
-        	// Add listeners to handle selection events
-        	orderedByBox.setOnAction(event -> handleContactSelection(orderedByBox, true)); // true for ordering
-        	siteContactBox.setOnAction(event -> handleContactSelection(siteContactBox, false)); // false for site
-
-
-
-
-    	} catch (SQLException e) {
-        	System.err.println("Error fetching contacts: " + e.getMessage());
-        	e.printStackTrace();
-    	}
+		} catch (SQLException e) {
+			System.err.println("Error fetching contacts: " + e.getMessage());
+			e.printStackTrace();
+		}
 	}
+
 
 
 

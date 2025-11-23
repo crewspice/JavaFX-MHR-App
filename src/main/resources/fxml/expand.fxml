@@ -213,7 +213,17 @@
 
     <Button fx:id="updateRentalButton" text="Update Rental" layoutX="12" prefWidth="295" layoutY="483" onAction="#handleUpdateRental" />
 
-
+    <Button fx:id="seePhotoButton" 
+            layoutX="102" 
+            layoutY="756" 
+            onAction="#handleSeePhoto"
+            styleClass="lift-base-button">
+        <graphic>
+            <ImageView fitWidth="25" fitHeight="25">
+                <Image url="@../images/photo.png"/>
+            </ImageView>
+        </graphic>
+    </Button>
 
 
     <Label fx:id="statusLabel" text="status label" layoutX="20" layoutY="510" style="-fx-font-weight: bold;

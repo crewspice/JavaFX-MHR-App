@@ -84,6 +84,7 @@ public class MaxReachPro extends Application {
     private static String selectedDriverName;
     private static ObservableList<Rental> scheduledRentalsList = FXCollections.observableArrayList();
     private static ObservableList<Customer> customers = FXCollections.observableArrayList();
+    private static ObservableList<Customer> customersWithUsageQualifier = FXCollections.observableArrayList();
     private static ObservableList<Lift> lifts = FXCollections.observableArrayList();
     private static double xOffset = 0;
     private static double yOffset = 0;
@@ -106,6 +107,7 @@ public class MaxReachPro extends Application {
         sceneHierarchy.put("/fxml/utilization.fxml", "/fxml/home.fxml");
         sceneHierarchy.put("/fxml/expand_imaginary.fxml", "/fxml/utilization.fxml");
         sceneHierarchy.put("/fxml/service.fxml", "/fxml/home.fxml");
+        sceneHierarchy.put("/fxml/expand_service.fxml", "/fxml/home.fxml");
 
         // Load the initial scene
         // Now includes calls to makeMainPane() and makeMapPane()
@@ -266,15 +268,21 @@ public class MaxReachPro extends Application {
     }
 
     public static void loadScene(String fxmlPath) throws Exception {
-        if (currentScenePath != null && fxmlPath.equals("/fxml/expand.fxml")) {
-            if (!currentScenePath.equals("/fxml/expand.fxml")) {
-                if (currentScenePath.equals("/fxml/activity.fxml")) {
-                    sceneBeforeExpandName = "/fxml/home.fxml";
-                } else {
-                    sceneBeforeExpandName = currentScenePath;
-                }
+        boolean isExpandType = fxmlPath.equals("/fxml/expand.fxml") || fxmlPath.equals("/fxml/expand_service.fxml");
+        
+        System.out.println("Loading scene: " + fxmlPath);
+        System.out.println("Is expand type? " + isExpandType);
+        System.out.println("Current scene path: " + currentScenePath);
+    
+        if (currentScenePath != null && isExpandType) {
+            if (currentScenePath.equals("/fxml/activity.fxml")) {
+                sceneBeforeExpandName = "/fxml/home.fxml";
+            } else {
+                sceneBeforeExpandName = currentScenePath;
             }
+            System.out.println("sceneBeforeExpandName set to: " + sceneBeforeExpandName);
         }
+       
     
         if (mainPane != null) {
             if (mainPane.getChildren().size() > 1) {
@@ -728,13 +736,15 @@ public class MaxReachPro extends Application {
                 String liftType = resultSet.getString("lift_type");
                 String serialNumber = resultSet.getString("serial_number") != null ? resultSet.getString("serial_number") : "";
                 String model = resultSet.getString("model");
-
+                boolean isGeneric = resultSet.getBoolean("generic");
 
                 // Add to the customer list
-                Lift lift = new Lift(liftID, liftType);
-                lift.setSerialNumber(serialNumber);
-                lift.setModel(model);
-                lifts.add(lift);
+                if (!isGeneric) {
+                    Lift lift = new Lift(liftID, liftType);
+                    lift.setSerialNumber(serialNumber);
+                    lift.setModel(model);
+                    lifts.add(lift);
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -752,35 +762,55 @@ public class MaxReachPro extends Application {
 
 
     public static void loadCustomers() {
+        customers.clear();
+        customersWithUsageQualifier.clear();
+    
         String query = "SELECT customer_id, customer_name, email FROM customers";
-
-
+        String usageQuery = """
+            SELECT c.customer_id, c.customer_name, c.email
+            FROM customers c
+            WHERE EXISTS (
+                SELECT 1 FROM rental_orders ro WHERE ro.customer_id = c.customer_id
+            )
+        """;
+    
         try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-
-
-            ResultSet resultSet = preparedStatement.executeQuery();
-            while (resultSet.next()) {
-                String customerId = resultSet.getString("customer_id");
-                String customer_name = resultSet.getString("customer_name");
-                String email = resultSet.getString("email");
-
-
-                // Add to the customer list
-                customers.add(new Customer(customerId, customer_name, email));
+             PreparedStatement psAll = connection.prepareStatement(query);
+             PreparedStatement psWithUsage = connection.prepareStatement(usageQuery)) {
+    
+            // All customers
+            try (ResultSet rsAll = psAll.executeQuery()) {
+                while (rsAll.next()) {
+                    String id = rsAll.getString("customer_id");
+                    String name = rsAll.getString("customer_name");
+                    String email = rsAll.getString("email");
+                    customers.add(new Customer(id, name, email));
+                }
             }
+    
+            // Customers with at least one rental
+            try (ResultSet rsUsage = psWithUsage.executeQuery()) {
+                while (rsUsage.next()) {
+                    String id = rsUsage.getString("customer_id");
+                    String name = rsUsage.getString("customer_name");
+                    String email = rsUsage.getString("email");
+                    customersWithUsageQualifier.add(new Customer(id, name, email));
+                }
+            }
+    
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println(e.getMessage());
+            System.out.println("Error loading customers: " + e.getMessage());
         }
     }
 
 
-    public static ObservableList<Customer> getCustomers () {
-        if (customers.isEmpty()) {
+    public static ObservableList<Customer> getCustomers(boolean withUsage) {
+        if (customers.isEmpty() || customersWithUsageQualifier.isEmpty()) {
             loadCustomers();
         }
-        return customers;
+    
+        return withUsage ? customersWithUsageQualifier: customers;
     }
 
     // This method loads the CSS file as a string (helper method)
@@ -814,6 +844,7 @@ public class MaxReachPro extends Application {
 
 
     public static void goBack(String previousScene) throws Exception {
+        System.out.println("goBack called! previouse scene is: " + previousScene);
         if (sceneHierarchy.containsKey(previousScene)) {
             String parentScene = sceneHierarchy.get(previousScene);
             loadScene(parentScene);

@@ -188,6 +188,9 @@ public class ExpandController extends BaseController {
     @FXML
     private Button updateRentalButton;
     @FXML
+    private Button seePhotoButton;
+    private final Tooltip seePhotoTooltip = new Tooltip("See Photo");
+    @FXML
     private Label statusLabel; // Reference to the status label
 
     private boolean suggestionMuter = false;// Flag to track rotation state
@@ -214,7 +217,7 @@ public class ExpandController extends BaseController {
             System.out.println("Initilizng expandController");
             super.initialize(dragArea);
             lifts = MaxReachPro.getLifts();
-            customers = MaxReachPro.getCustomers();
+            customers = MaxReachPro.getCustomers(false);
 
             customerNameField.setOnKeyPressed(event -> {
                 if (event.getCode() == KeyCode.ENTER) {
@@ -290,6 +293,7 @@ public class ExpandController extends BaseController {
             orderedByBox.setMaxWidth(1);
 
             createCustomTooltip(autoTermButton, 38, 10, autoTermTooltip);
+            createCustomTooltip(seePhotoButton, 38, -20, seePhotoTooltip);
 
             weeksRowToggleGroup = new ToggleGroup();  // Create the ToggleGroup for weeks
             liftTypeToggleGroup = new ToggleGroup();  // Create the ToggleGroup for lift types
@@ -543,8 +547,24 @@ public class ExpandController extends BaseController {
             System.err.println("❌ Exception during ExpandController.initialize():");
             e.printStackTrace();
         }    
-   
-   
+
+        new Thread(() -> {
+            try {
+                Thread.sleep(2000);
+                if (expandedRental == null) {
+                    return;
+                }
+                String photoUrl = Config.API_BASE_URL + "/images/deliveries/rental_" 
+                                + expandedRental.getRentalItemId() + ".jpg";
+                boolean photoExists = doesPhotoExist(photoUrl);
+                if (!photoExists) {
+                    javafx.application.Platform.runLater(() -> seePhotoButton.setVisible(false));
+                }
+            } catch (Exception e) {
+                System.out.println("Error during photo existence check:");
+                e.printStackTrace();
+            }
+        }).start();
     }
 
 
@@ -742,63 +762,63 @@ public class ExpandController extends BaseController {
 
     // Method to populate ComboBoxes with contacts for the selected customer
     private void populateComboBoxesForCustomer(String customerId) {
-       ObservableList<String> orderingContacts = FXCollections.observableArrayList();
-       ObservableList<String> siteContacts = FXCollections.observableArrayList();
+        ObservableList<String> orderingContacts = FXCollections.observableArrayList();
+        ObservableList<String> siteContacts = FXCollections.observableArrayList();
+
         // OBFUSCATE_OFF
-       String query = "SELECT first_name, phone_number, is_ordering_contact, is_site_contact, contact_id FROM contacts WHERE customer_id = ?";
+        String query = "SELECT first_name, phone_number, is_ordering_contact, is_site_contact, contact_id FROM contacts WHERE customer_id = ?";
         // OBFUSCATE_ON
 
-       try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
 
+            preparedStatement.setString(1, customerId);
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                while (resultSet.next()) {
+                    String contactName = resultSet.getString("first_name");
+                    String phoneNumber = resultSet.getString("phone_number");
+                    boolean isOrderingContact = resultSet.getBoolean("is_ordering_contact");
+                    boolean isSiteContact = resultSet.getBoolean("is_site_contact");
+                    String contactId = resultSet.getString("contact_id");
 
-           preparedStatement.setString(1, customerId);
-           try (ResultSet resultSet = preparedStatement.executeQuery()) {
-               while (resultSet.next()) {
-                   String contactName = resultSet.getString("first_name");
-                   String phoneNumber = resultSet.getString("phone_number");
-                   boolean isOrderingContact = resultSet.getBoolean("is_ordering_contact");
-                   boolean isSiteContact = resultSet.getBoolean("is_site_contact");
-                   String contactId = resultSet.getString("contact_id");
-
-
-                   // Add to ComboBoxes and store phone numbers in the maps
-                   if (isOrderingContact) {
-                       orderingContacts.add(contactName);
-                       for (Customer customer : customers) {
+                    // Add to ComboBoxes and store phone numbers in the maps
+                    if (isOrderingContact) {
+                        orderingContacts.add(contactName);
+                        for (Customer customer : customers) {
                             if (customer.getCustomerId().equals(customerId)) {
-                                 customer.addOrderingContact(contactName, phoneNumber, contactId);
+                                customer.addOrderingContact(contactName, phoneNumber, contactId);
                                 break;
                             }
-                       }
-                   }
-                   if (isSiteContact) {
-                       siteContacts.add(contactName);
-                       for (Customer customer : customers) {
-                          if (customer.getCustomerId().equals(customerId)) {
-                               customer.addSiteContact(contactName, phoneNumber, contactId);
-                               break;
-                          }
-                      }
-                   }
-               }
-           }
+                        }
+                    }
+                    if (isSiteContact) {
+                        siteContacts.add(contactName);
+                        for (Customer customer : customers) {
+                            if (customer.getCustomerId().equals(customerId)) {
+                                customer.addSiteContact(contactName, phoneNumber, contactId);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
 
+            // ✅ Alphabetize the lists (case-insensitive)
+            orderingContacts.sort(String::compareToIgnoreCase);
+            siteContacts.sort(String::compareToIgnoreCase);
 
-           // Populate the ComboBoxes
-           orderedByBox.setItems(orderingContacts);
-           siteContactBox.setItems(siteContacts);
+            // Populate the ComboBoxes
+            orderedByBox.setItems(orderingContacts);
+            siteContactBox.setItems(siteContacts);
 
+            // Add listeners to handle selection events
+            orderedByBox.setOnAction(event -> handleContactSelection(orderedByBox, true)); // true for ordering
+            siteContactBox.setOnAction(event -> handleContactSelection(siteContactBox, false)); // false for site
 
-           // Add listeners to handle selection events
-           orderedByBox.setOnAction(event -> handleContactSelection(orderedByBox, true)); // true for ordering
-           siteContactBox.setOnAction(event -> handleContactSelection(siteContactBox, false)); // false for site
-
-
-       } catch (SQLException e) {
-           System.err.println("Error fetching contacts: " + e.getMessage());
-           e.printStackTrace();
-       }
+        } catch (SQLException e) {
+            System.err.println("Error fetching contacts: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
 
@@ -1383,6 +1403,37 @@ public class ExpandController extends BaseController {
     }
 
     @FXML
+    private void handleSeePhoto() {
+        if (expandedRental == null) {
+            System.out.println("No rental selected.");
+            return;
+        }
+
+        String photoUrl = Config.API_BASE_URL + "/images/deliveries/rental_" 
+                        + expandedRental.getRentalItemId() + ".jpg";
+
+        System.out.println("Attempting to open photo URL: " + photoUrl);
+
+        try {
+            if (java.awt.Desktop.isDesktopSupported()) {
+                java.awt.Desktop desktop = java.awt.Desktop.getDesktop();
+                if (desktop.isSupported(java.awt.Desktop.Action.BROWSE)) {
+                    desktop.browse(new java.net.URI(photoUrl));
+                    System.out.println("Browse action triggered.");
+                } else {
+                    System.out.println("BROWSE action not supported on this platform.");
+                }
+            } else {
+                System.out.println("Desktop integration is not supported on this platform.");
+            }
+        } catch (Exception e) {
+            System.out.println("Error while trying to open photo:");
+            e.printStackTrace();
+        }
+    }
+
+
+    @FXML
     private void handleUpdateRental() {
        // Chunk of code for getting page settings
        String deliveryDate = getDateForDB(weeksRowToggleGroup);
@@ -1477,7 +1528,24 @@ public class ExpandController extends BaseController {
 
         String liftType = liftTypeToggleGroup.getSelectedToggle() != null ? ((ToggleButton) liftTypeToggleGroup.getSelectedToggle()).getText() : Config.LIFT_BUTTON_TEXT_MAP.getOrDefault(expandedRental.getLiftType(), "");
         String liftTypeShort = normalizeLiftString(liftType);
-        System.out.println("button derived lift type is: " + liftTypeShort);
+        System.out.println("button derived lift type is: " + liftTypeShort); 
+        // Handle orderedBy contact
+        if (orderedByField.getText() == null || orderedByField.getText().trim().isEmpty()) {
+            selectedOrderingContactId = null;  // User cleared field → set to NULL
+        } else if (selectedCustomer != null) {
+            String selectedContactName = orderedByField.getText().trim();
+            selectedOrderingContactId = selectedCustomer.getOrderingContactsIds().get(selectedContactName);
+        }
+
+        // Handle site contact
+        if (siteContactField.getText() == null || siteContactField.getText().trim().isEmpty()) {
+            selectedSiteContactId = null;  // User cleared field → set to NULL
+        } else if (selectedCustomer != null) {
+            String selectedContactName = siteContactField.getText().trim();
+            selectedSiteContactId = selectedCustomer.getSiteContactsIds().get(selectedContactName);
+        }
+
+
         // OBFUSCATE_OFF
         String checkOrdersTableQuery = """
                 SELECT 
@@ -1691,8 +1759,16 @@ public class ExpandController extends BaseController {
 
                             try (PreparedStatement updateRentalItemStmt = connection.prepareStatement(updateRentalItemQuery)) {
                                 updateRentalItemStmt.setInt(1, rentalOrderId);
-                                updateRentalItemStmt.setString(2, selectedOrderingContactId);
-                                updateRentalItemStmt.setString(3, selectedSiteContactId);
+                                if (selectedOrderingContactId == null || selectedOrderingContactId.isEmpty()) {
+                                    updateRentalItemStmt.setNull(2, Types.VARCHAR);
+                                } else {
+                                    updateRentalItemStmt.setString(2, selectedOrderingContactId);
+                                }
+                                if (selectedSiteContactId == null || selectedSiteContactId.isEmpty()) {
+                                    updateRentalItemStmt.setNull(3, Types.VARCHAR);
+                                } else {
+                                    updateRentalItemStmt.setString(3, selectedSiteContactId);
+                                }
                                 updateRentalItemStmt.setInt(4, expandedRental.getLiftId()); // Adjust index if necessary
                                 updateRentalItemStmt.setDate(5, java.sql.Date.valueOf(deliveryDate));
                                 if (callOffDate != null && callOffDate != "") {
@@ -1762,8 +1838,16 @@ public class ExpandController extends BaseController {
                 // Set the parameters for the prepared statement
                 preparedStatement.setInt(1, rentalOrderId); // rental_order_id
                 preparedStatement.setInt(2, getLiftIdFromType(liftType)); // lift_id
-                preparedStatement.setString(3, selectedOrderingContactId); // ordered_contact_id
-                preparedStatement.setString(4, selectedSiteContactId); // site_contact_id
+                if (selectedOrderingContactId == null || selectedOrderingContactId.isEmpty()) {
+                    preparedStatement.setNull(3, Types.VARCHAR);
+                } else {
+                    preparedStatement.setString(3, selectedOrderingContactId);
+                }
+                if (selectedSiteContactId == null || selectedSiteContactId.isEmpty()) {
+                    preparedStatement.setNull(4, Types.VARCHAR);
+                } else {
+                    preparedStatement.setString(4, selectedSiteContactId);
+                }
                 preparedStatement.setString(5, deliveryDate); // item_delivery_date
                 preparedStatement.setString(6, callOffDate);
                 preparedStatement.setString(7, deliveryTime); // delivery_time
@@ -2053,6 +2137,26 @@ public class ExpandController extends BaseController {
 		return new double[]{0.0, 0.0}; // Return default values on failure
 	}
 
+    private boolean doesPhotoExist(String photoUrl) {
+        try {
+            java.net.HttpURLConnection connection = 
+                (java.net.HttpURLConnection) new java.net.URL(photoUrl).openConnection();
+            connection.setRequestMethod("HEAD");
+            connection.setConnectTimeout(3000);
+            connection.setReadTimeout(3000);
+            connection.connect();
+    
+            int responseCode = connection.getResponseCode();
+            String contentType = connection.getContentType();
+    
+    
+            // Only count it as valid if it's an image and HTTP 200 OK
+            return (responseCode == 200 && contentType != null && contentType.startsWith("image/"));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 
     @Override
     protected EventHandler<ActionEvent> getBackHandler() {

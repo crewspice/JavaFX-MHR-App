@@ -1404,11 +1404,16 @@ public class ColumnFactory {
 	
 
 	private void handleMiniatureSelection(int index) {
-    	MaxReachPro.setRentalForExpanding(dbTableView.getItems().get(index), null);
+		Rental selected = dbTableView.getItems().get(index);
+    	MaxReachPro.setRentalForExpanding(selected, null);
     	imageCache.clear();
     	try {
         	if (lastActionType.equals("expanding")) {
-				MaxReachPro.loadScene("/fxml/expand.fxml");
+				if (selected.isService()) {
+					MaxReachPro.loadScene("/fxml/expand_service.fxml");
+				} else {
+					MaxReachPro.loadScene("/fxml/expand.fxml");
+				}
 			} else {
 				System.out.println("About to call service loadScene");
 				MaxReachPro.loadScene("/fxml/service.fxml");
@@ -2175,6 +2180,11 @@ public class ColumnFactory {
 				canvas.showText(rental.getPreTripInstructions());
 				canvas.setTextMatrix(99, 481);
 				canvas.showText(rental.getLiftType());
+				
+				if (rental.getSerialNumber() != null) {
+					canvas.setTextMatrix(197, 481);
+					canvas.showText(rental.getSerialNumber());
+				}
 	
 				canvas.endText();
 				document.close();

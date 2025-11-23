@@ -9,6 +9,9 @@ repositories {
     mavenCentral()
 }
 
+// Hardcoded JavaFX SDK path
+def javafxPathProp = "C:/Users/offic/OneDrive/Documents/MaxReachPro/program_files/javafx-sdk-17.0.14/lib"
+
 dependencies {
     // HTTP Client
     implementation 'com.squareup.okhttp3:okhttp:4.9.3'
@@ -25,9 +28,6 @@ dependencies {
     // MySQL Connector
     implementation 'mysql:mysql-connector-java:8.0.31'
 }
-
-// Detect JavaFX SDK path
-def javafxPathProp = hasProperty('javafxPath') ? javafxPath : ''
 
 // Optional metadata for IntelliJ / plugin tooling
 javafx {
