@@ -336,7 +336,8 @@ public class Config {
 
         Map.entry("Redline/Colorado Fire Services", "Redline"), 
         Map.entry("Highland Ranch HVAC", "Highland HVAC"), 
-        Map.entry("Clarion Design", "Clarion")
+        Map.entry("Clarion Design", "Clarion"), 
+        Map.entry("Colorado Electrical Contractors", "CO Elec. Contractors")
 
     );
 

@@ -804,13 +804,20 @@ public class ColumnFactory {
 
 					// Create or get the label to be displayed
 					Rental currentRental = getCurrentRental();
+
+
 					if ("po-number".equals(type)) {
 						topLabel.setText(currentRental.getPoNumber());
+
 					} else if ("interval".equals(type)) {
 						topLabel.textProperty().bind(
-								Bindings.concat(currentRental.rentalDurationProperty().asString(), " days")
+								Bindings.concat(
+									currentRental.rentalDurationProperty().asString(),
+									" days"
+								)
 						);
 					}
+
 
 					// Enable line wrapping for the label
 					topLabel.setWrapText(true);

@@ -724,7 +724,7 @@ public class ActivityController extends BaseController {
                 double newLongitude = rs.getLong("new_longitude");
 
                 Rental rental = new Rental(customerId, name, serviceDate, serviceTime,
-                 "", serviceDriver, serviceDriverNumber, serviceStatus, reason,
+                 "", serviceDriver != null ? serviceDriver : "", serviceDriverNumber, serviceStatus, poNumber,
                 rentalOrderId, billable, "");
                 rental.setLiftId(liftId);
                 rental.setLiftType(liftType);
@@ -739,7 +739,6 @@ public class ActivityController extends BaseController {
                 rental.setRentalItemId(rentalItemId);
                 rental.setLocationNotes(locationNotes);
                 rental.setPreTripInstructions(preTripInstructions);
-                rental.setDriver(driver);
                 rental.setDriverInitial(driverInitial);
                 rental.setDriverNumber(driverNumber);
                 rental.setOrderDate(orderDate);

@@ -2803,105 +2803,104 @@ public class MapController {
     /*                                     */
 
     public void addStopToRoute(String routeSignifier, Rental rental) {
-        System.out.println("addStopToRoute started and rental: " + rental);
-        boolean isHQ = (rental == null);
 
+        boolean isHQ = (rental == null);
         if (isHQ) {
             rental = createHQRental();
             setIncrementedHQId(rental);
-            System.out.println("HQ rental detected, creating new HQ rental object...");
         }
-
-        System.out.println("===== addStopToRoute: Starting for rental ID " + rental.getRentalItemId()
-                + " with routeSignifier=" + routeSignifier);
-
+    
         String matchedRoute = null;
         int index = 99;
-
-        // STEP 1: Determine the target route
+    
+        // Determine target route
         if (routeSignifier == null) {
-            System.out.println("STEP 1: No routeSignifier provided, getting a free route...");
             String[] route = getARouteNoPreference();
             matchedRoute = route[0];
             index = Integer.parseInt(route[1]);
-            System.out.println("STEP 1A: Assigned to " + matchedRoute + " (index=" + index + ")");
         } else {
-            System.out.println("STEP 2: RouteSignifier provided: " + routeSignifier);
-
-            // Check if routeSignifier is a driver’s initials
+    
+            // Match driver initials
             for (String[] employee : Config.EMPLOYEES) {
                 if (routeSignifier.equals(employee[1]) || routeSignifier.equals(employee[2])) {
-                    System.out.println("STEP 2A: Matched routeSignifier to driver initials: " + routeSignifier);
-
+    
                     int counter = 0;
                     for (Map.Entry<String, String> entry : routeAssignments.entrySet()) {
                         if (entry.getValue() != null && entry.getValue().equals(routeSignifier)) {
                             matchedRoute = entry.getKey();
                             index = counter;
-                            System.out.println("STEP 2B: Found existing route " + matchedRoute
-                                    + " already assigned to driver " + routeSignifier + " (index=" + index + ")");
                             break;
                         }
                         counter++;
                     }
-
+    
                     if (matchedRoute == null) {
                         matchedRoute = "Route " + (routes.size() + 1);
                         index = routes.size();
                         routes.put(matchedRoute, new ArrayList<>());
-                        System.out.println("STEP 2C: No existing route, creating new route " + matchedRoute
-                                + " (index=" + index + ")");
                     }
+    
                     break;
                 }
             }
-
-            // If not driver initials, treat as route name
-            System.out.println("STEP 2D: Checking if '" + routeSignifier + "' is in routes...");
-            System.out.println("Current available routes: " + routes.keySet());
-
+    
+            // Not initials → direct route match
             if (matchedRoute == null && routes.containsKey(routeSignifier)) {
                 matchedRoute = routeSignifier;
                 index = wordToNumber(matchedRoute.replace("route", "")) - 1;
-                System.out.println("STEP 2D: RouteSignifier is a route name. Using "
-                        + matchedRoute + " (index=" + index + ")");
             }
         }
-
-        // STEP 4: Add to route
+    
+        // Add the rental to the matched route
         routes.computeIfAbsent(matchedRoute, k -> new ArrayList<>());
-        System.out.println("STEP 4: Adding rental " + rental.getRentalItemId() + " to route " + matchedRoute);
         routes.get(matchedRoute).add(rental);
         latestRouteEdited = routes.get(matchedRoute);
-
-        // STEP 5: Update UI
-        System.out.println("STEP 5: Updating UI for route " + matchedRoute);
+    
         updateRoutePane(matchedRoute, rental, "insertion", 99, index, "user");
-
-        // STEP 6: Handle multi-item orders
+    
+        // =============================================================
+        // ============   MULTI-ITEM ORDER LOGGING ONLY   ===============
+        // =============================================================
+    
         if (!isHQ && !rental.isSingleItemOrder()) {
-            System.out.println("STEP 6: Rental is part of multi-item order, adding siblings...");
+    
             int rentalOrderIdToMatch = rental.getRentalOrderId();
-
+    
+            System.out.println("\n================ MULTI-ITEM ORDER DETECTED ================");
+            System.out.println("Main rental item: " + rental.getRentalItemId());
+            System.out.println("Order ID: " + rentalOrderIdToMatch);
+            System.out.println("Searching for sibling rentals...");
+    
             for (Rental r : rentalsForCharting) {
                 if (r.getRentalOrderId() == rentalOrderIdToMatch && r != rental) {
-                    System.out.println("STEP 6A: Adding sibling rental " + r.getRentalItemId()
-                            + " from same order " + rentalOrderIdToMatch);
+    
+                    System.out.println("→ Found sibling rental:");
+                    System.out.println("   rentalItemId: " + r.getRentalItemId());
+                    System.out.println("   driver: " + r.getDriver());
+                    System.out.println("   address: " + r.getAddressBlockTwo());
+                    System.out.println("   isService: " + r.isService());
+                    System.out.println("   Adding sibling rental to route: " + matchedRoute);
+    
                     routes.get(matchedRoute).add(r);
                     updateRoutePane(matchedRoute, r, "insertion", 99, index, "user");
-
-                    // Send each sibling individually
-                    sendAddStopToServer(r, routeAssignments.get(matchedRoute), matchedRoute, routes.get(matchedRoute));
+    
+                    System.out.println("   Sending sibling to server...");
+                    sendAddStopToServer(r, routeAssignments.get(matchedRoute),
+                                        getTruckIdForRoute(matchedRoute), routes.get(matchedRoute));
+    
+                    System.out.println("✓ Sibling rental processed.\n");
                 }
             }
+    
+            System.out.println("================ END MULTI-ITEM LOGGING ===================\n");
         }
-
-        // Send the main rental individually
-        sendAddStopToServer(rental, routeAssignments.get(matchedRoute), getTruckIdForRoute(matchedRoute), routes.get(matchedRoute));
-
-        System.out.println("===== addStopToRoute: Finished for rental ID "
-                + rental.getRentalItemId() + " on route " + matchedRoute);
+    
+        // Send main rental last
+        sendAddStopToServer(rental, routeAssignments.get(matchedRoute),
+                            getTruckIdForRoute(matchedRoute),
+                            routes.get(matchedRoute));
     }
+    
 
 
     private void addTruckToRoute(String routeSignifier, String truckSignifier, String agent) {

@@ -194,7 +194,7 @@ public class PopupDisc extends StackPane {
             peripheralBand.setFill(Color.rgb(255, 255, 255, 0.6));
             peripheralBand.setStroke(Color.TRANSPARENT);
             peripheralBand.setTranslateX(rental == null ? 58 : 70);
-            peripheralBand.setTranslateY(rental == null ? 28 : 37);
+            peripheralBand.setTranslateY(rental == null ? 27 : 36);
 
             // Add both bands to scene (minor first so it appears behind)
             getChildren().addAll(minorBand, majorBand, peripheralBand);
