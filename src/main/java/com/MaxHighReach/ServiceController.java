@@ -1143,7 +1143,7 @@ public class ServiceController extends BaseController {
     
                 // Insert new rental_order
                 String insertRentalOrder = """
-                    INSERT INTO rental_orders (customer_id, order_date, delivery_date, call_off_date, delivery_cost, total_cost,
+                    INSERT INTO rental_orders (customer_id, order_date, delivery_date, call_off_date,
                     order_status, is_invoice_created, is_contract_created, single_item_order, po_number, unit_number, latitude, longitude,
                     site_name, street_address, city)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1222,10 +1222,20 @@ public class ServiceController extends BaseController {
                     updateStmt.executeUpdate();
                 }
             }
+
+            statusLabel.setText("Service successfully scheduled!");
+            statusLabel.setStyle("-fx-text-fill: green; -fx-font-weight: bold;");
+            statusLabel.setVisible(true);
+            freezePage();   // <--- your freeze method
+            return;         // prevent red error state
     
         } catch (SQLException e) {
             e.printStackTrace();
+            statusLabel.setVisible(true);
+            statusLabel.setText("Error scheduling service. Please try again.");
+            statusLabel.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
         }
+
     }
     
     // Utility method to insert contact using existing connection
@@ -1314,7 +1324,64 @@ public class ServiceController extends BaseController {
 			   ? selectedDateThisYear 
 			   : selectedDateNextYear;
 	}
-	
+
+    private void freezePage() {
+
+        // Disable all toggle groups
+        if (serviceToggleGroup != null)
+            serviceToggleGroup.getToggles().forEach(t -> ((Node) t).setDisable(true));
+
+        if (serviceTimeToggleGroup != null)
+            serviceTimeToggleGroup.getToggles().forEach(t -> ((Node) t).setDisable(true));
+
+        if (liftTypeToggleGroup != null)
+            liftTypeToggleGroup.getToggles().forEach(t -> ((Node) t).setDisable(true));
+
+        if (weeksToggleGroup != null)
+            weeksToggleGroup.getToggles().forEach(t -> ((Node) t).setDisable(true));
+
+        // Disable individual controls
+        changeOutButton.setDisable(true);
+        serviceChangeOutButton.setDisable(true);
+        serviceButton.setDisable(true);
+        moveButton.setDisable(true);
+
+        datePicker.setDisable(true);
+        openCalendar.setDisable(true);
+        serviceHourComboBox.setDisable(true);
+
+        orderedByBox.setDisable(true);
+        orderedByField.setDisable(true);
+        orderedByPhoneField.setDisable(true);
+
+        siteContactBox.setDisable(true);
+        siteContactField.setDisable(true);
+        siteContactPhoneField.setDisable(true);
+
+        locationNotesButton.setDisable(true);
+        locationNotesField.setDisable(true);
+
+        preTripInstructionsButton.setDisable(true);
+        preTripInstructionsField.setDisable(true);
+
+        chargeDeliveryTripCheckBox.setDisable(true);
+        reasonField.setDisable(true);
+
+        newAddressField.setDisable(true);
+        newSiteField.setDisable(true);
+        sameSiteBox.setDisable(true);
+
+        // Lift options
+        twelveMastButton.setDisable(true);
+        liftTypeTilePane.setDisable(true);
+
+        // Disable schedule button itself
+        scheduleButton.setDisable(true);
+
+        // ⛔ Everything except BACK is frozen
+    }
+
+        
 
     private void recolorButtonImage(ToggleButton button, Color contentColor, Color outlineColor) {
         if (!(button.getGraphic() instanceof ImageView iv)) {

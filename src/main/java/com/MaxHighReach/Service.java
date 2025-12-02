@@ -3,6 +3,8 @@ package com.MaxHighReach;
 public class Service {
     private final int serviceId;
     private final String serviceType;
+    private final String time;
+    private final String date;
     private final String reason;
     private final boolean billable;
     private final Integer previousServiceId;
@@ -17,13 +19,16 @@ public class Service {
     private final String locationNotes;
     private final String preTripInstructions;
 
-    public Service(int serviceId, String serviceType, String reason, boolean billable,
+    public Service(int serviceId, String serviceType,
+                   String time, String date, String reason, boolean billable,
                    Integer previousServiceId, int newRentalOrderId, int newLiftId,
                    String newLiftType, String newSiteName, String newStreetAddress,
                    String newCity, double newLatitude, double newLongitude, 
                    String lovationNotes, String preTripInstructions) {
         this.serviceId = serviceId;
         this.serviceType = serviceType;
+        this.time = time;
+        this.date = date;
         this.reason = reason;
         this.billable = billable;
         this.previousServiceId = previousServiceId;
@@ -41,6 +46,8 @@ public class Service {
 
     public int getServiceId() { return serviceId; }
     public String getServiceType() { return serviceType; }
+    public String getTime() { return time; }
+    public String getDate() { return date; }
     public String getReason() { return reason; }
     public boolean isBillable() { return billable; }
     public Integer getPreviousServiceId() { return previousServiceId; }

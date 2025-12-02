@@ -374,6 +374,11 @@ public class UtilizationController extends BaseController {
     private void loadCustomerRentalData() {
         // OBFUSCATE_OFF
         // SQL query to get customer rental data
+        // As we build trackers for service change outs, I think we should add in 
+        // cut off statements like WHERE item.deliver_date after first of month OR 
+        // status is active OR item.call_off_date is after first of month
+        // that way we can filter out lots of data that doesn't have to do with the
+        // current month
         String query = """
             SELECT ro.customer_id, c.customer_name, ri.item_delivery_date, ri.item_call_off_date, ro.po_number,
                    ordered_contacts.first_name AS ordered_contact_name, ordered_contacts.phone_number AS ordered_contact_phone,

@@ -601,7 +601,7 @@ public class MapController {
                     SELECT ro.customer_id, c.customer_name, ri.item_delivery_date, ri.item_call_off_date, ro.po_number,
                         ordered_contacts.first_name AS ordered_contact_name, ordered_contacts.phone_number AS ordered_contact_phone,
                         ri.auto_term, ro.site_name, ro.street_address, ro.city, ri.rental_item_id, ri.item_status, l.lift_type,
-                        l.serial_number, ro.single_item_order, ri.rental_order_id, ro.longitude, ro.latitude,
+                        l.serial_number, ro.single_item_order, ri.rental_order_id, ro.longitude, ro.latitude, ri.lift_id,
                         site_contacts.first_name AS site_contact_name, site_contacts.phone_number AS site_contact_phone,
                         ri.driver, ri.driver_number, ri.driver_initial, ri.delivery_truck, ri.pick_up_truck, ri.delivery_time, 
                         ri.invoice_composed, ri.location_notes, ri.pre_trip_instructions
@@ -650,6 +650,7 @@ public class MapController {
                                     rs.getString("lift_type"),
                                     rs.getString("item_status")
                             );
+                            rental.setLiftId(rs.getInt("lift_id"));
                             rental.setDriver(rs.getString("driver"));
                             rental.setDriverInitial(rs.getString("driver_initial"));
                             rental.setDriverNumber(rs.getInt("driver_number"));
@@ -791,7 +792,7 @@ public class MapController {
                     rental.setLatitude(latitude);
                     rental.setLongitude(longitude);
     
-                    Service service = new Service(serviceId, serviceType, reason, billable,
+                    Service service = new Service(serviceId, serviceType, serviceTime, serviceDate, reason, billable,
                          previousServiceId, newRentalOrderId, newLiftId, newLiftType, newSiteName,
                          newStreetAddress, newCity, newLatitude, newLongitude, locationNotes, preTripInstructions);
                     rental.setService(service);
@@ -816,7 +817,7 @@ public class MapController {
         }
     }
 
-
+    /* FAZING OUT
     private void loadRentalDataFromSQL() {
         // SQL query to get rental data with the new filters
         // OBFUSCATE_OFF
@@ -1100,7 +1101,8 @@ public class MapController {
                             rental.getSiteContactName(),
                             rental.getSiteContactPhone(),
                             rental.getLocationNotes(),
-                            rental.getPreTripInstructions()
+                            rental.getPreTripInstructions(),
+                            assignedSeconds
                     );
 
                     System.out.println("built RoutingRental and truck is: " + assignedTruck);
@@ -1145,13 +1147,16 @@ public class MapController {
             e.printStackTrace();
         }
     }
-
-    private void sendAddStopToServer(Rental rental, String driverInitial, String truck, List<Rental> route) {
+    */
+    private void sendAddStopToServer(Rental rental, String driverInitial, String truck, List<Rental> route, 
+                                    int assignedSeconds) {
         try {
             if (rental == null) {
                 System.err.println("⚠️ Skipping null rental in sendAddStopToServer");
                 return;
             }
+
+            System.out.println("identifying the assigned drive time at this point: " + "");
 
             RoutingRental dto = new RoutingRental(
                     rental.isService() ? rental.getService().getServiceId() : rental.getRentalItemId(),
@@ -1173,7 +1178,8 @@ public class MapController {
                     rental.getSiteContactName(),
                     rental.getSiteContactPhone(),
                     rental.getLocationNotes(),
-                    rental.getPreTripInstructions()
+                    rental.getPreTripInstructions(),
+                    assignedSeconds
             );
 
             System.out.println("built RoutingRental and truck is: " + truck);
@@ -2886,7 +2892,8 @@ public class MapController {
     
                     System.out.println("   Sending sibling to server...");
                     sendAddStopToServer(r, routeAssignments.get(matchedRoute),
-                                        getTruckIdForRoute(matchedRoute), routes.get(matchedRoute));
+                                        getTruckIdForRoute(matchedRoute), 
+                                        routes.get(matchedRoute), 0);
     
                     System.out.println("✓ Sibling rental processed.\n");
                 }
@@ -2895,10 +2902,15 @@ public class MapController {
             System.out.println("================ END MULTI-ITEM LOGGING ===================\n");
         }
     
+        int assignedSeconds = intervals.getOrDefault(matchedRoute, List.of())
+                                    .stream()
+                                    .reduce((a, b) -> b)
+                                    .orElse(0);
+
         // Send main rental last
         sendAddStopToServer(rental, routeAssignments.get(matchedRoute),
                             getTruckIdForRoute(matchedRoute),
-                            routes.get(matchedRoute));
+                            routes.get(matchedRoute), assignedSeconds);
     }
     
 
@@ -3437,7 +3449,7 @@ public class MapController {
 
                 int driveTimeInMinutes = (int) Math.round(googleRoute.getDurationSeconds() / 60.0);
                 
-                intervalList.add(driveTimeInMinutes);
+                intervalList.add(googleRoute.getDurationSeconds());
 
 
                 // Check if the intermediary VBox is created correctly
@@ -4469,7 +4481,11 @@ public class MapController {
                 ObservableList<Rental> currentList = (active != null) ? active.getActiveRentalList() : null;
                 removeCardCovers();
                 MaxReachPro.setRentalForExpanding(rental, currentList);
-                MaxReachPro.loadScene("/fxml/expand.fxml");
+				if (rental.isService()) {
+					MaxReachPro.loadScene("/fxml/expand_service.fxml");
+				} else {
+					MaxReachPro.loadScene("/fxml/expand.fxml");
+				}
             } catch (Exception e) {
                 e.printStackTrace();
             }     

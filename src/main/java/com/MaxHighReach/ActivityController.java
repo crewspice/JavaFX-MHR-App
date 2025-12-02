@@ -746,7 +746,7 @@ public class ActivityController extends BaseController {
                 rental.setLatitude(latitude);
                 rental.setLongitude(longitude);
 
-                Service service = new Service(serviceId, serviceType, reason, billable,
+                Service service = new Service(serviceId, serviceType, serviceTime, serviceDate, reason, billable,
                      previousServiceId, newRentalOrderId, newLiftId, newLiftType, newSiteName,
                      newStreetAddress, newCity, newLatitude, newLongitude, locationNotes, preTripInstructions);
                 rental.setService(service);
@@ -1501,7 +1501,7 @@ public class ActivityController extends BaseController {
         } else if (lastActionType.equals("deleting")) {
             List<Rental> itemsToRemove = new ArrayList<>();
             for (Rental order : selectedRentals) {
-                deleteRentalFromDB(order.getRentalItemId());
+                deleteRentalFromDB(order);
                 itemsToRemove.add(order);
                 statusUpdated = true;
             }
@@ -1623,22 +1623,48 @@ public class ActivityController extends BaseController {
         return false;
     }
 
+    private void deleteRentalFromDB(Rental rental) {
+        System.out.println("Deleting rental...");
 
-    private void deleteRentalFromDB(int rentalItemId) {
-        String deleteQuery = "DELETE FROM rental_items WHERE rental_item_id = ?";
+        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD)) {
 
+            // If this rental has an associated service, delete service instead
+            if (rental.getService() != null) {
+                int serviceId = rental.getService().getServiceId();
+                System.out.println("Deleting SERVICE id=" + serviceId);
 
-        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-             PreparedStatement statement = connection.prepareStatement(deleteQuery)) {
+                // DELETE SERVICE ONLY (no photos for services)
+                String deleteService = "DELETE FROM services WHERE service_id = ?";
+                try (PreparedStatement ps = connection.prepareStatement(deleteService)) {
+                    ps.setInt(1, serviceId);
+                    ps.executeUpdate();
+                }
 
-
-            statement.setInt(1, rentalItemId);
-            int rowsDeleted = statement.executeUpdate();
-
-
-            if (rowsDeleted > 0) {
-                System.out.println("Rental item with ID " + rentalItemId + " successfully deleted.");
+                System.out.println("Service deleted successfully.");
+                return;
             }
+
+            // Otherwise delete rental item
+            int rentalItemId = rental.getRentalItemId();
+            System.out.println("Deleting RENTAL ITEM id=" + rentalItemId);
+
+            // STEP 1: delete photo rows referencing this rental
+            String deletePhotos = "DELETE FROM photo WHERE rental_item_id = ?";
+            try (PreparedStatement ps = connection.prepareStatement(deletePhotos)) {
+                ps.setInt(1, rentalItemId);
+                ps.executeUpdate();
+            }
+
+            // STEP 2: delete rental item
+            String deleteRental = "DELETE FROM rental_items WHERE rental_item_id = ?";
+            try (PreparedStatement ps = connection.prepareStatement(deleteRental)) {
+                ps.setInt(1, rentalItemId);
+                int rowsDeleted = ps.executeUpdate();
+                if (rowsDeleted > 0) {
+                    System.out.println("Rental item " + rentalItemId + " deleted.");
+                }
+            }
+
         } catch (SQLException e) {
             e.printStackTrace();
         }

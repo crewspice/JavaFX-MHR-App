@@ -337,8 +337,11 @@ public class Config {
         Map.entry("Redline/Colorado Fire Services", "Redline"), 
         Map.entry("Highland Ranch HVAC", "Highland HVAC"), 
         Map.entry("Clarion Design", "Clarion"), 
-        Map.entry("Colorado Electrical Contractors", "CO Elec. Contractors")
+        Map.entry("Colorado Electrical Contractors", "CO Elec. Contractors"),
+        Map.entry("Altitude Network Solutions", "Altitude Network"),
 
+        Map.entry("Hendriks Construction", "Hendriks"),
+        Map.entry("Continued Technologies", "Continued Tech")
     );
 
     public static String simplifyCustomerName(String fullName) {

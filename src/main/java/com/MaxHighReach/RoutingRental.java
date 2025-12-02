@@ -35,13 +35,15 @@ public class RoutingRental {
     private String orderedByContactNumber;
     private String siteContactName;
     private String siteContactNumber;
+    private int assignedDriveSeconds;
 
     public RoutingRental(int id, int orderId, String type, String name, String siteName, String streetAddress,
                          String city, String liftType, String time, double latitude, 
                          double longitude, String driverInitial, int driverNumber, String truck,
                          String orderedByContactName, String orderedByContactNumber,
                          String siteContactName, String siteContactNumber,
-                         String locationNotes, String preTripInstructions) {
+                         String locationNotes, String preTripInstructions,
+                         int assignedDriveSeconds) {
         this.id = id;
         this.orderId = orderId;
         this.type = type;
@@ -62,6 +64,7 @@ public class RoutingRental {
         this.siteContactNumber = siteContactNumber;
         this.locationNotes = locationNotes;
         this.preTripInstructions = preTripInstructions;
+        this.assignedDriveSeconds = assignedDriveSeconds;
     }
 
     @JsonProperty("id")
@@ -188,6 +191,10 @@ public class RoutingRental {
     public String getPreTripInstructions() {return preTripInstructions; }
     public void setPreTripInstructions(String preTripInstructions) {this.preTripInstructions = preTripInstructions;}
 
+    @JsonProperty("assignedDriveSeconds")
+    public int getAssignedDriveSeconds() {return assignedDriveSeconds; }
+    public void setAssignedDriveSeconds(int assignedDriveSeconds) { this.assignedDriveSeconds = assignedDriveSeconds;}
+
     @Override
     public String toString() {
         return "RoutingRental{" +
@@ -203,6 +210,7 @@ public class RoutingRental {
                 ", orderedByContactNumber='" + orderedByContactNumber + '\'' +
                 ", siteContactName='" + siteContactName + '\'' +
                 ", siteContactNumber='" + siteContactNumber + '\'' +
+                ", assignedDriveSeconds='" + assignedDriveSeconds + '\'' +
                 '}';
     }
 }

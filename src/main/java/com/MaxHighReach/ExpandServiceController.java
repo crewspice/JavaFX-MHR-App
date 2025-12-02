@@ -8,6 +8,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -35,6 +36,7 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -74,6 +76,8 @@ public class ExpandServiceController extends BaseController {
     @FXML private Label serviceDateLabel;
     @FXML private Label serviceTimeLabel;
     @FXML private Label statusLabel;
+    @FXML private Button btnBackService;
+    @FXML private Button btnForwardService;
     @FXML private ToggleButton changeOutButton;
     @FXML private ToggleButton serviceChangeOutButton;
     @FXML private ToggleButton serviceButton;
@@ -127,6 +131,8 @@ public class ExpandServiceController extends BaseController {
 
     private int originalScissorHeight = 545;
     private String serviceType = null;
+    private boolean isCalendarExpanded = false;
+    private boolean dateSelected = false;
     private ObservableList<Contact> orderingContacts = FXCollections.observableArrayList();
     private ObservableList<Contact> siteContacts = FXCollections.observableArrayList();
     private ToggleGroup weeksToggleGroup;
@@ -135,10 +141,14 @@ public class ExpandServiceController extends BaseController {
     private ObservableList<String> addressSuggestions = FXCollections.observableArrayList();
 	private OkHttpClient client = new OkHttpClient();
 	private int addressTypeCounter = 0;
+    private List<Service> allSiteServices = new ArrayList<>();
+    private int currentServiceIndex = 0;
 
     public void initialize() {
 
         expandedRental = MaxReachPro.getRentalForExpanding();
+        service = expandedRental.getService();
+
         System.out.println("lift type upon expanding: " + expandedRental.getLiftType());
         try {
 
@@ -148,6 +158,7 @@ public class ExpandServiceController extends BaseController {
             serviceButton.setToggleGroup(serviceToggleGroup);
             moveButton.setToggleGroup(serviceToggleGroup);
             serviceToggleGroup.selectToggle(null);
+            
 
             setTooltipBelow(changeOutButton, "Change Out");
             setTooltipBelow(serviceChangeOutButton, "Service Change Out");
@@ -201,6 +212,8 @@ public class ExpandServiceController extends BaseController {
                     });
                 }
             }
+
+
     
             updateWeekdayToggleButtons(null);
     
@@ -234,7 +247,9 @@ public class ExpandServiceController extends BaseController {
     //              ampmComboBox.getSelectionModel().clearSelection();
                 }
             });
-    
+            String time = expandedRental.getDeliveryTime();
+            System.out.println("time is: " + time);
+            setServiceTime(time);
    
             orderedByBox.setPrefWidth(1);
             orderedByBox.setMinWidth(1);
@@ -244,6 +259,8 @@ public class ExpandServiceController extends BaseController {
             siteContactBox.setMaxWidth(1);
             orderedByBox.setOnAction(event -> handleContactSelection(orderedByBox, true));
             siteContactBox.setOnAction(event -> handleContactSelection(siteContactBox, false));
+
+            loadAllSiteServices();
 
             populateComboBoxesForCustomer();
             prefillSiteContactByPhone();
@@ -377,20 +394,6 @@ public class ExpandServiceController extends BaseController {
             System.out.println("Initilizng expandController");
             super.initialize(dragArea);
 
-            service = expandedRental.getService();
-            if (service != null) {
-                int serviceId = service.getServiceId();
-
-                // Append to existing label text
-                String oldText = mainTitle.getText();
-                mainTitle.setText(oldText + serviceId); // collate onto existing text
-
-                // Print debug
-                System.out.println("✅ Successfully derived expandedRental().getService(): Service ID = " + serviceId);
-            } else {
-                System.out.println(" expandedRental.getService() returned null");
-            }
-
             serviceType = service.getServiceType();
             System.out.println("Service type from expandedRental: " + serviceType);
             
@@ -411,108 +414,14 @@ public class ExpandServiceController extends BaseController {
             } else {
                 System.out.println("No button matched service type: " + serviceType);
             }
-            
-            chargeDeliveryTripCheckBox.setSelected(service.isBillable());
-            updateConditionalElements();
-            
-            
-            int nthService = getServiceNumber(service.getServiceId());
-            String ordinal = getOrdinal(nthService);
-        
-            // Use Unicode for superscript: 1ˢᵗ, 2ⁿᵈ, 3ʳᵈ, 4ᵗʰ ...
-            String labelText = nthService + ordinal + " service for this contract    <- -> [buttons]";
-            rentalIdLabel.setText(labelText);
-
-
-            // LOCATION NOTES
-            String ln = service.getLocationNotes();
-            if (ln != null && !ln.equals("null") && !ln.isEmpty()) {
-                System.out.println("✓ Setting locationNotesField: " + ln);
-                locationNotesField.setText(ln);
-                locationNotesButton.getStyleClass().add("schedule-delivery-button-has-value");
-            } else {
-                System.out.println("✗ locationNotes is null/empty");
-            }
-
-            // PRE-TRIP INSTRUCTIONS
-            String pt = service.getPreTripInstructions();
-            if (pt != null && !pt.equals("null") && !pt.isEmpty()) {
-                System.out.println("✓ Setting preTripInstructionsField: " + pt);
-                preTripInstructionsField.setText(pt);
-                preTripInstructionsButton.getStyleClass().add("schedule-delivery-button-has-value");
-            } else {
-                System.out.println("✗ preTripInstructions is null/empty");
-            }
-
-            // REASON
-            String reason = service.getReason();
-            if (reason != null && !reason.equals("null") && !reason.isEmpty()) {
-                System.out.println("✓ Setting reasonField: " + reason);
-                reasonField.setText(reason);
-            } else {
-                System.out.println("✗ reason is null/empty");
-            }
-
-            // NEW STREET ADDRESS
-            String newStreet = service.getNewStreetAddress();
-            if (newStreet != null && !newStreet.equals("null") && !newStreet.isEmpty()) {
-                System.out.println("✓ Setting newAddressField: " + newStreet);
-                newAddressField.setText(newStreet);
-            } else {
-                System.out.println("✗ newStreetAddress is null/empty");
-            }
-
-            // NEW SITE NAME
-            String newSite = service.getNewSiteName();  // Assuming getter is getNewSiteName()
-            if (newSite != null && !newSite.equals("null") && !newSite.isEmpty()) {
-                System.out.println("✓ Setting newSiteField: " + newSite);
-                newSiteField.setText(newSite);
-            } else {
-                System.out.println("✗ newSiteName is null/empty");
-            }
-
-            if (service.getLocationNotes() == null) {
-                sameSiteBox.setSelected(true);
-            }
-
-            String newLiftType = service.getNewLiftType();
-            System.out.println("newLiftType is " + newLiftType);
-            
-            // Guard 1 — newLiftType missing
-            if (newLiftType == null || newLiftType.equals("null") || newLiftType.isBlank()) {
-                System.out.println("newLiftType is null/missing, skipping lift toggle selection");
-            } else {
-            
-                // Try mapping it
-                String mappedText = Config.LIFT_BUTTON_TEXT_MAP.get(newLiftType);
-            
-                if (mappedText == null) {
-                    System.out.println("⚠ No mapping exists for newLiftType: " + newLiftType);
-                } else {
-                    System.out.println("Mapped to button text: " + mappedText);
-            
-                    // Find matching toggle button
-                    for (Toggle toggle : liftTypeToggleGroup.getToggles()) {
-            
-                        if (toggle instanceof ToggleButton tb) {
-                            System.out.println("Checking button: " + tb.getText());
-            
-                            if (tb.getText().equals(mappedText)) {
-                                tb.setSelected(true);
-                                System.out.println("✔ Selected toggle: " + tb.getText());
-                                break; // do NOT return — just end the loop
-                            }
-                        }
-                    }
-                }
-            }
+            toggleToNthService(service);
             
             // 🚨 initialize() continues normally after this point, nothing is skipped
             System.out.println("Continuing with remaining initialize() code...");
             
             Platform.runLater(() -> getAllLabels().forEach(label -> label.setTextFill(contentColor)));
 
-
+            
 
         } catch (Exception e) {
             System.err.println("Exception during ExpandServiceController.initialize():");
@@ -612,15 +521,26 @@ public class ExpandServiceController extends BaseController {
     
     @FXML
     private void handleService() {
-        if ("Service".equals(serviceType)) {
-            serviceType = null;
-            MaxReachPro.getScissorLift().animateTransition(originalScissorHeight);
-            setUniversalElementsVisibility(false);
-        } else {
-            serviceType = "Service";
-            MaxReachPro.getScissorLift().animateTransition(273);
-            setUniversalElementsVisibility(true);
+        String type = serviceType;
+        if (type == null) return;
+
+        double targetHeight;
+
+        switch (type) {
+            case "Change Out" -> targetHeight = 225;
+            case "Service Change Out", "Service" -> targetHeight = 273; // both map to 273
+            case "Move" -> targetHeight = 240;
+            default -> {
+                System.out.println("Unknown service type: " + type);
+                return;
+            }
         }
+
+
+        serviceType = type;
+        MaxReachPro.getScissorLift().animateTransition(targetHeight);
+        setUniversalElementsVisibility(true);
+
         updateConditionalElements();
     }
     
@@ -636,6 +556,18 @@ public class ExpandServiceController extends BaseController {
             setUniversalElementsVisibility(true);
         }
         updateConditionalElements();
+    }
+
+    private void handleServiceType(String type) {
+        if (type == null) return;
+
+        switch (type) {
+            case "Change Out" -> handleChangeOut();
+            case "Service Change Out" -> handleServiceChangeOut();
+            case "Service" -> handleService();
+            case "Move" -> handleMove();
+            default -> System.out.println("Unknown service type: " + type);
+        }
     }
 
 
@@ -761,6 +693,104 @@ public class ExpandServiceController extends BaseController {
     
         animateUpdateButton(targetY);
     }
+
+    private void toggleToNthService(Service nth) {
+        serviceType = nth.getServiceType();
+        // TODO: fill in what updates the UI when switching services  
+        System.out.println("Switched to service ID: " + nth.getServiceId());
+
+
+        chargeDeliveryTripCheckBox.setSelected(nth.isBillable());
+        updateConditionalElements();
+        
+
+        // LOCATION NOTES
+        String ln = nth.getLocationNotes();
+        if (ln != null && !ln.equals("null") && !ln.isEmpty()) {
+            System.out.println("✓ Setting locationNotesField: " + ln);
+            locationNotesField.setText(ln);
+            locationNotesButton.getStyleClass().add("schedule-delivery-button-has-value");
+        } else {
+            System.out.println("✗ locationNotes is null/empty");
+        }
+
+        // PRE-TRIP INSTRUCTIONS
+        String pt = nth.getPreTripInstructions();
+        if (pt != null && !pt.equals("null") && !pt.isEmpty()) {
+            System.out.println("✓ Setting preTripInstructionsField: " + pt);
+            preTripInstructionsField.setText(pt);
+            preTripInstructionsButton.getStyleClass().add("schedule-delivery-button-has-value");
+        } else {
+            System.out.println("✗ preTripInstructions is null/empty");
+        }
+
+        // REASON
+        String reason = nth.getReason();
+        if (reason != null && !reason.equals("null") && !reason.isEmpty()) {
+            System.out.println("✓ Setting reasonField: " + reason);
+            reasonField.setText(reason);
+        } else {
+            System.out.println("✗ reason is null/empty");
+        }
+
+        if (serviceType.equals("Move")) {
+            // NEW STREET ADDRESS
+            String newStreet = nth.getNewStreetAddress();
+            if (newStreet != null && !newStreet.equals("null") && !newStreet.isEmpty()) {
+                System.out.println("✓ Setting newAddressField: " + newStreet);
+                newAddressField.setText(newStreet);
+            } else {
+                System.out.println("✗ newStreetAddress is null/empty");
+            }
+
+            // NEW SITE NAME
+            String newSite = nth.getNewSiteName();  // Assuming getter is getNewSiteName()
+            if (newSite != null && !newSite.equals("null") && !newSite.isEmpty()) {
+                System.out.println("✓ Setting newSiteField: " + newSite);
+                newSiteField.setText(newSite);
+            } else {
+                System.out.println("✗ newSiteName is null/empty");
+            }
+        }
+
+
+        if (nth.getNewStreetAddress() == null) {
+            sameSiteBox.setSelected(true);
+        }
+
+        String newLiftType = nth.getNewLiftType();
+        System.out.println("newLiftType is " + newLiftType);
+        
+        // Guard 1 — newLiftType missing
+        if (newLiftType == null || newLiftType.equals("null") || newLiftType.isBlank()) {
+            System.out.println("newLiftType is null/missing, skipping lift toggle selection");
+        } else {
+        
+            // Try mapping it
+            String mappedText = Config.LIFT_BUTTON_TEXT_MAP.get(newLiftType);
+        
+            if (mappedText == null) {
+                System.out.println("⚠ No mapping exists for newLiftType: " + newLiftType);
+            } else {
+                System.out.println("Mapped to button text: " + mappedText);
+        
+                // Find matching toggle button
+                for (Toggle toggle : liftTypeToggleGroup.getToggles()) {
+        
+                    if (toggle instanceof ToggleButton tb) {
+                        System.out.println("Checking button: " + tb.getText());
+        
+                        if (tb.getText().equals(mappedText)) {
+                            tb.setSelected(true);
+                            System.out.println("✔ Selected toggle: " + tb.getText());
+                            break; // do NOT return — just end the loop
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     
     private void animateUpdateButton(double targetY) {
         double currentY = updateButton.getLayoutY();
@@ -783,19 +813,33 @@ public class ExpandServiceController extends BaseController {
         timeline.play();
     }
     
+    @FXML
+    private void handleBackService() {
+        if (currentServiceIndex > 0) {
+            currentServiceIndex--;
+            toggleToNthService(allSiteServices.get(currentServiceIndex));
+            updateNavigationButtons();
+            handleServiceType(serviceType);
+            service = allSiteServices.get(currentServiceIndex);
+        }
+    }
+
+    @FXML
+    private void handleForwardService() {
+        if (currentServiceIndex < allSiteServices.size() - 1) {
+            currentServiceIndex++;
+            toggleToNthService(allSiteServices.get(currentServiceIndex));
+            updateNavigationButtons();
+            handleServiceType(serviceType);
+            service = allSiteServices.get(currentServiceIndex);
+        }
+    }
 
     @FXML
     private void handleUpdateService(ActionEvent event) {
     
-        // ========== 1. SERVICE TYPE CHECK ==========
-        ToggleButton selectedService =
-                (ToggleButton) serviceToggleGroup.getSelectedToggle();
-    
-        boolean serviceTypeMatches =
-                (selectedService == changeOutButton && "Change Out".equals(service.getServiceType())) ||
-                (selectedService == serviceChangeOutButton && "Service Change Out".equals(service.getServiceType())) ||
-                (selectedService == serviceButton && "Service".equals(service.getServiceType())) ||
-                (selectedService == moveButton && "Move".equals(service.getServiceType()));
+        // ========== 1. SERVICE TYPE CHECK =========
+        boolean serviceTypeMatches = serviceType == service.getServiceType();
     
     
         // ========== 2. REASON + LOCATION NOTES ==========
@@ -875,7 +919,7 @@ public class ExpandServiceController extends BaseController {
         if (!editServiceVars) {
             System.out.println("⚠ Changes detected — updating Service row in SQL...");
         
-            String newServiceType = selectedService.getText();
+            String newServiceType = serviceType;
             String newServiceDate = selectedDate.toString(); // YYYY-MM-DD
             String newServiceTime = selectedTimeText;
         
@@ -898,7 +942,7 @@ public class ExpandServiceController extends BaseController {
                 SET
                     service_type = ?,
                     service_date = ?,
-                    service_time = ?,
+                    time = ?,
                     ordered_contact_id = ?,
                     site_contact_id = ?,
                     reason = ?,
@@ -937,7 +981,7 @@ public class ExpandServiceController extends BaseController {
         
             } catch (SQLException e) {
                 e.printStackTrace();
-                System.out.println("❌ SQL Update Failed.");
+                System.out.println("SQL Update Failed.");
         
                 statusLabel.setText("Service update failed: " + e.getMessage());
                 statusLabel.setStyle("-fx-text-fill: red;");
@@ -958,7 +1002,53 @@ public class ExpandServiceController extends BaseController {
     
 
     @FXML
-    private void handleOpenCalendar(ActionEvent event) { /* ... */ }
+    public void handleOpenCalendar(ActionEvent event) {
+        // Check which button was clicked (Delivery or End)
+            if (!isCalendarExpanded) {
+                openCalendar(); // Open the Delivery DatePicker
+            } else {
+                closeCalendar(); // Close the Delivery DatePicker
+            }
+            if (!isCalendarExpanded) {
+                openCalendar(); // Open the Call Off DatePicker
+            } else {
+                closeCalendar(); // Close the Call Off DatePicker
+            }
+    }
+
+    
+    public void openCalendar() {
+        datePicker.show();
+        isCalendarExpanded = true;
+        datePicker.requestFocus(); // Focus on the DatePicker
+
+
+        // When a date is selected, update the buttons and close the calendar
+        datePicker.setOnAction(event -> {
+            LocalDate selectedDate = datePicker.getValue();
+            if (selectedDate != null) {
+                dateSelected = true;
+                updateWeekdayToggleButtons(selectedDate);
+                isCalendarExpanded = false;
+            }
+        });
+
+
+        // Hide the calendar when focus is lost (if no date is selected)
+        datePicker.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+            if (!isNowFocused && !dateSelected) {
+                closeCalendar();
+            }
+        });
+    }
+
+
+    // Method to close the calendar for the specific DatePicker
+    private void closeCalendar() {
+        isCalendarExpanded = false;
+        // Optionally, show a cover for the calendar
+        calendarCover.setVisible(true);
+    }
 
     @FXML
     private void handleLocationNotes(ActionEvent event) { 
@@ -1022,6 +1112,26 @@ public class ExpandServiceController extends BaseController {
                 toggleDedicatedField(button, label, textField);
             }
         });
+    }
+
+    private void setServiceTime (String time) {
+        for (Toggle toggle : serviceTimeToggleGroup.getToggles()) {
+            if (toggle instanceof ToggleButton) {
+                ToggleButton button = (ToggleButton) toggle;
+                if (button.getText().equals(time)) {
+                    serviceTimeToggleGroup.selectToggle(button);
+                    return;
+                }
+            }
+        }
+        serviceTimeToggleGroup.selectToggle(serviceCustomButton);
+        serviceHourComboBox.setVisible(true);
+        for (String hour : serviceHourComboBox.getItems()) {
+            if (hour.equals(expandedRental.getDeliveryTime())) {
+                serviceHourComboBox.getSelectionModel().select(hour);
+                break;
+            }
+        }
     }
 
     
@@ -1457,6 +1567,187 @@ public class ExpandServiceController extends BaseController {
        }
 
        return selectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")); // For database
+    }
+
+    private void loadAllSiteServices() {
+        allSiteServices.clear();
+
+        int rentalItemId = expandedRental.getRentalItemId();
+
+        String sql = """
+            SELECT 
+                s.*,
+                nl.lift_type AS new_lift_type,
+                nro.site_name AS new_site_name,
+                nro.street_address AS new_street_address,
+                nro.city AS new_city,
+                nro.latitude AS new_latitude,
+                nro.longitude AS new_longitude,
+                ordered_contacts.first_name AS ordered_contact_name,
+                ordered_contacts.phone_number AS ordered_contact_phone,
+                site_contacts.first_name AS site_contact_name,
+                site_contacts.phone_number AS site_contact_phone
+            FROM services s
+            LEFT JOIN lifts nl ON s.new_lift_id = nl.lift_id
+            LEFT JOIN rental_orders nro ON s.new_rental_order_id = nro.rental_order_id
+            LEFT JOIN contacts AS ordered_contacts ON s.ordered_contact_id = ordered_contacts.contact_id
+            LEFT JOIN contacts AS site_contacts ON s.site_contact_id = site_contacts.contact_id
+            WHERE s.rental_item_id = """ + rentalItemId + ";";
+
+        try (Connection conn = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+
+                int serviceId = rs.getInt("service_id");
+                String serviceType = rs.getString("service_type");
+                String serviceTime = rs.getString("time");
+                String serviceDate = rs.getString("service_date");
+                String reason = rs.getString("reason");
+                boolean billable = rs.getInt("billable") == 1;
+                int previousServiceId = rs.getInt("previous_service_id");
+                int newRentalOrderId = rs.getInt("new_rental_order_id");
+                int newLiftId = rs.getInt("new_lift_id");
+
+                String newLiftType = rs.getString("new_lift_type");
+                String newSiteName = rs.getString("new_site_name");
+                String newStreetAddress = rs.getString("new_street_address");
+                String newCity = rs.getString("new_city");
+                double newLatitude = rs.getDouble("new_latitude");
+                double newLongitude = rs.getDouble("new_longitude");
+
+                String locationNotes = rs.getString("location_notes");
+                String preTripInstructions = rs.getString("pre_trip_instructions");
+
+                Service service = new Service(
+                        serviceId,
+                        serviceType,
+                        serviceTime,
+                        serviceDate,
+                        reason,
+                        billable,
+                        previousServiceId,
+                        newRentalOrderId,
+                        newLiftId,
+                        newLiftType,
+                        newSiteName,
+                        newStreetAddress,
+                        newCity,
+                        newLatitude,
+                        newLongitude,
+                        locationNotes,
+                        preTripInstructions
+                );
+
+                allSiteServices.add(service);
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        // ----------------------------------------------------
+        // 🔥 SORT LOGIC (date ASC, then time ASC with "Any" first)
+        // ----------------------------------------------------
+        allSiteServices.sort((a, b) -> {
+
+            // 1) Compare service_date
+            int dateCmp = safeDate(a.getDate()).compareTo(safeDate(b.getDate()));
+            if (dateCmp != 0) return dateCmp;
+
+            // 2) Compare time, "Any" is ALWAYS earliest
+            String t1 = safeTime(a.getTime());
+            String t2 = safeTime(b.getTime());
+
+            if (t1.equals("Any") && !t2.equals("Any")) return -1;
+            if (!t1.equals("Any") && t2.equals("Any")) return 1;
+
+            return t1.compareTo(t2);
+        });
+
+        // ----------------------------------------------------
+        // 🔥 SET INITIAL INDEX BASED ON CURRENT SELECTED SERVICE
+        // ----------------------------------------------------
+        int currentServiceId = service.getServiceId();
+
+        for (int i = 0; i < allSiteServices.size(); i++) {
+            if (allSiteServices.get(i).getServiceId() == currentServiceId) {
+                currentServiceIndex = i;
+                break;
+            }
+        }
+
+        // Ensure you immediately load the initial one
+        if (!allSiteServices.isEmpty()) {
+            toggleToNthService(allSiteServices.get(currentServiceIndex));
+        }
+        updateNavigationButtons();
+    }
+
+    private void updateNavigationButtons() {
+        if (allSiteServices.isEmpty()) {
+            btnBackService.setVisible(false);
+            btnForwardService.setVisible(false);
+            return;
+        }
+
+        btnBackService.setVisible(currentServiceIndex > 0);
+        btnForwardService.setVisible(currentServiceIndex < allSiteServices.size() - 1);
+        updateServiceLabel();
+    }
+
+    private void updateServiceLabel() {
+        if (allSiteServices.isEmpty()) {
+            rentalIdLabel.setText("No services available for this contract");
+            return;
+        }
+
+        int nthService = currentServiceIndex + 1; // 1-based index
+        String ordinal = getOrdinal(nthService);
+
+        String labelText = nthService + ordinal + " service out of " +
+                allSiteServices.size() + " for this contract";
+
+        rentalIdLabel.setText(labelText);
+        updateMainTitle();
+    }
+
+    private void updateMainTitle() {
+        if (allSiteServices.isEmpty() || currentServiceIndex < 0 || currentServiceIndex >= allSiteServices.size()) {
+            mainTitle.setText("Service #");
+            return;
+        }
+
+        Service current = allSiteServices.get(currentServiceIndex);
+        int serviceId = current.getServiceId();
+
+        // Example: "Service #1234"
+        mainTitle.setText("Service #" + serviceId);
+    }
+
+
+    // Helper to avoid null dates
+    private LocalDate safeDate(String d) {
+        if (d == null || d.isEmpty()) return LocalDate.MIN;
+        return LocalDate.parse(d);
+    }
+
+    // Helper for time; null → "ZZZ" so it sorts last
+    private String safeTime(String t) {
+        return (t == null || t.isEmpty()) ? "ZZZ" : t;
+    }
+
+
+    @Override
+    protected EventHandler<ActionEvent> getBackHandler() {
+        return event -> {
+            try {
+                MaxReachPro.goBackFromExpand();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        };
     }
 
     @Override

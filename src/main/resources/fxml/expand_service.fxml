@@ -41,10 +41,43 @@
     <Label fx:id="mainTitle" text="Service #" layoutX="88.0" layoutY="9.0" 
            style="-fx-font-size: 18px; -fx-font-weight: bold;" />
 
-    <!-- Status Label (shifted up) -->
-    <Label fx:id="rentalIdLabel" layoutX="33.0" layoutY="37.0"
-           text="What kind of service would you like to schedule?"
-           style="-fx-font-size: 14px;" />
+    <HBox layoutX="10" layoutY="33" spacing="0" alignment="CENTER_LEFT">
+
+        <!-- Back Service Button -->
+        <Button fx:id="btnBackService" onAction="#handleBackService"
+                styleClass="schedule-delivery-button"
+                style="-fx-padding: 0;"
+                prefWidth="34" prefHeight="41"
+                translateY="-20">
+            <graphic>
+                <ImageView fitHeight="41" fitWidth="29">
+                    <Image url="@/images/left.png"/>
+                </ImageView>
+            </graphic>
+        </Button>
+
+        <!-- Forward Service Button -->
+        <Button fx:id="btnForwardService" onAction="#handleForwardService"
+                styleClass="schedule-delivery-button"
+                style="-fx-padding: 0;"
+                prefWidth="34" prefHeight="41"
+                translateY="-20">
+            <graphic>
+                <ImageView fitHeight="41" fitWidth="29">
+                    <Image url="@/images/right.png"/>
+                </ImageView>
+            </graphic>
+        </Button>
+
+        <!-- Status Label -->
+        <Label fx:id="rentalIdLabel" 
+            text="What kind of service would you like to schedule?" 
+            style="-fx-font-size: 14px; -fx-font-weight: normal;"
+            alignment="CENTER_LEFT"
+            translateX="8"
+            translateY="-10"/>
+    </HBox>
+
 
     <!-- Buttons HBox (shifted up) -->
     <HBox layoutX="20" layoutY="56" spacing="10" alignment="CENTER_LEFT">

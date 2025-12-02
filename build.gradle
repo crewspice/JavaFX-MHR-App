@@ -9,9 +9,17 @@ repositories {
     mavenCentral()
 }
 
-// Hardcoded JavaFX SDK path
-def javafxPathProp = "C:/Users/offic/OneDrive/Documents/MaxReachPro/program_files/javafx-sdk-17.0.14/lib"
+// -----------------------------
+// Use JavaFX path from gradle.properties
+// -----------------------------
+def javafxPathProp = project.hasProperty('javafxPath') ? project.property('javafxPath') : ""
+if (javafxPathProp == "") {
+    throw new GradleException("javafxPath not set in gradle.properties!")
+}
 
+// -----------------------------
+// Dependencies
+// -----------------------------
 dependencies {
     // HTTP Client
     implementation 'com.squareup.okhttp3:okhttp:4.9.3'
@@ -29,20 +37,28 @@ dependencies {
     implementation 'mysql:mysql-connector-java:8.0.31'
 }
 
-// Optional metadata for IntelliJ / plugin tooling
+// -----------------------------
+// JavaFX Plugin
+// -----------------------------
 javafx {
-    version = "22.0.2"
-    modules = ['javafx.controls', 'javafx.fxml']
+    version = "22.0.2" // Jack's machine default; can override in gradle.properties if needed
+    modules = ['javafx.controls', 'javafx.fxml', 'javafx.swing']
 }
 
+// -----------------------------
+// Application settings
+// -----------------------------
 application {
     mainClass.set('com.MaxHighReach.Main')
     applicationDefaultJvmArgs = [
         '--module-path', javafxPathProp,
-        '--add-modules', 'javafx.controls,javafx.fxml'
+        '--add-modules', 'javafx.controls,javafx.fxml,javafx.swing'
     ]
 }
 
+// -----------------------------
+// Java toolchain
+// -----------------------------
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(17)
@@ -51,19 +67,27 @@ java {
     targetCompatibility = JavaVersion.VERSION_17
 }
 
+// -----------------------------
+// Shadow JAR
+// -----------------------------
 shadowJar {
     archiveClassifier.set('all')
 }
 
+// -----------------------------
+// JavaExec tasks (run)
 tasks.withType(JavaExec).configureEach {
     doFirst {
         jvmArgs = [
             '--module-path', javafxPathProp,
-            '--add-modules', 'javafx.controls,javafx.fxml'
+            '--add-modules', 'javafx.controls,javafx.fxml,javafx.swing'
         ]
     }
 }
 
+// -----------------------------
+// Standard JAR
+// -----------------------------
 jar {
     manifest {
         attributes(
@@ -74,12 +98,18 @@ jar {
     destinationDirectory.set(file('build/libs'))
 }
 
+// -----------------------------
+// Custom distribution ZIP
+// -----------------------------
 task customDist(type: Zip) {
     from sourceSets.main.output
     archiveFileName.set('MaxReachPro-distribution.zip')
     destinationDirectory.set(file('build'))
 }
 
+// -----------------------------
+// jpackage installer task
+// -----------------------------
 task jpackage(type: Exec) {
     dependsOn build
 
@@ -97,6 +127,6 @@ task jpackage(type: Exec) {
             '--main-class', mainClass,
             '--main-jar', mainJarName,
             '--dest', outputDir,
-            '--java-options', "--module-path=${javafxPathProp} --add-modules=javafx.controls,javafx.fxml"
+            '--java-options', "--module-path=${javafxPathProp} --add-modules=javafx.controls,javafx.fxml,javafx.swing"
     }
 }
