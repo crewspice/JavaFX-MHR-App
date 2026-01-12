@@ -47,8 +47,7 @@ public class Rental {
     private final StringProperty siteContactName;
     private final StringProperty siteContactPhone;
     private final StringProperty poNumber;
-    private final StringProperty locationNotes;
-    private final StringProperty preTripInstructions;
+    private final StringProperty notes;
     private final StringProperty driver;
     private final StringProperty driverInitial;
     private final SimpleIntegerProperty driverNumber;
@@ -96,8 +95,7 @@ public class Rental {
         this.siteContactName = new SimpleStringProperty(null);
         this.siteContactPhone = new SimpleStringProperty(null);
         this.poNumber = new SimpleStringProperty(poNumber);
-        this.locationNotes = new SimpleStringProperty(null);
-        this.preTripInstructions = new SimpleStringProperty(null);
+        this.notes = new SimpleStringProperty(null);
         this.driver = new SimpleStringProperty(driver);
         this.driverInitial = new SimpleStringProperty(driver);
         this.driverNumber = new SimpleIntegerProperty(driverNumber);
@@ -153,8 +151,7 @@ public class Rental {
         this.siteContactName = new SimpleStringProperty(siteContactName);
         this.siteContactPhone = new SimpleStringProperty(siteContactPhone);
         this.poNumber = new SimpleStringProperty(poNumber);
-        this.locationNotes = new SimpleStringProperty("");
-        this.preTripInstructions = new SimpleStringProperty("");
+        this.notes = new SimpleStringProperty("");
         this.driver = new SimpleStringProperty("Unknown");
         this.driverInitial = new SimpleStringProperty("Unknown");
         this.driverNumber = new SimpleIntegerProperty(0);
@@ -594,33 +591,18 @@ public class Rental {
     }
 
 
-    public String getLocationNotes() {
-        return locationNotes.get();
+    public String getNotes() {
+        return notes.get();
     }
 
 
-    public void setLocationNotes(String locationNotes) {
-        this.locationNotes.set(locationNotes);
+    public void setNotes(String notes) {
+        this.notes.set(notes);
     }
 
 
-    public StringProperty locationNotesProperty() {
-        return locationNotes;
-    }
-
-
-    public String getPreTripInstructions() {
-        return preTripInstructions.get();
-    }
-
-
-    public void setPreTripInstructions(String preTripInstructions) {
-        this.preTripInstructions.set(preTripInstructions);
-    }
-
-
-    public StringProperty preTripInstructionsProperty() {
-        return preTripInstructions;
+    public StringProperty notesProperty() {
+        return notes;
     }
 
 
@@ -1007,6 +989,33 @@ public class Rental {
         return latestServiceId;
     }
 
+    // for splicing rental_items between multiple lifts
+    public Rental copyWith(int newLiftId, String newStartDate, String newCallOffDate,
+             String newStatus, String serialNumber) {
+        return new Rental(
+                this.customerId.get(),
+                this.name.get(),
+                newStartDate != null ? newStartDate : this.deliveryDate.get(),
+                newCallOffDate != null ? newCallOffDate : this.callOffDate.get(),
+                this.poNumber.get(),
+                this.orderedByName.get(),
+                this.orderedByPhone.get(),
+                this.autoTerm.get(),
+                this.addressBlockOne.get(),
+                this.addressBlockTwo.get(),
+                this.addressBlockThree.get(),
+                this.rentalItemId.get(),
+                serialNumber != null ? serialNumber : this.serialNumber.get(),
+                this.singleItemOrder.get(),
+                this.rentalOrderId.get(),
+                this.siteContactName.get(),
+                this.siteContactPhone.get(),
+                this.latitude.get(),
+                this.longitude.get(),
+                this.liftType.get(),
+                newStatus != null ? newStatus : this.status.get()
+        );
+    }
 
 }
 

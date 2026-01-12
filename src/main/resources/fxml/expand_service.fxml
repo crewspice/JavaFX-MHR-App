@@ -196,81 +196,140 @@
     </TilePane>
 
     <ComboBox fx:id="serviceHourComboBox" layoutX="248" layoutY="282" prefWidth="58" visible="false" styleClass="small-combo-box"/>
-
     <!-- Ordered By Section -->
-    <Label fx:id="orderedByLabel" text="Reported by:" lineSpacing="-3" layoutX="14" layoutY="316" prefWidth="80" wrapText="true"  />
-    <ComboBox fx:id="orderedByBox" layoutX="129" layoutY="314" styleClass="suggestions-box"  />
-    <TextField fx:id="orderedByField" layoutX="133" layoutY="316" prefWidth="66" styleClass="transparent-text-field"  />
-    <Label text="#:" fx:id="orderedByPhoneLabel" layoutX="199" layoutY="316" style="-fx-font-size: 16px;"  />
-    <TextField fx:id="orderedByPhoneField" layoutX="213" layoutY="316" prefWidth="77" styleClass="transparent-text-field"  />
 
-    <!-- Site Contact Section (Positioned Below Ordered By) -->
-    <Label fx:id="siteContactLabel" text="Site Contact:" lineSpacing="-3" layoutX="14" layoutY="346" prefWidth="80" wrapText="true"  />
-    <ComboBox fx:id="siteContactBox" layoutX="129" layoutY="344" styleClass="suggestions-box"  />
-    <TextField fx:id="siteContactField" layoutX="133" layoutY="346" prefWidth="66" styleClass="transparent-text-field"  />
-    <Label text="#:" fx:id="siteContactPhoneLabel" layoutX="199" layoutY="346" style="-fx-font-size: 16px;"  />
-    <TextField fx:id="siteContactPhoneField" layoutX="213" layoutY="346" prefWidth="77" styleClass="transparent-text-field"  />
-
-    <!-- Location Notes Section -->
-    <Button fx:id="locationNotesButton" layoutX="207" layoutY="382" onAction="#handleLocationNotes" styleClass="schedule-delivery-button"  >
-        <graphic>
-            <ImageView fitWidth="40" fitHeight="32">
-                <Image url="@../images/location-notes.png"/>
-            </ImageView>
-        </graphic>
-    </Button>
-    <Label fx:id="locationNotesLabel" text="Location Notes:" prefWidth="50" lineSpacing="-3" layoutX="14" layoutY="380" visible="false" wrapText="true"/>
-    <TextField fx:id="locationNotesField" layoutX="73" layoutY="387" prefWidth="223" visible="fasle" styleClass="transparent-text-field"/>
-
-    <!-- Pre-trip Instructions Section -->
-    <Button fx:id="preTripInstructionsButton" layoutX="258" layoutY="382" onAction="#handlePreTripInstructions" styleClass="schedule-delivery-button"  >
-        <graphic>
-            <ImageView fitWidth="40" fitHeight="32">
-                <Image url="@../images/pre-trip-instructions.png"/>
-            </ImageView>
-        </graphic>
-    </Button>
-    <Label fx:id="preTripInstructionsLabel" text="Pre-trip Instructions:" lineSpacing="-3" prefWidth="65" layoutX="14" layoutY="380" visible="false" wrapText="true"/>
-    <TextField fx:id="preTripInstructionsField" layoutX="89" layoutY="387" prefWidth="188" visible="false" styleClass="transparent-text-field"/>
-
-    <CheckBox fx:id="chargeDeliveryTripCheckBox" layoutX="44" layoutY="387"  />
-    <Label fx:id="chargeDeliveryTripLabel" text="Charge for the trip" layoutX="69" layoutY="388"  />
-
-    <!-- Reason Section -->
-    <Label fx:id="reasonLabel" text="Reason:" layoutX="14" layoutY="425" prefWidth="50" visible="false" wrapText="true"/>
-    <TextField fx:id="reasonField" layoutX="73" layoutY="420" prefWidth="223" visible="false" styleClass="transparent-text-field"/>
-
-    <!-- New Site Field (top) -->
-    <Label fx:id="newSiteLabel" text="New Site:" layoutX="14" layoutY="425" prefWidth="70" visible="false" wrapText="true"/>
-    <TextField fx:id="newSiteField" layoutX="88" layoutY="420" prefWidth="133" visible="false" styleClass="transparent-text-field"/>
-    <CheckBox fx:id="sameSiteBox" layoutY="427" layoutX="227" visible="false" />
-    <Label fx:id="sameSiteLabel" layoutY="426" layoutX="249" text="Same Site" visible="false"/>
-
-    <!-- Address Field (below New Site) -->
-    <Label fx:id="newAddressLabel" text="Address:" layoutX="14" layoutY="455" prefWidth="50" visible="false" wrapText="true"/>
-    <TextField fx:id="newAddressField" layoutX="88" layoutY="450" prefWidth="183" visible="false" styleClass="transparent-text-field"/>
-    <ComboBox fx:id="addressSuggestionsBox" layoutX="299" layoutY="447" visible="false" styleClass="suggestions-box"/>
-
-    <!-- Lift Type Section -->
-    <Label fx:id="newLiftTypeLabel" text="New Lift Type:" layoutX="14" layoutY="455" visible="false" wrapText="true" prefWidth="60"/>
-    <TilePane fx:id="liftTypeTilePane" layoutX="80" layoutY="454" hgap="-1" vgap="0" prefColumns="4" prefRows="2" visible="false">
-        <ToggleButton text="12' Mast" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped" fx:id="twelveMastButton"/>
-        <ToggleButton text="19' Slim" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped"/>
-        <ToggleButton text="26' Slim" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped"/>
-        <ToggleButton text="26'" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped"/>
-        <ToggleButton text="32'" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped"/>
-        <ToggleButton text="40'" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped"/>
-        <ToggleButton text="33' RT" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped"/>
-        <ToggleButton text="45' Boom" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped"/>
+    <Label fx:id="serviceStatusLabel" text="Status:" layoutX="14" layoutY="316" />
+    <TilePane fx:id="statusTilePane" layoutX="79" layoutY="316" hgap="10">
+        <ToggleButton fx:id="upcomingButton" text="Upcoming" minWidth="80" maxWidth="80" styleClass="lift-type-button-stopped" />
+        <ToggleButton fx:id="completedButton" text="Completed" minWidth="80" maxWidth="80" styleClass="lift-type-button-stopped" />
     </TilePane>
 
 
-    <Button fx:id="updateButton" text="Update Service" layoutY="457" layoutX="12" prefWidth="295" onAction="#handleUpdateService"/>
-    <Label fx:id="statusLabel" layoutY="477" layoutX="12" visible="false" />
+    <Label fx:id="orderedByLabel" text="Reported by:" lineSpacing="-3"
+        layoutX="14" layoutY="350" prefWidth="80" wrapText="true" />
+    <ComboBox fx:id="orderedByBox"
+            layoutX="129" layoutY="348" styleClass="suggestions-box" />
+    <TextField fx:id="orderedByField"
+            layoutX="133" layoutY="350" prefWidth="66" styleClass="transparent-text-field" />
+    <Label text="#:" fx:id="orderedByPhoneLabel"
+        layoutX="199" layoutY="350" style="-fx-font-size: 16px;" />
+    <TextField fx:id="orderedByPhoneField"
+            layoutX="213" layoutY="350" prefWidth="77" styleClass="transparent-text-field" />
 
+    <!-- Site Contact Section -->
+    <Label fx:id="siteContactLabel" text="Site Contact:" lineSpacing="-3"
+        layoutX="14" layoutY="380" prefWidth="80" wrapText="true" />
+    <ComboBox fx:id="siteContactBox"
+            layoutX="129" layoutY="378" styleClass="suggestions-box" />
+    <TextField fx:id="siteContactField"
+            layoutX="133" layoutY="380" prefWidth="66" styleClass="transparent-text-field" />
+    <Label text="#:" fx:id="siteContactPhoneLabel"
+        layoutX="199" layoutY="380" style="-fx-font-size: 16px;" />
+    <TextField fx:id="siteContactPhoneField"
+            layoutX="213" layoutY="380" prefWidth="77" styleClass="transparent-text-field" />
 
-    <Button fx:id="backButton" text="Back" layoutX="270" layoutY="5"/>
+    <!-- Notes Section -->
+    <Button fx:id="notesButton"
+            layoutX="258" layoutY="416"
+            onAction="#handleNotes" styleClass="schedule-delivery-button">
+        <graphic>
+            <ImageView fitWidth="40" fitHeight="32">
+                <Image url="@../images/notes.png"/>
+            </ImageView>
+        </graphic>
+    </Button>
 
+    <Label fx:id="notesLabel" text="Notes:" lineSpacing="-3"
+        prefWidth="65" layoutX="14" layoutY="414"
+        visible="false" wrapText="true"/>
 
+    <TextField fx:id="notesField"
+            layoutX="89" layoutY="421"
+            prefWidth="188" visible="false"
+            styleClass="transparent-text-field"/>
 
+    <CheckBox fx:id="chargeDeliveryTripCheckBox"
+            layoutX="44" layoutY="421" />
+    <Label fx:id="chargeDeliveryTripLabel"
+        text="Charge for the trip"
+        layoutX="69" layoutY="422" />
+
+    <!-- Reason Section -->
+    <Label fx:id="reasonLabel" text="Reason:"
+        layoutX="14" layoutY="459"
+        prefWidth="50" visible="false" wrapText="true"/>
+    <TextField fx:id="reasonField"
+            layoutX="73" layoutY="454"
+            prefWidth="223" visible="false"
+            styleClass="transparent-text-field"/>
+
+    <!-- New Site Field -->
+    <Label fx:id="newSiteLabel" text="New Site:"
+        layoutX="14" layoutY="459"
+        prefWidth="70" visible="false" wrapText="true"/>
+    <TextField fx:id="newSiteField"
+            layoutX="88" layoutY="454"
+            prefWidth="133" visible="false"
+            styleClass="transparent-text-field"/>
+    <CheckBox fx:id="sameSiteBox"
+            layoutX="227" layoutY="461"
+            visible="false"/>
+    <Label fx:id="sameSiteLabel"
+        layoutX="249" layoutY="460"
+        text="Same Site" visible="false"/>
+
+    <!-- Address Field -->
+    <Label fx:id="newAddressLabel" text="Address:"
+        layoutX="14" layoutY="489"
+        prefWidth="50" visible="false" wrapText="true"/>
+    <TextField fx:id="newAddressField"
+            layoutX="88" layoutY="484"
+            prefWidth="183" visible="false"
+            styleClass="transparent-text-field"/>
+    <ComboBox fx:id="addressSuggestionsBox"
+            layoutX="299" layoutY="481"
+            visible="false" styleClass="suggestions-box"/>
+
+    <!-- Lift Type Section -->
+    <Label fx:id="newLiftTypeLabel" text="New Lift Type:"
+        layoutX="14" layoutY="489"
+        visible="false" wrapText="true" prefWidth="60"/>
+
+    <TilePane fx:id="liftTypeTilePane"
+            layoutX="80" layoutY="488"
+            hgap="-1" vgap="0"
+            prefColumns="4" prefRows="2"
+            visible="false">
+        <ToggleButton text="12' Mast" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20"
+                    styleClass="lift-type-button-stopped" fx:id="twelveMastButton"/>
+        <ToggleButton text="19' Slim" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20"
+                    styleClass="lift-type-button-stopped"/>
+        <ToggleButton text="26' Slim" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20"
+                    styleClass="lift-type-button-stopped"/>
+        <ToggleButton text="26'" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20"
+                    styleClass="lift-type-button-stopped"/>
+        <ToggleButton text="32'" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20"
+                    styleClass="lift-type-button-stopped"/>
+        <ToggleButton text="40'" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20"
+                    styleClass="lift-type-button-stopped"/>
+        <ToggleButton text="33' RT" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20"
+                    styleClass="lift-type-button-stopped"/>
+        <ToggleButton text="45' Boom" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20"
+                    styleClass="lift-type-button-stopped"/>
+    </TilePane>
+
+    <Button fx:id="updateButton"
+            text="Update Service"
+            layoutX="12" layoutY="491"
+            prefWidth="295"
+            onAction="#handleUpdateService"/>
+
+    <Label fx:id="statusLabel"
+        layoutX="12" layoutY="511"
+        visible="false"/>
+
+    <Button fx:id="backButton"
+            text="Back"
+            layoutX="270" layoutY="5"
+            onAction="#handleBack"/>
 </AnchorPane>

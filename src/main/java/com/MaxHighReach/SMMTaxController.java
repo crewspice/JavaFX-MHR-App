@@ -24,12 +24,16 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.YearMonth;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.time.LocalDate;
+import java.time.Month;
+import java.time.Year;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.format.TextStyle;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -61,7 +65,10 @@ public class SMMTaxController extends BaseController {
     private VBox loadingIndicator;
 
     @FXML
-    private TextField dateRangeTextField;
+    private ComboBox<Month> monthComboBox;
+
+    @FXML
+    private ComboBox<Integer> yearComboBox;
 
     @FXML
     private Label dateRangeLabel;
@@ -87,6 +94,31 @@ public class SMMTaxController extends BaseController {
         super.initialize(dragArea);
         linkOne.setVisible(false);
         linkTwo.setVisible(false);
+            // Populate months (January, February, ...)
+        monthComboBox.getItems().setAll(Month.values());
+
+        // Populate years (adjust range as needed)
+        int currentYear = Year.now().getValue();
+        for (int y = currentYear - 5; y <= currentYear + 1; y++) {
+            yearComboBox.getItems().add(y);
+        }
+
+        // --- Default to last month ---
+        LocalDate lastMonth = LocalDate.now().minusMonths(1);
+        monthComboBox.setValue(lastMonth.getMonth());
+        yearComboBox.setValue(lastMonth.getYear());
+
+        // Optional: nicer display text
+        monthComboBox.setCellFactory(cb -> new ListCell<>() {
+            @Override
+            protected void updateItem(Month item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null :
+                        item.getDisplayName(TextStyle.FULL, Locale.ENGLISH));
+            }
+        });
+
+        monthComboBox.setButtonCell(monthComboBox.getCellFactory().call(null));
     }
 
     private static boolean atWork = true;
@@ -138,17 +170,28 @@ public class SMMTaxController extends BaseController {
             statusLabel.setText("Cloning template file...");
         });
 
-        String dateRange = dateRangeTextField.getText();
-        if (dateRange.isEmpty()) {
+        Month selectedMonth = monthComboBox.getValue();
+        Integer selectedYear = yearComboBox.getValue();
+        
+        if (selectedMonth == null || selectedYear == null) {
             Platform.runLater(() -> {
-                statusLabel.setText("Date range field is empty.");
+                statusLabel.setText("Please select a month and year.");
                 progressLabel.setText("");
                 loadingIndicator.setVisible(false);
             });
             return;
         }
-
-        String normalizedDateRange = normalizeDateRange(dateRange);
+        
+        YearMonth selectedYearMonth = YearMonth.of(
+                selectedYear,
+                selectedMonth
+        );
+        
+        // Normalized format expected by existing SDK logic
+        String normalizedDateRange = selectedYearMonth.format(
+                DateTimeFormatter.ofPattern("MM-yyyy")
+        );
+        
 
         if (normalizedDateRange == null) {
             Platform.runLater(() -> {
@@ -265,7 +308,7 @@ public class SMMTaxController extends BaseController {
                         renameGeneratedFile();
                         statusLabel.setText("SMM file completed.");
                         statusLabel.setVisible(false);  // Show the status label again
-                        progressLabel.setText("Script finished successfully.");
+                        progressLabel.setText("Script finished successfully.\nExcel file saved in MONTH END folder");
                     } else {
                         statusLabel.setText("SMM Task failed with exit code: " + exitCode);
                         statusLabel.setVisible(true);  // Show the status label again
@@ -288,11 +331,25 @@ public class SMMTaxController extends BaseController {
 
 
     private void renameGeneratedFile() {
-        String dateRange = normalizeDateRange(dateRangeTextField.getText());
-        if (dateRange == null) {
-            Platform.runLater(() -> statusLabel.setText("Date range is not valid."));
-            return;
-        }
+
+        Month selectedMonth = monthComboBox.getValue();
+        Integer selectedYear = yearComboBox.getValue();
+        String dateRange = "xx";
+
+        if (selectedMonth == null || selectedYear == null) {
+                Platform.runLater(() ->
+                    statusLabel.setText("Please select a month and year.")
+                );
+                return;
+            }
+
+        dateRange = YearMonth
+                .of(selectedYear, selectedMonth)
+                .format(DateTimeFormatter.ofPattern("MM-yyyy"));
+    
+        // continue using dateRange exactly as before
+    
+    
 
         String tempFilePath = OUTPUT_DIRECTORY + "Filled_SMM_Temp.xlsx";
         String newFileName = "SMM_" + dateRange + ".xlsx";
@@ -358,9 +415,7 @@ public class SMMTaxController extends BaseController {
                             "7. Click \"View Output\"\n" +
                             "8. Save that file \n" +
                             "   \n" +
-                            "   b. Click on the output file and press Ctrl + S\n" +
-                            "   c. Press Ctrl + V to paste in the save address\n" +
-                            "   d. Double click on QBResponse.xml to overwrite\n" +
+                            "   b. Overwrite the Output file to that address name\n" +
                             "Finished!   -    Click Yes below"
             );
             progressLabel.setVisible(true);
@@ -412,36 +467,33 @@ public class SMMTaxController extends BaseController {
 
     @FXML
     private void handleCopyLink1(MouseEvent event) {
-        String pathToCopy = "C:\\Users\\maxhi\\OneDrive\\Documents\\MaxReachPro\\SMM Filing\\scripts\\invoice_query.xml";
-
-        // Get the system clipboard
+    
+        String pathToCopy = PathConfig.getInvoiceQuery();
+    
         Clipboard clipboard = Clipboard.getSystemClipboard();
         ClipboardContent content = new ClipboardContent();
         content.putString(pathToCopy);
-
-        // Set the clipboard content
         clipboard.setContent(content);
-
-        // Optionally, you can provide feedback to the user
+    
         statusLabel.setText("File path copied to clipboard: " + pathToCopy);
     }
-
+    
     @FXML
     private void handleCopyLink2(MouseEvent event) {
-        // Path for QuickBooks response file
-        String qbResponsePath = "C:\\Users\\maxhi\\OneDrive\\Documents\\MaxReachPro\\SMM Filing\\outputs";
-
-        // Get the system clipboard
+    
+        // Copy the outputs directory (not the specific XML)
+        String qbResponseDir = Paths
+                .get(PathConfig.getSrcDir(), "outputs")
+                .toString();
+    
         Clipboard clipboard = Clipboard.getSystemClipboard();
         ClipboardContent content = new ClipboardContent();
-        content.putString(qbResponsePath);
-
-        // Set the clipboard content
+        content.putString(qbResponseDir);
         clipboard.setContent(content);
-
-        // Provide feedback to the user
-        updateStatusLabel("QBResponse file path copied to clipboard: " + qbResponsePath);
+    
+        updateStatusLabel("QBResponse output folder copied to clipboard: " + qbResponseDir);
     }
+    
 
     private String normalizeDateRange(String dateRange) {
         Pattern[] patterns = {

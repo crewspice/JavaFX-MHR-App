@@ -11,20 +11,25 @@ public class Service {
     private final int newRentalOrderId;
     private final int newLiftId;
     private final String newLiftType;
+    private final String newLiftSerial;
+    private final int oldLiftId;
+    private final String oldLiftType;
+    private final String oldLiftSerial;
     private final String newSiteName;
     private final String newStreetAddress;
     private final String newCity;
     private final Double newLatitude;
     private final Double newLongitude;
-    private final String locationNotes;
-    private final String preTripInstructions;
+    private final String notes;
 
     public Service(int serviceId, String serviceType,
                    String time, String date, String reason, boolean billable,
                    Integer previousServiceId, int newRentalOrderId, int newLiftId,
-                   String newLiftType, String newSiteName, String newStreetAddress,
+                   String newLiftType, String newLiftSerial, int oldLiftId,
+                   String oldLiftType, String oldLiftSerial, 
+                   String newSiteName, String newStreetAddress,
                    String newCity, double newLatitude, double newLongitude, 
-                   String lovationNotes, String preTripInstructions) {
+                   String notes) {
         this.serviceId = serviceId;
         this.serviceType = serviceType;
         this.time = time;
@@ -35,13 +40,16 @@ public class Service {
         this.newRentalOrderId = newRentalOrderId;
         this.newLiftId = newLiftId;
         this.newLiftType = newLiftType;
+        this.newLiftSerial = newLiftSerial;
+        this.oldLiftId = oldLiftId;
+        this.oldLiftType = oldLiftType;
+        this.oldLiftSerial = oldLiftSerial;
         this.newSiteName = newSiteName;
         this.newStreetAddress = newStreetAddress;
         this.newCity = newCity;
         this.newLatitude = newLatitude;
         this.newLongitude = newLongitude;
-        this.locationNotes = lovationNotes;
-        this.preTripInstructions = preTripInstructions;
+        this.notes = notes;
     }
 
     public int getServiceId() { return serviceId; }
@@ -54,11 +62,14 @@ public class Service {
     public int getNewRentalOrderId() { return newRentalOrderId; }
     public int getNewLiftId() { return newLiftId; }
     public String getNewLiftType() {return newLiftType; }
+    public String getNewLiftSerial() { return newLiftSerial; }
+    public int getOldLiftId() { return oldLiftId; }
+    public String getOldLiftType() { return oldLiftType; }
+    public String getOldLiftSerial() { return oldLiftSerial; }
     public String getNewSiteName() {return newSiteName; }
     public String getNewStreetAddress() {return newStreetAddress; }
     public String getNewCity() {return newCity; }
     public double getNewLatitude() {return newLatitude; }
     public double getNewLongitude() {return newLongitude; }
-    public String getLocationNotes() { return locationNotes; }
-    public String getPreTripInstructions() { return preTripInstructions; }
+    public String getNotes() { return notes; }
 }

@@ -5,6 +5,7 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.control.TextArea?>
@@ -15,10 +16,12 @@
 <?import javafx.scene.control.Hyperlink?>
 <AnchorPane fx:id="anchorPane" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.MaxHighReach.SMMTaxController">
     <VBox spacing="10" alignment="TOP_CENTER" AnchorPane.leftAnchor="20" AnchorPane.rightAnchor="20" AnchorPane.topAnchor="20" AnchorPane.bottomAnchor="20">
-        <Label text="Enter Date Range (MM-YYYY):" alignment="TOP_LEFT" translateX="-60.0"/>
-        <HBox alignment="CENTER_LEFT" spacing="20.0" >
-            <TextField fx:id="dateRangeTextField" promptText="MM-YYYY" prefWidth="100.0"/>
-            <Button text="Open SDK" fx:id="openSDKButton" onAction="#handleOpenSDK" />
+        <Label text="Select Month" />
+
+        <HBox spacing="12" alignment="CENTER_LEFT">
+            <ComboBox fx:id="monthComboBox" prefWidth="105"/>
+            <ComboBox fx:id="yearComboBox" prefWidth="75"/>
+            <Button text="Open SDK" fx:id="openSDKButton" onAction="#handleOpenSDK"/>
         </HBox>
         <Label fx:id="progressLabel" text="Progress updates will appear here..." visible="false"/>
         <Label fx:id="outputLabel" prefHeight="200" prefWidth="400" wrapText="true" />
@@ -34,6 +37,6 @@
         </HBox>
     </VBox>
     <Button fx:id="backButton" text="Back" layoutX="270" layoutY="5" onAction="#handleBack"/>
-    <Hyperlink fx:id="linkOne" text="a. Click here to copy this address" onMouseClicked="#handleCopyLink1" layoutX="30" layoutY="116"/>
-    <Hyperlink fx:id="linkTwo" text="a. Click here to copy this address" onMouseClicked="#handleCopyLink2" layoutX="30" layoutY="287"/>
+    <Hyperlink fx:id="linkOne" text="a. Click here to copy the request file address" onMouseClicked="#handleCopyLink1" layoutX="33" layoutY="116"/>
+    <Hyperlink fx:id="linkTwo" text="a. Click here to copy the save address" onMouseClicked="#handleCopyLink2" layoutX="33" layoutY="287"/>
 </AnchorPane>

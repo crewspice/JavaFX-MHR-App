@@ -75,6 +75,7 @@ public class ExpandServiceController extends BaseController {
     @FXML private Button openCalendar;
     @FXML private Label serviceDateLabel;
     @FXML private Label serviceTimeLabel;
+    @FXML private Label serviceStatusLabel;
     @FXML private Label statusLabel;
     @FXML private Button btnBackService;
     @FXML private Button btnForwardService;
@@ -87,11 +88,14 @@ public class ExpandServiceController extends BaseController {
     @FXML private DatePicker datePicker;
     @FXML private TilePane weeksRowTilePane;
     @FXML private TilePane serviceTimeTilePane;
+    @FXML private TilePane statusTilePane;
     @FXML private ComboBox<String> serviceHourComboBox;
     @FXML private ToggleButton serviceTime8To10Button;
     @FXML private ToggleButton serviceTimeASAPButton;
     @FXML private ToggleButton serviceTimeAnyButton;
     @FXML private ToggleButton serviceCustomButton;
+    @FXML private ToggleButton upcomingButton;
+    @FXML private ToggleButton completedButton;
     @FXML private Label customerNameLabel;
     @FXML private Label addressBlockOneLabel;
     @FXML private Label addressBlockTwoLabel;
@@ -108,12 +112,9 @@ public class ExpandServiceController extends BaseController {
     @FXML private TextField siteContactField;
     @FXML private Label siteContactPhoneLabel;
     @FXML private TextField siteContactPhoneField;
-    @FXML private Button locationNotesButton;
-    @FXML private Label locationNotesLabel;
-    @FXML private TextField locationNotesField;
-    @FXML private Button preTripInstructionsButton;
-    @FXML private Label preTripInstructionsLabel;
-    @FXML private TextField preTripInstructionsField;
+    @FXML private Button notesButton;
+    @FXML private Label notesLabel;
+    @FXML private TextField notesField;
     @FXML private CheckBox chargeDeliveryTripCheckBox;
     @FXML private Label chargeDeliveryTripLabel;
     @FXML private Label reasonLabel;
@@ -136,6 +137,7 @@ public class ExpandServiceController extends BaseController {
     private ObservableList<Contact> orderingContacts = FXCollections.observableArrayList();
     private ObservableList<Contact> siteContacts = FXCollections.observableArrayList();
     private ToggleGroup weeksToggleGroup;
+    private ToggleGroup statusToggleGroup;
     private ToggleGroup serviceTimeToggleGroup;
     private ToggleGroup liftTypeToggleGroup;
     private ObservableList<String> addressSuggestions = FXCollections.observableArrayList();
@@ -151,6 +153,7 @@ public class ExpandServiceController extends BaseController {
 
         System.out.println("lift type upon expanding: " + expandedRental.getLiftType());
         try {
+            serviceType = service.getServiceType();
 
             serviceToggleGroup = new ToggleGroup();
             changeOutButton.setToggleGroup(serviceToggleGroup);
@@ -251,6 +254,21 @@ public class ExpandServiceController extends BaseController {
             System.out.println("time is: " + time);
             setServiceTime(time);
    
+            statusToggleGroup = new ToggleGroup();
+            String status = expandedRental.getStatus();
+            for (javafx.scene.Node node : statusTilePane.getChildren()) {
+                if (node instanceof ToggleButton) {
+                    ToggleButton toggleButton = (ToggleButton) node;
+                    toggleButton.setToggleGroup(statusToggleGroup);  // Add each ToggleButton to the ToggleGroup
+                    String buttonText = toggleButton.getText();
+                    if (status.equals(buttonText)) {
+                        toggleButton.setSelected(true);
+                    } else {
+                        toggleButton.setSelected(false);
+                    }
+                }
+            }
+
             orderedByBox.setPrefWidth(1);
             orderedByBox.setMinWidth(1);
             orderedByBox.setMaxWidth(1);
@@ -264,13 +282,6 @@ public class ExpandServiceController extends BaseController {
 
             populateComboBoxesForCustomer();
             prefillSiteContactByPhone();
-    
-            setTooltipBelow(locationNotesButton, "Location Notes");
-            setTooltipBelow(preTripInstructionsButton, "Pre-trip Instructions");
-    
-            setupTextFieldListeners(locationNotesField, locationNotesButton, locationNotesLabel);
-            setupTextFieldListeners(preTripInstructionsField, preTripInstructionsButton, preTripInstructionsLabel);
-    
     
             addressSuggestionsBox.setPrefWidth(1);
             addressSuggestionsBox.setMinWidth(1);
@@ -356,6 +367,9 @@ public class ExpandServiceController extends BaseController {
             });
     
             liftTypeToggleGroup = new ToggleGroup();
+            String newLiftType = service.getNewLiftType();
+            String newLiftTypeLong = newLiftType != null ? Config.LIFT_BUTTON_TEXT_MAP.get(newLiftType) : "";
+            System.out.println("newLiftTypeLong is: " + newLiftTypeLong);
             for (javafx.scene.Node node : liftTypeTilePane.getChildren()) {
                 if (node instanceof ToggleButton) {
                     ToggleButton toggleButton = (ToggleButton) node;
@@ -365,6 +379,10 @@ public class ExpandServiceController extends BaseController {
                     toggleButton.setOnAction(event -> {
                         liftTypeToggleGroup.selectToggle(toggleButton); // Ensure the selected button is set
                     });
+
+                    if (toggleButton.getText().equals(newLiftTypeLong)) {
+                        toggleButton.setSelected(true); 
+                    }
                 }
             }
     
@@ -394,7 +412,6 @@ public class ExpandServiceController extends BaseController {
             System.out.println("Initilizng expandController");
             super.initialize(dragArea);
 
-            serviceType = service.getServiceType();
             System.out.println("Service type from expandedRental: " + serviceType);
             
             // Map serviceType to the correct ToggleButton
@@ -414,7 +431,7 @@ public class ExpandServiceController extends BaseController {
             } else {
                 System.out.println("No button matched service type: " + serviceType);
             }
-            toggleToNthService(service);
+            // toggleToNthService(service);
             
             // 🚨 initialize() continues normally after this point, nothing is skipped
             System.out.println("Continuing with remaining initialize() code...");
@@ -608,19 +625,12 @@ public class ExpandServiceController extends BaseController {
         siteContactField.setVisible(visible);          // text field only
         siteContactPhoneLabel.setVisible(visible);
         siteContactPhoneField.setVisible(visible);     // text field only
-    
-        // Location Notes elements
-        locationNotesButton.setVisible(visible);
+
+        // Notes elements
+        notesButton.setVisible(visible);
         if (!visible) {
-            locationNotesLabel.setVisible(false);
-            locationNotesField.setVisible(false);
-        }   // text field only
-    
-        // Pre-trip Instructions elements
-        preTripInstructionsButton.setVisible(visible);
-        if (!visible) {
-            preTripInstructionsLabel.setVisible(false);
-            preTripInstructionsField.setVisible(false);
+            notesLabel.setVisible(false);
+            notesField.setVisible(false);
         }  // text field only
     
         // Charge Delivery Trip elements
@@ -661,7 +671,7 @@ public class ExpandServiceController extends BaseController {
                 newLiftTypeLabel.setVisible(true);
                 liftTypeTilePane.setVisible(true);
                 orderedByLabel.setText("Ordered By:");
-                targetY = 505;
+                targetY = 539;
                 break;
     
             case "Service Change Out":
@@ -670,7 +680,7 @@ public class ExpandServiceController extends BaseController {
                 reasonLabel.setVisible(true);
                 reasonField.setVisible(true);
                 orderedByLabel.setText("Reported By:");
-                targetY = 457;
+                targetY = 491;
                 break;
     
             case "Move":
@@ -682,7 +692,7 @@ public class ExpandServiceController extends BaseController {
                 sameSiteBox.setVisible(true);
                 sameSiteLabel.setVisible(true);
                 orderedByLabel.setText("Ordered By:");
-                targetY = 487;
+                targetY = 511;
                 break;
     
             default:
@@ -702,26 +712,15 @@ public class ExpandServiceController extends BaseController {
 
         chargeDeliveryTripCheckBox.setSelected(nth.isBillable());
         updateConditionalElements();
-        
 
-        // LOCATION NOTES
-        String ln = nth.getLocationNotes();
-        if (ln != null && !ln.equals("null") && !ln.isEmpty()) {
-            System.out.println("✓ Setting locationNotesField: " + ln);
-            locationNotesField.setText(ln);
-            locationNotesButton.getStyleClass().add("schedule-delivery-button-has-value");
-        } else {
-            System.out.println("✗ locationNotes is null/empty");
-        }
-
-        // PRE-TRIP INSTRUCTIONS
-        String pt = nth.getPreTripInstructions();
+        // Notes
+        String pt = nth.getNotes();
         if (pt != null && !pt.equals("null") && !pt.isEmpty()) {
-            System.out.println("✓ Setting preTripInstructionsField: " + pt);
-            preTripInstructionsField.setText(pt);
-            preTripInstructionsButton.getStyleClass().add("schedule-delivery-button-has-value");
+            System.out.println("✓ Setting notesField: " + pt);
+            notesField.setText(pt);
+            notesButton.getStyleClass().add("schedule-delivery-button-has-value");
         } else {
-            System.out.println("✗ preTripInstructions is null/empty");
+            System.out.println("✗ notes is null/empty");
         }
 
         // REASON
@@ -845,12 +844,9 @@ public class ExpandServiceController extends BaseController {
         // ========== 2. REASON + LOCATION NOTES ==========
         boolean reasonMatches =
                 Objects.equals(service.getReason(), reasonField.getText());
-    
-        boolean locationNotesMatch =
-                Objects.equals(service.getLocationNotes(), locationNotesField.getText());
-    
-        boolean preTripInstructionsMatch =
-                Objects.equals(service.getPreTripInstructions(), preTripInstructionsField.getText());
+
+        boolean notesMatch =
+                Objects.equals(service.getNotes(), notesField.getText());
             
     
         // ===== 3. DATE MATCH =====
@@ -868,6 +864,9 @@ public class ExpandServiceController extends BaseController {
             System.out.println("No valid date selected.");
         }
 
+        ToggleButton selectedStatusToggle = (ToggleButton) statusToggleGroup.getSelectedToggle();
+        String selectedStatus = selectedStatusToggle.getText();
+        boolean statusMatches = selectedStatus.equals(expandedRental.getStatus());
 
         // ========== 4. TIME MATCH ==========
         ToggleButton selectedTimeToggle = (ToggleButton) serviceTimeToggleGroup.getSelectedToggle();
@@ -904,9 +903,9 @@ public class ExpandServiceController extends BaseController {
         // ========== FINAL BOOLEAN ==========
         boolean editServiceVars =
                 serviceTypeMatches &&
+                statusMatches &&
                 reasonMatches &&
-                locationNotesMatch &&
-                preTripInstructionsMatch &&
+                notesMatch &&
                 datesMatch &&
                 timeMatches &&
                 orderedByMatches &&
@@ -922,6 +921,7 @@ public class ExpandServiceController extends BaseController {
             String newServiceType = serviceType;
             String newServiceDate = selectedDate.toString(); // YYYY-MM-DD
             String newServiceTime = selectedTimeText;
+            String newStatus = selectedStatus;
         
             Contact orderedContact = orderedByBox.getSelectionModel().getSelectedItem();
             Long newOrderedContactId = orderedContact != null ? orderedContact.contactId : null;
@@ -930,8 +930,7 @@ public class ExpandServiceController extends BaseController {
             Long newSiteContactId = siteContact != null ? siteContact.contactId : null;
         
             String newReason = reasonField.getText();
-            String newLocationNotes = locationNotesField.getText();
-            String newPreTrip = preTripInstructionsField.getText();
+            String newNotes= notesField.getText();
         
             int newBillable = chargeDeliveryTripCheckBox.isSelected() ? 1 : 0;
         
@@ -943,11 +942,11 @@ public class ExpandServiceController extends BaseController {
                     service_type = ?,
                     service_date = ?,
                     time = ?,
+                    service_status = ?,
                     ordered_contact_id = ?,
                     site_contact_id = ?,
                     reason = ?,
-                    location_notes = ?,
-                    pre_trip_instructions = ?,
+                    notes = ?,
                     billable = ?
                 WHERE service_id = ?
                 """;
@@ -958,16 +957,16 @@ public class ExpandServiceController extends BaseController {
                 pstmt.setString(1, newServiceType);
                 pstmt.setString(2, newServiceDate);
                 pstmt.setString(3, newServiceTime);
+                pstmt.setString(4, newStatus);
         
-                if (newOrderedContactId == null) pstmt.setNull(4, java.sql.Types.BIGINT);
-                else pstmt.setLong(4, newOrderedContactId);
+                if (newOrderedContactId == null) pstmt.setNull(5, java.sql.Types.BIGINT);
+                else pstmt.setLong(5, newOrderedContactId);
         
-                if (newSiteContactId == null) pstmt.setNull(5, java.sql.Types.BIGINT);
-                else pstmt.setLong(5, newSiteContactId);
+                if (newSiteContactId == null) pstmt.setNull(6, java.sql.Types.BIGINT);
+                else pstmt.setLong(6, newSiteContactId);
         
-                pstmt.setString(6, newReason);
-                pstmt.setString(7, newLocationNotes);
-                pstmt.setString(8, newPreTrip);
+                pstmt.setString(7, newReason);
+                pstmt.setString(8, newNotes);
                 pstmt.setInt(9, newBillable);
                 pstmt.setInt(10, serviceId);
         
@@ -1051,13 +1050,8 @@ public class ExpandServiceController extends BaseController {
     }
 
     @FXML
-    private void handleLocationNotes(ActionEvent event) { 
-        toggleDedicatedField(locationNotesButton, locationNotesLabel, locationNotesField);
-    }
-
-    @FXML
-    private void handlePreTripInstructions(ActionEvent event) { 
-        toggleDedicatedField(preTripInstructionsButton, preTripInstructionsLabel, preTripInstructionsField);
+    private void handleNotes(ActionEvent event) { 
+        toggleDedicatedField(notesButton, notesLabel, notesField);
      }
 
     
@@ -1139,8 +1133,7 @@ public class ExpandServiceController extends BaseController {
         boolean isDedicatedFieldVisible = textField.isVisible();
     
         // Hide other dedicated field buttons while this one is visible
-        locationNotesButton.setVisible(isDedicatedFieldVisible && button != locationNotesButton);
-        preTripInstructionsButton.setVisible(isDedicatedFieldVisible && button != preTripInstructionsButton);
+        notesButton.setVisible(isDedicatedFieldVisible && button != notesButton);
     
         // Toggle the label and text field visibility
         label.setVisible(!isDedicatedFieldVisible);
@@ -1163,8 +1156,7 @@ public class ExpandServiceController extends BaseController {
             } else {
                 button.getStyleClass().remove("schedule-delivery-button-has-value");
             }
-            preTripInstructionsButton.setVisible(true);
-            locationNotesButton.setVisible(true);
+            notesButton.setVisible(true);
     
             // Restore charge delivery trip elements
             chargeDeliveryTripCheckBox.setVisible(true);
@@ -1617,8 +1609,7 @@ public class ExpandServiceController extends BaseController {
                 double newLatitude = rs.getDouble("new_latitude");
                 double newLongitude = rs.getDouble("new_longitude");
 
-                String locationNotes = rs.getString("location_notes");
-                String preTripInstructions = rs.getString("pre_trip_instructions");
+                String notes = rs.getString("notes");
 
                 Service service = new Service(
                         serviceId,
@@ -1631,13 +1622,16 @@ public class ExpandServiceController extends BaseController {
                         newRentalOrderId,
                         newLiftId,
                         newLiftType,
+                        "",
+                        0,
+                        "",
+                        "",
                         newSiteName,
                         newStreetAddress,
                         newCity,
                         newLatitude,
                         newLongitude,
-                        locationNotes,
-                        preTripInstructions
+                        notes
                 );
 
                 allSiteServices.add(service);
@@ -1679,9 +1673,10 @@ public class ExpandServiceController extends BaseController {
         }
 
         // Ensure you immediately load the initial one
-        if (!allSiteServices.isEmpty()) {
-            toggleToNthService(allSiteServices.get(currentServiceIndex));
-        }
+        // if (!allSiteServices.isEmpty()) {
+        //     toggleToNthService(allSiteServices.get(currentServiceIndex));
+        // }
+        updateConditionalElements();
         updateNavigationButtons();
     }
 
@@ -1758,13 +1753,13 @@ public class ExpandServiceController extends BaseController {
     
         switch (serviceType) {
             case "Change Out":
-                return 225;
+                return 191;
             case "Service Change Out":
-                return 273;
+                return 239;
             case "Service":
-                return 273;
+                return 239;
             case "Move":
-                return 240;
+                return 206;
             default:
                 return originalScissorHeight;
         }

@@ -36,6 +36,11 @@ public class Config {
     public static final String DB_PSWD = "SQL3225422!a123";
     public static final String DB_NAME = "dispatch";
 
+    public static final String DB_URL_DEV = "jdbc:mysql://localhost:3306/newschema";
+    public static final String DB_USR_DEV = "dispatch";
+    public static final String DB_PSWD_DEV = "SQL3225422!a123"; // or whatever your root password is
+    public static final String DB_NAME_DEV = "newschema";
+
     // --------------------------------------------------
     // Tokens and keys
     // --------------------------------------------------
@@ -121,19 +126,44 @@ public class Config {
     public static final Set<LocalDate> COMPANY_HOLIDAYS = new HashSet<>();
 
     static {
-        // Add company holidays (example: 2024 holidays)
-        COMPANY_HOLIDAYS.add(LocalDate.of(2024, 12, 25));  // Christmas Day
-        COMPANY_HOLIDAYS.add(LocalDate.of(2025, 1, 1));
-        COMPANY_HOLIDAYS.add(LocalDate.of(2025, 5, 26));
-        COMPANY_HOLIDAYS.add(LocalDate.of(2025, 9, 1));
-        COMPANY_HOLIDAYS.add(LocalDate.of(2025, 11, 27));
-        COMPANY_HOLIDAYS.add(LocalDate.of(2025, 7, 4));
-        COMPANY_HOLIDAYS.add(LocalDate.of(2025, 12, 25));
-        COMPANY_HOLIDAYS.add(LocalDate.of(2026, 1, 1));
+        // --- 2025 ---
+        COMPANY_HOLIDAYS.add(LocalDate.of(2024, 12, 25)); // Christmas Day
+
+        COMPANY_HOLIDAYS.add(LocalDate.of(2025, 1, 1));  // New Year’s Day
+        COMPANY_HOLIDAYS.add(LocalDate.of(2025, 5, 26)); // Memorial Day
+        COMPANY_HOLIDAYS.add(LocalDate.of(2025, 7, 4));  // Independence Day
+        COMPANY_HOLIDAYS.add(LocalDate.of(2025, 9, 1));  // Labor Day
+        COMPANY_HOLIDAYS.add(LocalDate.of(2025, 11, 27));// Thanksgiving
+        COMPANY_HOLIDAYS.add(LocalDate.of(2025, 12, 25));// Christmas Day
+
+        COMPANY_HOLIDAYS.add(LocalDate.of(2026, 1, 1));  // New Year’s Day
+
+        // --- 2026 ---
+        COMPANY_HOLIDAYS.add(LocalDate.of(2026, 5, 25)); // Memorial Day
+        COMPANY_HOLIDAYS.add(LocalDate.of(2026, 7, 4));  // Independence Day
+        COMPANY_HOLIDAYS.add(LocalDate.of(2026, 9, 7));  // Labor Day
+        COMPANY_HOLIDAYS.add(LocalDate.of(2026, 11, 26));// Thanksgiving
+        COMPANY_HOLIDAYS.add(LocalDate.of(2026, 12, 25));// Christmas Day
+
+        // --- 2027 ---
+        COMPANY_HOLIDAYS.add(LocalDate.of(2027, 1, 1));  // New Year’s Day
+        COMPANY_HOLIDAYS.add(LocalDate.of(2027, 5, 31)); // Memorial Day
+        COMPANY_HOLIDAYS.add(LocalDate.of(2027, 7, 4));  // Independence Day
+        COMPANY_HOLIDAYS.add(LocalDate.of(2027, 9, 6));  // Labor Day
+        COMPANY_HOLIDAYS.add(LocalDate.of(2027, 11, 25));// Thanksgiving
+        COMPANY_HOLIDAYS.add(LocalDate.of(2027, 12, 25));// Christmas Day
+
+        // --- 2028 ---
+        COMPANY_HOLIDAYS.add(LocalDate.of(2028, 1, 1));  // New Year’s Day
+        COMPANY_HOLIDAYS.add(LocalDate.of(2028, 5, 29)); // Memorial Day
+        COMPANY_HOLIDAYS.add(LocalDate.of(2028, 7, 4));  // Independence Day
+        COMPANY_HOLIDAYS.add(LocalDate.of(2028, 9, 4));  // Labor Day
+        COMPANY_HOLIDAYS.add(LocalDate.of(2028, 11, 23));// Thanksgiving
+        COMPANY_HOLIDAYS.add(LocalDate.of(2028, 12, 25));// Christmas Day
     }
 
     public static final LocalTime CUT_OFF_TIME = LocalTime.of(10, 30);
-
+    public static final double PROXIMITY_THRESHOLD_DEG = 0.005;
 
     // --------------------------------------------------
     // Date Formatters
@@ -341,7 +371,10 @@ public class Config {
         Map.entry("Altitude Network Solutions", "Altitude Network"),
 
         Map.entry("Hendriks Construction", "Hendriks"),
-        Map.entry("Continued Technologies", "Continued Tech")
+        Map.entry("Continued Technologies", "Continued Tech"),
+        Map.entry("Larry Smith/Complete Builders", "Larry Smith"),
+        Map.entry("ANS Fire Protection", "ANS Fire"),
+        Map.entry("Xtreme Power Conversion", "Xtreme Power")
     );
 
     public static String simplifyCustomerName(String fullName) {

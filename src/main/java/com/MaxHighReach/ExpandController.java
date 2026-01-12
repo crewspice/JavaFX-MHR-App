@@ -162,19 +162,12 @@ public class ExpandController extends BaseController {
     @FXML
     private TextField POField;
     @FXML
-    private Button locationNotesButton;
-    private final Tooltip locationNotesTooltip = new Tooltip("Location notes");
+    private Button notesButton;
+    private final Tooltip notesTooltip = new Tooltip("Notes");
     @FXML
-    private Label locationNotesLabel;
+    private Label notesLabel;
     @FXML
-    private TextField locationNotesField;
-    @FXML
-    private Button preTripInstructionsButton;
-    private final Tooltip preTripInstructionsTooltip = new Tooltip("Pre-trip instructions");
-    @FXML
-    private Label preTripInstructionsLabel;
-    @FXML
-    private TextField preTripInstructionsField;
+    private TextField notesField;
     @FXML
     private Label serialNumberLabel;
     @FXML
@@ -500,11 +493,6 @@ public class ExpandController extends BaseController {
                 }
             });
 
-            createCustomTooltip(locationNotesButton, 38, 10, locationNotesTooltip);
-            createCustomTooltip(preTripInstructionsButton, 38, 10, preTripInstructionsTooltip);
-
-            setupTextFieldListeners(locationNotesField, locationNotesButton, locationNotesLabel);
-            setupTextFieldListeners(preTripInstructionsField, preTripInstructionsButton, preTripInstructionsLabel);
 
             // Hide the status label initially
         // statusLabel.setVisible(false);
@@ -589,14 +577,9 @@ public class ExpandController extends BaseController {
             selectedSiteContactId = selectedCustomer.getSiteContactId(expandedRental.getSiteContactName());
             POField.setText(expandedRental.getPoNumber());
     
-            if (expandedRental.getLocationNotes() != null && !expandedRental.getLocationNotes().isEmpty()) {
-                locationNotesField.setText(expandedRental.getLocationNotes());
-                locationNotesButton.getStyleClass().add("schedule-delivery-button-has-value");
-            }
-    
-            if (expandedRental.getPreTripInstructions() != null && !expandedRental.getPreTripInstructions().isEmpty()) {
-                preTripInstructionsField.setText(expandedRental.getPreTripInstructions());
-                preTripInstructionsButton.getStyleClass().add("schedule-delivery-button-has-value");
+            if (expandedRental.getNotes() != null && !expandedRental.getNotes().isEmpty()) {
+                notesField.setText(expandedRental.getNotes());
+                notesButton.getStyleClass().add("schedule-delivery-button-has-value");
             }
     
             updateWeekdayToggleButtons(deliveryWeeksRowTilePane,
@@ -733,10 +716,8 @@ public class ExpandController extends BaseController {
             orderedByPhoneField.clear();
             siteContactField.clear();
             siteContactPhoneField.clear();
-            locationNotesField.clear();
-            preTripInstructionsField.clear();
-            locationNotesButton.getStyleClass().remove("schedule-delivery-button-has-value");
-            preTripInstructionsButton.getStyleClass().remove("schedule-delivery-button-has-value");
+            notesField.clear();
+            notesButton.getStyleClass().remove("schedule-delivery-button-has-value");
 
             // Remove focus from the text field after auto-complete
             customerNameField.getParent().requestFocus();
@@ -1299,14 +1280,8 @@ public class ExpandController extends BaseController {
     }
 
     @FXML
-    private void handleLocationNotes(){
-        toggleDedicatedField(locationNotesButton, locationNotesLabel, locationNotesField);
-        POLabel.setVisible(false);
-    }
-
-    @FXML
-    private void handlePreTripInstructions(){
-        toggleDedicatedField(preTripInstructionsButton, preTripInstructionsLabel, preTripInstructionsField);
+    private void handleNotes(){
+        toggleDedicatedField(notesButton, notesLabel, notesField);
         POLabel.setVisible(false);
     }
 
@@ -1315,8 +1290,7 @@ public class ExpandController extends BaseController {
 
         POLabel.setVisible(isDedicatedFieldVisible);
         POField.setVisible(isDedicatedFieldVisible);
-        locationNotesButton.setVisible(isDedicatedFieldVisible && button != locationNotesButton);
-        preTripInstructionsButton.setVisible(isDedicatedFieldVisible && button != preTripInstructionsButton);
+        notesButton.setVisible(isDedicatedFieldVisible && button != notesButton);
 
         label.setVisible(!isDedicatedFieldVisible);
         textField.setVisible(!isDedicatedFieldVisible);
@@ -1328,14 +1302,12 @@ public class ExpandController extends BaseController {
                 textField.positionCaret(textField.getText().length());
             }
         } else {
-           // button.setLayoutX(button == locationNotesButton ? 207 : 258);
             if (!textField.getText().isEmpty()) {
                 button.getStyleClass().add("schedule-delivery-button-has-value");
             } else {
                 button.getStyleClass().remove("schedule-delivery-button-has-value");
             }
-            preTripInstructionsButton.setVisible(true);
-            locationNotesButton.setVisible(true);
+            notesButton.setVisible(true);
         }
     }
 
@@ -1475,8 +1447,7 @@ public class ExpandController extends BaseController {
        String siteContact = siteContactField.getText() == null ? "" : siteContactField.getText();
        String siteContactPhone = siteContactPhoneField.getText() == null ? "" : siteContactPhoneField.getText();
        String poNumber = POField.getText();
-       String locationNotes = locationNotesField.getText();
-       String preTripInstructions = preTripInstructionsField.getText();
+       String notes = notesField.getText();
        int invoiceWritten = expandedRental.isInvoiceComposed() ? 1 : 0 ;
        int autoTerm = expandedRental.isAutoTerm() ? 1 : 0 ;
 
@@ -1504,8 +1475,8 @@ public class ExpandController extends BaseController {
        //    System.out.println("about to call rentalItemSQLCalls and isBaseLift = " + isBaseLift);
            // Call rentalItemSQLCalls with the isBaseLift flag
            rentalItemSQLCalls(true, deliveryDate, callOffDate, deliveryTime, rentalItemId, customerName, orderedBy,
-                   orderedByPhone, site, streetAddress, city, siteContact, siteContactPhone, poNumber, locationNotes,
-                   preTripInstructions, address, invoiceWritten, autoTerm, status);
+                   orderedByPhone, site, streetAddress, city, siteContact, siteContactPhone, poNumber,
+                   notes, address, invoiceWritten, autoTerm, status);
 
            // Remove the last element from addedLifts
         //   addedLifts.remove(addedLifts.size() - 1);
@@ -1520,8 +1491,8 @@ public class ExpandController extends BaseController {
 
     private void rentalItemSQLCalls(boolean isBaseLift, String deliveryDate, String callOffDate, String deliveryTime, int rentalItemId,
                                     String customerName, String orderedBy, String orderedByPhone, String site, String streetAddress,
-                                    String city, String siteContact, String siteContactPhone, String poNumber, String locationNotes,
-                                    String preTripInstructions, String address, int invoiceWritten, int autoTerm, String status){
+                                    String city, String siteContact, String siteContactPhone, String poNumber,
+                                    String notes, String address, int invoiceWritten, int autoTerm, String status){
         System.out.println("deliveryDate var is: " + deliveryDate);
         statusLabel.setText("");
         int rentalOrderId = expandedRental.getRentalOrderId();
@@ -1581,8 +1552,7 @@ public class ExpandController extends BaseController {
                     String dbOrderedByPhone = safeGetString(resultSet, "ordered_contact_phone_number");
                     String dbSiteContact = safeGetString(resultSet, "site_contact_first_name");
                     String dbSiteContactPhone = safeGetString(resultSet, "site_contact_phone_number");
-                    String dbLocationNotes = safeGetString(resultSet, "location_notes");
-                    String dbPreTripInstructions = safeGetString(resultSet, "pre_trip_instructions");
+                    String dbnotes = safeGetString(resultSet, "notes");
                     String dbDeliveryDate = resultSet.getDate("item_delivery_date").toLocalDate()
                         .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                     Date medCallOffDate = resultSet.getDate("Item_call_off_date");
@@ -1698,8 +1668,8 @@ public class ExpandController extends BaseController {
                     if (isBaseLift) {
                         // just for the base, otherwise insert a new item with the current order id
                         if (!dbOrderedBy.equals(orderedBy) || !dbOrderedByPhone.equals(orderedByPhone) || !dbSiteContact.equals(siteContact)
-                                || !dbSiteContactPhone.equals(siteContactPhone) || !dbLocationNotes.equals(locationNotes)
-                                || !dbPreTripInstructions.equals(preTripInstructions) || !dbDeliveryTime.equals(deliveryTime)
+                                || !dbSiteContactPhone.equals(siteContactPhone)
+                                || !dbnotes.equals(notes) || !dbDeliveryTime.equals(deliveryTime)
                                 || !dbDeliveryDate.equals(deliveryDate) || !Objects.equals(dbCallOffDate, callOffDate)
                                 || dbIsInvoiceWritten != invoiceWritten || dbAutoTerm != autoTerm || !dbStatus.equals(status)) {
 
@@ -1716,11 +1686,8 @@ public class ExpandController extends BaseController {
                            if (!dbSiteContactPhone.equals(siteContactPhone)) {
                                System.out.println("Mismatch: dbSiteContactPhone (" + dbSiteContactPhone + ") != siteContactPhone (" + siteContactPhone + ")");
                            }
-                           if (!dbLocationNotes.equals(locationNotes)) {
-                               System.out.println("Mismatch: dbLocationNotes (" + dbLocationNotes + ") != locationNotes (" + locationNotes + ")");
-                           }
-                           if (!dbPreTripInstructions.equals(preTripInstructions)) {
-                               System.out.println("Mismatch: dbPreTripInstructions (" + dbPreTripInstructions + ") != preTripInstructions (" + preTripInstructions + ")");
+                           if (!dbnotes.equals(notes)) {
+                               System.out.println("Mismatch: dbnotes (" + dbnotes + ") != notes (" + notes + ")");
                            }
                            if (!dbDeliveryDate.equals(deliveryDate)) {
                                System.out.println("Mismatch: dbDeliveryDate (" + dbDeliveryDate + ") != deliveryDate (" + deliveryDate + ")");
@@ -1743,8 +1710,7 @@ public class ExpandController extends BaseController {
                                 item_delivery_date = ?,
                                 item_call_off_date = ?,
                                 delivery_time = ?,
-                                location_notes = ?,
-                                pre_trip_instructions = ?,
+                                notes = ?,
                                 item_status = ?,
                                 invoice_composed = ?,
                                 auto_term = ?    
@@ -1777,12 +1743,11 @@ public class ExpandController extends BaseController {
                                     updateRentalItemStmt.setNull(6, Types.VARCHAR);
                                 }
                                 updateRentalItemStmt.setString(7, deliveryTime);
-                                updateRentalItemStmt.setString(8, locationNotes);
-                                updateRentalItemStmt.setString(9, preTripInstructions);
-                                updateRentalItemStmt.setString(10, status);
-                                updateRentalItemStmt.setInt(11, invoiceWritten);
-                                updateRentalItemStmt.setInt(12, autoTerm);
-                                updateRentalItemStmt.setInt(13, rentalItemId); // Match the rental_item_id
+                                updateRentalItemStmt.setString(8, notes);
+                                updateRentalItemStmt.setString(9, status);
+                                updateRentalItemStmt.setInt(10, invoiceWritten);
+                                updateRentalItemStmt.setInt(11, autoTerm);
+                                updateRentalItemStmt.setInt(12, rentalItemId); // Match the rental_item_id
 
                                 updateRentalItemStmt.executeUpdate();
 
@@ -1827,9 +1792,9 @@ public class ExpandController extends BaseController {
             // OBFUSCATE_OFF
             String createRentalItemQuery = """
                     INSERT INTO rental_items (rental_order_id, lift_id, ordered_contact_id, site_contact_id,
-                          item_delivery_date, item_call_off_date, delivery_time, customer_ref_number, location_notes,
-                          pre_trip_instructions, item_order_date, item_status, invoice_composed, auto_term)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                          item_delivery_date, item_call_off_date, delivery_time, customer_ref_number,
+                          notes, item_order_date, item_status, invoice_composed, auto_term)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """;
             // OBFUSCATE_ON
             try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
@@ -1852,12 +1817,11 @@ public class ExpandController extends BaseController {
                 preparedStatement.setString(6, callOffDate);
                 preparedStatement.setString(7, deliveryTime); // delivery_time
                 preparedStatement.setString(8, poNumber); // customer_ref_number
-                preparedStatement.setString(9, locationNotes); // location_notes
-                preparedStatement.setString(10, preTripInstructions); // pre_trip_instructions
-                preparedStatement.setDate(11, new java.sql.Date(System.currentTimeMillis()));
-                preparedStatement.setString(12, status);
-                preparedStatement.setInt(13, invoiceWritten);
-                preparedStatement.setInt(14, autoTerm);
+                preparedStatement.setString(9, notes); // notes
+                preparedStatement.setDate(10, new java.sql.Date(System.currentTimeMillis()));
+                preparedStatement.setString(11, status);
+                preparedStatement.setInt(12, invoiceWritten);
+                preparedStatement.setInt(13, autoTerm);
 
                 // Execute the query
                 preparedStatement.executeUpdate();

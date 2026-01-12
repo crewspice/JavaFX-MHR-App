@@ -240,9 +240,28 @@ public class ColumnFactory {
                     	addressBlockThreeLabel.setText(rental.getCity());
 
 
-                    	String liftType = rental.getShortLiftType();
-                    	liftTypeLabel.setText(liftType != null ? liftType : "");
-                    	liftTypeLabel.setTranslateY(7);
+						String liftType = rental.getShortLiftType();
+
+						if (rental.isService()) {
+							Service svc = rental.getService();
+
+							if (svc != null) {
+								String oldLiftType = svc.getOldLiftType();
+								String newLiftType = svc.getNewLiftType();
+
+								if (oldLiftType != null && newLiftType != null && !oldLiftType.equals(newLiftType)) {
+									liftTypeLabel.setText(oldLiftType + "➜" + newLiftType);
+								} else {
+									liftTypeLabel.setText(liftType != null ? liftType : "");
+								}
+							} else {
+								liftTypeLabel.setText(liftType != null ? liftType : "");
+							}
+						} else {
+							liftTypeLabel.setText(liftType != null ? liftType : "");
+						}
+
+						liftTypeLabel.setTranslateY(7);
 
 
                     	setGraphic(overlayPane);
@@ -444,27 +463,27 @@ public class ColumnFactory {
 
                 	// Create a VBox to hold each character as a Label
                 	VBox vBox = new VBox();
-                	vBox.setAlignment(Pos.CENTER); // Center align the VBox
+                	vBox.setAlignment(Pos.TOP_CENTER); // Center align the VBox
 
 
 
-
-                	// Create a Label for the '#' character
-                	Label hashLabel = new Label("#");
-                	hashLabel.setStyle("-fx-font-size: 9.5;"); // Set the style for the hash character
-                	vBox.getChildren().add(hashLabel); // Add the hash label to the VBox
-
+					// if (serialNumber.equals("")) {						// Create a Label for the '#' character
+					// 	Label hashLabel = new Label("#");
+					// 	hashLabel.setStyle("-fx-font-size: 9.5;"); // Set the style for the hash character
+					// 	vBox.getChildren().add(hashLabel); // Add the hash label to the VBox
+					// 	hashLabel.setTranslateY(2);
+					// }
 
                 	// Create a Label for each character in the serial number
                 	for (int i = 0; i < serialNumber.length(); i++) {
                     	char c = serialNumber.charAt(i);
                     	Label charLabel = new Label(String.valueOf(c));
-                    	charLabel.setStyle("-fx-font-size: 9; -fx-padding: 0;"); // Adjust style as needed
+                    	charLabel.setStyle("-fx-font-size: 12; -fx-padding: 0;"); // Adjust style as needed
                     	vBox.getChildren().add(charLabel); // Add each character label to the VBox
                 	}
 
-
-                	vBox.setSpacing(-5.5); // Set the spacing between characters
+					vBox.setTranslateY(-1.5);
+                	vBox.setSpacing(-7.5); // Set the spacing between characters
                 	// Set the VBox as the graphic for the cell
                 	setGraphic(vBox); // Set the VBox as the graphic for the cell
             	}
@@ -483,11 +502,7 @@ public class ColumnFactory {
 
     	String propertyName = name == "biModalDate" ? "deliveryDate" : name;
 
-
-
-
     	dateColumn.setCellValueFactory(new PropertyValueFactory<>(propertyName));
-
 
     	dateColumn.setCellFactory(column -> new TableCell<Rental, String>() {
         	private final Label ddLabel = new Label();
@@ -563,6 +578,9 @@ public class ColumnFactory {
                     	}
                 	}
 
+					if (rental.isService()) {
+						modeLabel.setText("svc");
+					}
 
                 	if (dateValue != null && dateValue.matches("\\d{4}-\\d{2}-\\d{2}")) {
                     	String[] dateParts = dateValue.split("-");
@@ -1052,18 +1070,6 @@ public class ColumnFactory {
     	// System.out.println("Getting driver column for status: " + driverComboBoxOpenOrClosed);
     	return driverColumn;
 	}
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 	public TableColumn<Rental, String> getSelectColumn(){
@@ -2179,12 +2185,10 @@ public class ColumnFactory {
 	
 				canvas.setTextMatrix(194, 559);
 				canvas.showText(rental.getPoNumber());
-				canvas.setTextMatrix(43, 523);
-				canvas.showText(rental.getLocationNotes());
 				canvas.setTextMatrix(81, 630);
 				canvas.showText(rental.getName());
 				canvas.setTextMatrix(43, 652);
-				canvas.showText(rental.getPreTripInstructions());
+				canvas.showText(rental.getNotes());
 				canvas.setTextMatrix(99, 481);
 				canvas.showText(rental.getLiftType());
 				

@@ -45,7 +45,9 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -72,6 +74,7 @@ public class MaxReachPro extends Application {
     private static Stage primaryStage = new Stage();
     private static String[] user;
     private static BaseController currentController;
+    private static MapController mapController;
     private static Rental rentalForExpanding;
     private static String currentScenePath;
     private static String sceneBeforeExpandName;
@@ -151,6 +154,7 @@ public class MaxReachPro extends Application {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/map.fxml"));
                 Parent mapContent = loader.load();
+                mapController = loader.getController();
                 mapPane.getChildren().add(mapContent);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -226,7 +230,8 @@ public class MaxReachPro extends Application {
     public static void collapseStage() {
         mapPane.setMinWidth(0);
         mapPane.setMaxWidth(0);
-        mapPane.getChildren().removeAll(mapPane.getChildren());
+        mapPane.getChildren().clear();
+        mapController = null;
 
         double originalWidth = topBar.getWidth();
 
@@ -759,58 +764,48 @@ public class MaxReachPro extends Application {
         }
         return lifts;
     }
+    
+    public static synchronized void loadCustomers(boolean withUsage) {
+        ObservableList<Customer> target =
+            withUsage ? customersWithUsageQualifier : customers;
 
+        target.clear();
 
-    public static void loadCustomers() {
-        customers.clear();
-        customersWithUsageQualifier.clear();
-    
-        String query = "SELECT customer_id, customer_name, email FROM customers";
-        String usageQuery = """
-            SELECT c.customer_id, c.customer_name, c.email
-            FROM customers c
-            WHERE EXISTS (
-                SELECT 1 FROM rental_orders ro WHERE ro.customer_id = c.customer_id
-            )
-        """;
-    
-        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-             PreparedStatement psAll = connection.prepareStatement(query);
-             PreparedStatement psWithUsage = connection.prepareStatement(usageQuery)) {
-    
-            // All customers
-            try (ResultSet rsAll = psAll.executeQuery()) {
-                while (rsAll.next()) {
-                    String id = rsAll.getString("customer_id");
-                    String name = rsAll.getString("customer_name");
-                    String email = rsAll.getString("email");
-                    customers.add(new Customer(id, name, email));
-                }
+        String query = withUsage
+            ? """
+                SELECT c.customer_id, c.customer_name, c.email
+                FROM customers c
+                WHERE EXISTS (
+                    SELECT 1 FROM rental_orders ro WHERE ro.customer_id = c.customer_id
+                )
+            """
+            : "SELECT customer_id, customer_name, email FROM customers";
+
+        try (Connection connection = DriverManager.getConnection(
+                Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+            PreparedStatement ps = connection.prepareStatement(query);
+            ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                target.add(new Customer(
+                    rs.getString("customer_id"),
+                    rs.getString("customer_name"),
+                    rs.getString("email")
+                ));
             }
-    
-            // Customers with at least one rental
-            try (ResultSet rsUsage = psWithUsage.executeQuery()) {
-                while (rsUsage.next()) {
-                    String id = rsUsage.getString("customer_id");
-                    String name = rsUsage.getString("customer_name");
-                    String email = rsUsage.getString("email");
-                    customersWithUsageQualifier.add(new Customer(id, name, email));
-                }
-            }
-    
+
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("Error loading customers: " + e.getMessage());
         }
     }
 
-
     public static ObservableList<Customer> getCustomers(boolean withUsage) {
-        if (customers.isEmpty() || customersWithUsageQualifier.isEmpty()) {
-            loadCustomers();
-        }
-    
-        return withUsage ? customersWithUsageQualifier: customers;
+        return withUsage ? customersWithUsageQualifier : customers;
+    }
+
+
+    public static MapController getMapController() {
+        return mapController;
     }
 
     // This method loads the CSS file as a string (helper method)
@@ -862,19 +857,4 @@ public class MaxReachPro extends Application {
             System.out.println("⚠️ No previous scene stored!");
         }
     }
-   
-
-    
 }
-
-
-
-
-
-
-
-
-
-
-
-

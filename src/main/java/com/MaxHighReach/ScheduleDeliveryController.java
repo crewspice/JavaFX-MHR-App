@@ -37,8 +37,12 @@ import com.itextpdf.layout.Document;
 import java.awt.Desktop;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.sql.*;
@@ -190,19 +194,12 @@ public class ScheduleDeliveryController extends BaseController {
 	@FXML
 	private TextField POField;
 	@FXML
-	private Button locationNotesButton;
-	private final Tooltip locationNotesTooltip = new Tooltip("Location notes");
+	private Button notesButton;
+	private final Tooltip notesTooltip = new Tooltip("Notes");
 	@FXML
-	private Label locationNotesLabel;
+	private Label notesLabel;
 	@FXML
-	private TextField locationNotesField;
-	@FXML
-	private Button preTripInstructionsButton;
-	private final Tooltip preTripInstructionsTooltip = new Tooltip("Pre-trip instructions");
-	@FXML
-	private Label preTripInstructionsLabel;
-	@FXML
-	private TextField preTripInstructionsField;
+	private TextField notesField;
 	@FXML
 	private Button scheduleDeliveryButton;
 	@FXML
@@ -645,12 +642,10 @@ public class ScheduleDeliveryController extends BaseController {
     	});
 
 
-    	createCustomTooltip(locationNotesButton, 38, 10, locationNotesTooltip);
-    	createCustomTooltip(preTripInstructionsButton, 38, 10, preTripInstructionsTooltip);
+    	createCustomTooltip(notesButton, 38, 10, notesTooltip);
 		createCustomTooltip(printButton, 38, 10, printTooltip);
 
-    	setupTextFieldListeners(locationNotesField, locationNotesButton, locationNotesLabel);
-    	setupTextFieldListeners(preTripInstructionsField, preTripInstructionsButton, preTripInstructionsLabel);
+    	setupTextFieldListeners(notesField, notesButton, notesLabel);
 
 
     	// Initialize TableView columns
@@ -820,10 +815,8 @@ public class ScheduleDeliveryController extends BaseController {
         	orderedByPhoneField.clear();
         	siteContactField.clear();
         	siteContactPhoneField.clear();
-        	locationNotesField.clear();
-        	preTripInstructionsField.clear();
-        	locationNotesButton.getStyleClass().remove("schedule-delivery-button-has-value");
-        	preTripInstructionsButton.getStyleClass().remove("schedule-delivery-button-has-value");
+        	notesField.clear();
+        	notesButton.getStyleClass().remove("schedule-delivery-button-has-value");
 
 
         	// Remove focus from the text field after auto-complete
@@ -1650,12 +1643,10 @@ public class ScheduleDeliveryController extends BaseController {
 
 				canvas.setTextMatrix(194, 559); // PO Number
 				canvas.showText(rental.getPoNumber());
-				canvas.setTextMatrix(43, 523);
-				canvas.showText(rental.getLocationNotes());
 				canvas.setTextMatrix(81, 630); // Name
 				canvas.showText(rental.getName());
 				canvas.setTextMatrix(43, 652);
-				canvas.showText(rental.getPreTripInstructions());
+				canvas.showText(rental.getNotes());
 				canvas.setTextMatrix(99, 481); // Lift Type
 				canvas.showText(Config.getAbbreviatedLiftType(rental.getLiftType()));
 				canvas.endText();
@@ -1798,18 +1789,9 @@ public class ScheduleDeliveryController extends BaseController {
     	// Toggle the state
 	}
 
-
 	@FXML
-	private void handleLocationNotes(){
-    	toggleDedicatedField(locationNotesButton, locationNotesLabel, locationNotesField, null, POLabel, POField, null, null, null);
-    	POLabel.setVisible(false);
-    	resetOrderedByElements();
-	}
-
-
-	@FXML
-	private void handlePreTripInstructions(){
-    	toggleDedicatedField(preTripInstructionsButton, preTripInstructionsLabel, preTripInstructionsField, null, POLabel, POField, null, null, null);
+	private void handleNotes(){
+    	toggleDedicatedField(notesButton, notesLabel, notesField, null, POLabel, POField, null, null, null);
     	POLabel.setVisible(false);
     	resetOrderedByElements();
 	}
@@ -1858,8 +1840,7 @@ public class ScheduleDeliveryController extends BaseController {
 
 
     	} else {
-        	locationNotesButton.setVisible(isDedicatedFieldVisible && button != locationNotesButton);
-        	preTripInstructionsButton.setVisible(isDedicatedFieldVisible && button != preTripInstructionsButton);
+        	notesButton.setVisible(isDedicatedFieldVisible && button != notesButton);
         	textField.setVisible(!isDedicatedFieldVisible);
 
 
@@ -1870,14 +1851,12 @@ public class ScheduleDeliveryController extends BaseController {
                 	textField.positionCaret(textField.getText().length());
             	}
         	} else {
-            	// button.setLayoutX(button == locationNotesButton ? 207 : 258);
             	if (!textField.getText().isEmpty()) {
                 	button.getStyleClass().add("schedule-delivery-button-has-value");
             	} else {
                 	button.getStyleClass().remove("schedule-delivery-button-has-value");
             	}
-            	preTripInstructionsButton.setVisible(true);
-            	locationNotesButton.setVisible(true);
+            	notesButton.setVisible(true);
         	}
     	}
 	}
@@ -1975,8 +1954,7 @@ public class ScheduleDeliveryController extends BaseController {
 			String orderedByNumberValue = orderedByPhoneField.getText();
 			String siteContactNameValue = siteContactField.getText();
 			String siteContactNumberValue = siteContactPhoneField.getText();
-			String locationNotes = locationNotesButton.getStyleClass().contains("schedule-delivery-button-has-value") ? locationNotesField.getText() : "";
-			String preTripInstructions = preTripInstructionsButton.getStyleClass().contains("schedule-delivery-button-has-value") ? preTripInstructionsField.getText() : "";
+			String notes = notesButton.getStyleClass().contains("schedule-delivery-button-has-value") ? notesField.getText() : "";
 
         	currentCustomerRental = new Rental(customerId, customerName, deliveryDate, deliveryTime,
             	null, "", 0, "Upcoming", po, rentalsList.size() + 1,
@@ -1990,8 +1968,7 @@ public class ScheduleDeliveryController extends BaseController {
 			currentCustomerRental.setOrderedByPhone(orderedByNumberValue);
 			currentCustomerRental.setSiteContactName(siteContactNameValue);
 			currentCustomerRental.setSiteContactPhone(siteContactNumberValue);
-			currentCustomerRental.setLocationNotes(locationNotes);
-			currentCustomerRental.setPreTripInstructions(preTripInstructions);
+			currentCustomerRental.setNotes(notes);
 			double[] coords = calculateLongAndLat(streetAddress, city);
 			currentCustomerRental.setLatitude(coords[0]);
 			currentCustomerRental.setLongitude(coords[1]);
@@ -2026,7 +2003,7 @@ public class ScheduleDeliveryController extends BaseController {
             	int liftId = getLiftIdFromType(liftType);
             	currentCustomerRental.setLiftType(liftType);
             	currentCustomerRental.setLiftId(liftId);
-				boolean insertRentalItem = insertRentalItem(currentCustomerRental, rentalOrderId, liftId, currentCustomerRental.getOrderDate(), dbDeliveryDate, dbCallOffDate, deliveryTime, po, orderedByNameValue, orderedByNumberValue, siteContactNameValue, siteContactNumberValue, locationNotes, preTripInstructions) && rentalOrderScheduled;
+				boolean insertRentalItem = insertRentalItem(currentCustomerRental, rentalOrderId, liftId, currentCustomerRental.getOrderDate(), dbDeliveryDate, dbCallOffDate, deliveryTime, po, orderedByNameValue, orderedByNumberValue, siteContactNameValue, siteContactNumberValue, notes) && rentalOrderScheduled;
             	if (insertRentalItem && rentalOrderScheduled) {
                 	// Update the status label for successful scheduling
                 	statusLabel.setText("Rental item created successfully!"); // Show success message
@@ -2049,6 +2026,7 @@ public class ScheduleDeliveryController extends BaseController {
             	} else {
                 	System.out.println("Failed to insert rental item for liftId: " + liftId); // For debugging
                 	// Update the status label for rental failure
+					System.out.println("insertedRentalOrder: " + rentalOrderScheduled + " and insertedRentalItem: " + insertRentalItem);
                 	statusLabel.setText("Failed to create the rental item. Please try again."); // Show error message
                 	statusLabel.setTextFill(Color.RED); // Set the text color to red
                 	statusLabel.setVisible(true); // Make the status label visible
@@ -2059,6 +2037,26 @@ public class ScheduleDeliveryController extends BaseController {
             	resetFields();
             	scheduledRentalsTableView.setVisible(true);
             	tableViewTitle.setVisible(true);
+
+				new Thread(() -> {
+					try {
+						HttpRequest request = HttpRequest.newBuilder()
+								.uri(URI.create(Config.API_BASE_URL + "/routes/prepare"))
+								.GET()
+								.build();
+			
+						HttpClient.newHttpClient()
+								.send(request, HttpResponse.BodyHandlers.discarding());
+			
+						// ✅ only runs AFTER prepare completes
+						Platform.runLater(() -> 
+							MaxReachPro.getMapController().loadRentalDataFromAPI()
+						);
+			
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}).start();
         	}
     	} catch (Exception e) {
         	// Update the status label for input error
@@ -2114,7 +2112,7 @@ public class ScheduleDeliveryController extends BaseController {
 	private boolean insertRentalItem(Rental rental, int localRentalOrderId, int liftId, String orderDate,
 		String deliveryDate, String callOffDate, String deliveryTime, String po, String orderedByNameValue, 
 		String orderedByNumberValue, String siteContactNameValue, String siteContactNumberValue, 
-		String preTripInstructions, String locationNotes) {
+		String notes) {
 		
 			int autoTerm = (callOffDate != null) ? 1 : 0;
 	
@@ -2146,8 +2144,9 @@ public class ScheduleDeliveryController extends BaseController {
 		System.out.println("Inserting rental item with lift_id: " + liftId);
 		// OBFUSCATE_OFF
 		String query = "INSERT INTO rental_items (rental_order_id, lift_id, ordered_contact_id, site_contact_id, " +
-					   "item_order_date, item_delivery_date, item_call_off_date, auto_term, delivery_time, customer_ref_number, location_notes, " +
-					   "pre_trip_instructions, item_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+					   "item_order_date, item_delivery_date, item_call_off_date, auto_term, delivery_time, customer_ref_number, " +
+					   "notes, item_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+		System.out.println(query);
 		// OBFUSCATE_ON
 		try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
 			 PreparedStatement preparedStatement = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
@@ -2170,9 +2169,8 @@ public class ScheduleDeliveryController extends BaseController {
 			preparedStatement.setInt(8, autoTerm);
 			preparedStatement.setString(9, deliveryTime);
 			preparedStatement.setString(10, po);
-			preparedStatement.setString(11, locationNotes);
-			preparedStatement.setString(12, preTripInstructions);
-			preparedStatement.setString(13, "Upcoming");
+			preparedStatement.setString(11, notes);
+			preparedStatement.setString(12, "Upcoming");
 	
 			// Execute the update
 			int rowsAffected = preparedStatement.executeUpdate();
@@ -2415,10 +2413,8 @@ public class ScheduleDeliveryController extends BaseController {
     	siteContactField.clear();
     	siteContactPhoneField.clear();
     	POField.clear();
-    	locationNotesField.clear();
-    	preTripInstructionsField.clear();
-    	locationNotesButton.getStyleClass().remove("schedule-delivery-button-has-value");
-    	preTripInstructionsButton.getStyleClass().remove("schedule-delivery-button-has-value");
+    	notesField.clear();
+    	notesButton.getStyleClass().remove("schedule-delivery-button-has-value");
     	prepareLiftTypeButtons();
     	liftCount = 0;
     	addedLifts.clear();

@@ -1,14 +1,26 @@
 package com.MaxHighReach;
 
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
+import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.CycleMethod;
 import javafx.scene.paint.LinearGradient;
 import javafx.scene.paint.Stop;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.Shape;
+import javafx.util.Duration;
+import javafx.geometry.Bounds;
 import javafx.geometry.Pos;
 import javafx.scene.effect.DropShadow;
+import javafx.scene.image.ImageView;
+import javafx.scene.image.Image;
+
+import java.net.URL;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -60,19 +72,46 @@ public class PopupCard extends StackPane {
         // Rental Item ID in top-right corner with fancy border box
         Label idLabel = new Label("P" + rental.getRentalItemId());
         idLabel.setStyle(
-            "-fx-font-size: 13px;" +                 // slightly smaller font
-            "-fx-padding: 0 4 0 4;" +                // top/right/bottom/left -> minimal vertical padding
+            "-fx-font-size: 13px;" +
+            "-fx-padding: 0 4 0 4;" +
             "-fx-border-color: " + Config.getPrimaryColor() + ";" +
             "-fx-border-width: 1;" +
             "-fx-border-radius: 4;" +
             "-fx-background-radius: 4;" +
-            "-fx-text-fill: " + Config.getPrimaryColor() + ";" +
-            "-fx-alignment: center;"                 // centers text inside box
+            "-fx-text-fill: " + Config.getTertiaryColor() + ";" +
+            "-fx-alignment: center;"
         );
+
         contentBoxx.getChildren().add(idLabel);
         StackPane.setAlignment(idLabel, Pos.TOP_RIGHT);
-        idLabel.setTranslateY(runningYOffset + 1); // small nudge down if needed
+
+        double yOffset = runningYOffset + 1;
+        idLabel.setTranslateY(yOffset);
         idLabel.setTranslateX(-8);
+
+        // --- Status symbol ---
+        Node statusNode = createStatusDot(rental);
+        contentBoxx.getChildren().add(statusNode);
+        StackPane.setAlignment(statusNode, Pos.TOP_RIGHT);
+
+        // IMPORTANT: wait for layout pass
+        idLabel.applyCss();
+        idLabel.layout();
+
+        double labelWidth = idLabel.getLayoutBounds().getWidth();
+
+        // Base offsets
+        double baseY = yOffset + 2;
+        double baseX = -8 - labelWidth - 50;
+
+        // 🔑 Only bump change-out icons
+        boolean isChangeOut =
+                "Change Out Completed".equals(rental.getStatus()) ||
+                "Service Change Out Completed".equals(rental.getStatus());
+
+        statusNode.setTranslateY(baseY - (isChangeOut ? 2 : 0));
+        statusNode.setTranslateX(baseX);
+
 
         Label addressLabel = null;
 
@@ -124,7 +163,7 @@ public class PopupCard extends StackPane {
         }
 
 
-                    // PO Number
+        // PO Number
         if (rental.getPoNumber() != null && !rental.getPoNumber().isEmpty()) {
             Label l = new Label(rental.getPoNumber());
             runningYOffset += 16;
@@ -189,25 +228,48 @@ public class PopupCard extends StackPane {
             contentBoxx.getChildren().add(siteValue);
         }
 
+        if (rental.getOrderDate() != null) {
 
-        // Status
-        String status = rental.getStatus();
-        if (status != null && !status.isEmpty()) {
-            Label statusLabel = new Label(status);
-            if ("Active".equalsIgnoreCase(status) && rental.isAutoTerm()) {
-                String callOff = rental.getCallOffDate();
-                if (callOff != null && !callOff.isEmpty()) {
-                    LocalDate date = LocalDate.parse(callOff);
-                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
-                    statusLabel.setText(statusLabel.getText() +
-                        " | Auto term end: " + date.format(formatter));
+            String tag = rental.getOrderDate(); // OLD:___;NEW:___
+            String oldSerial = null;
+            String newSerial = null;
+
+            if (tag != null && tag.contains(";")) {
+                String[] parts = tag.split(";");
+                for (String part : parts) {
+                    if (part.startsWith("OLD:")) {
+                        String val = part.substring(4);
+                        if (!"NULL".equalsIgnoreCase(val)) {
+                            oldSerial = val;
+                        }
+                    } else if (part.startsWith("NEW:")) {
+                        String val = part.substring(4);
+                        if (!"NULL".equalsIgnoreCase(val)) {
+                            newSerial = val;
+                        }
+                    }
                 }
             }
-            runningYOffset += 15;
-            statusLabel.setTranslateY(runningYOffset);
-            statusLabel.setTranslateX(varXOffset);
-            statusLabel.setStyle("-fx-font-size: 14px;");
-            contentBoxx.getChildren().add(statusLabel);
+
+            // --- Changed FROM line ---
+            if (oldSerial != null) {
+                Label fromLabel = new Label("Changed from " + oldSerial);
+                runningYOffset += 15;
+                fromLabel.setTranslateY(runningYOffset);
+                fromLabel.setTranslateX(varXOffset);
+                fromLabel.setStyle("-fx-font-size: 14px;");
+                contentBoxx.getChildren().add(fromLabel);
+            }
+
+            // --- Changed TO line ---
+            if (newSerial != null) {
+                Label toLabel = new Label("Changed to " + newSerial);
+                runningYOffset += 15;
+                toLabel.setTranslateY(runningYOffset);
+                toLabel.setTranslateX(varXOffset);
+                toLabel.setStyle("-fx-font-size: 14px;");
+                contentBoxx.getChildren().add(toLabel);
+            }
         }
 
         // Duration (business days)
@@ -332,6 +394,107 @@ public class PopupCard extends StackPane {
         bottomBorder.toBack();
     
     }
+
+    private Node createStatusDot(Rental rental) {
+        String status = rental.getStatus();
+
+        return switch (status) {
+            case "Called Off" -> wrapWithTooltip(createOctagon(Color.RED), status);
+            case "Picked Up" -> wrapWithTooltip(createCircle(Color.BLACK), status);
+            case "Upcoming" -> wrapWithTooltip(createCircle(Color.web(Config.getPrimaryColor())), status);
+            case "Active" -> wrapWithTooltip(createCircle(Color.GREEN), status);
+            case "Change Out Completed" -> createChangeOutIcon("Change Out");
+            case "Service Change Out Completed" -> createChangeOutIcon("Service Change Out");
+            default -> wrapWithTooltip(createCircle(Color.GRAY), status);
+        };
+    }
+
+    private Circle createCircle(Color color) {
+        Circle c = new Circle(0, 0, 7);
+        c.setFill(color);
+        return c;
+    }
+
+    private Polygon createOctagon(Color color) {
+        double radius = 7;
+        Polygon octagon = new Polygon();
+        for (int i = 0; i < 8; i++) {
+            double angle = Math.toRadians(45 * i + 22.5);
+            octagon.getPoints().addAll(
+                radius * Math.cos(angle),
+                radius * Math.sin(angle)
+            );
+        }
+        octagon.setFill(color);
+        return octagon;
+    }
+
+    private Node createChangeOutIcon(String serviceType) {
+        String imagePath = switch (serviceType) {
+            case "Change Out" -> "/images/change-out.png";
+            case "Service Change Out" -> "/images/service-change-out.png";
+            default -> "/images/service.png";
+        };
+
+        URL url = getClass().getResource(imagePath);
+        if (url == null) {
+            System.err.println("❌ Resource not found: " + imagePath);
+            return createCircle(Color.GRAY);
+        }
+
+        ImageView imageView = new ImageView(new Image(url.toExternalForm()));
+        imageView.setFitWidth(20);
+        imageView.setPreserveRatio(true);
+
+        // 🔑 This makes alpha pixels clickable
+        imageView.setPickOnBounds(true);
+
+        StackPane wrapper = new StackPane(imageView);
+        wrapper.setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        wrapper.setPrefSize(20, 20);
+        wrapper.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        wrapper.setPickOnBounds(true);
+
+        Tooltip tooltip = new Tooltip("Changed Out");
+        attachTooltip(wrapper, tooltip, 8, 6);
+
+        return wrapper;
+    }
+
+    private void attachTooltip(Node node, Tooltip tooltip, double xOffset, double yOffset) {
+        tooltip.setShowDelay(Duration.ZERO);
+        tooltip.setHideDelay(Duration.ZERO);
+
+        node.setOnMouseEntered(event -> {
+            Bounds bounds = node.localToScreen(node.getBoundsInLocal());
+            tooltip.show(
+                node,
+                bounds.getMinX() + xOffset,
+                bounds.getMaxY() + yOffset
+            );
+        });
+
+        node.setOnMouseExited(event -> tooltip.hide());
+    }
+
+    private Node wrapWithTooltip(Shape shape, String tooltipText) {
+        shape.setPickOnBounds(true);
+
+        StackPane wrapper = new StackPane(shape);
+        wrapper.setAlignment(Pos.CENTER);
+
+        // 🔑 Prevent StackPane from expanding (same fix as icons)
+        wrapper.setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        wrapper.setPrefSize(16, 16);
+        wrapper.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        wrapper.setPickOnBounds(true);
+
+        Tooltip tooltip = new Tooltip(tooltipText);
+        attachTooltip(wrapper, tooltip, 8, 6);
+
+        return wrapper;
+    }
+
 
     private String formatPhone(String phone) {
         if (phone == null || phone.length() != 10) return "";

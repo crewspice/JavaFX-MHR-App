@@ -165,27 +165,16 @@
     <Label text="#:" fx:id="siteContactPhoneLabel" layoutX="199" layoutY="346" style="-fx-font-size: 16px;" visible="false"/>
     <TextField fx:id="siteContactPhoneField" layoutX="213" layoutY="346" prefWidth="77" styleClass="transparent-text-field" visible="false"/>
 
-    <!-- Location Notes Section -->
-    <Button fx:id="locationNotesButton" layoutX="207" layoutY="382" onAction="#handleLocationNotes" styleClass="schedule-delivery-button" visible="false">
+    <!-- Notes Section -->
+    <Button fx:id="notesButton" layoutX="258" layoutY="382" onAction="#handleNotes" styleClass="schedule-delivery-button" visible="false">
         <graphic>
             <ImageView fitWidth="40" fitHeight="32">
-                <Image url="@../images/location-notes.png"/>
+                <Image url="@../images/notes.png"/>
             </ImageView>
         </graphic>
     </Button>
-    <Label fx:id="locationNotesLabel" text="Location Notes:" prefWidth="50" lineSpacing="-3" layoutX="14" layoutY="380" visible="false" wrapText="true"/>
-    <TextField fx:id="locationNotesField" layoutX="73" layoutY="387" prefWidth="223" visible="false" styleClass="transparent-text-field"/>
-
-    <!-- Pre-trip Instructions Section -->
-    <Button fx:id="preTripInstructionsButton" layoutX="258" layoutY="382" onAction="#handlePreTripInstructions" styleClass="schedule-delivery-button" visible="false">
-        <graphic>
-            <ImageView fitWidth="40" fitHeight="32">
-                <Image url="@../images/pre-trip-instructions.png"/>
-            </ImageView>
-        </graphic>
-    </Button>
-    <Label fx:id="preTripInstructionsLabel" text="Pre-trip Instructions:" lineSpacing="-3" prefWidth="65" layoutX="14" layoutY="380" visible="false" wrapText="true"/>
-    <TextField fx:id="preTripInstructionsField" layoutX="89" layoutY="387" prefWidth="188" visible="false" styleClass="transparent-text-field"/>
+    <Label fx:id="notesLabel" text="Notes:" lineSpacing="-3" prefWidth="65" layoutX="14" layoutY="380" visible="false" wrapText="true"/>
+    <TextField fx:id="notesField" layoutX="89" layoutY="387" prefWidth="188" visible="false" styleClass="transparent-text-field"/>
 
     <CheckBox fx:id="chargeDeliveryTripCheckBox" layoutX="44" layoutY="387" visible="false"/>
     <Label fx:id="chargeDeliveryTripLabel" text="Charge for the trip" layoutX="69" layoutY="388" visible="false"/>
@@ -217,6 +206,11 @@
         <ToggleButton text="33' RT" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped"/>
         <ToggleButton text="45' Boom" minWidth="54" maxWidth="54" minHeight="20" maxHeight="20" styleClass="lift-type-button-stopped"/>
     </TilePane>
+
+    <Label fx:id="specificLiftLabel" text="beginnings of specific elements" layoutX="24" layoutY="515" visible="false"/>
+    <HBox fx:id="specificLiftHBox" layoutX="14" layoutY="530" visible="false"/>
+    <CheckBox fx:id="noPreferenceCheckBox" layoutX="170" layoutY="525" visible="false"/>
+    <Label fx:id="noPreferenceLabel" text="No Preference" layoutX="195" layoutY="530" visible="false"/>
 
 
     <Button fx:id="scheduleButton" text="Schedule Service" layoutY="457" layoutX="12" prefWidth="295" onAction="#handleScheduleService" visible="false"/>

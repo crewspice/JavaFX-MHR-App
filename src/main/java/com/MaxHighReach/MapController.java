@@ -148,6 +148,11 @@ public class MapController {
     private static final double OFFSET_Y = 0; // Move down by 150 units
 
     private List<Rental> rentalsForCharting;
+    
+    // tools for catching dots covered up my other dots
+    private final Map<Integer, List<Rental>> proximityMap = new HashMap<>();
+    private double proximityThresholdDeg = Config.PROXIMITY_THRESHOLD_DEG;
+
     // Track the alst clicked rental and popup
     private Rental lastClickedRental = null;
     private PopupDisc lastPopup = null;
@@ -453,6 +458,7 @@ public class MapController {
               //  reflectRoutingDataFromApi();
                 syncRoutesFromServer();
                 updateRoutePolylines();
+                prepareProximityMap();
                 setupLiveDriveProgressions();
             });
         });
@@ -542,7 +548,7 @@ public class MapController {
     }
     
     
-    private void loadRentalDataFromAPI() {
+    public void loadRentalDataFromAPI() {
         String apiUrl = "http://5.78.73.173:8080/routes/stops";
 
         try {
@@ -604,7 +610,7 @@ public class MapController {
                         l.serial_number, ro.single_item_order, ri.rental_order_id, ro.longitude, ro.latitude, ri.lift_id,
                         site_contacts.first_name AS site_contact_name, site_contacts.phone_number AS site_contact_phone,
                         ri.driver, ri.driver_number, ri.driver_initial, ri.delivery_truck, ri.pick_up_truck, ri.delivery_time, 
-                        ri.invoice_composed, ri.location_notes, ri.pre_trip_instructions
+                        ri.invoice_composed, ri.notes
                     FROM customers c
                     JOIN rental_orders ro ON c.customer_id = ro.customer_id
                     JOIN rental_items ri ON ro.rental_order_id = ri.rental_order_id
@@ -656,11 +662,12 @@ public class MapController {
                             rental.setDriverNumber(rs.getInt("driver_number"));
                             rental.setDeliveryTruck(rs.getString("delivery_truck"));
                             rental.setPickUpTruck(rs.getString("pick_up_truck"));
+                            String serial = rs.getString("serial_number");
+                            rental.setSerialNumber(serial != null ? serial : "");
                             rental.setDeliveryTime(rs.getString("delivery_time"));
                             rental.setInvoiceComposed(rs.getBoolean("invoice_composed"));
                             rental.decapitalizeLiftType();
-                            rental.setLocationNotes(rs.getString("location_notes"));
-                            rental.setPreTripInstructions(rs.getString("pre_trip_instructions"));
+                            rental.setNotes(rs.getString("notes"));
                             rentalsForCharting.add(rental);
                             rentalCount++;
                         }
@@ -690,6 +697,7 @@ public class MapController {
                         ro.*,
                         c.*,
                         l.*,
+                        l.serial_number AS old_serial_number,
                         nl.lift_type AS new_lift_type,
                         nro.site_name AS new_site_name,
                         nro.street_address AS new_street_address,
@@ -752,8 +760,7 @@ public class MapController {
                     String orderedContactNumber = rs.getString("ordered_contact_phone");
                     String siteContactName = rs.getString("site_contact_name");
                     String siteContactNumber = rs.getString("site_contact_phone");
-                    String locationNotes = rs.getString("location_notes");
-                    String preTripInstructions = rs.getString("pre_trip_instructions");
+                    String notes = rs.getString("notes");
                     String driver = rs.getString("driver");
                     String driverInitial = rs.getString("driver_initial");
                     int driverNumber = rs.getInt("driver_number");
@@ -782,8 +789,7 @@ public class MapController {
                     rental.setSiteContactName(siteContactName);
                     rental.setSiteContactPhone(siteContactNumber);
                     rental.setRentalItemId(rentalItemId);
-                    rental.setLocationNotes(locationNotes);
-                    rental.setPreTripInstructions(preTripInstructions);
+                    rental.setNotes(notes);
                     rental.setDriver(driver);
                     rental.setDriverInitial(driverInitial);
                     rental.setDriverNumber(driverNumber);
@@ -793,8 +799,8 @@ public class MapController {
                     rental.setLongitude(longitude);
     
                     Service service = new Service(serviceId, serviceType, serviceTime, serviceDate, reason, billable,
-                         previousServiceId, newRentalOrderId, newLiftId, newLiftType, newSiteName,
-                         newStreetAddress, newCity, newLatitude, newLongitude, locationNotes, preTripInstructions);
+                         previousServiceId, newRentalOrderId, newLiftId, newLiftType, "", 0, "", "", newSiteName,
+                         newStreetAddress, newCity, newLatitude, newLongitude, notes);
                     rental.setService(service);
     
                     rentalsForCharting.add(rental);
@@ -1100,8 +1106,7 @@ public class MapController {
                             rental.getOrderedByPhone(),
                             rental.getSiteContactName(),
                             rental.getSiteContactPhone(),
-                            rental.getLocationNotes(),
-                            rental.getPreTripInstructions(),
+                            rental.getNotes(),
                             assignedSeconds
                     );
 
@@ -1156,7 +1161,7 @@ public class MapController {
                 return;
             }
 
-            System.out.println("identifying the assigned drive time at this point: " + "");
+            // System.out.println("identifying the assigned drive time at this point: " + "");
 
             RoutingRental dto = new RoutingRental(
                     rental.isService() ? rental.getService().getServiceId() : rental.getRentalItemId(),
@@ -1167,6 +1172,7 @@ public class MapController {
                     rental.getAddressBlockTwo(),
                     rental.getAddressBlockThree(),
                     rental.getLiftType(),
+                    rental.getSerialNumber(),
                     rental.getDeliveryTime(),
                     rental.getLatitude(),
                     rental.getLongitude(),
@@ -1177,12 +1183,11 @@ public class MapController {
                     rental.getOrderedByPhone(),
                     rental.getSiteContactName(),
                     rental.getSiteContactPhone(),
-                    rental.getLocationNotes(),
-                    rental.getPreTripInstructions(),
+                    rental.getNotes(),
                     assignedSeconds
             );
 
-            System.out.println("built RoutingRental and truck is: " + truck);
+            // System.out.println("built RoutingRental and truck is: " + truck);
 
             if (rental.isService()) {
                 dto.setServiceType(rental.getService().getServiceType());
@@ -1237,8 +1242,8 @@ public class MapController {
             HttpResponse<String> response = HttpClient.newHttpClient()
                     .send(request, HttpResponse.BodyHandlers.ofString());
 
-            System.out.println("✅ Sent stop " + rental.getRentalItemId() +
-                    " to route " + truck + "-" + driverInitial + ". Response: " + response.body());
+            // System.out.println("✅ Sent stop " + rental.getRentalItemId() +
+            //         " to route " + truck + "-" + driverInitial + ". Response: " + response.body());
         } catch (Exception e) {
             System.err.println("❌ Failed to send add-stop for rental " + rental.getRentalItemId());
             e.printStackTrace();
@@ -1247,11 +1252,11 @@ public class MapController {
 
     private void sendRemoveStopToServer(Integer stopId, String driverInitial, String truck, Integer firstStopId) {
         try {
-            System.out.println("🔹 sendRemoveStopToServer called");
-            System.out.println("   stopId = " + stopId);
-            System.out.println("   driverInitial = " + driverInitial);
-            System.out.println("   truck = " + truck);
-            System.out.println("   firstStopId = " + firstStopId);
+            // System.out.println("🔹 sendRemoveStopToServer called");
+            // System.out.println("   stopId = " + stopId);
+            // System.out.println("   driverInitial = " + driverInitial);
+            // System.out.println("   truck = " + truck);
+            // System.out.println("   firstStopId = " + firstStopId);
 
             String safeDriver = (driverInitial != null)
                     ? URLEncoder.encode(driverInitial, StandardCharsets.UTF_8)
@@ -1268,16 +1273,16 @@ public class MapController {
                         "http://5.78.73.173:8080/routes/removeStop?driver=%s&truck=%s&stopId=%d&nullRouteId=%d",
                         safeDriver, safeTruck, stopId, firstStopId
                 );
-                System.out.println("   🚨 Null driver/truck detected. Using nullRouteId = " + firstStopId);
+                // System.out.println("   🚨 Null driver/truck detected. Using nullRouteId = " + firstStopId);
             } else {
                 url = String.format(
                         "http://5.78.73.173:8080/routes/removeStop?driver=%s&truck=%s&stopId=%d",
                         safeDriver, safeTruck, stopId
                 );
-                System.out.println("   ✅ Using driver/truck combo. No nullRouteId needed.");
+                // System.out.println("   ✅ Using driver/truck combo. No nullRouteId needed.");
             }
 
-            System.out.println("   🔹 Final DELETE URL: " + url);
+            // System.out.println("   🔹 Final DELETE URL: " + url);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
@@ -1287,10 +1292,10 @@ public class MapController {
             HttpResponse<String> response = HttpClient.newHttpClient()
                     .send(request, HttpResponse.BodyHandlers.ofString());
 
-            System.out.println("✅ Removed stop " + stopId +
-                    " from route " + truck + "-" + driverInitial +
-                    " | nullRouteId=" + firstStopId +
-                    ". Response: " + response.body());
+            // System.out.println("✅ Removed stop " + stopId +
+            //         " from route " + truck + "-" + driverInitial +
+            //         " | nullRouteId=" + firstStopId +
+            //         ". Response: " + response.body());
 
         } catch (Exception e) {
             System.err.println("❌ Failed to remove stop " + stopId);
@@ -1518,9 +1523,9 @@ public class MapController {
     }
 
     private void syncRoutesFromServer() {
-        System.out.println("\n===============================");
-        System.out.println("🛰️ SYNC ROUTES FROM SERVER — START (" + LocalDateTime.now() + ")");
-        System.out.println("===============================");
+        // System.out.println("\n===============================");
+        // System.out.println("🛰️ SYNC ROUTES FROM SERVER — START (" + LocalDateTime.now() + ")");
+        // System.out.println("===============================");
 
         // 🧩 DEBUG: Print all rentals in rentalsForCharting at the start of sync
        /* if (rentalsForCharting == null) {
@@ -1555,9 +1560,9 @@ public class MapController {
         try {
             ObjectMapper mapper = new ObjectMapper();
             JsonNode apiRoutes = mapper.readTree(new URL("http://5.78.73.173:8080/routes/fetch"));
-            System.out.println("🌐 Successfully fetched JSON payload from server.");
-            System.out.println("📦 Total route payloads: " + apiRoutes.size());
-            System.out.println("--------------------------------");
+            // System.out.println("🌐 Successfully fetched JSON payload from server.");
+            // System.out.println("📦 Total route payloads: " + apiRoutes.size());
+            // System.out.println("--------------------------------");
 
             Map<String, List<Rental>> jsonRouteStops = new HashMap<>();
             Map<String, String[]> jsonRouteKeys = new HashMap<>();
@@ -1571,40 +1576,40 @@ public class MapController {
                 String truckSignifier = parts[0].equals("null") ? null : parts[0];
                 String driverInitial = parts.length > 1 && !"null".equals(parts[1]) ? parts[1] : null;
 
-                System.out.println("\n--------------------------------");
-                System.out.println("🧩 Processing route payload:");
-                System.out.println("   ↳ Raw key: " + rawKey);
-                System.out.println("   ↳ Truck: " + truckSignifier + ", Driver: " + driverInitial);
-                System.out.println("   ↳ Stops count: " + payload.get("stops").size());
+                // System.out.println("\n--------------------------------");
+                // System.out.println("🧩 Processing route payload:");
+                // System.out.println("   ↳ Raw key: " + rawKey);
+                // System.out.println("   ↳ Truck: " + truckSignifier + ", Driver: " + driverInitial);
+                // System.out.println("   ↳ Stops count: " + payload.get("stops").size());
 
                 List<Rental> resolved = new ArrayList<>();
                 int stopIndex = 0;
 
                 for (JsonNode stop : payload.get("stops")) {
-                    System.out.println("\n   🛑 Stop #" + (++stopIndex));
-                    System.out.println("   🔸 Raw stop JSON: " + stop.toPrettyString());
+                    // System.out.println("\n   🛑 Stop #" + (++stopIndex));
+                    // System.out.println("   🔸 Raw stop JSON: " + stop.toPrettyString());
 
                     int id = stop.has("id") ? stop.get("id").asInt() : -9999;
                     String type = stop.has("type") ? stop.get("type").asText() : "UNKNOWN";
-                    System.out.println("   🔹 Parsed fields → Type: " + type + ", ID: " + id);
+                    // System.out.println("   🔹 Parsed fields → Type: " + type + ", ID: " + id);
 
                     Rental rental = resolveRentalByJson(type, id);
                     if (rental != null) {
-                        System.out.println("   ✅ Resolved Rental → " + rental);
+                        // System.out.println("   ✅ Resolved Rental → " + rental);
                         resolved.add(rental);
                     } else {
-                        System.out.println("   ❌ Could not resolve Rental for Type=" + type + ", ID=" + id);
+                        // System.out.println("   ❌ Could not resolve Rental for Type=" + type + ", ID=" + id);
                     }
                 }
 
-                System.out.println("   🧮 Total resolved stops: " + resolved.size());
+                // System.out.println("   🧮 Total resolved stops: " + resolved.size());
                 jsonRouteStops.put(rawKey, resolved);
                 jsonRouteKeys.put(rawKey, new String[]{truckSignifier, driverInitial});
             }
 
-            System.out.println("\n===============================");
-            System.out.println("🗺️ MATCHING JSON ROUTES TO LOCAL ROUTES");
-            System.out.println("===============================");
+            // System.out.println("\n===============================");
+            // System.out.println("🗺️ MATCHING JSON ROUTES TO LOCAL ROUTES");
+            // System.out.println("===============================");
 
             Set<String> usedJsonKeys = new HashSet<>();
 
@@ -1613,8 +1618,8 @@ public class MapController {
                 List<Rental> localRentals = routes.get(localKey);
                 if (localRentals == null) continue;
 
-                System.out.println("\n--------------------------------");
-                System.out.println("🔍 Checking local route: " + localKey + " (" + localRentals.size() + " stops)");
+                // System.out.println("\n--------------------------------");
+                // System.out.println("🔍 Checking local route: " + localKey + " (" + localRentals.size() + " stops)");
 
                 String bestMatchKey = null;
                 int bestOverlap = 0;
@@ -1652,7 +1657,7 @@ public class MapController {
                         !"null".equals(localTruck) && localTruck != null &&
                         Objects.equals(serverTruck, localTruck)) {
                         overlapScore++;
-                        System.out.println("   🚛 Truck match bonus (+1)");
+                        // System.out.println("   🚛 Truck match bonus (+1)");
                     }
 
                     // 👤 Driver match bonus (ignore null/null matches)
@@ -1660,16 +1665,16 @@ public class MapController {
                         !"null".equals(localDriver) && localDriver != null &&
                         Objects.equals(serverDriver, localDriver)) {
                         overlapScore++;
-                        System.out.println("   👤 Driver match bonus (+1)");
+                        // System.out.println("   👤 Driver match bonus (+1)");
                     }
 
-                    System.out.println("   Comparing → " + entry.getKey() +
-                                    " overlap=" + intersection.size() +
-                                    " totalScore=" + overlapScore +
-                                    " | localTruck=" + localTruck +
-                                    ", serverTruck=" + serverTruck +
-                                    ", localDriver=" + localDriver +
-                                    ", serverDriver=" + serverDriver);
+                    // System.out.println("   Comparing → " + entry.getKey() +
+                    //                 " overlap=" + intersection.size() +
+                    //                 " totalScore=" + overlapScore +
+                    //                 " | localTruck=" + localTruck +
+                    //                 ", serverTruck=" + serverTruck +
+                    //                 ", localDriver=" + localDriver +
+                    //                 ", serverDriver=" + serverDriver);
 
                     if (overlapScore > bestOverlap) {
                         bestOverlap = overlapScore;
@@ -1680,25 +1685,25 @@ public class MapController {
 
 
                 if (bestMatchKey == null) {
-                    System.out.println("⚠️ No JSON match found for " + localKey);
+                    // System.out.println("⚠️ No JSON match found for " + localKey);
 
                     List<Rental> localRentalsList = routes.get(localKey);
                     if (localRentalsList != null && !localRentalsList.isEmpty()) {
-                        System.out.println("   🧹 Clearing out local route: " + localKey + 
-                                        " (" + localRentalsList.size() + " stops to remove)");
+                        // System.out.println("   🧹 Clearing out local route: " + localKey + 
+                        //                 " (" + localRentalsList.size() + " stops to remove)");
 
                         // remove in reverse order to avoid shifting indices
                         for (int i = localRentalsList.size() - 1; i >= 0; i--) {
                             Rental r = localRentalsList.get(i);
-                            System.out.println("   ❌ Removing local-only rental: " + r.getRentalItemId() +
-                                            " (isService=" + r.isService() + ")");
+                            // System.out.println("   ❌ Removing local-only rental: " + r.getRentalItemId() +
+                            //                 " (isService=" + r.isService() + ")");
                             removeFromRoute(r, i, getRouteIndex(localKey), "sync", false);
                         }
 
                         localRentalsList.clear(); // fully empty the list in memory
-                        System.out.println("   ✅ Cleared route " + localKey);
+                        // System.out.println("   ✅ Cleared route " + localKey);
                     } else {
-                        System.out.println("   (No rentals to clear for " + localKey + ")");
+                        // System.out.println("   (No rentals to clear for " + localKey + ")");
                     }
 
                     continue; // go to next local route
@@ -1710,46 +1715,46 @@ public class MapController {
                 String truckSignifier = keyParts[0];
                 String jsonDriver = keyParts[1];
 
-                System.out.println("\n✅ Matched local " + localKey + " ↔ JSON " + bestMatchKey);
-                System.out.println("   → Overlap count: " + bestOverlap);
+                // System.out.println("\n✅ Matched local " + localKey + " ↔ JSON " + bestMatchKey);
+                // System.out.println("   → Overlap count: " + bestOverlap);
 
                 // Determine truck offset
                 int offset = 0;
-                System.out.println("🔹 Starting truck offset calculation...");
-                System.out.println("    truckSignifier = " + truckSignifier);
-                System.out.println("    localRentals size = " + localRentals.size());
+                // System.out.println("🔹 Starting truck offset calculation...");
+                // System.out.println("    truckSignifier = " + truckSignifier);
+                // System.out.println("    localRentals size = " + localRentals.size());
 
                 if (truckSignifier != null && !localRentals.isEmpty()) {
-                    System.out.println("🔹 truckSignifier is not null and localRentals is not empty, checking first rental...");
+                    // System.out.println("🔹 truckSignifier is not null and localRentals is not empty, checking first rental...");
                     Rental first = localRentals.get(0);
 
-                    System.out.println("    first.getRentalItemId() = " + first.getRentalItemId());
-                    System.out.println("    first.getName() = " + first.getName());
-                    System.out.println("    comparing with \"'\" + truckSignifier = '" + "'" + truckSignifier + "'");
+                    // System.out.println("    first.getRentalItemId() = " + first.getRentalItemId());
+                    // System.out.println("    first.getName() = " + first.getName());
+                    // System.out.println("    comparing with \"'\" + truckSignifier = '" + "'" + truckSignifier + "'");
 
                     if (first.getRentalItemId() == 0/* && first.getName().equals("'" + truckSignifier)*/) {
                         offset = 1; // skip truck for comparisons
-                        System.out.println("✅ Condition met: offset set to 1 (skip truck for comparisons)");
+                        // System.out.println("✅ Condition met: offset set to 1 (skip truck for comparisons)");
                     } else {
-                        System.out.println("⚠️ Condition not met: offset remains 0");
+                        // System.out.println("⚠️ Condition not met: offset remains 0");
                     }
                 } else {
-                    if (truckSignifier == null) System.out.println("⚠️ truckSignifier is null");
-                    if (localRentals.isEmpty()) System.out.println("⚠️ localRentals is empty");
+                    // if (truckSignifier == null) System.out.println("⚠️ truckSignifier is null");
+                    // if (localRentals.isEmpty()) System.out.println("⚠️ localRentals is empty");
                 }
 
-                System.out.println("🔹 Final offset = " + offset);
+                // System.out.println("🔹 Final offset = " + offset);
 
 
-                System.out.println("before process removals each localRentals id is:");
-                for (Rental r : localRentals) {
-                    System.out.println(r.getRentalItemId());
-                }
+                // System.out.println("before process removals each localRentals id is:");
+                // for (Rental r : localRentals) {
+                //     // System.out.println(r.getRentalItemId());
+                // }
 
 
-                System.out.println("STEP 3: Process removals (skip truck)");
+                // System.out.println("STEP 3: Process removals (skip truck)");
                 for (int i = offset; i < localRentals.size(); i++) {
-                    System.out.println("inside remove loop and i = " + i);
+                    // System.out.println("inside remove loop and i = " + i);
                     Rental r = localRentals.get(i);
 
                     boolean foundMatch = false;
@@ -1770,32 +1775,32 @@ public class MapController {
                     }
 
                     if (!foundMatch) {
-                        System.out.println("   ❌ Removing rental " + r.getRentalItemId() + " from " + localKey);
-                        System.out.println("local rental id: " + r.getRentalItemId() + ", isService: " + r.isService() + ", not found in json rentals:");
-                        System.out.println("id: " + r);
+                        // System.out.println("   ❌ Removing rental " + r.getRentalItemId() + " from " + localKey);
+                        // System.out.println("local rental id: " + r.getRentalItemId() + ", isService: " + r.isService() + ", not found in json rentals:");
+                        // System.out.println("id: " + r);
 
-                        for (Rental ren : jsonRentals) {
-                            System.out.println("json rental id: " + ren.getRentalItemId() + ", isService: " + ren.isService());
-                            System.out.println("id--" + ren);
-                        }
+                        // for (Rental ren : jsonRentals) {
+                        //     System.out.println("json rental id: " + ren.getRentalItemId() + ", isService: " + ren.isService());
+                        //     System.out.println("id--" + ren);
+                        // }
 
                         removeFromRoute(r, i, getRouteIndex(localKey), "sync", false);
                         i--; // adjust after removal
-                        System.out.println("   ✅ Removed rental " + r.getRentalItemId());
+                        // System.out.println("   ✅ Removed rental " + r.getRentalItemId());
                     }
                 }
 
 
 
-                System.out.println("before process additions each localRentals id is:");
-                for (Rental r : localRentals) {
-                    System.out.println(r.getRentalItemId());
-                }
+                // System.out.println("before process additions each localRentals id is:");
+                // for (Rental r : localRentals) {
+                //     System.out.println(r.getRentalItemId());
+                // }
 
 
-                System.out.println("STEP 3: Process additions (skip truck)");
+                // System.out.println("STEP 3: Process additions (skip truck)");
                 for (int i = 0; i < jsonRentals.size(); i++) {
-                    System.out.println("inside add loop and i = " + i);
+                    // System.out.println("inside add loop and i = " + i);
 
                     Rental r = jsonRentals.get(i);
                     int insertIndex = i + offset;
@@ -1812,7 +1817,7 @@ public class MapController {
                             }
                         } else if (!r.isService() && !local.isService()) {
                             if (Integer.valueOf(r.getRentalItemId()).equals(local.getRentalItemId())) {
-                                System.out.println("   ✅ Match found on RENTAL ITEM ID " + r.getRentalItemId());
+                                // System.out.println("   ✅ Match found on RENTAL ITEM ID " + r.getRentalItemId());
                                 existsInLocal = true;
                                 break;
                             }
@@ -1821,15 +1826,15 @@ public class MapController {
                     
 
                     if (!existsInLocal) {
-                        System.out.println("   ➕ Adding rental " + r.getRentalItemId() + " to " + localKey);
+                        // System.out.println("   ➕ Adding rental " + r.getRentalItemId() + " to " + localKey);
 
-                        System.out.println("local rental id: " + r.getRentalItemId() + ", isService: " + r.isService() + ", not found in json rentals:");
-                        System.out.println("id: " + r);
+                        // System.out.println("local rental id: " + r.getRentalItemId() + ", isService: " + r.isService() + ", not found in json rentals:");
+                        // System.out.println("id: " + r);
 
-                        for (Rental ren : localRentals) {
-                            System.out.println("json rental id: " + ren.getRentalItemId() + ", isService: " + ren.isService());
-                            System.out.println("id--" + ren);
-                        }
+                        // for (Rental ren : localRentals) {
+                        //     System.out.println("json rental id: " + ren.getRentalItemId() + ", isService: " + ren.isService());
+                        //     System.out.println("id--" + ren);
+                        // }
 
                         if (insertIndex > localRentals.size()) {
                             insertIndex = localRentals.size(); // guard for index overflow
@@ -1838,7 +1843,7 @@ public class MapController {
 
                         updateRoutePane(localKey, r, "insertion", insertIndex, getRouteIndex(localKey), "sync");
 
-                        System.out.println("   ✅ Added rental " + r.getRentalItemId());
+                        // System.out.println("   ✅ Added rental " + r.getRentalItemId());
                     }
                 }
 
@@ -1846,7 +1851,7 @@ public class MapController {
                 // STEP 4: Driver assignment
                 String currentDriver = routeAssignments.get(localKey);
                 if (!Objects.equals(currentDriver, jsonDriver)) {
-                    System.out.println("   🔄 Driver update: " + currentDriver + " → " + jsonDriver);
+                    // System.out.println("   🔄 Driver update: " + currentDriver + " → " + jsonDriver);
                     routeAssignments.put(localKey, jsonDriver);
                     handleAssignDriver(routeVBoxPanes.get(getRouteIndex(localKey)), jsonDriver, localKey, getRouteColors(localKey), "sync");
                 }
@@ -1858,18 +1863,18 @@ public class MapController {
                         .findFirst().orElse(null);
 
                 if (!Objects.equals(currentTruck, truckSignifier)) {
-                    System.out.println("\n🚚 Truck comparison triggered:");
-                    System.out.println("   currentTruck = " + currentTruck);
-                    System.out.println("   truckSignifier = " + truckSignifier);
-                    System.out.println("   Objects.equals(currentTruck, truckSignifier)? " + Objects.equals(currentTruck, truckSignifier));
+                    // System.out.println("\n🚚 Truck comparison triggered:");
+                    // System.out.println("   currentTruck = " + currentTruck);
+                    // System.out.println("   truckSignifier = " + truckSignifier);
+                    // System.out.println("   Objects.equals(currentTruck, truckSignifier)? " + Objects.equals(currentTruck, truckSignifier));
 
-                    System.out.println("   🔄 Truck update: " + currentTruck + " → " + truckSignifier);
+                    // System.out.println("   🔄 Truck update: " + currentTruck + " → " + truckSignifier);
 
                     if (currentTruck != null) {
-                        System.out.println("   🧹 Removing old truck assignment: " + currentTruck);
+                        // System.out.println("   🧹 Removing old truck assignment: " + currentTruck);
                         truckAssignments.remove(currentTruck);
                     } else {
-                        System.out.println("   ⏩ Skipped removing old truck — currentTruck is null");
+                        // System.out.println("   ⏩ Skipped removing old truck — currentTruck is null");
                     }
 
                     // if (truckSignifier != null) {
@@ -1879,11 +1884,11 @@ public class MapController {
                     //     System.out.println("   ⚠️ Skipped adding new truck — truckSignifier is null");
                     // }
 
-                    System.out.println("   🚀 Calling handleAssignTruck() with:");
-                    System.out.println("      routeVBoxPanes index: " + getRouteIndex(localKey));
-                    System.out.println("      routeHBoxPanes index: " + getRouteIndex(localKey));
-                    System.out.println("      truckSignifier: " + truckSignifier);
-                    System.out.println("      routeName: " + localKey);
+                    // System.out.println("   🚀 Calling handleAssignTruck() with:");
+                    // System.out.println("      routeVBoxPanes index: " + getRouteIndex(localKey));
+                    // System.out.println("      routeHBoxPanes index: " + getRouteIndex(localKey));
+                    // System.out.println("      truckSignifier: " + truckSignifier);
+                    // System.out.println("      routeName: " + localKey);
 
                     handleAssignTruck(
                         routeVBoxPanes.get(getRouteIndex(localKey)),
@@ -1893,8 +1898,8 @@ public class MapController {
                         "sync"
                     );
                 } else {
-                    System.out.println("\n✅ Truck unchanged — skipping update for " + localKey);
-                    System.out.println("   currentTruck = " + currentTruck + ", truckSignifier = " + truckSignifier);
+                    // System.out.println("\n✅ Truck unchanged — skipping update for " + localKey);
+                    // System.out.println("   currentTruck = " + currentTruck + ", truckSignifier = " + truckSignifier);
                 }
 
             }
@@ -1903,7 +1908,7 @@ public class MapController {
             for (String jsonKey : jsonRouteStops.keySet()) {
                 if (usedJsonKeys.contains(jsonKey)) continue;
 
-                System.out.println("\n🆕 Creating new route for unmatched JSON key: " + jsonKey);
+                // System.out.println("\n🆕 Creating new route for unmatched JSON key: " + jsonKey);
                 String newSlot = IntStream.rangeClosed(1, 5)
                         .mapToObj(i -> "route" + i)
                         .filter(r -> !routes.containsKey(r) || routes.get(r).isEmpty())
@@ -1911,7 +1916,7 @@ public class MapController {
                         .orElse(null);
 
                 if (newSlot == null) {
-                    System.out.println("❗ No available route slots for " + jsonKey);
+                    // System.out.println("❗ No available route slots for " + jsonKey);
                     continue;
                 }
 
@@ -1923,8 +1928,8 @@ public class MapController {
                 String truck = keyParts[0];
                 String driver = keyParts[1];
 
-                System.out.println("📦 Assigning new route " + newSlot +
-                        " (Truck=" + truck + ", Driver=" + driver + ") with " + jsonRentals.size() + " stops");
+                // System.out.println("📦 Assigning new route " + newSlot +
+                //         " (Truck=" + truck + ", Driver=" + driver + ") with " + jsonRentals.size() + " stops");
 
                 if (driver != null && !"null".equals(driver)) routeAssignments.put(newSlot, driver);
                 if (truck != null && !"null".equals(truck)) truckAssignments.put(truck, newSlot);
@@ -1939,7 +1944,7 @@ public class MapController {
                     routes.get(newSlot).add(placeholderRental);
                     updateRoutePane(newSlot, placeholderRental, "insertion", 0, getRouteIndex(newSlot), "sync");
                     placeholderInserted = true;
-                    System.out.println("🧩 Placeholder stop inserted to enable truck assignment.");
+                    // System.out.println("🧩 Placeholder stop inserted to enable truck assignment.");
                 }
 
                 // 🚛 STEP 5B: Assign truck and driver if present
@@ -1957,17 +1962,17 @@ public class MapController {
                                 "sync"
                         );
                     } else {
-                        System.out.println("🚫 Skipping driver assignment for " + newSlot + " (driver is null or \"null\")");
+                        // System.out.println("🚫 Skipping driver assignment for " + newSlot + " (driver is null or \"null\")");
                     }
                 } else {
-                    System.out.println("🚫 Skipping truck assignment for " + newSlot + " (truck is null or \"null\")");
+                    // System.out.println("🚫 Skipping truck assignment for " + newSlot + " (truck is null or \"null\")");
                 }
 
                 // 🚚 STEP 5C: Add all real JSON stops
                 for (int i = 0; i < jsonRentals.size(); i++) {
                     Rental rental = jsonRentals.get(i);
                     routes.get(newSlot).add(rental);
-                    System.out.println("   ↳ Adding stop " + rental.getRentalItemId());
+                    // System.out.println("   ↳ Adding stop " + rental.getRentalItemId());
                     updateRoutePane(newSlot, rental, "insertion", i, getRouteIndex(newSlot), "sync");
                 }
 
@@ -1978,85 +1983,85 @@ public class MapController {
 
                     if (placeholderIndex != -1) {
                         removeFromRoute(placeholderRental, placeholderIndex, routeIndex, "sync", true);
-                        System.out.println("🧼 Placeholder removed after truck assignment.");
+                        // System.out.println("🧼 Placeholder removed after truck assignment.");
                     } else {
-                        System.out.println("⚠️ Placeholder not found in route list when trying to remove.");
+                        // System.out.println("⚠️ Placeholder not found in route list when trying to remove.");
                     }
                 }
             }
 
 
-            System.out.println("\n===============================");
-            System.out.println("✅ SYNC COMPLETE (" + LocalDateTime.now() + ")");
-            System.out.println("===============================");
+            // System.out.println("\n===============================");
+            // System.out.println("✅ SYNC COMPLETE (" + LocalDateTime.now() + ")");
+            // System.out.println("===============================");
 
         } catch (Exception e) {
-            System.out.println("❌ Exception during sync: " + e.getMessage());
+            // System.out.println("❌ Exception during sync: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
     private Rental resolveRentalByJson(String type, int id) {
-        System.out.println("\n🔍 resolveRentalByJson() called → Type: " + type + ", ID: " + id);
+        // System.out.println("\n🔍 resolveRentalByJson() called → Type: " + type + ", ID: " + id);
 
         if ("RENTAL".equalsIgnoreCase(type)) {
-            System.out.println("➡️  Resolving as RENTAL type...");
+            // System.out.println("➡️  Resolving as RENTAL type...");
 
             if (id <= -1) {
-                System.out.println("🏢 Detected HQ Rental (special case: id <= -1)");
+                // System.out.println("🏢 Detected HQ Rental (special case: id <= -1)");
 
                 // STEP 1: Look for existing HQ rental in all routes
                 for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
                     for (Rental r : entry.getValue()) {
                         if (r.getRentalItemId() == id) {
-                            System.out.println("✅ Found existing HQ Rental in routes: " + r);
+                            // System.out.println("✅ Found existing HQ Rental in routes: " + r);
                             return r;
                         }
                     }
                 }
 
                 // STEP 2: If not found, create a new HQ rental
-                System.out.println("⚠️ HQ Rental not found in routes → Creating new one");
+                // System.out.println("⚠️ HQ Rental not found in routes → Creating new one");
                 Rental hqRental = createHQRental();
                 hqRental.setRentalItemId(id);
                 if (hqRental != null) {
-                    System.out.println("✅ Successfully created HQ Rental: " + hqRental);
+                    // System.out.println("✅ Successfully created HQ Rental: " + hqRental);
                 } else {
-                    System.out.println("❌ Failed to create HQ Rental!");
+                    // System.out.println("❌ Failed to create HQ Rental!");
                 }
                 return hqRental;
             }
 
             // Normal rental lookup in rentalsForCharting
-            System.out.println("🔎 Searching rentalsForCharting for Rental ID: " + id);
+            // System.out.println("🔎 Searching rentalsForCharting for Rental ID: " + id);
             Optional<Rental> rentalOpt = rentalsForCharting.stream()
                     .filter(r -> r.getRentalItemId() == id)
                     .findFirst();
 
             if (rentalOpt.isPresent()) {
-                System.out.println("✅ Found matching RENTAL: " + rentalOpt.get());
+                // System.out.println("✅ Found matching RENTAL: " + rentalOpt.get());
             } else {
-                System.out.println("❌ No RENTAL found with ID: " + id);
+                // System.out.println("❌ No RENTAL found with ID: " + id);
             }
             return rentalOpt.orElse(null);
 
         } else if ("SERVICE".equalsIgnoreCase(type)) {
-            System.out.println("➡️  Resolving as SERVICE type...");
-            System.out.println("🔎 Searching rentalsForCharting for Service ID: " + id);
+            // System.out.println("➡️  Resolving as SERVICE type...");
+            // System.out.println("🔎 Searching rentalsForCharting for Service ID: " + id);
 
             Optional<Rental> serviceOpt = rentalsForCharting.stream()
                     .filter(r -> r.getService() != null && r.getService().getServiceId() == id)
                     .findFirst();
 
             if (serviceOpt.isPresent()) {
-                System.out.println("✅ Found matching SERVICE Rental: " + serviceOpt.get());
+                // System.out.println("✅ Found matching SERVICE Rental: " + serviceOpt.get());
             } else {
-                System.out.println("❌ No SERVICE found with Service ID: " + id);
+                // System.out.println("❌ No SERVICE found with Service ID: " + id);
             }
             return serviceOpt.orElse(null);
         }
 
-        System.out.println("⚠️ Unknown type received: " + type + " (returning null)");
+        // System.out.println("⚠️ Unknown type received: " + type + " (returning null)");
         return null;
     }
 
@@ -2152,6 +2157,10 @@ public class MapController {
             }
             dotShape = octagon;
             dotShape.setFill(Color.RED);
+        } else if ("Picked Up".equals(status)) {
+            Circle circle = new Circle(0, 0, 7);
+            circle.setFill(Color.BLACK);
+            dotShape = circle;
         } else  {  // if "Upcoming".equals(status)
             Circle circle = new Circle(0, 0, 7); // center at 0,0, position later
             circle.setFill(Color.web(Config.getPrimaryColor()));
@@ -2305,6 +2314,37 @@ public class MapController {
         }
     }
 
+    private void prepareProximityMap() {
+
+        proximityMap.clear();
+
+        List<Rental> rentals = rentalsForCharting;
+
+        for (Rental base : rentals) {
+
+            List<Rental> nearby = new ArrayList<>();
+
+            double baseLat = base.getLatitude();
+            double baseLon = base.getLongitude();
+            int baseId = base.getRentalItemId();
+
+            for (Rental r : rentals) {
+
+                if (r.getRentalItemId() == baseId) continue;
+
+                boolean latClose = Math.abs(r.getLatitude() - baseLat) <= proximityThresholdDeg;
+                boolean lonClose = Math.abs(r.getLongitude() - baseLon) <= proximityThresholdDeg;
+
+                if (latClose && lonClose) {
+                    nearby.add(r);
+                }
+            }
+
+            if (!nearby.isEmpty()) {
+                proximityMap.put(baseId, nearby);
+            }
+        }
+    }
 
 
     private Polyline[] drawRoutePolyline(List<double[]> polylinePoints, String[] colors) {
@@ -2350,31 +2390,59 @@ public class MapController {
     }
 
 
-
-
-
     private void updateRoutePolylines() {
-        // Remove existing polylines before re-plotting
-        mapContainer.getChildren().removeIf(node -> node instanceof Polyline);
-      //  polylines.clear();
-    
-        // for (int i = 0; i < storedEncodedPolylines.size(); i++) {
-        //     String encodedPolyline = storedEncodedPolylines.get(i);
-        //     String[] colors = storedColorsList.get(i); // Retrieve associated colors
-        //     drawRoutePolyline(encodedPolyline, colors);
-        // }
-    
-        for (Map.Entry<String, List<List<double[]>>> entry : decodedPolylines.entrySet()) {
-            List<List<double[]>> routeSegments = entry.getValue();
-            String[] colors = getRouteColors(entry.getKey());
 
+        System.out.println("\n=== updateRoutePolylines() CALLED ===");
+
+        // Remove existing polylines before re-plotting
+        int beforeCount = mapContainer.getChildren().size();
+        mapContainer.getChildren().removeIf(node -> node instanceof Polyline);
+        int afterCount = mapContainer.getChildren().size();
+
+        System.out.println("🧹 Removed " + (beforeCount - afterCount) + " existing Polyline(s)");
+
+        if (decodedPolylines == null || decodedPolylines.isEmpty()) {
+            System.out.println("⚠️ decodedPolylines is EMPTY — nothing to draw");
+            return;
+        }
+
+        System.out.println("🗺️ Routes to render: " + decodedPolylines.size());
+
+        for (Map.Entry<String, List<List<double[]>>> entry : decodedPolylines.entrySet()) {
+
+            String routeName = entry.getKey();
+            List<List<double[]>> routeSegments = entry.getValue();
+            String[] colors = getRouteColors(routeName);
+
+            System.out.println("\n➡️ Route: " + routeName);
+            System.out.println("   Segments: " + (routeSegments != null ? routeSegments.size() : 0));
+            System.out.println("   Colors: " + (colors != null ? String.join(", ", colors) : "null"));
+
+            if (routeSegments == null || routeSegments.isEmpty()) {
+                System.out.println("   ⚠️ No segments — skipping route");
+                continue;
+            }
+
+            int segmentIndex = 1;
             for (List<double[]> segmentPoints : routeSegments) {
+
+                if (segmentPoints == null || segmentPoints.isEmpty()) {
+                    System.out.println("   ⚠️ Segment #" + segmentIndex + " has no points — skipped");
+                    segmentIndex++;
+                    continue;
+                }
+
+                System.out.println("   ✏️ Drawing segment #" + segmentIndex
+                    + " with " + segmentPoints.size() + " point(s)");
+
                 drawRoutePolyline(segmentPoints, colors);
+                segmentIndex++;
             }
         }
 
-    
+        System.out.println("✅ updateRoutePolylines() COMPLETE");
     }
+
 
     public void updateTrucks(boolean absoluteMode) {
         for (Map.Entry<String, StackPane> entry : truckPanes.entrySet()) {
@@ -2863,7 +2931,8 @@ public class MapController {
         latestRouteEdited = routes.get(matchedRoute);
     
         updateRoutePane(matchedRoute, rental, "insertion", 99, index, "user");
-    
+        System.out.println("made it through updateRoutePane");
+
         // =============================================================
         // ============   MULTI-ITEM ORDER LOGGING ONLY   ===============
         // =============================================================
@@ -2872,34 +2941,34 @@ public class MapController {
     
             int rentalOrderIdToMatch = rental.getRentalOrderId();
     
-            System.out.println("\n================ MULTI-ITEM ORDER DETECTED ================");
-            System.out.println("Main rental item: " + rental.getRentalItemId());
-            System.out.println("Order ID: " + rentalOrderIdToMatch);
-            System.out.println("Searching for sibling rentals...");
+            // System.out.println("\n================ MULTI-ITEM ORDER DETECTED ================");
+            // System.out.println("Main rental item: " + rental.getRentalItemId());
+            // System.out.println("Order ID: " + rentalOrderIdToMatch);
+            // System.out.println("Searching for sibling rentals...");
     
             for (Rental r : rentalsForCharting) {
                 if (r.getRentalOrderId() == rentalOrderIdToMatch && r != rental) {
     
-                    System.out.println("→ Found sibling rental:");
-                    System.out.println("   rentalItemId: " + r.getRentalItemId());
-                    System.out.println("   driver: " + r.getDriver());
-                    System.out.println("   address: " + r.getAddressBlockTwo());
-                    System.out.println("   isService: " + r.isService());
-                    System.out.println("   Adding sibling rental to route: " + matchedRoute);
+                    // System.out.println("→ Found sibling rental:");
+                    // System.out.println("   rentalItemId: " + r.getRentalItemId());
+                    // System.out.println("   driver: " + r.getDriver());
+                    // System.out.println("   address: " + r.getAddressBlockTwo());
+                    // System.out.println("   isService: " + r.isService());
+                    // System.out.println("   Adding sibling rental to route: " + matchedRoute);
     
                     routes.get(matchedRoute).add(r);
                     updateRoutePane(matchedRoute, r, "insertion", 99, index, "user");
     
-                    System.out.println("   Sending sibling to server...");
+                    // System.out.println("   Sending sibling to server...");
                     sendAddStopToServer(r, routeAssignments.get(matchedRoute),
                                         getTruckIdForRoute(matchedRoute), 
                                         routes.get(matchedRoute), 0);
     
-                    System.out.println("✓ Sibling rental processed.\n");
+                    // System.out.println("✓ Sibling rental processed.\n");
                 }
             }
     
-            System.out.println("================ END MULTI-ITEM LOGGING ===================\n");
+            // System.out.println("================ END MULTI-ITEM LOGGING ===================\n");
         }
     
         int assignedSeconds = intervals.getOrDefault(matchedRoute, List.of())
@@ -2916,65 +2985,65 @@ public class MapController {
 
 
     private void addTruckToRoute(String routeSignifier, String truckSignifier, String agent) {
-        System.out.println("\n==========================");
-        System.out.println("🚚 addTruckToRoute() CALLED");
-        System.out.println("==========================");
-        System.out.println("Route Signifier: " + routeSignifier);
-        System.out.println("Truck Signifier: " + truckSignifier);
-        System.out.println("Agent: " + agent);
+        // System.out.println("\n==========================");
+        // System.out.println("🚚 addTruckToRoute() CALLED");
+        // System.out.println("==========================");
+        // System.out.println("Route Signifier: " + routeSignifier);
+        // System.out.println("Truck Signifier: " + truckSignifier);
+        // System.out.println("Agent: " + agent);
 
         // Print current truckCoords map state
         if (truckCoords == null) {
-            System.out.println("❌ truckCoords is NULL!");
+            // System.out.println("❌ truckCoords is NULL!");
             return;
         } else {
-            System.out.println("truckCoords keys: " + truckCoords.keySet());
+            // System.out.println("truckCoords keys: " + truckCoords.keySet());
         }
 
         // Attempt to fetch truck coordinate array
         double[] truck = truckCoords.get(truckSignifier);
         if (truck == null) {
-            System.out.println("❌ No coordinates found for truckSignifier: " + truckSignifier);
+            // System.out.println("❌ No coordinates found for truckSignifier: " + truckSignifier);
             return;
         } else {
-            System.out.println("✅ truckCoords.get('" + truckSignifier + "') succeeded");
-            System.out.println("truck coordinates: [" + truck[0] + ", " + truck[1] + "]");
+            // System.out.println("✅ truckCoords.get('" + truckSignifier + "') succeeded");
+            // System.out.println("truck coordinates: [" + truck[0] + ", " + truck[1] + "]");
         }
 
         String matchedRoute = null;
         int index = 0;
 
-        System.out.println("routes map keys: " + (routes == null ? "NULL" : routes.keySet()));
+        // System.out.println("routes map keys: " + (routes == null ? "NULL" : routes.keySet()));
 
         // Try to identify the matched route
         if (matchedRoute == null && routes != null && routes.containsKey(routeSignifier)) {
             matchedRoute = routeSignifier;
             index = wordToNumber(matchedRoute.replace("route", "")) - 1;
-            System.out.println("✅ Matched route found: " + matchedRoute + " (index " + index + ")");
+            // System.out.println("✅ Matched route found: " + matchedRoute + " (index " + index + ")");
         } else {
-            System.out.println("⚠️ No direct match found for routeSignifier: " + routeSignifier);
+            // System.out.println("⚠️ No direct match found for routeSignifier: " + routeSignifier);
         }
 
         if (matchedRoute == null) {
-            System.out.println("❌ matchedRoute is still NULL — cannot proceed");
+            // System.out.println("❌ matchedRoute is still NULL — cannot proceed");
             return;
         }
 
         // Safety print: check routes list structure
         List<Rental> routeList = routes.get(matchedRoute);
         if (routeList == null) {
-            System.out.println("❌ routes.get(" + matchedRoute + ") returned NULL!");
+            // System.out.println("❌ routes.get(" + matchedRoute + ") returned NULL!");
             return;
         } else {
-            System.out.println("✅ routes.get(" + matchedRoute + ") current size: " + routeList.size());
+            // System.out.println("✅ routes.get(" + matchedRoute + ") current size: " + routeList.size());
         }
 
         // Try to resolve the city from coordinates
         String city = getCityFromCoordinates(truck[0], truck[1]);
-        System.out.println("City resolved from coordinates: " + city);
+        // System.out.println("City resolved from coordinates: " + city);
 
         // Create new Rental instance representing truck
-        System.out.println("🚧 Constructing Rental truckLocation object...");
+        // System.out.println("🚧 Constructing Rental truckLocation object...");
         Rental truckLocation = new Rental(
             null,
             "'" + truckSignifier,
@@ -2998,48 +3067,48 @@ public class MapController {
             "",
             ""
         );
-        System.out.println("✅ TruckLocation created successfully: " + truckLocation);
+        // System.out.println("✅ TruckLocation created successfully: " + truckLocation);
 
-        // Add to route list
-        System.out.println("📝 Attempting to insert truckLocation into routes.get(" + matchedRoute + ")");
-        System.out.println("List size before add: " + routeList.size());
+        // // Add to route list
+        // System.out.println("📝 Attempting to insert truckLocation into routes.get(" + matchedRoute + ")");
+        // System.out.println("List size before add: " + routeList.size());
         routeList.add(0, truckLocation);
-        System.out.println("✅ TruckLocation inserted at index 0. New size: " + routeList.size());
+        // System.out.println("✅ TruckLocation inserted at index 0. New size: " + routeList.size());
 
         // Update truckAssignments
         if (truckAssignments == null) {
-            System.out.println("⚠️ truckAssignments map was NULL — initializing new HashMap");
+            // System.out.println("⚠️ truckAssignments map was NULL — initializing new HashMap");
             truckAssignments = new HashMap<>();
         }
         truckAssignments.put(truckSignifier, routeSignifier);
-        System.out.println("✅ truckAssignments updated: " + truckSignifier + " → " + routeSignifier);
+        // System.out.println("✅ truckAssignments updated: " + truckSignifier + " → " + routeSignifier);
 
-        // Call updateRoutePane
-        System.out.println("🚀 Calling updateRoutePane() with parameters:");
-        System.out.println("  matchedRoute: " + matchedRoute);
-        System.out.println("  truckLocation: " + truckLocation);
-        System.out.println("  agent: " + agent);
-        System.out.println("  index: " + index);
-        System.out.println("  routeList size: " + routeList.size());
+        // // Call updateRoutePane
+        // System.out.println("🚀 Calling updateRoutePane() with parameters:");
+        // System.out.println("  matchedRoute: " + matchedRoute);
+        // System.out.println("  truckLocation: " + truckLocation);
+        // System.out.println("  agent: " + agent);
+        // System.out.println("  index: " + index);
+        // System.out.println("  routeList size: " + routeList.size());
 
         try {
             updateRoutePane(matchedRoute, truckLocation, "insertion-truck", 0, index, agent);
-            System.out.println("✅ updateRoutePane() completed successfully");
+            // System.out.println("✅ updateRoutePane() completed successfully");
         } catch (Exception e) {
             System.out.println("❌ Exception in updateRoutePane() from addTruckToRoute(): " + e.getMessage());
             e.printStackTrace();
         }
 
-        System.out.println("==========================");
-        System.out.println("✅ addTruckToRoute() FINISHED");
-        System.out.println("==========================\n");
+        // System.out.println("==========================");
+        // System.out.println("✅ addTruckToRoute() FINISHED");
+        // System.out.println("==========================\n");
     }
 
 
     private void removeFromRoute(Rental rental, int closestMultiple, int routeIndex, String agent, boolean skipServerUpdate) {
-        System.out.println("**    removeFromRoute called with:" +
-            "\n- closestMultiple: " + closestMultiple +
-            "\n- routeIndex: " + routeIndex + " **");
+        // System.out.println("**    removeFromRoute called with:" +
+        //     "\n- closestMultiple: " + closestMultiple +
+        //     "\n- routeIndex: " + routeIndex + " **");
             // Get route key from index
         String routeKey = getRouteNameFromIndex(routeIndex);
         List<Rental> stopList;
@@ -3058,19 +3127,19 @@ public class MapController {
         String currentTruck = getTruckIdForRoute(routeKey);
         String currentDriver = routeAssignments.get(routeKey);
         
-        System.out.println("");
-        System.out.println("🔍 Debug info:");
-        System.out.println("currentTruck = " + currentTruck);
-        System.out.println("closestMultiple = " + closestMultiple);
-        System.out.println("stopList.size() = " + stopList.size());
+        // System.out.println("");
+        // System.out.println("🔍 Debug info:");
+        // System.out.println("currentTruck = " + currentTruck);
+        // System.out.println("closestMultiple = " + closestMultiple);
+        // System.out.println("stopList.size() = " + stopList.size());
 
         int firstStopId = 0;
         if (rental.getRentalItemId() != 0) {
             int firstIndex = currentTruck != null && closestMultiple == 0 ? 1 : 0;
-            System.out.println("➡️ Computed firstIndex = " + firstIndex + 
-                            " (since currentTruck " + 
-                            (currentTruck == null ? "is null" : "is NOT null") +
-                            " and closestMultiple = " + closestMultiple + ")");
+            // System.out.println("➡️ Computed firstIndex = " + firstIndex + 
+            //                 " (since currentTruck " + 
+            //                 (currentTruck == null ? "is null" : "is NOT null") +
+            //                 " and closestMultiple = " + closestMultiple + ")");
             Rental first = routes.get(routeKey).get(firstIndex);
             firstStopId = first.isService() ? first.getService().getServiceId() : first.getRentalItemId();
         }
@@ -3169,7 +3238,7 @@ public class MapController {
         
     
 
-    private void updateRoutePane(String routeName, Rental rental, String orientation,
+    public void updateRoutePane(String routeName, Rental rental, String orientation,
                                 int closestMultiple, int index, String agent) {
 
         System.out.println("=== updateRoutePane() CALLED ===");
@@ -3185,7 +3254,7 @@ public class MapController {
         int tempIndex = index;
         if (orientation.equals("insertion") && agent.equals("user")) {
             tempIndex = getRouteIndex(routeName);
-            System.out.println("Updated tempIndex to getRouteIndex: " + tempIndex);
+            // System.out.println("Updated tempIndex to getRouteIndex: " + tempIndex);
         }
         final int routeIndex = tempIndex;
 
@@ -3197,14 +3266,14 @@ public class MapController {
         String[] colors = getRouteColors(routeName);
         List<Rental> route = routes.get(routeName);
 
-        if (route == null) {
-            System.out.println("⚠️ route is null for routeName=" + routeName);
-        } else {
-            System.out.println("route.size()=" + route.size());
-            for (int i = 0; i < route.size(); i++) {
-                System.out.println(" - route[" + i + "]=" + route.get(i));
-            }
-        }
+        // if (route == null) {
+        //     System.out.println("⚠️ route is null for routeName=" + routeName);
+        // } else {
+        //     System.out.println("route.size()=" + route.size());
+        //     for (int i = 0; i < route.size(); i++) {
+        //         System.out.println(" - route[" + i + "]=" + route.get(i));
+        //     }
+        // }
 
         int routeSize;
         if (agent.equals("program")) {
@@ -3244,36 +3313,36 @@ public class MapController {
         List<Node> vInts = routeVBoxPane.getChildren().stream()
             .filter(node -> node.getClass().getName().contains("MapController$"))
             .collect(Collectors.toList());
-        System.out.println("vInts.size()=" + vInts.size());
-        for (int i = 0; i < vInts.size(); i++) {
-            System.out.println(" - vInts[" + i + "]=" + vInts.get(i));
-        }
+        // System.out.println("vInts.size()=" + vInts.size());
+        // for (int i = 0; i < vInts.size(); i++) {
+        //     System.out.println(" - vInts[" + i + "]=" + vInts.get(i));
+        // }
 
         Map<Integer, Integer> paneIndexToVIntIndex = new LinkedHashMap<>();
         for (int vIntIdx = 0; vIntIdx < vInts.size(); vIntIdx++) {
             Node n = vInts.get(vIntIdx);
             int paneIndex = routeVBoxPane.getChildren().indexOf(n);
             paneIndexToVIntIndex.put(paneIndex, vIntIdx);
-            System.out.println("Mapping VBoxPane: paneIndex=" + paneIndex + ", vIntIndex=" + vIntIdx);
+            // System.out.println("Mapping VBoxPane: paneIndex=" + paneIndex + ", vIntIndex=" + vIntIdx);
         }
 
         List<Node> hInts = routeHBoxPane.getChildren().stream()
             .filter(node -> node.getClass().getName().contains("MapController$"))
             .collect(Collectors.toList());
-        System.out.println("hInts.size()=" + hInts.size());
-        for (int i = 0; i < hInts.size(); i++) {
-            System.out.println(" - hInts[" + i + "]=" + hInts.get(i));
-        }
+        // System.out.println("hInts.size()=" + hInts.size());
+        // for (int i = 0; i < hInts.size(); i++) {
+        //     System.out.println(" - hInts[" + i + "]=" + hInts.get(i));
+        // }
 
         Map<Integer, Integer> paneIndexToHIntIndex = new LinkedHashMap<>();
         for (int hIntIdx = 0; hIntIdx < hInts.size(); hIntIdx++) {
             Node n = hInts.get(hIntIdx);
             int paneIndex = routeHBoxPane.getChildren().indexOf(n);
             paneIndexToHIntIndex.put(paneIndex, hIntIdx);
-            System.out.println("Mapping HBoxPane: paneIndex=" + paneIndex + ", hIntIndex=" + hIntIdx);
+            // System.out.println("Mapping HBoxPane: paneIndex=" + paneIndex + ", hIntIndex=" + hIntIdx);
         }
 
-        System.out.println("=== Finished preamble of updateRoutePane ===");
+        // System.out.println("=== Finished preamble of updateRoutePane ===");
 
 
 
@@ -3439,17 +3508,48 @@ public class MapController {
             } else {
                 Rental firstRental = route.get(routeSize - 2);
                 Rental secondRental = route.get(routeSize - 1);
-            
+                System.out.println("firstRentalId is: " + firstRental.getRentalItemId());
+                System.out.println("secondRentalId is: " + secondRental.getRentalItemId());
+
+
                 RouteInfo googleRoute = new RouteInfo(0, 0, null);
+
+                System.out.println("\n=== GOOGLE ROUTE REQUEST ===");
+                System.out.println("From: (" + firstRental.getLatitude() + ", " + firstRental.getLongitude() + ")");
+                System.out.println("To:   (" + secondRental.getLatitude() + ", " + secondRental.getLongitude() + ")");
+
                 try {
-                    googleRoute = getGoogleRoute(firstRental.getLatitude(), firstRental.getLongitude(),
-                                        secondRental.getLatitude(), secondRental.getLongitude());
+                    googleRoute = getGoogleRoute(
+                        firstRental.getLatitude(), firstRental.getLongitude(),
+                        secondRental.getLatitude(), secondRental.getLongitude()
+                    );
+
+                    System.out.println("✅ Route fetched successfully");
+                    System.out.println("   Duration (seconds): " + googleRoute.getDurationSeconds());
+                    System.out.println("   Distance (meters):  " + googleRoute.getDistanceMiles());
+                    System.out.println("   Polyline present:   " + (googleRoute.getPolylinePoints() != null));
+
                 } catch (Exception e) {
+                    System.out.println("❌ FAILED to fetch Google route");
+                    System.out.println("   Reason: " + e.getClass().getSimpleName()
+                        + " — " + e.getMessage());
                 }
 
-                int driveTimeInMinutes = (int) Math.round(googleRoute.getDurationSeconds() / 60.0);
-                
-                intervalList.add(googleRoute.getDurationSeconds());
+                int driveTimeInMinutes = 0;
+                // Safeguard
+                if (googleRoute == null || googleRoute.getDurationSeconds() <= 0) {
+                    System.out.println("⚠️ Invalid route duration — skipping interval add");
+                    intervalList.add(googleRoute.getDurationSeconds());
+
+                } else {
+                    driveTimeInMinutes =
+                        (int) Math.round(googleRoute.getDurationSeconds() / 60.0);
+
+                    intervalList.add(googleRoute.getDurationSeconds());
+
+                    System.out.println("⏱️ Drive time: " + driveTimeInMinutes + " min");
+                    System.out.println("📦 Interval list size now: " + intervalList.size());
+                }
 
 
                 // Check if the intermediary VBox is created correctly
@@ -3461,6 +3561,7 @@ public class MapController {
                 int singleDigitSpacerV = driveTimeInMinutes < 11 ? 7 : 0;
                 int singleDigitSpacerH = driveTimeInMinutes < 11 ? 5 : 0;
 
+
                 // Insert intermediaryV before the first Circle in routeVBoxPane, or at the end
                 ObservableList<Node> vboxChildren = routeVBoxPane.getChildren();
                 int vInsertIndex = vboxChildren.size(); // Default to end
@@ -3471,6 +3572,7 @@ public class MapController {
                     }
                 }
                 vboxChildren.add(vInsertIndex, intermediaryV);
+
 
                 // Insert intermediaryH before the first Circle in routeHBoxPane, or at the end
                 ObservableList<Node> hboxChildren = routeHBoxPane.getChildren();
@@ -3492,20 +3594,26 @@ public class MapController {
                 intermediaryV.setClip(new Rectangle(15, 45));
             //    intermediaryH.setClip(new Rectangle(45, 30));
                 //drawRoutePolyline(googleResults[1], colors);
+                System.out.println("debug checkpoint");
+
                 polylineList.add(googleRoute.getPolylinePoints());
+                System.out.println("debugg checkpoint");
+
                 //  storedEncodedPolylines.add(googleResults[1]);
                 updateRoutePolylines();
+                System.out.println("debuggg checkpoint");
+
                 routeVBoxPane.toFront();
                 routeVBox.toFront();
-
+                System.out.println("debugggg checkpoint");
             }
 
 
 
 
-            System.out.println("[DEBUG] Creating vertical chunk for: " + rental);
+            // System.out.println("[DEBUG] Creating vertical chunk for: " + rental);
             StackPane rentalChunkV = createRentalChunk(rental, colors, "vertical", routeName, closestMultiple);
-            System.out.println("[DEBUG] Created vertical chunk: " + rentalChunkV);
+            // System.out.println("[DEBUG] Created vertical chunk: " + rentalChunkV);
             StackPane rentalChunkH = createRentalChunk(rental, colors, "horizontal", routeName, closestMultiple);
 
             routeVBox.getChildren().add(rentalChunkV);
@@ -3523,10 +3631,12 @@ public class MapController {
 
         } else if (orientation.equals("deletion")) {
             int accountForTruck = hasTruckAssigned ? -1 : 0;
+            System.out.println("deletion checkpoint");
+
 
             ////////////// Print System for child/parent shifting ////////////////
             //      System.out.println("***///  truckAssignments: " + truckAssignments + "///***"); 
-            /*       System.out.println("📦 routeVBoxPane children BEFORE deletion:");
+                   System.out.println("📦 routeVBoxPane children BEFORE deletion:");
             ObservableList<Node> children = routeVBoxPane.getChildren();
             // Print each child
             for (int i = 0; i < children.size(); i++) {
@@ -3551,7 +3661,7 @@ public class MapController {
             System.out.println("routeSize is:" + routeSize);
             System.out.println("routeName is: " + routeName);
             System.out.println("does truckAssignments contain routeName?: " + 
-                truckAssignments.containsValue(routeName));  */
+                truckAssignments.containsValue(routeName));  
             /////////////////////////////////////////////////////////////
 
 
@@ -3601,6 +3711,7 @@ public class MapController {
                 } else if (closestMultiple == routeSize) {
                     //                ***  closestMultiple == routeSize
                     // Remove the last VBox from routeVBoxPane
+                    System.out.println("reaching the closestMultiple == routeSize block");
                     if (!vInts.isEmpty()) {
                         Node lastVBoxNode = vInts.get(vInts.size() - 1);
                         routeVBoxPane.getChildren().remove(lastVBoxNode);
@@ -3612,10 +3723,15 @@ public class MapController {
                         routeHBoxPane.getChildren().remove(lastHBoxNode);
                     }
 
+                    System.out.println("specific checkpoint 1");
 
                     polylineList.remove(closestMultiple - 1);
+                    System.out.println(intervalList);
+                    System.out.println(intervals);
+
                     intervalList.remove(closestMultiple - 1);
-                    
+                    System.out.println("specific checkpoint 3");
+
                     // no shifting int's
                 } else {
                     int targetVIntIndex1 = closestMultiple - 1;
@@ -3637,7 +3753,7 @@ public class MapController {
                     }
 
                     if (targetVFullIndex1 == -1 || targetVFullIndex2 == -1) {
-                        System.out.println("No matching full index found for one or both vInt indices.");
+                        // System.out.println("No matching full index found for one or both vInt indices.");
                     } else {
 
                         // Debug: Show the whole paneIndexToVIntIndex map
@@ -3702,7 +3818,7 @@ public class MapController {
                     }
 
                     if (targetHFullIndex1 == -1 || targetHFullIndex2 == -1) {
-                        System.out.println("No matching full index found for one or both vInt indices.");
+                        // System.out.println("No matching full index found for one or both vInt indices.");
                     } else {
 
                         //Debug: Show the whole paneIndexToVIntIndex map
@@ -3779,10 +3895,12 @@ public class MapController {
                     intervalList.set(closestMultiple - 1, driveTimeInMinutes);
                     newIntVBox.setClip(new Rectangle(15, 45));
                 }
-            updateRoutePolylines();
+                updateRoutePolylines();
             }
+            System.out.println("checkpoint bookend 1");
             routeVBox.getChildren().remove(closestMultiple);
             routeHBox.getChildren().remove(closestMultiple);
+            System.out.println("checkpoint bookend 2");
 
 
 
@@ -3844,19 +3962,20 @@ public class MapController {
                     }
                 }
             }
+            System.out.println("deletion checkpoint");
         } else if (orientation.equals("insertion-truck")) {
-            System.out.println("=== insertion-truck branch entered ===");
+            // System.out.println("=== insertion-truck branch entered ===");
 
-            System.out.println("route.size()=" + route.size());
+            // System.out.println("route.size()=" + route.size());
             if (route.size() < 2) {
-                System.out.println("⚠️ Route has fewer than 2 rentals! Cannot access firstRental and secondRental safely.");
+                // System.out.println("⚠️ Route has fewer than 2 rentals! Cannot access firstRental and secondRental safely.");
             } else {
                 Rental firstRental = route.get(0);
                 Rental secondRental = route.get(1);
-                System.out.println("firstRental=" + firstRental);
-                System.out.println("secondRental=" + secondRental);
+                // System.out.println("firstRental=" + firstRental);
+                // System.out.println("secondRental=" + secondRental);
 
-                System.out.println("Adjusting routeVBoxPane children positions (i >= 2)...");
+                // System.out.println("Adjusting routeVBoxPane children positions (i >= 2)...");
                 for (int i = 2; i < routeVBoxPane.getChildren().size(); i++) {
                     Node node = routeVBoxPane.getChildren().get(i);
                     System.out.println(" - VBox child[" + i + "]=" + node);
@@ -3868,7 +3987,7 @@ public class MapController {
                     }
                 }
 
-                System.out.println("Adjusting routeHBoxPane children positions (i >= 2)...");
+                // System.out.println("Adjusting routeHBoxPane children positions (i >= 2)...");
                 for (int i = 2; i < routeHBoxPane.getChildren().size(); i++) {
                     Node node = routeHBoxPane.getChildren().get(i);
                     System.out.println(" - HBox child[" + i + "]=" + node);
@@ -3891,36 +4010,31 @@ public class MapController {
                 }
                 int driveTimeInSeconds = googleRoute.getDurationSeconds();
                 int driveTimeInMinutes = (int) Math.round(driveTimeInSeconds / 60.0);
-                System.out.println("Drive time: " + driveTimeInMinutes + " min");
 
-                System.out.println("Creating intermediary regions...");
                 Region intermediaryRegionV = createStopIntermediary(driveTimeInMinutes, colors, "vertical");
                 Region intermediaryRegionH = createStopIntermediary(driveTimeInMinutes, colors, "horizontal");
                 VBox intermediaryV = (VBox) intermediaryRegionV;
                 HBox intermediaryH = (HBox) intermediaryRegionH;
-                System.out.println("intermediaryV=" + intermediaryV + ", intermediaryH=" + intermediaryH);
 
                 int singleDigitSpacerV = driveTimeInMinutes < 11 ? 7 : 0;
                 int singleDigitSpacerH = driveTimeInMinutes < 11 ? 10 : 0;
 
-                System.out.println("Adding intermediary regions to panes...");
                 routeVBoxPane.getChildren().add(2, intermediaryV);
                 routeHBoxPane.getChildren().add(0, intermediaryH);
                 StackPane.setAlignment(intermediaryH, Pos.TOP_LEFT);
 
-                System.out.println("Setting translate and clip for intermediary regions...");
                 intermediaryV.setTranslateY((cardHeightUnit) - 26 + singleDigitSpacerV);
                 intermediaryH.setTranslateY(8);
                 intermediaryV.setTranslateX(-1);
                 intermediaryH.setTranslateX((cardWidthUnit) - 27 + singleDigitSpacerH);
                 intermediaryV.setClip(new Rectangle(15, 45));
 
-                System.out.println("Updating polyline and interval lists...");
+                // System.out.println("Updating polyline and interval lists...");
                 polylineList.add(0, googleRoute.getPolylinePoints());
                 intervalList.add(0, driveTimeInMinutes);
                 updateRoutePolylines();
 
-                System.out.println("Adding rental chunks...");
+                // System.out.println("Adding rental chunks...");
             }
             routeVBoxPane.toFront();
             routeVBox.toFront();
@@ -4268,18 +4382,7 @@ public class MapController {
                     System.err.println("⚠️ Image failed to decode properly. Returning early.");
                 }
 
-                Color color;
-                if (routeName.equals("routeThree")) {
-                    color = Color.web(colors[2]);
-                } else {
-                    color = Color.web("#FFFFFF");
-                }
-                System.out.println("🎨 Using color: " + color);
-
-                Image recoloredImage = recolorImage(image, color, null);
-                System.out.println("✅ Made it through recolorImage()");
-                recoloredImage = image; // fallback to original
-            
+                Image recoloredImage = recolorImage(image, Color.web(colors[2]), null);
                 imageView = new ImageView(recoloredImage);
                 imageView.setFitWidth(20);
                 imageView.setPreserveRatio(true);
@@ -5033,9 +5136,9 @@ public class MapController {
         Map<String, Double> lastProportions = new HashMap<>();
     
         Runnable task = () -> Platform.runLater(() -> {
-            System.out.println(routeAssignments);
-            System.out.println(truckAssignments);
-            System.out.println(routes);
+            // System.out.println(routeAssignments);
+            // System.out.println(truckAssignments);
+            // System.out.println(routes);
 
             try {
             syncRoutesFromServer();
@@ -5112,6 +5215,7 @@ public class MapController {
 
 
                 updateRentalLocations();
+                prepareProximityMap();
     
                 // === Animate progress ===
                 for (Map.Entry<String, Double> entry : currentProportions.entrySet()) {
@@ -5746,14 +5850,26 @@ public class MapController {
 
 
     private RouteInfo getGoogleRoute(double originLat, double originLong, double destinationLat, double destinationLong) throws Exception {
-        if (originLat == destinationLat && originLong == destinationLong) {
-            System.out.println("[DEBUG] Same coordinates — returning placeholder route");
+        double latDiff  = Math.abs(originLat - destinationLat);
+        double longDiff = Math.abs(originLong - destinationLong);
+
+        if (latDiff <= proximityThresholdDeg && longDiff <= proximityThresholdDeg) {
+
             List<double[]> placeholderPolyline = List.of(
                 new double[]{originLat, originLong},
                 new double[]{originLat, originLong}
             );
+
+            System.out.println(
+                "📍 Proximity shortcut triggered — synthesizing placeholder polyline"
+                + " (latDiff=" + latDiff
+                + ", longDiff=" + longDiff
+                + ", threshold=" + proximityThresholdDeg + ")"
+            );
+
             return new RouteInfo(0, 0.0, placeholderPolyline);
         }
+
        
         // Construct JSON request body
         String requestBody = String.format(
@@ -5885,6 +6001,12 @@ public class MapController {
         transition.play();
     }
 
+    public List<Rental> getProximityRentals(Rental baseRental) {
+        return proximityMap.getOrDefault(
+            baseRental.getRentalItemId(),
+            List.of(baseRental)
+        );
+    }
 
     private List<double[]> decodePolyline(String encoded) {
         List<double[]> polylinePoints = new ArrayList<>();

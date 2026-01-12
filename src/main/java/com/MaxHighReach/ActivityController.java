@@ -10,6 +10,7 @@ import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Bounds;
 import javafx.scene.Node;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.*;
@@ -17,6 +18,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.effect.DropShadow;
+import javafx.scene.effect.GaussianBlur;
 import javafx.scene.effect.Glow;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.Image;
@@ -27,9 +29,17 @@ import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.lang.String;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Paths;
 
 import javafx.scene.paint.Color;
+import javafx.scene.paint.CycleMethod;
+import javafx.scene.paint.RadialGradient;
+import javafx.scene.paint.Stop;
+import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.util.Duration;
@@ -60,6 +70,28 @@ public class ActivityController extends BaseController {
     private String IMAGE_PATH_INV_SUFFIX = "-inv.png";
     @FXML
     private Button backButton;
+
+        
+    @FXML private StackPane customerMenuNode;
+
+    @FXML private Ellipse customerGlow;
+    @FXML private Ellipse calendarGlow;
+    @FXML private Ellipse liftGlow;
+    @FXML private Ellipse statusGlow;
+
+    @FXML private Label customerLabel;
+    @FXML private ImageView calendarImage;
+    @FXML private ImageView liftImage;
+    @FXML private ImageView statusImage;
+
+    private Map<Node, Ellipse> glowMap;
+    private Ellipse activeGlow = null;
+    private Timeline activePulse = null;
+    private Map<Node, Runnable> reactionMap;
+    private List<Node> baseElements;
+    private ObservableList<String> customerNames;
+
+
     @FXML
     private VBox buttonsVBox;
     @FXML
@@ -123,68 +155,68 @@ public class ActivityController extends BaseController {
     TableColumn<Rental, String> invoiceColumn = new TableColumn<>();
     TableColumn<Rental, String> driverColumn = new TableColumn<>();
     private String latestFilter = "All Rentals";
-    @FXML
-    private HBox viewsTilePane;
-    private ToggleGroup viewsToggleGroup = new ToggleGroup();
-    private List<ToggleButton> viewsToggleButtons = new ArrayList<>();
-    @FXML
-    private ToggleButton customerButton;
-    @FXML
-    private ToggleButton statusButton;
-    @FXML
-    private ToggleButton driverButton;
-    private ToggleButton selectedViewButton;
-    private ToggleButton selectedStatusButton;
-    @FXML
-    private VBox statusesPane;
-    @FXML
-    private VBox statusesPaneTwo;
-    private ToggleGroup statusViewToggleGroup = new ToggleGroup();
-    private List<ToggleButton> statusesToggleButtons = new ArrayList<>();
-    @FXML
-    private ToggleButton upcomingButton;
-    @FXML
-    private ToggleButton activeButton;
-    @FXML
-    private ToggleButton billableButton;
-    @FXML
-    private ToggleButton calledOffButton;
-    @FXML
-    private DatePicker datePickerOne;
-    private AtomicBoolean isDatePickerOneExpanded = new AtomicBoolean(false);
-    @FXML
-    private Label datePickerOneLabel;
-    @FXML
-    private DatePicker datePickerTwo;
-    private AtomicBoolean isDatePickerTwoExpanded = new AtomicBoolean(false);
-    @FXML
-    private Label datePickerTwoLabel;
-    @FXML
-    private HBox datePickersPane;
-    @FXML
-    private Rectangle datePickerOneCover;
-    @FXML
-    private Button calendarButtonOne;
+    // @FXML
+    // private HBox viewsTilePane;
+    // private ToggleGroup viewsToggleGroup = new ToggleGroup();
+    // private List<ToggleButton> viewsToggleButtons = new ArrayList<>();
+    // @FXML
+    // private ToggleButton customerButton;
+    // @FXML
+    // private ToggleButton statusButton;
+    // @FXML
+    // private ToggleButton driverButton;
+    // private ToggleButton selectedViewButton;
+    // private ToggleButton selectedStatusButton;
+    // @FXML
+    // private VBox statusesPane;
+    // @FXML
+    // private VBox statusesPaneTwo;
+    // private ToggleGroup statusViewToggleGroup = new ToggleGroup();
+    // private List<ToggleButton> statusesToggleButtons = new ArrayList<>();
+    // @FXML
+    // private ToggleButton upcomingButton;
+    // @FXML
+    // private ToggleButton activeButton;
+    // @FXML
+    // private ToggleButton billableButton;
+    // @FXML
+    // private ToggleButton calledOffButton;
+    // @FXML
+    // private DatePicker datePickerOne;
+    // private AtomicBoolean isDatePickerOneExpanded = new AtomicBoolean(false);
+    // @FXML
+    // private Label datePickerOneLabel;
+    // @FXML
+    // private DatePicker datePickerTwo;
+    // private AtomicBoolean isDatePickerTwoExpanded = new AtomicBoolean(false);
+    // @FXML
+    // private Label datePickerTwoLabel;
+    // @FXML
+    // private HBox datePickersPane;
+    // @FXML
+    // private Rectangle datePickerOneCover;
+    // @FXML
+    // private Button calendarButtonOne;
 
-    @FXML
-    private Button calendarButtonTwo;
-    private HBox latestRightSideVbox;
-    private HBox latestLeftSideVbox;
-    @FXML
-    private HBox leftSideVboxCustomerView;
-    private ToggleGroup customerViewToggleGroup = new ToggleGroup();
-    @FXML
-    private ComboBox<String> customerComboBox;
-    private ObservableList<Customer> customers = FXCollections.observableArrayList();
-    @FXML
-    private ComboBox<String> driverComboBox;
-    @FXML
-    private HBox leftSideVboxDriverView;
+    // @FXML
+    // private Button calendarButtonTwo;
+    // private HBox latestRightSideVbox;
+    // private HBox latestLeftSideVbox;
+    // @FXML
+    // private HBox leftSideVboxCustomerView;
+    // private ToggleGroup customerViewToggleGroup = new ToggleGroup();
+    // @FXML
+    // private ComboBox<String> customerComboBox;
+    // private ObservableList<Customer> customers = FXCollections.observableArrayList();
+    // @FXML
+    // private ComboBox<String> driverComboBox;
+    // @FXML
+    // private HBox leftSideVboxDriverView;
 
-    private Timeline rotateViewsTimeline;
-    private Timeline rotateStatusesTimeLine;
-    private boolean areViewsRotating = false;
-    private boolean areStatusesRotating = false;
+    // private Timeline rotateViewsTimeline;
+    // private Timeline rotateStatusesTimeLine;
+    // private boolean areViewsRotating = false;
+    // private boolean areStatusesRotating = false;
 
     private ObservableList<Rental> ordersList = FXCollections.observableArrayList();
     private String lastActionType;
@@ -220,6 +252,46 @@ public class ActivityController extends BaseController {
     @FXML
     public void initialize() {
         super.initialize(dragArea);
+
+        for (Ellipse e : List.of(customerGlow, calendarGlow, liftGlow, statusGlow)) {
+            e.setMouseTransparent(true);
+            e.setFill(createGlowPaint());
+            e.setEffect(new GaussianBlur(12));
+        }
+
+        glowMap = Map.of(
+            customerLabel, customerGlow,
+            calendarImage, calendarGlow,
+            liftImage, liftGlow,
+            statusImage, statusGlow
+        );
+
+        reactionMap = Map.of(
+            customerLabel, this::onCustomerClicked,
+            calendarImage, this::onCalendarClicked,
+            liftImage, this::onLiftClicked,
+            statusImage, this::onStatusClicked
+        );
+
+        baseElements = List.of(
+            statusImage,
+            customerLabel,
+            calendarImage,
+            liftImage,
+            customerGlow,
+            calendarGlow,
+            liftGlow,
+            statusGlow
+        );
+
+        // StackPane acts as trigger
+        customerMenuNode.setOnMouseMoved(this::handleProximityGlow);
+        customerMenuNode.setOnMouseExited(e -> stopActiveGlow());
+        customerMenuNode.setOnMouseClicked(this::handleProximityClick);
+
+        loadCustomersInBackground();
+
+
 
         dbTableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 
@@ -265,6 +337,8 @@ public class ActivityController extends BaseController {
         createCustomTooltip(composeContractsButton, 38, 10, composeContractsTooltip);
         createCustomTooltip(refreshDataButton, 38, 10, refreshDataTooltip);
         createCustomTooltip(deleteButton, 38, 10, deleteTooltip);
+
+/*
 
         for (javafx.scene.Node node : viewsTilePane.getChildren()) {
             if (node instanceof ToggleButton toggleButton) {
@@ -354,7 +428,7 @@ public class ActivityController extends BaseController {
         customerComboBox.setOnAction(event -> {
             handleViewAndCustomerSelect();
         });
-/*
+
         String storedViewType = MaxReachPro.getSelectedViewSetting();
         String storedDriver = MaxReachPro.getSelectedDriverName();
         String storedCustomer = MaxReachPro.getSelectedCustomerName();
@@ -428,7 +502,7 @@ public class ActivityController extends BaseController {
                 handleViewSettingSelect("Status", storedStatusSetting);
             }
         } else {  */
-            loadDataAsync("All Rentals");
+            loadDataAsync("Called Off");
     //    }
 
 
@@ -461,7 +535,7 @@ public class ActivityController extends BaseController {
     }
 
     private void loadData(String filter) {
-        System.out.println("filter for the load data is: " + filter);
+        // System.out.println("filter for the load data is: " + filter);
         ordersList.clear();
         groupedRentals.clear();
         currentViewInitials.clear();
@@ -479,17 +553,12 @@ public class ActivityController extends BaseController {
                 "LEFT JOIN contacts AS ordered_contacts ON rental_items.ordered_contact_id = ordered_contacts.contact_id " +
                 "LEFT JOIN contacts AS site_contacts ON rental_items.site_contact_id = site_contacts.contact_id ";
 
-        String customerName = customerComboBox.getValue();
+        String customerName = null;
         String date = "";
         String startDate = "";
-        if (datePickerOne.getValue() != null) {
-            date = datePickerOne.getValue().format(fromJavaObjectFormatter);
-            startDate = date;
-        }
         String endDate = "";
-        if (datePickerTwo.getValue() != null) {
-            endDate = datePickerTwo.getValue().format(fromJavaObjectFormatter);
-        }
+        String driverId = "";
+
 
         switch (filter) {
             case "Active":
@@ -540,13 +609,13 @@ public class ActivityController extends BaseController {
                 filterSuffix = " WHERE customers.customer_name = '" + customerName + "' AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
                 break;
             case "Driver":
-                filterSuffix = " WHERE rental_items.driver_initial = '" + driverComboBox.getValue() + "'";
+                filterSuffix = " WHERE rental_items.driver_initial = '" + driverId + "'";
                 break;
             case "Driver One Date":
-                filterSuffix = " WHERE rental_items.driver_initial = '" + driverComboBox.getValue() + "' AND rental_orders.delivery_date = '" + date + "'";
+                filterSuffix = " WHERE rental_items.driver_initial = '" + driverId + "' AND rental_orders.delivery_date = '" + date + "'";
                 break;
             case "Driver Interval":
-                filterSuffix = " WHERE rental_items.driver_initial = '" + driverComboBox.getValue() + "' " +
+                filterSuffix = " WHERE rental_items.driver_initial = '" + driverId + "' " +
                          "AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
                 break;
             case "One Date":
@@ -564,7 +633,7 @@ public class ActivityController extends BaseController {
 
         // Add LIMIT clause at the end
       //  filterSuffix = " LIMIT 1000";
-        System.out.println(query + filterSuffix);
+        // System.out.println(query + filterSuffix);
 
         try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
              Statement statement = connection.createStatement();
@@ -592,13 +661,12 @@ public class ActivityController extends BaseController {
                 String siteName = resultSet.getString("site_name");
                 String streetAddress = resultSet.getString("street_address");
                 String cityState = resultSet.getString("city");
-                double latitude = resultSet.getLong("latitude");
-                double longitude = resultSet.getLong("longitude");
+                double latitude = resultSet.getDouble("latitude");
+                double longitude = resultSet.getDouble("longitude");
                 String siteContactName = resultSet.getString("site_contact_name");
                 String siteContactPhone = resultSet.getString("site_contact_phone");
                 String poNumber = resultSet.getString("po_number");
-                String locationNotes = resultSet.getString("location_notes");
-                String preTripInstructions = resultSet.getString("pre_trip_instructions");
+                String notes = resultSet.getString("notes");
                 int needsInvoice = resultSet.getInt("needs_invoice");
                 int isInvoiceWritten = resultSet.getInt("invoice_composed");
                 String lastBilledDate = resultSet.getString("last_billed_date");
@@ -622,8 +690,7 @@ public class ActivityController extends BaseController {
                 rental.setLongitude(longitude);
                 rental.setSiteContactName(siteContactName);
                 rental.setSiteContactPhone(siteContactPhone);
-                rental.setLocationNotes(locationNotes);
-                rental.setPreTripInstructions(preTripInstructions);
+                rental.setNotes(notes);
                 rental.setSerialNumber(serialNumber);
                 rental.setInvoiceComposed(isInvoiceWritten != 0);
                 rental.setNeedsInvoice(needsInvoice == 1);
@@ -652,6 +719,8 @@ public class ActivityController extends BaseController {
                 lifts.*,
                 -- New lift info
                 nl.lift_type AS new_lift_type,
+                ol.lift_type AS old_lift_type,
+                ol.serial_number AS old_lift_serial,
                 -- New rental order info
                 nro.site_name AS new_site_name,
                 nro.street_address AS new_street_address,
@@ -667,6 +736,7 @@ public class ActivityController extends BaseController {
             JOIN rental_orders ON rental_items.rental_order_id = rental_orders.rental_order_id
             JOIN customers ON rental_orders.customer_id = customers.customer_id
             LEFT JOIN lifts ON rental_items.lift_id = lifts.lift_id
+            LEFT JOIN lifts ol ON s.old_lift_id = ol.lift_id
             LEFT JOIN lifts nl ON s.new_lift_id = nl.lift_id
             LEFT JOIN rental_orders nro ON s.new_rental_order_id = nro.rental_order_id
             LEFT JOIN contacts AS ordered_contacts ON s.ordered_contact_id = ordered_contacts.contact_id
@@ -693,7 +763,7 @@ public class ActivityController extends BaseController {
                 boolean billable = rs.getInt("billable") == 1; // services will use needsInvoice for "billable" property
                 int liftId = rs.getInt("lift_id");
                 String liftType = rs.getString("lift_type");
-                String serialNumber = rs.getString("serial_number");
+                String serialNumber = rs.getString("old_lift_serial");
                 String siteName = rs.getString("site_name");
                 String streetAddress = rs.getString("street_address");
                 String city = rs.getString("city");
@@ -703,20 +773,23 @@ public class ActivityController extends BaseController {
                 int previousServiceId = rs.getInt("previous_service_id");
                 int newRentalOrderId = rs.getInt("new_rental_order_id");
                 int newLiftId = rs.getInt("new_lift_id");
+                int oldLiftId = 0;
                 String orderedContactName = rs.getString("ordered_contact_name");
                 String orderedContactNumber = rs.getString("ordered_contact_phone");
                 String siteContactName = rs.getString("site_contact_name");
                 String siteContactNumber = rs.getString("site_contact_phone");
-                String locationNotes = rs.getString("location_notes");
-                String preTripInstructions = rs.getString("pre_trip_instructions");
+                String notes = rs.getString("notes");
                 String driver = rs.getString("driver");
                 String driverInitial = rs.getString("driver_initial");
                 int driverNumber = rs.getInt("driver_number");
                 String orderDate = rs.getString("order_date");
                 boolean singleItemOrder = rs.getInt("single_item_order") == 1;
-                double latitude = rs.getLong("latitude");
-                double longitude = rs.getLong("longitude");
+                double latitude = rs.getDouble("latitude");
+                double longitude = rs.getDouble("longitude");
                 String newLiftType = rs.getString("new_lift_type");
+                String oldLiftType = rs.getString("old_lift_type");
+                String newSerialNumber = "";
+                String oldSerialNumber = "";
                 String newSiteName = rs.getString("new_site_name");
                 String newStreetAddress = rs.getString("new_street_address");
                 String newCity = rs.getString("new_city");
@@ -724,10 +797,11 @@ public class ActivityController extends BaseController {
                 double newLongitude = rs.getLong("new_longitude");
 
                 Rental rental = new Rental(customerId, name, serviceDate, serviceTime,
-                 "", serviceDriver != null ? serviceDriver : "", serviceDriverNumber, serviceStatus, poNumber,
+                 serviceDate, serviceDriver != null ? serviceDriver : "", serviceDriverNumber, serviceStatus, poNumber,
                 rentalOrderId, billable, "");
                 rental.setLiftId(liftId);
                 rental.setLiftType(liftType);
+
                 rental.setSerialNumber(serialNumber);
                 rental.setAddressBlockOne(siteName);
                 rental.setAddressBlockTwo(streetAddress);
@@ -737,8 +811,7 @@ public class ActivityController extends BaseController {
                 rental.setSiteContactName(siteContactName);
                 rental.setSiteContactPhone(siteContactNumber);
                 rental.setRentalItemId(rentalItemId);
-                rental.setLocationNotes(locationNotes);
-                rental.setPreTripInstructions(preTripInstructions);
+                rental.setNotes(notes);
                 rental.setDriverInitial(driverInitial);
                 rental.setDriverNumber(driverNumber);
                 rental.setOrderDate(orderDate);
@@ -747,8 +820,9 @@ public class ActivityController extends BaseController {
                 rental.setLongitude(longitude);
 
                 Service service = new Service(serviceId, serviceType, serviceTime, serviceDate, reason, billable,
-                     previousServiceId, newRentalOrderId, newLiftId, newLiftType, newSiteName,
-                     newStreetAddress, newCity, newLatitude, newLongitude, locationNotes, preTripInstructions);
+                     previousServiceId, newRentalOrderId, newLiftId, newLiftType, newSerialNumber,
+                     oldLiftId, oldLiftType, oldSerialNumber, newSiteName,
+                     newStreetAddress, newCity, newLatitude, newLongitude, notes);
                 rental.setService(service);
 
                 ordersList.add(rental);
@@ -821,6 +895,42 @@ public class ActivityController extends BaseController {
         dbTableView.setItems(ordersList);
         latestFilter = filter;
     }
+    
+    private void loadCustomersInBackground() {
+
+        Task<ObservableList<String>> loadTask = new Task<>() {
+            @Override
+            protected ObservableList<String> call() {
+                System.out.println("starting the customers load");
+
+                MaxReachPro.loadCustomers(true); // <-- background-safe now
+
+                ObservableList<String> names = FXCollections.observableArrayList();
+                for (Customer c : MaxReachPro.getCustomers(true)) {
+                    names.add(c.getName());
+                }
+
+                FXCollections.sort(names);
+                return names;
+            }
+        };
+
+        loadTask.setOnSucceeded(e -> {
+            customerNames.setAll(loadTask.getValue());
+            System.out.println("Customer names loaded in background: " + customerNames.size());
+        });
+
+        loadTask.setOnFailed(e -> {
+            System.err.println("Customer load FAILED");
+            loadTask.getException().printStackTrace();
+        });
+
+        Thread t = new Thread(loadTask);
+        t.setDaemon(true);
+        t.start();
+    }
+
+
 
     private void animateScrollBars(TableView<Rental> tableView) {
        Platform.runLater(() -> {
@@ -1077,6 +1187,7 @@ public class ActivityController extends BaseController {
         button.setGraphic(imageView); // Update the button's graphic
     }
 
+    /*
     @FXML
     private void handleViewAndDriverSelect(){
         if (driverComboBox.getValue() != null) {
@@ -1208,7 +1319,7 @@ public class ActivityController extends BaseController {
         });
     }
 
-
+*/
 
     @FXML
     private void handleAssignDrivers() {
@@ -1399,8 +1510,29 @@ public class ActivityController extends BaseController {
     private void handleRefreshData() {
         dbTableView.refresh();
         loadData(latestFilter);
-        sendPrepareRequest();
+    
+        new Thread(() -> {
+            try {
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(Config.API_BASE_URL + "/routes/prepare"))
+                        .GET()
+                        .build();
+    
+                HttpClient.newHttpClient()
+                        .send(request, HttpResponse.BodyHandlers.discarding());
+    
+                // ✅ only runs AFTER prepare completes
+                Platform.runLater(() -> 
+                    MaxReachPro.getMapController().loadRentalDataFromAPI()
+                );
+    
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
     }
+    
+
 
 
     @FXML
@@ -1795,8 +1927,7 @@ public class ActivityController extends BaseController {
             workingColumnFactory.setClosedDriverColumn(driverColumnType);
         }
     }
-
-
+/*
     private void handleViewSelect(String orientation) {
         datePickerOne.setValue(null);
         datePickerTwo.setValue(null);
@@ -1917,11 +2048,11 @@ public class ActivityController extends BaseController {
             scaleTransition.setToX(.8);
 
 
-            /*
+            
             selectedViewButton.scaleXProperty().addListener((obs, oldVal, newVal) -> {
                 double newFontSize = 14 * newVal.doubleValue();
                 selectedViewButton.setFont(Font.font(newFontSize));
-            });*/
+            });
 
             scaleTransition.play();
 
@@ -2128,7 +2259,8 @@ public class ActivityController extends BaseController {
         secondInProcessButton.setVisible(false);
 
         dbTableView.refresh();
-    }
+    } 
+    */
 
     private void resetColumnWidths(){
         deliveryDateColumn.setPrefWidth(31);
@@ -2223,6 +2355,198 @@ public class ActivityController extends BaseController {
         } else {
             System.out.println("Generated contract file not found: " + finalOutputFile);
         }
+    }
+
+    private javafx.scene.paint.Paint createGlowPaint() {
+
+        // Darkest color for inner core
+        javafx.scene.paint.Color tertiary =
+                javafx.scene.paint.Color.web(Config.getTertiaryColor());
+
+        javafx.scene.paint.Color secondary =
+                javafx.scene.paint.Color.web(Config.getSecondaryColor());
+
+        javafx.scene.paint.Color primary =
+                javafx.scene.paint.Color.web(Config.getPrimaryColor());
+
+        // Radial gradient, always dark in center
+        return new javafx.scene.paint.RadialGradient(
+            0,                  // focusAngle
+            0,                  // focusDistance
+            0.5,                // centerX (relative)
+            0.5,                // centerY (relative)
+            1.0,                // radius
+            true,               // proportional
+            javafx.scene.paint.CycleMethod.NO_CYCLE,
+            new javafx.scene.paint.Stop(0.0, primary.deriveColor(0, 1, 1, 0.7)),   // strong dark core
+            new javafx.scene.paint.Stop(0.5, secondary.deriveColor(0, 1, 1, 0.7)),  // mid glow
+            new javafx.scene.paint.Stop(1.0, javafx.scene.paint.Color.TRANSPARENT)   // fade out
+        );
+    }
+
+    private void configureGlow() {
+        customerGlow.setFill(createGlowPaint());
+        customerGlow.setEffect(new GaussianBlur(12));
+        customerGlow.setMouseTransparent(true); // glow never blocks clicks
+    }
+
+    private void startGlowPulse() {
+
+        Timeline pulse = new Timeline(
+            new KeyFrame(Duration.ZERO,
+                new KeyValue(customerGlow.opacityProperty(), 0.65),
+                new KeyValue(customerGlow.scaleXProperty(), 1.0),
+                new KeyValue(customerGlow.scaleYProperty(), 1.0)
+            ),
+            new KeyFrame(Duration.seconds(0.8),
+                new KeyValue(customerGlow.opacityProperty(), 1.0),
+                new KeyValue(customerGlow.scaleXProperty(), 1.15),
+                new KeyValue(customerGlow.scaleYProperty(), 1.25)
+            )
+        );
+
+        pulse.setAutoReverse(true);
+        pulse.setCycleCount(Animation.INDEFINITE);
+        pulse.play();
+    }
+
+    private void handleProximityGlow(javafx.scene.input.MouseEvent e) {
+        Node closest = null;
+        double minDist = Double.MAX_VALUE;
+
+        double mouseX = e.getX();
+        double mouseY = e.getY();
+
+        for (Node n : glowMap.keySet()) {
+            Bounds b = n.getBoundsInParent();
+            double centerX = b.getMinX() + b.getWidth() / 2;
+            double centerY = b.getMinY() + b.getHeight() / 2;
+
+            double dx = mouseX - centerX;
+            double dy = mouseY - centerY;
+            double dist = Math.sqrt(dx*dx + dy*dy);
+
+            if (dist < minDist) {
+                minDist = dist;
+                closest = n;
+            }
+        }
+
+        if (closest != null) {
+            Ellipse targetGlow = glowMap.get(closest);
+            if (activeGlow != targetGlow) {
+                switchActiveGlow(targetGlow);
+            }
+        }
+    }
+
+    private void switchActiveGlow(Ellipse newGlow) {
+        stopActiveGlow();
+
+        activeGlow = newGlow;
+
+        activePulse = new Timeline(
+            new KeyFrame(Duration.ZERO,
+                new KeyValue(activeGlow.opacityProperty(), 0.65),
+                new KeyValue(activeGlow.scaleXProperty(), 1.0),
+                new KeyValue(activeGlow.scaleYProperty(), 1.0)
+            ),
+            new KeyFrame(Duration.seconds(1.2),
+                new KeyValue(activeGlow.opacityProperty(), 1.0),
+                new KeyValue(activeGlow.scaleXProperty(), 1.15),
+                new KeyValue(activeGlow.scaleYProperty(), 1.25)
+            )
+        );
+        activePulse.setAutoReverse(true);
+        activePulse.setCycleCount(Animation.INDEFINITE);
+        activePulse.play();
+    }
+
+    private void stopActiveGlow() {
+        if (activePulse != null) {
+            activePulse.stop();
+            activePulse = null;
+        }
+        if (activeGlow != null) {
+            activeGlow.setOpacity(0.0);
+            activeGlow.setScaleX(1.0);
+            activeGlow.setScaleY(1.0);
+            activeGlow = null;
+        }
+    }
+
+    private void handleProximityClick(javafx.scene.input.MouseEvent e) {
+        Node closest = null;
+        double minDist = Double.MAX_VALUE;
+
+        double mouseX = e.getX();
+        double mouseY = e.getY();
+
+        for (Node n : reactionMap.keySet()) {
+            Bounds b = n.getBoundsInParent();
+            double centerX = b.getMinX() + b.getWidth() / 2;
+            double centerY = b.getMinY() + b.getHeight() / 2;
+
+            double dx = mouseX - centerX;
+            double dy = mouseY - centerY;
+            double dist = Math.sqrt(dx*dx + dy*dy);
+
+            if (dist < minDist) {
+                minDist = dist;
+                closest = n;
+            }
+        }
+
+        if (closest != null) {
+            Runnable reaction = reactionMap.get(closest);
+            if (reaction != null) reaction.run();
+        }
+    }
+
+    private void onCustomerClicked() {
+        clearAllElements();
+        System.out.println("Customer clicked!");
+
+        ComboBox<String> customerComboBox = new ComboBox<>(customerNames);
+
+        // Pre-select previously selected customer
+        String selected = MaxReachPro.getSelectedCustomerName();
+        if (selected != null && !selected.isEmpty()) {
+            customerComboBox.setValue(selected);
+        }
+
+        customerComboBox.setTranslateX(customerLabel.getTranslateX());
+        customerComboBox.setTranslateY(customerLabel.getTranslateY() + 30);
+        customerComboBox.setPrefWidth(200);
+        customerComboBox.setStyle("-fx-font-family: 'Lucida Handwriting'; -fx-font-size: 12px;");
+
+        customerMenuNode.getChildren().add(customerComboBox);
+    }
+
+
+    private void onCalendarClicked() {
+        clearAllElements();
+        System.out.println("Calendar clicked!");
+    }
+
+    private void onLiftClicked() {
+        clearAllElements();
+        System.out.println("Lift clicked!");
+    }
+
+    private void onStatusClicked() {
+        clearAllElements();
+        System.out.println("Status clicked!");
+    }
+
+    private void clearAllElements() {
+        stopActiveGlow();                  // stop any active glow
+        customerMenuNode.getChildren().clear();  // remove all elements
+    }
+
+    private void restoreBaseElements() {
+        clearAllElements();                // remove anything currently in StackPane
+        customerMenuNode.getChildren().setAll(baseElements);  // add base elements back
     }
 
 

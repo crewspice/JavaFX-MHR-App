@@ -59,15 +59,18 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.sql.*;
+import java.sql.Date;
 
 import javafx.scene.text.FontWeight;
 import javafx.util.Duration;
 // import org.jetbrains.annotations.NotNull;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.Month;
 import java.time.format.TextStyle;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class UtilizationController extends BaseController {
 
@@ -96,6 +99,7 @@ public class UtilizationController extends BaseController {
 
     // List to hold CustomerRental data
     private List<Rental> customerRentals;
+    
     private Map<Integer, Integer> rentalDayCounts;
     private Map<String, Integer> liftTypeCounts = new HashMap<>();
     private Map<String, Integer> serialCounts = new HashMap<>();
@@ -113,13 +117,12 @@ public class UtilizationController extends BaseController {
         super.initialize(dragArea);
         sortLifts();
         rentalDayCounts = new HashMap<>();
-        loadCustomerRentalData();
-
 
         LocalDate now = LocalDate.now();
         currentMonth = now.getMonth();
         currentYear = now.getYear();
 
+        loadCustomerRentalData();
         animateScrollBars(scrollPane);
         renderPanes(currentYear, currentMonth);
     }
@@ -136,6 +139,7 @@ public class UtilizationController extends BaseController {
             currentYear--;
         }
         resetCounts();
+        loadCustomerRentalData();
         renderPanes(currentYear, currentMonth);
     }
     
@@ -146,6 +150,7 @@ public class UtilizationController extends BaseController {
             currentYear++;
         }
         resetCounts();
+        loadCustomerRentalData();
         renderPanes(currentYear, currentMonth);
     }
 
@@ -370,76 +375,260 @@ public class UtilizationController extends BaseController {
         animateScrollBars(scrollPane);
     }
     
-
     private void loadCustomerRentalData() {
-        // OBFUSCATE_OFF
-        // SQL query to get customer rental data
-        // As we build trackers for service change outs, I think we should add in 
-        // cut off statements like WHERE item.deliver_date after first of month OR 
-        // status is active OR item.call_off_date is after first of month
-        // that way we can filter out lots of data that doesn't have to do with the
-        // current month
-        String query = """
-            SELECT ro.customer_id, c.customer_name, ri.item_delivery_date, ri.item_call_off_date, ro.po_number,
-                   ordered_contacts.first_name AS ordered_contact_name, ordered_contacts.phone_number AS ordered_contact_phone,
-                   ri.auto_term, ro.site_name, ro.street_address, ro.city, ri.rental_item_id, l.lift_type,
-                   l.serial_number, ro.single_item_order, ri.rental_order_id, ro.longitude, ro.latitude,
-                   site_contacts.first_name AS site_contact_name, site_contacts.phone_number AS site_contact_phone,
-                   ri.item_status
+
+        // --- 1. Calculate month boundaries ---
+        LocalDate monthStart = LocalDate.of(currentYear, currentMonth, 1);
+        LocalDate monthEnd = monthStart.withDayOfMonth(monthStart.lengthOfMonth());
+
+        // --- 2. Fetch all rental items overlapping current month ---
+        String rentalQuery = """
+            SELECT ro.customer_id,
+                c.customer_name,
+                ri.item_delivery_date,
+                ri.item_call_off_date,
+                ri.delivery_time,
+                ro.po_number,
+                ordered_contacts.first_name AS ordered_contact_name,
+                ordered_contacts.phone_number AS ordered_contact_phone,
+                ri.auto_term,
+                ro.site_name,
+                ro.street_address,
+                ro.city,
+                ri.rental_item_id,
+                ri.lift_id,
+                l.lift_type,
+                l.serial_number,
+                ro.single_item_order,
+                ri.rental_order_id,
+                ro.longitude,
+                ro.latitude,
+                site_contacts.first_name AS site_contact_name,
+                site_contacts.phone_number AS site_contact_phone,
+                ri.item_status
             FROM customers c
-            JOIN rental_orders ro ON c.customer_id = ro.customer_id  -- Ensure this is correct
+            JOIN rental_orders ro ON c.customer_id = ro.customer_id
             JOIN rental_items ri ON ro.rental_order_id = ri.rental_order_id
             JOIN lifts l ON ri.lift_id = l.lift_id
             LEFT JOIN contacts AS ordered_contacts ON ri.ordered_contact_id = ordered_contacts.contact_id
             LEFT JOIN contacts AS site_contacts ON ri.site_contact_id = site_contacts.contact_id
+            WHERE
+                ri.item_delivery_date <= ?
+                AND (ri.item_call_off_date IS NULL OR ri.item_call_off_date >= ?)
         """;
-        // OBFUSCATE_ON
 
-        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-             PreparedStatement preparedStatement = connection.prepareStatement(query);
-             ResultSet rs = preparedStatement.executeQuery()) {
+        // We'll collect all rental item IDs to fetch services in a single query
+        Map<Integer, Rental> rentalMap = new HashMap<>();
+        List<Integer> rentalItemIds = new ArrayList<>();
 
+        try (Connection connection = DriverManager.getConnection(
+                Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+            PreparedStatement ps = connection.prepareStatement(rentalQuery)) {
+
+            ps.setDate(1, java.sql.Date.valueOf(monthEnd));
+            ps.setDate(2, java.sql.Date.valueOf(monthStart));
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                String customerName = rs.getString("customer_name");
+                if ("A Test Customer".equals(customerName)) continue;
+
+                LocalDate deliveryDate = rs.getDate("item_delivery_date").toLocalDate();
+                Date callOffSql = rs.getDate("item_call_off_date");
+                LocalDate callOffDate = (callOffSql != null) ? callOffSql.toLocalDate() : null;
+                String deliveryTime = rs.getString("delivery_time");
+
+                LocalDate effectiveStart = "Any".equalsIgnoreCase(deliveryTime)
+                        ? nextBusinessDay(deliveryDate)
+                        : deliveryDate;
+
+                boolean overlapsMonth = !effectiveStart.isAfter(monthEnd)
+                        && (callOffDate == null || !callOffDate.isBefore(monthStart));
+                if (!overlapsMonth) continue;
+
+                int rentalItemId = rs.getInt("rental_item_id");
+                Rental rental = new Rental(
+                        rs.getString("customer_id"),
+                        customerName,
+                        deliveryDate.toString(),
+                        callOffDate != null ? callOffDate.toString() : null,
+                        rs.getString("po_number"),
+                        rs.getString("ordered_contact_name"),
+                        rs.getString("ordered_contact_phone"),
+                        rs.getBoolean("auto_term"),
+                        rs.getString("site_name"),
+                        rs.getString("street_address"),
+                        rs.getString("city"),
+                        rentalItemId,
+                        rs.getString("serial_number"),
+                        rs.getBoolean("single_item_order"),
+                        rs.getInt("rental_order_id"),
+                        rs.getString("site_contact_name"),
+                        rs.getString("site_contact_phone"),
+                        rs.getDouble("latitude"),
+                        rs.getDouble("longitude"),
+                        rs.getString("lift_type"),
+                        rs.getString("item_status")
+                );
+
+                rentalMap.put(rentalItemId, rental);
+                rentalItemIds.add(rentalItemId);
+            }
+
+            if (rentalItemIds.isEmpty()) {
+                customerRentals = new ArrayList<>();
+                return;
+            }
+
+            Map<Integer, List<Service>> servicesByRental = new HashMap<>();
+
+            // --- 3. Fetch all completed change-out services for these rental items ---
+            if (!rentalItemIds.isEmpty()) {
+                String inClause = rentalItemIds.stream()
+                        .map(String::valueOf)
+                        .collect(Collectors.joining(","));
+
+                String svcQuery = String.format("""
+                    SELECT s.*,
+                        lOld.serial_number AS old_lift_serial,
+                        lNew.serial_number AS new_lift_serial,
+                        lOld.lift_type AS old_lift_type,
+                        lNew.lift_type AS new_lift_type,
+                        ro.site_name,
+                        ro.street_address,
+                        ro.city,
+                        ro.longitude,
+                        ro.latitude
+                    FROM services s
+                    LEFT JOIN lifts lOld ON s.old_lift_id = lOld.lift_id
+                    LEFT JOIN lifts lNew ON s.new_lift_id = lNew.lift_id
+                    LEFT JOIN rental_items ri ON s.rental_item_id = ri.rental_item_id
+                    LEFT JOIN rental_orders ro ON ri.rental_order_id = ro.rental_order_id
+                    WHERE s.rental_item_id IN (%s)
+                    AND s.service_status = 'Completed'
+                    AND s.service_type IN ('Change Out', 'Service Change Out')
+                    ORDER BY s.service_date
+                """, inClause);
+
+                try (PreparedStatement svcPs = connection.prepareStatement(svcQuery);
+                    ResultSet svcRs = svcPs.executeQuery()) {
+
+                    while (svcRs.next()) {
+                        int rid = svcRs.getInt("rental_item_id");
+                        
+                        Service svc = new Service(
+                                svcRs.getInt("service_id"),
+                                svcRs.getString("service_type"),
+                                svcRs.getString("time"),
+                                svcRs.getDate("service_date").toLocalDate().toString(),
+                                svcRs.getString("reason"),
+                                svcRs.getBoolean("billable"),
+                                svcRs.getObject("previous_service_id") != null
+                                        ? svcRs.getInt("previous_service_id") : null,
+                                svcRs.getInt("new_rental_order_id"),
+                                svcRs.getInt("new_lift_id"),
+                                svcRs.getString("new_lift_type"),
+                                svcRs.getString("new_lift_serial"),
+                                svcRs.getInt("old_lift_id"),
+                                svcRs.getString("old_lift_type"),
+                                svcRs.getString("old_lift_serial"),
+                                svcRs.getString("site_name"),
+                                svcRs.getString("street_address"),
+                                svcRs.getString("city"),
+                                svcRs.getDouble("longitude"),
+                                svcRs.getDouble("latitude"),
+                                svcRs.getString("notes")
+                        );
+
+                        servicesByRental.computeIfAbsent(rid, k -> new ArrayList<>()).add(svc);
+                    }
+                }
+            }
+
+            // --- 4. Splice rentals according to services ---
             customerRentals = new ArrayList<>();
 
-            // Process each result row
-            while (rs.next()) {
-                String customerId = rs.getString("customer_id");
-                String name = rs.getString("customer_name");
-                String deliveryDate = rs.getString("item_delivery_date");
-                String callOffDate = rs.getString("item_call_off_date");
-                String poNumber = rs.getString("po_number");
-                String orderedByName = rs.getString("ordered_contact_name");
-                String orderedByPhone = rs.getString("ordered_contact_phone");
-                boolean autoTerm = rs.getBoolean("auto_term");
-                String addressBlockOne = rs.getString("site_name");
-                String addressBlockTwo = rs.getString("street_address");
-                String addressBlockThree = rs.getString("city");
-                int rentalItemId = rs.getInt("rental_item_id");
-                String serialNumber = rs.getString("serial_number");
-                boolean singleItemOrder = rs.getBoolean("single_item_order");
-                int rentalOrderId = rs.getInt("rental_order_id");
-                String siteContactName = rs.getString("site_contact_name");
-                String siteContactPhone = rs.getString("site_contact_phone");
-                double latitude = rs.getLong("latitude");
-                double longitude = rs.getLong("longitude");
-                String liftType = rs.getString("lift_type");
-                String status = rs.getString("item_status");
+            for (Map.Entry<Integer, Rental> entry : rentalMap.entrySet()) {
+                Rental baseRental = entry.getValue();
+                List<Service> services = servicesByRental.getOrDefault(
+                        entry.getKey(), Collections.emptyList()
+                );
 
-                if ("A Test Customer".equals(name)) {
+                if (services.isEmpty()) {
+                    customerRentals.add(baseRental);
                     continue;
                 }
 
-                // Create Rental objects for each row and add them to the list
-                customerRentals.add(new Rental(customerId, name, deliveryDate, callOffDate, poNumber,
-                        orderedByName, orderedByPhone, autoTerm, addressBlockOne, addressBlockTwo,
-                        addressBlockThree, rentalItemId, serialNumber, singleItemOrder, rentalOrderId,
-                        siteContactName, siteContactPhone, latitude, longitude, liftType, status));
+                String sliceStart = baseRental.getDeliveryDate();
+                int currentLiftId = baseRental.getLiftId();
+                String currentSerial = baseRental.getSerialNumber();
+                String oldSerial = null;
+
+                for (int i = 0; i < services.size(); i++) {
+                    Service svc = services.get(i);
+
+                    System.out.println("Chopping up rental item: P" + baseRental.getRentalItemId() + 
+                        "\nwith service: " + svc.getServiceId() +
+                        "\noldLiftSerial: " + svc.getOldLiftSerial() +
+                        "\nnewLiftSerial: " + svc.getNewLiftSerial());
+
+                    String sliceEnd = previousBusinessDay(
+                            LocalDate.parse(svc.getDate())
+                    ).toString();
+
+                    // --- Slice BEFORE this service ---
+                    Rental r = baseRental.copyWith(
+                            svc.getNewLiftId(),
+                            sliceStart,
+                            sliceEnd,
+                            svc.getServiceType() + " Completed",
+                            svc.getOldLiftSerial()
+                    );
+
+                    // Encode OLD / NEW
+                    String newSerial = svc.getNewLiftSerial();
+
+                    r.setOrderDate(String.format(
+                            "OLD:%s;NEW:%s",
+                            oldSerial != null ? oldSerial : "NULL",
+                            newSerial != null ? newSerial : "NULL"
+                    ));
+
+                    customerRentals.add(r);
+
+                    // Advance state
+                    sliceStart = svc.getDate();
+                    currentLiftId = svc.getNewLiftId();
+                    currentSerial = svc.getNewLiftSerial();
+                    oldSerial = svc.getOldLiftSerial();
+                }
+
+                // --- Final slice AFTER last service ---
+                Rental finalSlice = baseRental.copyWith(
+                        baseRental.getLiftId(),
+                        sliceStart,
+                        baseRental.getCallOffDate(),
+                        baseRental.getStatus(),
+                        baseRental.getSerialNumber()
+                );
+
+                // Final slice: ONLY "Changed from"
+                finalSlice.setOrderDate(String.format(
+                        "OLD:%s;NEW:NULL",
+                        oldSerial != null ? oldSerial : "NULL"
+                ));
+
+                customerRentals.add(finalSlice);
             }
+
+
+
         } catch (SQLException e) {
             throw new RuntimeException("Error loading customer rental data", e);
         }
     }
-    
+
 
     private void drawUtilization(Pane pane, int year, Month month) {
         final double circleSize = 7;
@@ -929,6 +1118,23 @@ public class UtilizationController extends BaseController {
         gc.setEffect(null);
 
         pane.getChildren().add(bottomCanvas);
+    }
+
+    private LocalDate previousBusinessDay(LocalDate date) {
+        LocalDate prev = date.minusDays(1);
+        while (prev.getDayOfWeek() == DayOfWeek.SATURDAY || prev.getDayOfWeek() == DayOfWeek.SUNDAY) {
+            prev = prev.minusDays(1);
+        }
+        return prev;
+    }
+
+    private LocalDate nextBusinessDay(LocalDate date) {
+        LocalDate next = date.plusDays(1);
+        while (next.getDayOfWeek() == DayOfWeek.SATURDAY
+                || next.getDayOfWeek() == DayOfWeek.SUNDAY) {
+            next = next.plusDays(1);
+        }
+        return next;
     }
 
     @FXML

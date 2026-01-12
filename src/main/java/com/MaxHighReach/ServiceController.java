@@ -21,7 +21,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
+import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -33,8 +35,11 @@ import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
@@ -42,6 +47,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleButton;
@@ -58,11 +64,14 @@ import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.TilePane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.text.TextAlignment;
 import okhttp3.*;
 import javafx.animation.TranslateTransition;
 import javafx.util.Duration;
@@ -112,12 +121,9 @@ public class ServiceController extends BaseController {
     @FXML private TextField siteContactField;
     @FXML private Label siteContactPhoneLabel;
     @FXML private TextField siteContactPhoneField;
-    @FXML private Button locationNotesButton;
-    @FXML private Label locationNotesLabel;
-    @FXML private TextField locationNotesField;
-    @FXML private Button preTripInstructionsButton;
-    @FXML private Label preTripInstructionsLabel;
-    @FXML private TextField preTripInstructionsField;
+    @FXML private Button notesButton;
+    @FXML private Label notesLabel;
+    @FXML private TextField notesField;
     @FXML private CheckBox chargeDeliveryTripCheckBox;
     @FXML private Label chargeDeliveryTripLabel;
     @FXML private Label reasonLabel;
@@ -132,6 +138,10 @@ public class ServiceController extends BaseController {
     @FXML private Label newLiftTypeLabel;
     @FXML private TilePane liftTypeTilePane;
     @FXML private ToggleButton twelveMastButton;
+    @FXML private Label specificLiftLabel;
+    @FXML private HBox specificLiftHBox;
+    @FXML private CheckBox noPreferenceCheckBox;
+    @FXML private Label noPreferenceLabel;
     @FXML private Button scheduleButton;
     @FXML private Label statusLabel;
     
@@ -149,6 +159,10 @@ public class ServiceController extends BaseController {
 	private int addressTypeCounter = 0;
     private ToggleGroup weeksToggleGroup;
     private ToggleGroup liftTypeToggleGroup;
+    private volatile List<Lift> siteLiftsSet;
+    private volatile boolean liftsSetReady = false;
+    private Lift selectedLift = null;
+    private int MAX_LIFTS_DISPLAY = 4;
 
     public static class Contact {
         public final Long contactId;
@@ -185,6 +199,7 @@ public class ServiceController extends BaseController {
         setTooltipBelow(moveButton, "Move");
     
         expandedRental = MaxReachPro.getRentalForExpanding();
+        System.out.println("expandedRental lat: " + expandedRental.getLatitude());
         customerNameLabel.setText(expandedRental.getName());
     
         // Address formatting
@@ -287,11 +302,9 @@ public class ServiceController extends BaseController {
         populateComboBoxesForCustomer();
         prefillSiteContactByPhone();
 
-        setTooltipBelow(locationNotesButton, "Location Notes");
-        setTooltipBelow(preTripInstructionsButton, "Pre-trip Instructions");
+        setTooltipBelow(notesButton, "Notes");
 
-        setupTextFieldListeners(locationNotesField, locationNotesButton, locationNotesLabel);
-        setupTextFieldListeners(preTripInstructionsField, preTripInstructionsButton, preTripInstructionsLabel);
+        setupTextFieldListeners(notesField, notesButton, notesLabel);
 
 
         addressSuggestionsBox.setPrefWidth(1);
@@ -416,6 +429,8 @@ public class ServiceController extends BaseController {
 
         // Recolor all labels
         Platform.runLater(() -> getAllLabels().forEach(label -> label.setTextFill(contentColor)));
+    
+        startLiftsSetPreload();
     }
 
        // Method to update weekday toggle buttons for a specific TilePane and date
@@ -505,7 +520,6 @@ public class ServiceController extends BaseController {
         });
     }
     
-
     @FXML
     private void handleChangeOut() {
         if ("Change Out".equals(serviceType)) {
@@ -514,12 +528,14 @@ public class ServiceController extends BaseController {
             setUniversalElementsVisibility(false);
         } else {
             serviceType = "Change Out";
-            MaxReachPro.getScissorLift().animateTransition(225);
+            double targetHeight = 225;
+            if (liftsSetReady) targetHeight -= 108;
+            MaxReachPro.getScissorLift().animateTransition(targetHeight);
             setUniversalElementsVisibility(true);
         }
         updateConditionalElements();
     }
-    
+
     @FXML
     private void handleServiceChangeOut() {
         if ("Service Change Out".equals(serviceType)) {
@@ -528,12 +544,14 @@ public class ServiceController extends BaseController {
             setUniversalElementsVisibility(false);
         } else {
             serviceType = "Service Change Out";
-            MaxReachPro.getScissorLift().animateTransition(273);
+            double targetHeight = 273;
+            if (liftsSetReady) targetHeight -= 108;
+            MaxReachPro.getScissorLift().animateTransition(targetHeight);
             setUniversalElementsVisibility(true);
         }
         updateConditionalElements();
     }
-    
+
     @FXML
     private void handleService() {
         if ("Service".equals(serviceType)) {
@@ -542,12 +560,14 @@ public class ServiceController extends BaseController {
             setUniversalElementsVisibility(false);
         } else {
             serviceType = "Service";
-            MaxReachPro.getScissorLift().animateTransition(273);
+            double targetHeight = 273;
+            if (liftsSetReady) targetHeight -= 108;
+            MaxReachPro.getScissorLift().animateTransition(targetHeight);
             setUniversalElementsVisibility(true);
         }
         updateConditionalElements();
     }
-    
+
     @FXML
     private void handleMove() {
         if ("Move".equals(serviceType)) {
@@ -556,13 +576,14 @@ public class ServiceController extends BaseController {
             setUniversalElementsVisibility(false);
         } else {
             serviceType = "Move";
-            MaxReachPro.getScissorLift().animateTransition(240);
+            double targetHeight = 240;
+            if (liftsSetReady) targetHeight -= 108;
+            MaxReachPro.getScissorLift().animateTransition(targetHeight);
             setUniversalElementsVisibility(true);
         }
         updateConditionalElements();
     }
-    
-    
+
     private void setUniversalElementsVisibility(boolean visible) {
         // Date elements
         serviceDateLabel.setVisible(visible);
@@ -600,18 +621,11 @@ public class ServiceController extends BaseController {
         siteContactPhoneLabel.setVisible(visible);
         siteContactPhoneField.setVisible(visible);     // text field only
     
-        // Location Notes elements
-        locationNotesButton.setVisible(visible);
+        // Notes elements
+        notesButton.setVisible(visible);
         if (!visible) {
-            locationNotesLabel.setVisible(false);
-            locationNotesField.setVisible(false);
-        }   // text field only
-    
-        // Pre-trip Instructions elements
-        preTripInstructionsButton.setVisible(visible);
-        if (!visible) {
-            preTripInstructionsLabel.setVisible(false);
-            preTripInstructionsField.setVisible(false);
+            notesLabel.setVisible(false);
+            notesField.setVisible(false);
         }  // text field only
     
         // Charge Delivery Trip elements
@@ -625,6 +639,10 @@ public class ServiceController extends BaseController {
         // Hide all conditional elements by default
         reasonLabel.setVisible(false);
         reasonField.setVisible(false);
+        specificLiftLabel.setVisible(false);
+        specificLiftHBox.setVisible(false);
+        noPreferenceCheckBox.setVisible(false);
+        noPreferenceLabel.setVisible(false);
         newSiteLabel.setVisible(false);
         newSiteField.setVisible(false);
         newAddressLabel.setVisible(false);
@@ -651,6 +669,13 @@ public class ServiceController extends BaseController {
                 liftTypeTilePane.setVisible(true);
                 orderedByLabel.setText("Ordered By:");
                 targetY = 505;
+                if (liftsSetReady) {
+                    specificLiftLabel.setVisible(true);
+                    specificLiftHBox.setVisible(true);
+                    noPreferenceCheckBox.setVisible(true);
+                    noPreferenceLabel.setVisible(true);
+                    targetY += 108;
+                }
                 break;
     
             case "Service Change Out":
@@ -660,8 +685,14 @@ public class ServiceController extends BaseController {
                 reasonField.setVisible(true);
                 orderedByLabel.setText("Reported By:");
                 targetY = 457;
-                break;
-    
+                if (liftsSetReady) {
+                    specificLiftLabel.setVisible(true);
+                    specificLiftHBox.setVisible(true);
+                    noPreferenceCheckBox.setVisible(true);
+                    noPreferenceLabel.setVisible(true);
+                    targetY += 108;
+                }
+                break;    
             case "Move":
                 chargeDeliveryTripCheckBox.setSelected(true);
                 newSiteLabel.setVisible(true);
@@ -672,6 +703,13 @@ public class ServiceController extends BaseController {
                 sameSiteLabel.setVisible(true);
                 orderedByLabel.setText("Ordered By:");
                 targetY = 487;
+                if (liftsSetReady) {
+                    specificLiftLabel.setVisible(true);
+                    specificLiftHBox.setVisible(true);
+                    noPreferenceCheckBox.setVisible(true);
+                    noPreferenceLabel.setVisible(true);
+                    targetY += 108;
+                }               
                 break;
     
             default:
@@ -685,16 +723,43 @@ public class ServiceController extends BaseController {
     
     private void animateScheduleButton(double targetY) {
         double currentY = scheduleButton.getLayoutY();
+        double labelCurrentY = specificLiftLabel.getLayoutY();
+        double hboxCurrentY  = specificLiftHBox.getLayoutY();
+        double checkBoxCurrentY = noPreferenceCheckBox.getLayoutY();
+        double prefLabelCurrentY = noPreferenceLabel.getLayoutY();
+        double statusLabelCurrentY = statusLabel.getLayoutY();
 
-        if (Math.abs(currentY - targetY) < 0.5) {
-            // Already at correct position
-            return;
+        double checkBoxTargetY = targetY - 112;
+        double labelTargetY   = targetY - 112;
+        double hboxTargetY    = targetY - 90;
+        double statusLabelTargetY = targetY + 20;
+
+        if (Math.abs(currentY - targetY) < 0.5 &&
+            Math.abs(labelCurrentY - labelTargetY) < 0.5 &&
+            Math.abs(hboxCurrentY - hboxTargetY) < 0.5 &&
+            Math.abs(statusLabelCurrentY - statusLabelTargetY) < 0.5) {
+            return; // Already positioned
         }
 
         Timeline timeline = new Timeline(
-            new KeyFrame(Duration.ZERO, new KeyValue(scheduleButton.layoutYProperty(), currentY)),
-            new KeyFrame(Duration.millis(1000), new KeyValue(scheduleButton.layoutYProperty(), targetY, Interpolator.EASE_BOTH))
+            new KeyFrame(Duration.ZERO,
+                new KeyValue(scheduleButton.layoutYProperty(), currentY),
+                new KeyValue(specificLiftLabel.layoutYProperty(), labelCurrentY),
+                new KeyValue(specificLiftHBox.layoutYProperty(), hboxCurrentY),
+                new KeyValue(noPreferenceLabel.layoutYProperty(), labelCurrentY),
+                new KeyValue(noPreferenceCheckBox.layoutYProperty(), checkBoxCurrentY),
+                new KeyValue(statusLabel.layoutYProperty(), statusLabelCurrentY)
+            ),
+            new KeyFrame(Duration.millis(1000),
+                new KeyValue(scheduleButton.layoutYProperty(), targetY, Interpolator.EASE_BOTH),
+                new KeyValue(specificLiftLabel.layoutYProperty(), labelTargetY, Interpolator.EASE_BOTH),
+                new KeyValue(specificLiftHBox.layoutYProperty(), hboxTargetY, Interpolator.EASE_BOTH),
+                new KeyValue(noPreferenceLabel.layoutYProperty(), labelTargetY, Interpolator.EASE_BOTH),
+                new KeyValue(noPreferenceCheckBox.layoutYProperty(), checkBoxTargetY, Interpolator.EASE_BOTH),
+                new KeyValue(statusLabel.layoutYProperty(), statusLabelTargetY, Interpolator.EASE_BOTH)
+            )
         );
+
         timeline.play();
     }
 
@@ -841,9 +906,242 @@ public class ServiceController extends BaseController {
             siteContactBox.getSelectionModel().select(match);
         }
     }
-    
 
-    
+    private void startLiftsSetPreload() {
+
+        Task<List<Lift>> preloadTask = new Task<>() {
+            @Override
+            protected List<Lift> call() throws Exception {
+
+                // Let UI fully render before doing DB work
+                Thread.sleep(2000);
+
+                List<Lift> lifts = new ArrayList<>();
+
+                int rentalOrderId = expandedRental.getRentalOrderId();
+                double baseLat = expandedRental.getLatitude();
+                double baseLon = expandedRental.getLongitude();
+                double threshold = Config.PROXIMITY_THRESHOLD_DEG;
+                String customerName = expandedRental.getName();
+
+                // --- COPY-PASTE SQL (for manual testing) ---
+                String debugSql = """
+                    SELECT 
+                        ri.rental_item_id,
+                        l.serial_number,
+                        l.lift_type,
+                        ro.latitude,
+                        ro.longitude
+                    FROM rental_items ri
+                    JOIN lifts l
+                        ON ri.lift_id = l.lift_id
+                    JOIN rental_orders ro
+                        ON ri.rental_order_id = ro.rental_order_id
+                    JOIN customers c
+                        ON ro.customer_id = c.customer_id
+                    WHERE ri.item_status = 'Active'
+                    AND c.customer_name = '%s'
+                    AND (
+                            ri.rental_order_id = %d
+                        OR (
+                            ABS(ro.latitude  - %f) <= %f
+                            AND
+                            ABS(ro.longitude - %f) <= %f
+                        )
+                    );
+                    """.formatted(
+                        customerName,
+                        rentalOrderId,
+                        baseLat, threshold,
+                        baseLon, threshold
+                    );
+
+                System.out.println("\n===== LIFTS PRELOAD SQL =====");
+                System.out.println(debugSql);
+                System.out.println("=============================\n");
+
+                // --- Prepared SQL (actual execution) ---
+                String sql = """
+                    SELECT 
+                        ri.rental_item_id,
+                        l.serial_number,
+                        l.lift_type,
+                        l.lift_id
+                    FROM rental_items ri
+                    JOIN lifts l
+                        ON ri.lift_id = l.lift_id
+                    JOIN rental_orders ro
+                        ON ri.rental_order_id = ro.rental_order_id
+                    JOIN customers c
+                        ON ro.customer_id = c.customer_id
+                    WHERE ri.item_status = 'Active'
+                    AND c.customer_name = ?
+                    AND (
+                            ri.rental_order_id = ?
+                        OR (
+                            ABS(ro.latitude  - ?) <= ?
+                            AND
+                            ABS(ro.longitude - ?) <= ?
+                        )
+                    )
+                    """;
+
+                try (Connection connection = DriverManager.getConnection(
+                            Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+                    PreparedStatement ps = connection.prepareStatement(sql)) {
+
+                    ps.setString(1, customerName);
+                    ps.setInt(2, rentalOrderId);
+                    ps.setDouble(3, baseLat);
+                    ps.setDouble(4, threshold);
+                    ps.setDouble(5, baseLon);
+                    ps.setDouble(6, threshold);
+
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+
+                            String serialNumber = rs.getString("serial_number");
+                            String liftType     = rs.getString("lift_type");
+                            int liftId = rs.getInt("lift_id");
+
+                            System.out.println("🔧 Lift found → serial=" + serialNumber);
+
+                            Lift lift = new Lift(String.valueOf(liftId), liftType);
+                            lift.setSerialNumber(serialNumber);
+                            lifts.add(lift);
+                        }
+                    }
+                }
+
+                return lifts;
+            }
+        };
+
+        preloadTask.setOnSucceeded(e -> {
+            siteLiftsSet = preloadTask.getValue();
+
+            Platform.runLater(() -> {
+
+                // No ambiguity → no UI, no "ready" state
+                if (siteLiftsSet == null || siteLiftsSet.size() <= 1) {
+                    liftsSetReady = false;
+                    return;
+                }
+                specificLiftLabel.setText("Which lift needs service?");
+
+                populateSpecificLiftHBox(siteLiftsSet);
+            });
+        });
+
+
+        preloadTask.setOnFailed(e -> {
+            liftsSetReady = false;
+            preloadTask.getException().printStackTrace();
+        });
+
+        Thread t = new Thread(preloadTask, "lifts-preload-thread");
+        t.setDaemon(true);
+        t.start();
+    }
+
+
+    private void populateSpecificLiftHBox(List<Lift> lifts) {
+        specificLiftHBox.getChildren().clear();
+        liftsSetReady = false;
+
+        if (lifts == null || lifts.isEmpty() || lifts.size() == 1) {
+            specificLiftHBox.setVisible(false);
+            return;
+        }
+
+        // Only show up to 4 lifts
+        List<Lift> displayLifts = lifts.stream()
+                                    .filter(l -> l.getLiftType() != null && !l.getLiftType().isBlank())
+                                    .limit(MAX_LIFTS_DISPLAY)
+                                    .toList();
+
+        int liftCount = displayLifts.size();
+
+        // Compute spacing: 5 px
+        specificLiftHBox.setSpacing(5);
+
+        // Centering logic: calculate padding based on app width
+        double totalLiftWidth = liftCount * 70 + (liftCount - 1) * specificLiftHBox.getSpacing();
+        double leftPadding = Math.max(0, (Config.WINDOW_WIDTH - totalLiftWidth) / 2 - 14); 
+        specificLiftHBox.setPadding(new Insets(0, 0, 0, leftPadding));
+
+        Color contentColor = Color.web(Config.getTertiaryColor());
+        Color outlineColor = Color.BLACK;
+
+        for (Lift lift : displayLifts) {
+            String imagePath = "/images/" + lift.getLiftType() + ".png";
+
+            Image image;
+            try {
+                image = new Image(
+                    Objects.requireNonNull(getClass().getResourceAsStream(imagePath),
+                        "Missing image for liftType: " + lift.getLiftType())
+                );
+            } catch (Exception ex) {
+                System.out.println("⚠️ No image for liftType: " + lift.getLiftType());
+                continue;
+            }
+
+            image = recolorImage(image, contentColor);
+
+            ImageView iv = new ImageView(image);
+            iv.setFitWidth(30);
+            iv.setPreserveRatio(true);
+            iv.setSmooth(true);
+
+            Label serialLabel = new Label(lift.getSerialNumber());
+            serialLabel.setWrapText(true);
+            serialLabel.setTextAlignment(TextAlignment.CENTER);
+            serialLabel.setAlignment(Pos.CENTER);
+            serialLabel.setMaxWidth(70);
+            serialLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
+            serialLabel.setStyle("""
+                -fx-font-size: 11px;
+                -fx-font-weight: bold;
+                -fx-background-color: rgba(255,255,255,0.8);
+                -fx-padding: 2px;
+            """);
+
+            VBox liftBox = new VBox(4, iv, serialLabel);
+            liftBox.setAlignment(Pos.CENTER);
+            liftBox.setPrefWidth(70);
+            liftBox.setMinHeight(50);
+            liftBox.getStyleClass().add("lift-box");
+
+            // Make selectable/toggleable
+            liftBox.setOnMouseClicked(e -> {
+                if (selectedLift == lift) {
+                    // Deselect
+                    selectedLift = null;
+                    liftBox.setStyle("-fx-border-color: transparent;");
+                } else {
+                    // Deselect previous
+                    for (Node child : specificLiftHBox.getChildren()) {
+                        child.setStyle("-fx-border-color: transparent;");
+                    }
+                    selectedLift = lift;
+                    String primaryColor = Config.getPrimaryColor();
+                    liftBox.setStyle(
+                        String.format("-fx-border-color: %s; -fx-border-width: 2px; -fx-border-radius: 5px;", primaryColor)
+                    );
+                }
+            });
+
+
+            Tooltip.install(liftBox, new Tooltip("Serial: " + lift.getSerialNumber()));
+
+            specificLiftHBox.getChildren().add(liftBox);
+        }
+        noPreferenceCheckBox.setSelected(false);
+        liftsSetReady = true;
+    }
+
+        
 	private void updateSuggestions(String input) {
     	addressSuggestions.clear(); // Clear previous suggestions
 
@@ -909,9 +1207,6 @@ public class ServiceController extends BaseController {
     	try {
         	JSONObject jsonObject = new JSONObject(jsonData);
         	JSONArray predictions = jsonObject.getJSONArray("predictions");
-
-
-
 
         	// Map of replacements (longer terms to shorter abbreviations)
         	Map<String, String> replacements = new HashMap<>();
@@ -981,24 +1276,16 @@ public class ServiceController extends BaseController {
     	return selectedSuggestion; // Return the original suggestion if no comma found
 	}
 
-    
-
     @FXML
-    private void handleLocationNotes(){
-        toggleDedicatedField(locationNotesButton, locationNotesLabel, locationNotesField);
-    }
-
-    @FXML
-    private void handlePreTripInstructions(){
-        toggleDedicatedField(preTripInstructionsButton, preTripInstructionsLabel, preTripInstructionsField);
+    private void handleNotes(){
+        toggleDedicatedField(notesButton, notesLabel, notesField);
     }
 
     private void toggleDedicatedField(Button button, Label label, TextField textField) {
         boolean isDedicatedFieldVisible = textField.isVisible();
     
         // Hide other dedicated field buttons while this one is visible
-        locationNotesButton.setVisible(isDedicatedFieldVisible && button != locationNotesButton);
-        preTripInstructionsButton.setVisible(isDedicatedFieldVisible && button != preTripInstructionsButton);
+        notesButton.setVisible(isDedicatedFieldVisible && button != notesButton);
     
         // Toggle the label and text field visibility
         label.setVisible(!isDedicatedFieldVisible);
@@ -1021,8 +1308,7 @@ public class ServiceController extends BaseController {
             } else {
                 button.getStyleClass().remove("schedule-delivery-button-has-value");
             }
-            preTripInstructionsButton.setVisible(true);
-            locationNotesButton.setVisible(true);
+            notesButton.setVisible(true);
     
             // Restore charge delivery trip elements
             chargeDeliveryTripCheckBox.setVisible(true);
@@ -1056,7 +1342,64 @@ public class ServiceController extends BaseController {
         // 4️⃣ Lift type mapped
         Toggle selectedLiftToggle = liftTypeToggleGroup.getSelectedToggle();
         String liftTypeText = selectedLiftToggle != null ? ((ToggleButton) selectedLiftToggle).getText() : null;
-        Integer liftTypeMapped = liftTypeText != null ? Config.LIFT_TYPE_MAP.get(liftTypeText) : null;
+        Integer originalLiftType = expandedRental.getLiftId();
+        Integer liftTypeMapped = liftTypeText != null ? Config.LIFT_TYPE_MAP.get(liftTypeText) : originalLiftType;
+        Integer oldLiftId = expandedRental.getLiftId(); // default behavior
+
+        if (liftsSetReady) {
+
+            // CASE 1: User selected a specific lift
+            if (selectedLift != null) {
+                try {
+                    oldLiftId = Integer.parseInt(selectedLift.getLiftId());
+                } catch (NumberFormatException e) {
+                    statusLabel.setText("Invalid lift ID selected.");
+                    statusLabel.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
+                    statusLabel.setVisible(true);
+                    return;
+                }
+            }
+
+            // CASE 2: Multiple lifts, none selected
+            else {
+                // If user has NO preference checked → allow generic
+                if (noPreferenceCheckBox.isSelected()) {
+
+                    // expandedRental.getLiftType() is short-form (e.g. "26s")
+                    String shortLiftType = expandedRental.getLiftType();
+
+                    String standardizedType =
+                            Config.LIFT_BUTTON_TEXT_MAP.get(shortLiftType);
+
+                    if (standardizedType == null) {
+                        statusLabel.setText("Unable to determine lift type for service.");
+                        statusLabel.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
+                        statusLabel.setVisible(true);
+                        return;
+                    }
+
+                    Integer genericLiftId =
+                            Config.LIFT_TYPE_MAP.get(standardizedType);
+
+                    if (genericLiftId == null) {
+                        statusLabel.setText("No generic lift ID found for selected lift type.");
+                        statusLabel.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
+                        statusLabel.setVisible(true);
+                        return;
+                    }
+
+                    oldLiftId = genericLiftId;
+                }
+
+                // CASE 3: Multiple lifts, no selection, no preference NOT checked → FAIL
+                else {
+                    statusLabel.setText("Please select a specific lift or choose 'No Preference'.");
+                    statusLabel.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
+                    statusLabel.setVisible(true);
+                    return;
+                }
+            }
+        }
     
         // 5️⃣ Contacts
         Contact selectedOrdering = orderedByBox.getValue();
@@ -1093,13 +1436,11 @@ public class ServiceController extends BaseController {
     
             // 6️⃣ Checkboxes and text fields
             int chargeDeliveryTrip = chargeDeliveryTripCheckBox.isSelected() ? 1 : 0;
-            String locationNotes = locationNotesField.getText();
-            String preTripInstructions = preTripInstructionsField.getText();
+            String notes = notesField.getText();
             String reason = reasonField.getText();
     
             reason = (reason == null || reason.isBlank()) ? null : reason;
-            locationNotes = (locationNotes == null || locationNotes.isBlank()) ? null : locationNotes;
-            preTripInstructions = (preTripInstructions == null || preTripInstructions.isBlank()) ? null : preTripInstructions;
+            notes = (notes == null || notes.isBlank()) ? null : notes;
     
             // 7️⃣ Previous service
             
@@ -1179,8 +1520,8 @@ public class ServiceController extends BaseController {
             String insertServiceSQL = """
                 INSERT INTO services (
                     service_type, service_date, time, ordered_contact_id, site_contact_id,
-                    rental_item_id, service_order_date, reason, location_notes, pre_trip_instructions,
-                    billable, previous_service_id, new_lift_id, new_rental_order_id
+                    rental_item_id, service_order_date, reason, notes,
+                    billable, previous_service_id, new_lift_id, new_rental_order_id, old_lift_id
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
     
@@ -1195,13 +1536,13 @@ public class ServiceController extends BaseController {
                 stmt.setLong(6, rentalItemId);
                 stmt.setDate(7, sqlServiceOrderDate);
                 if (reason != null) stmt.setString(8, reason); else stmt.setNull(8, Types.VARCHAR);
-                if (locationNotes != null) stmt.setString(9, locationNotes); else stmt.setNull(9, Types.VARCHAR);
-                if (preTripInstructions != null) stmt.setString(10, preTripInstructions); else stmt.setNull(10, Types.VARCHAR);
-                stmt.setInt(11, chargeDeliveryTrip);
-                if (previousServiceId != null && previousServiceId > 0) stmt.setInt(12, previousServiceId); else stmt.setNull(12, Types.INTEGER);
-                if (liftTypeMapped != null) stmt.setInt(13, liftTypeMapped); else stmt.setNull(13, Types.INTEGER);
-                if (newRentalOrderId != null) stmt.setInt(14, newRentalOrderId); else stmt.setNull(14, Types.INTEGER);
-    
+                if (notes != null) stmt.setString(9, notes); else stmt.setNull(9, Types.VARCHAR);
+                stmt.setInt(10, chargeDeliveryTrip);
+                if (previousServiceId != null && previousServiceId > 0) stmt.setInt(11, previousServiceId); else stmt.setNull(11, Types.INTEGER);
+                if (liftTypeMapped != null) stmt.setInt(12, liftTypeMapped); else stmt.setNull(12, Types.INTEGER);
+                if (newRentalOrderId != null) stmt.setInt(13, newRentalOrderId); else stmt.setNull(13, Types.INTEGER);
+                stmt.setInt(14, oldLiftId);
+
                 int rowsInserted = stmt.executeUpdate();
                 if (rowsInserted > 0) {
                     try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
@@ -1358,11 +1699,8 @@ public class ServiceController extends BaseController {
         siteContactField.setDisable(true);
         siteContactPhoneField.setDisable(true);
 
-        locationNotesButton.setDisable(true);
-        locationNotesField.setDisable(true);
-
-        preTripInstructionsButton.setDisable(true);
-        preTripInstructionsField.setDisable(true);
+        notesButton.setDisable(true);
+        notesField.setDisable(true);
 
         chargeDeliveryTripCheckBox.setDisable(true);
         reasonField.setDisable(true);
@@ -1374,7 +1712,12 @@ public class ServiceController extends BaseController {
         // Lift options
         twelveMastButton.setDisable(true);
         liftTypeTilePane.setDisable(true);
+        specificLiftHBox.setDisable(true);
+        noPreferenceCheckBox.setDisable(true);
 
+        // Labels don’t need disabling, but we gray them out for clarity
+        specificLiftLabel.setOpacity(0.6);
+        noPreferenceLabel.setOpacity(0.6);
         // Disable schedule button itself
         scheduleButton.setDisable(true);
 
@@ -1393,21 +1736,21 @@ public class ServiceController extends BaseController {
             return;
         }
 
-    
+
         int width = (int) original.getWidth();
         int height = (int) original.getHeight();
         WritableImage newImage = new WritableImage(width, height);
-    
+
         var reader = original.getPixelReader();
         var writer = newImage.getPixelWriter();
     
         int changedPixels = 0;
-    
+
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 Color pixelColor = reader.getColor(x, y);
                 Color newColor = pixelColor;
-    
+
                 if (pixelColor.getOpacity() == 0.0) {
                     // transparent, keep as is
                 } else if (isNearBlack(pixelColor)) {
@@ -1417,14 +1760,37 @@ public class ServiceController extends BaseController {
                     newColor = new Color(outlineColor.getRed(), outlineColor.getGreen(), outlineColor.getBlue(), pixelColor.getOpacity());
                     changedPixels++;
                 }
-    
+
                 writer.setColor(x, y, newColor);
             }
         }
-    
+
         iv.setImage(newImage); // <-- apply the recolored image back
     }
-    
+
+    private Image recolorImage(Image original, Color newColor) {
+        int width = (int) original.getWidth();
+        int height = (int) original.getHeight();
+        WritableImage recolored = new WritableImage(width, height);
+        PixelReader reader = original.getPixelReader();
+        PixelWriter writer = recolored.getPixelWriter();
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                Color pixel = reader.getColor(x, y);
+                if (pixel.getOpacity() == 0.0) {
+                    writer.setColor(x, y, Color.TRANSPARENT);
+                } else {
+                    // Replace all visible pixels with new color, keeping original opacity
+                    writer.setColor(x, y, new Color(
+                        newColor.getRed(), newColor.getGreen(), newColor.getBlue(), pixel.getOpacity()
+                    ));
+                }
+            }
+        }
+
+        return recolored;
+    }
 
     private boolean isNearGray(Color color) {
         double r = color.getRed();

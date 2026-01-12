@@ -20,6 +20,7 @@ public class RoutingRental {
     private String city;
     private String liftType;
     private String newLiftType;
+    private String serialNumber;
     private String time;
     private double latitude;
     private double longitude;
@@ -29,8 +30,7 @@ public class RoutingRental {
     private String driver;
     private String truck;
     private String reason;
-    private String locationNotes;
-    private String preTripInstructions;
+    private String notes;
     private String orderedByContactName;
     private String orderedByContactNumber;
     private String siteContactName;
@@ -38,11 +38,11 @@ public class RoutingRental {
     private int assignedDriveSeconds;
 
     public RoutingRental(int id, int orderId, String type, String name, String siteName, String streetAddress,
-                         String city, String liftType, String time, double latitude, 
+                         String city, String liftType, String serialNumber, String time, double latitude, 
                          double longitude, String driverInitial, int driverNumber, String truck,
                          String orderedByContactName, String orderedByContactNumber,
                          String siteContactName, String siteContactNumber,
-                         String locationNotes, String preTripInstructions,
+                         String notes,
                          int assignedDriveSeconds) {
         this.id = id;
         this.orderId = orderId;
@@ -52,6 +52,7 @@ public class RoutingRental {
         this.streetAddress = streetAddress;
         this.city = city;
         this.liftType = liftType;
+        this.serialNumber = serialNumber;
         this.time = time;
         this.latitude = latitude;
         this.longitude = longitude;
@@ -62,8 +63,7 @@ public class RoutingRental {
         this.orderedByContactNumber = orderedByContactNumber;
         this.siteContactName = siteContactName;
         this.siteContactNumber = siteContactNumber;
-        this.locationNotes = locationNotes;
-        this.preTripInstructions = preTripInstructions;
+        this.notes = notes;
         this.assignedDriveSeconds = assignedDriveSeconds;
     }
 
@@ -129,6 +129,10 @@ public class RoutingRental {
     public String getLiftType() { return liftType; }
     public void setLiftType(String liftType) { this.liftType = liftType; }
 
+    @JsonProperty("serialNumber")
+    public String getSerialNumber() { return serialNumber; } 
+    public void setSerialNumber(String serialNumber) { this.serialNumber = serialNumber; } 
+
     @JsonProperty("newLiftType")
     public String getNewLiftType() { return newLiftType; }
     public void setNewLiftType(String newLiftType) { this.newLiftType = newLiftType; }
@@ -183,13 +187,9 @@ public class RoutingRental {
     public String getSiteContactNumber() { return siteContactNumber; }
     public void setSiteContactNumber(String siteContactNumber) { this.siteContactNumber = siteContactNumber; }
 
-    @JsonProperty("locationNotes")
-    public String getLocationNotes() { return locationNotes; }
-    public void setLocationNotes(String locationNotes) { this.locationNotes = locationNotes;}
-
-    @JsonProperty("preTripInstructions")
-    public String getPreTripInstructions() {return preTripInstructions; }
-    public void setPreTripInstructions(String preTripInstructions) {this.preTripInstructions = preTripInstructions;}
+    @JsonProperty("notes")
+    public String getNotes() {return notes; }
+    public void setNotes(String notes) {this.notes = notes;}
 
     @JsonProperty("assignedDriveSeconds")
     public int getAssignedDriveSeconds() {return assignedDriveSeconds; }
@@ -201,6 +201,7 @@ public class RoutingRental {
                 "id=" + id +
                 ", streetAddress='" + streetAddress + '\'' +
                 ", liftType='" + liftType + '\'' +
+                ", serialNumber='" + serialNumber + '\'' +
                 ", latitude=" + latitude +
                 ", longitude=" + longitude +
                 ", driverInitial='" + driverInitial + '\'' +

@@ -7,18 +7,24 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import java.util.function.BiConsumer;
-
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.awt.Graphics2D;
 import javax.imageio.ImageIO;
 
 import javafx.embed.swing.SwingFXUtils;
+import javafx.event.EventHandler;
 import javafx.geometry.Pos;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.CycleMethod;
@@ -39,6 +45,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelReader;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 
 public class PopupDisc extends StackPane {
@@ -72,6 +79,54 @@ public class PopupDisc extends StackPane {
 
         // existing constructor code...
 
+                // This section now has to come first to dictate other elements 
+
+        Image imageToAdd = null;
+        double imageRadius = 79;
+        double imageSize = 0;
+        List<Rental> proximityRentals = null;
+        List<Rental> relatedRentals = null;
+
+        if (rental != null) {
+            relatedRentals = fetchRelatedRentals(rental, mapController);
+            proximityRentals = relatedRentals.stream()
+                .filter(r -> r.getRentalOrderId() != rental.getRentalOrderId())
+                .toList();
+            List<Rental> combined = new ArrayList<>(proximityRentals);
+            combined.add(rental);
+            long uniqueNameCount = combined.stream()
+                .map(Rental::getName)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .map(String::toLowerCase) // optional: make case-insensitive
+                .distinct()
+                .count();
+            
+            if (relatedRentals.stream().noneMatch(r -> r.getRentalItemId() == rental.getRentalItemId())) {
+                relatedRentals = new ArrayList<>(relatedRentals);
+                relatedRentals.add(rental);
+            }
+
+            if (relatedRentals.size() == 1) {
+
+                Rental r = relatedRentals.get(0);
+
+                if (r.isService()) {
+                    imageToAdd = buildServiceCompoundPeekImage(
+                            resolveServiceIcon(r),
+                            r
+                    );
+                    imageSize = 48;
+                } else {
+                    imageToAdd = loadPreparedImage("/images/" + r.getLiftType() + ".png");
+                    imageSize = 38;
+                }
+
+            } else {
+                imageToAdd = buildMixedCompoundPeekImage(relatedRentals);
+                imageSize = 38;
+            }
+        }
 
         setPrefSize(SIZE, SIZE);
         setAlignment(Pos.CENTER);
@@ -175,11 +230,56 @@ public class PopupDisc extends StackPane {
             majorBand.setTranslateX(29);
             majorBand.setTranslateY(17);
             final int index = i;
-            majorBand.setOnMouseClicked(event -> {
-                mapController.addStopToRoute(routeName, rental);
-             //   System.out.println("calling mapController.addStopToRoute with routeName = " + routeName);
-            });
-        
+            final Rental mainRental = rental; // capture original rental in lambda
+            final List<Rental> proximals = proximityRentals; // capture proximals
+
+            EventHandler<MouseEvent> routeClickHandler = event -> {
+                String routeNameFinal = routeName;
+
+                System.out.println("\n=== ROUTE ADD CLICKED ===");
+                System.out.println("Route: " + routeNameFinal);
+
+                if (mainRental == null) {
+                    mapController.addStopToRoute(routeNameFinal, mainRental);
+                    return;
+                }
+
+                System.out.println("➕ Adding MAIN rental:");
+                System.out.println("   rentalItemId=" + mainRental.getRentalItemId()
+                    + ", orderId=" + mainRental.getRentalOrderId()
+                    + ", name=" + mainRental.getName());
+
+                mapController.addStopToRoute(routeNameFinal, mainRental);
+
+                if (proximals == null || proximals.isEmpty()) {
+                    System.out.println("ℹ️ No proximal rentals to add");
+                } else {
+                    System.out.println("➕ Adding " + proximals.size() + " PROXIMAL rental(s):");
+
+                    int proxIndex = 1;
+                    for (Rental prox : proximals) {
+                        if (prox == null) {
+                            System.out.println("   ⚠️ Proximal #" + proxIndex + " is NULL — skipped");
+                            proxIndex++;
+                            continue;
+                        }
+
+                        System.out.println("   [" + proxIndex + "] rentalItemId=" + prox.getRentalItemId()
+                            + ", orderId=" + prox.getRentalOrderId()
+                            + ", name=" + prox.getName());
+
+                        mapController.addStopToRoute(routeNameFinal, prox);
+                        // didn't notice any changes to the bug when i tried below
+                        // mapController.updateRoutePane(routeNameFinal, prox, "insertion", proxIndex + 1, 2, "program" );
+                        proxIndex++;
+                    }
+                }
+
+                System.out.println("✅ Done adding stops to route: " + routeNameFinal);
+            };
+
+            majorBand.setOnMouseClicked(routeClickHandler);
+            
             // === Minor Band (outer) ===
             Path minorBand = createInteractiveBand(bandSplit, bandOuter, wedgeAngle);
             minorBand.getTransforms().add(new Rotate(rotation, 0, 0));
@@ -195,6 +295,7 @@ public class PopupDisc extends StackPane {
             peripheralBand.setStroke(Color.TRANSPARENT);
             peripheralBand.setTranslateX(rental == null ? 58 : 70);
             peripheralBand.setTranslateY(rental == null ? 27 : 36);
+            peripheralBand.setOnMouseClicked(routeClickHandler);
 
             // Add both bands to scene (minor first so it appears behind)
             getChildren().addAll(minorBand, majorBand, peripheralBand);
@@ -265,9 +366,7 @@ public class PopupDisc extends StackPane {
             double truckAngleToCenter = Math.toDegrees(Math.atan2(centerY, centerX));
             truckAngleToCenter = truckAngleToCenter > 0 ? truckAngleToCenter + 180 : truckAngleToCenter;
 
-            truckGroup.setOnMouseClicked(event -> {
-                mapController.addStopToRoute(routeName, rental);
-            });
+            truckGroup.setOnMouseClicked(routeClickHandler);
 
             getChildren().add(truckGroup);
             truckGroup.setTranslateX(centerX);
@@ -277,68 +376,76 @@ public class PopupDisc extends StackPane {
             if (usedTruckImage) {
                 truckGroup.getTransforms().add(new Rotate(truckAngleToCenter + 90, 0, 0));
             }
-            
-            
-            truckGroup.setOnMouseClicked(event -> {
-                mapController.addStopToRoute(routeName, rental);
-            });
-        
+                    
             //getChildren().add(truckGroup);
         }
-        
-        String rawName;    
-    
-        if (rental != null) {
-            rawName = Config.CUSTOMER_NAME_MAP.getOrDefault(rental.getName(), rental.getName());
-        } else {
-            rawName = "Max High Reach";
-        }
-        
-        String name = rawName.replace(".", "");
-        int len = name.length();
+        // Build the display name including proximals (but limit to 1 extra + count)
+        String displayName;
 
-    
+        if (rental != null) {
+            String baseName = Config.CUSTOMER_NAME_MAP.getOrDefault(rental.getName(), rental.getName()).replace(".", "");
+
+            // Collect unique proximal names (excluding the original rental name)
+            Set<String> uniqueProximalNames = proximityRentals.stream()
+                .map(Rental::getName)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(name -> !name.equalsIgnoreCase(rental.getName()))
+                .collect(Collectors.toCollection(LinkedHashSet::new)); // preserves insertion order
+
+            if (!uniqueProximalNames.isEmpty()) {
+                Iterator<String> it = uniqueProximalNames.iterator();
+                String firstExtra = it.next(); // first proximal name
+                int remaining = uniqueProximalNames.size() - 1;
+
+                if (remaining > 0) {
+                    displayName = baseName + " & " + firstExtra + " + " + remaining;
+                } else {
+                    displayName = baseName + " & " + firstExtra;
+                }
+            } else {
+                displayName = baseName;
+            }
+        } else {
+            displayName = "Max High Reach";
+        }
+
+        // Use displayName instead of `name` for the arc label
+        int len = displayName.length();
         double labelCenterDeg = Math.toDegrees(effectiveSpreadCenter);
-    
-        // Find vertical angle (±90°) and shift toward it within wedge space
+
+        // ... rest of your arc computation code remains the same
         double targetAngleDeg = (Math.abs(labelCenterDeg - 90) < Math.abs(labelCenterDeg + 90)) ? 90 : -90;
         double maxShift = targetAngleDeg - labelCenterDeg;
         double labelArcSpan = (len > 1) ? 9.0 * (len - 1) : 9.0;
-    
+
         double labelStartDeg = labelCenterDeg - labelArcSpan / 2;
         double labelEndDeg = labelCenterDeg + labelArcSpan / 2;
         double leftGap = (labelStartDeg - wedgeStartDeg + 360) % 360;
         double rightGap = (wedgeEndDeg - labelEndDeg + 360) % 360;
-    
-        double clampedShift;
-        if (maxShift > 0) {
-            clampedShift = Math.min(maxShift, rightGap);
-        } else {
-            clampedShift = Math.max(maxShift, -leftGap);
-        }
-    
+
+        double clampedShift = (maxShift > 0) ? Math.min(maxShift, rightGap) : Math.max(maxShift, -leftGap);
         double adjustedLabelCenterDeg = labelCenterDeg + clampedShift;
-    
-        // Compute arc length required by actual text
+
         double arcLengthPx = 0;
-        for (int i = 0; i < name.length(); i++) {
-            Text temp = new Text(String.valueOf(name.charAt(i)));
+        for (int i = 0; i < displayName.length(); i++) {
+            Text temp = new Text(String.valueOf(displayName.charAt(i)));
             temp.setFont(Font.font("Verdana", 20));
             arcLengthPx += temp.getLayoutBounds().getWidth();
         }
-        arcLengthPx += (name.length() - 1) * 5;
+        arcLengthPx += (displayName.length() - 1) * 5;
         double neededArcDeg = Math.toDegrees(arcLengthPx / 80.0);
-    
-        // Max wedge space left/right of center
+
         double maxLeftDeg = adjustedLabelCenterDeg - wedgeStartDeg;
         double maxRightDeg = wedgeEndDeg - adjustedLabelCenterDeg;
         double maxAvailableDeg = 2 * Math.min(maxLeftDeg, maxRightDeg);
-    
         double clampedArcDeg = Math.min(neededArcDeg, maxAvailableDeg);
+
         double adjustedLabelCenterRad = Math.toRadians(adjustedLabelCenterDeg);
 
         int nameRadius = rental == null ? 58 : 85;
-        double[] nameSpan = addSemiCircleLabel(name, adjustedLabelCenterRad, clampedArcDeg, 20, nameRadius, Color.web(Config.getPrimaryColor()), Color.web(Config.getTertiaryColor()));
+        double[] nameSpan = addSemiCircleLabel(displayName, adjustedLabelCenterRad, clampedArcDeg, 20, nameRadius,
+                Color.web(Config.getPrimaryColor()), Color.web(Config.getTertiaryColor()));
         nameStartAngle = nameSpan[0];
         nameEndAngle = nameSpan[1];
 
@@ -358,6 +465,7 @@ public class PopupDisc extends StackPane {
             
             openingAngle = getWidestOpenAngleDeg();
             secondaryLiftTypeAngleAdjustent();
+            addImageAtAngle(imageToAdd, openingAngle, imageRadius, imageSize);
 
             /*
             // === Diagnostics Dots ===
@@ -392,41 +500,10 @@ public class PopupDisc extends StackPane {
 
             getChildren().addAll(startDot, endDot, nameStartDot, nameEndDot, addressStartDot, addressEndDot, openAngleDot);
         */
-            if (rental.isService()) {
-                String serviceType = rental.getService().getServiceType();
-                String serviceImageName;
-                switch (serviceType) {
-                    case "Move" -> serviceImageName = "move.png";
-                    case "Change Out" -> serviceImageName = "change-out.png";
-                    case "Service Change Out" -> serviceImageName = "service-change-out.png";
-                    case "Service" -> serviceImageName = "service.png";
-                    default -> serviceImageName = "change-out.png";
-                }
-            
-                Image compoundImage = buildServiceCompoundPeekImage(serviceImageName, rental);
-                addImageAtAngle(compoundImage, openingAngle, 79, 48);
-            
-                } else if (rental.isSingleItemOrder()) {
-                    addImageAtAngle("/images/" + rental.getLiftType() + ".png", openingAngle, 79, 38);
-
-                } else {
-                    List<Rental> relatedRentals = fetchRelatedRentals(rental);
-
-                    if (relatedRentals.size() == 1) {
-                        // Just one related rental → use single image
-                        String liftType = relatedRentals.get(0).getLiftType();
-                        addImageAtAngle("/images/" + liftType + ".png", openingAngle, 79, 38);
-                    } else if (!relatedRentals.isEmpty()) {
-                        // Multiple related rentals → use compound image
-                        List<String> liftTypes = relatedRentals.stream()
-                                .map(Rental::getLiftType)
-                                .toList();
-                        Image compoundImage = buildCompoundPeekImage(liftTypes);
-                        addImageAtAngle(compoundImage, openingAngle, 79, 38);
-                    }
-                }
-
         
+
+
+
             /*
             System.out.println("\n===== ANGLE DIAGNOSTICS =====");
             System.out.printf("🔵 angleToCenter       : %.2f°\n", Math.toDegrees(angleToCenter));
@@ -864,16 +941,18 @@ public class PopupDisc extends StackPane {
     }
     
         
-    private void addImageAtAngle(String imageResourcePath, double angleDeg, double radius, double size) {
+    private Image loadPreparedImage(String imageResourcePath) {
         try {
-            String imagePath = getClass().getResource(imageResourcePath).toExternalForm();
-            Image image = new Image(imagePath);
-            addImageAtAngle(image, angleDeg, radius, size); // Delegate
+            return new Image(
+                    getClass().getResource(imageResourcePath).toExternalForm()
+            );
         } catch (Exception e) {
             System.err.println("❌ Failed to load image: " + imageResourcePath);
             e.printStackTrace();
+            return null;
         }
     }
+
 
 
     private void addImageAtAngle(Image image, double angleDeg, double radius, double size) {
@@ -972,7 +1051,7 @@ public class PopupDisc extends StackPane {
     }
 
     
-    private List<Rental> fetchRelatedRentals(Rental baseRental) {
+    private List<Rental> fetchRelatedRentals(Rental baseRental, MapController mapController) {
         List<Rental> rentals = new ArrayList<>();
 
         // SQL to fetch all rentals with the same order ID, delivery date, and delivery time
@@ -1043,6 +1122,17 @@ public class PopupDisc extends StackPane {
             e.printStackTrace();
         }
 
+        List<Rental> nearby = mapController.getProximityRentals(baseRental);
+
+        for (Rental r : nearby) {
+            boolean alreadyIncluded = rentals.stream()
+                .anyMatch(existing -> existing.getRentalItemId() == r.getRentalItemId());
+
+            if (!alreadyIncluded) {
+                rentals.add(r);
+            }
+        }
+        
         return rentals;
     }
 
@@ -1093,7 +1183,6 @@ public class PopupDisc extends StackPane {
             List<BufferedImage> stackedImages = new ArrayList<>();
             // --- Load service image (top, unmodified) ---
             String servicePath = "/images/" + serviceImageName;
-            System.out.println("about to load service image at: " + servicePath);
             Image fxServiceImage = new Image(getClass().getResource(servicePath).toExternalForm());
             BufferedImage serviceBImage = SwingFXUtils.fromFXImage(fxServiceImage, null);
             stackedImages.add(serviceBImage);
@@ -1189,9 +1278,110 @@ public class PopupDisc extends StackPane {
         }
     }
 
+    private Image buildMixedCompoundPeekImage(List<Rental> rentals) {
+        try {
+            if (rentals == null || rentals.isEmpty()) {
+                return null;
+            }
+
+            List<BufferedImage> stackedImages = new ArrayList<>();
+
+            // --- 1️⃣ Render service rentals individually ---
+            for (Rental r : rentals) {
+                if (!r.isService()) continue;
+
+                String serviceType = r.getService().getServiceType();
+                String serviceImageName = switch (serviceType) {
+                    case "Move" -> "move.png";
+                    case "Change Out" -> "change-out.png";
+                    case "Service Change Out" -> "service-change-out.png";
+                    case "Service" -> "service.png";
+                    default -> "change-out.png";
+                };
+
+                Image fxImg = buildServiceCompoundPeekImage(serviceImageName, r);
+                if (fxImg != null) {
+                    stackedImages.add(SwingFXUtils.fromFXImage(fxImg, null));
+                }
+            }
+
+            // --- 2️⃣ Collect lift types (non-service rentals) ---
+            List<String> liftTypes = rentals.stream()
+                    .filter(r -> !r.isService())
+                    .map(Rental::getLiftType)
+                    .filter(t -> t != null && !t.isBlank())
+                    .toList();
+
+            if (!liftTypes.isEmpty()) {
+                Image fxLiftStack = buildCompoundPeekImage(liftTypes);
+                if (fxLiftStack != null) {
+                    stackedImages.add(SwingFXUtils.fromFXImage(fxLiftStack, null));
+                }
+            }
+
+            if (stackedImages.isEmpty()) {
+                return null;
+            }
+
+            // --- 3️⃣ Normalize width (use widest image as authority) ---
+            int width = stackedImages.stream()
+                    .mapToInt(BufferedImage::getWidth)
+                    .max()
+                    .orElse(stackedImages.get(0).getWidth());
+
+            List<BufferedImage> normalized = new ArrayList<>();
+
+            for (BufferedImage img : stackedImages) {
+                if (img.getWidth() == width) {
+                    normalized.add(img);
+                    continue;
+                }
+
+                int newHeight = (int) ((double) img.getHeight() * width / img.getWidth());
+                BufferedImage scaled = new BufferedImage(width, newHeight, BufferedImage.TYPE_INT_ARGB);
+                Graphics2D g2 = scaled.createGraphics();
+                g2.drawImage(img, 0, 0, width, newHeight, null);
+                g2.dispose();
+                normalized.add(scaled);
+            }
+
+            // --- 4️⃣ Stack vertically ---
+            int totalHeight = normalized.stream().mapToInt(BufferedImage::getHeight).sum();
+            BufferedImage finalImage = new BufferedImage(width, totalHeight, BufferedImage.TYPE_INT_ARGB);
+
+            Graphics2D gFinal = finalImage.createGraphics();
+            int y = 0;
+            for (BufferedImage img : normalized) {
+                gFinal.drawImage(img, 0, y, null);
+                y += img.getHeight();
+            }
+            gFinal.dispose();
+
+            return SwingFXUtils.toFXImage(finalImage, null);
+
+        } catch (Exception e) {
+            System.err.println("Failed to build mixed compound peek image");
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private String resolveServiceIcon(Rental rental) {
+        String type = rental.getService().getServiceType();
+        return switch (type) {
+            case "Move" -> "move.png";
+            case "Change Out" -> "change-out.png";
+            case "Service Change Out" -> "service-change-out.png";
+            case "Service" -> "service.png";
+            default -> "change-out.png";
+        };
+    }
+
+
+
     private BufferedImage loadAndCropLiftType(String liftType) throws Exception {
         String path = "/images/" + liftType + "-peek.png";
-        System.out.println("about to get the path for cropping: " + path);
+        // System.out.println("about to get the path for cropping: " + path);
         Image fxImage = new Image(getClass().getResource(path).toExternalForm());
         BufferedImage bImage = SwingFXUtils.fromFXImage(fxImage, null);
     

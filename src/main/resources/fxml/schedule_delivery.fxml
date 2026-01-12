@@ -150,27 +150,17 @@
 
 
     <Label fx:id="POLabel"  text="PO#:" layoutX="14" layoutY="320" prefWidth="50" wrapText="true"/>
-    <TextField fx:id="POField" layoutX="76" layoutY="312" prefWidth="120" styleClass="transparent-text-field"/>
+    <TextField fx:id="POField" layoutX="76" layoutY="312" prefWidth="167" styleClass="transparent-text-field"/>
 
-    <Button fx:id="locationNotesButton" layoutX="207" layoutY="311" onAction="#handleLocationNotes" styleClass="schedule-delivery-button">
+    <Button fx:id="notesButton" layoutX="258" layoutY="309" onAction="#handleNotes" styleClass="schedule-delivery-button">
        <graphic>
            <ImageView fitWidth="40" fitHeight="32">
-               <Image url="@../images/location-notes.png"/>
+               <Image url="@../images/notes.png"/>
            </ImageView>
        </graphic>
     </Button>
-    <Label fx:id="locationNotesLabel" text="Location Notes:" prefWidth="50" layoutX="14" layoutY="307" visible="false" wrapText="true" />
-    <TextField fx:id="locationNotesField" layoutX="76" layoutY="312" prefWidth="223" visible="false" styleClass="transparent-text-field"/>
-
-    <Button fx:id="preTripInstructionsButton" layoutX="258" layoutY="309" onAction="#handlePreTripInstructions" styleClass="schedule-delivery-button">
-       <graphic>
-           <ImageView fitWidth="40" fitHeight="32">
-               <Image url="@../images/pre-trip-instructions.png"/>
-           </ImageView>
-       </graphic>
-    </Button>
-    <Label fx:id="preTripInstructionsLabel" text="Pre-trip Instructions:" prefWidth="65" layoutX="14" layoutY="307" visible="false" wrapText="true" />
-    <TextField fx:id="preTripInstructionsField" layoutX="91" layoutY="312" prefWidth="208" visible="false" styleClass="transparent-text-field"/>
+    <Label fx:id="notesLabel" text="Notes:" prefWidth="65" layoutX="14" layoutY="320" visible="false" wrapText="true" />
+    <TextField fx:id="notesField" layoutX="91" layoutY="320" prefWidth="208" visible="false" styleClass="transparent-text-field"/>
 
     <Button fx:id="scheduleDeliveryButton" text="Schedule Delivery" layoutX="12" prefWidth="295" layoutY="354" onAction="#handleScheduleDelivery" />
 

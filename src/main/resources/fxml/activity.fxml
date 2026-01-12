@@ -17,7 +17,7 @@
 <?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.TilePane?>
 <?import javafx.scene.control.DatePicker?>
-<?import javafx.scene.shape.Rectangle?>
+<?import javafx.scene.shape.*?>
 <?import javafx.scene.shape.Line?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.control.TextField?>
@@ -26,24 +26,101 @@
     <Rectangle fx:id="sideBarHighlighter" layoutX="279" layoutY="37" width="37" height="37" arcWidth="5" arcHeight="5" visible="false" fill="#FFDEAD" />
 
     <StackPane AnchorPane.leftAnchor="0" AnchorPane.topAnchor="0" prefWidth="320" prefHeight="800">
-
+<!-- 
         <HBox fx:id="datePickersPane" alignment="TOP_LEFT"  visible="false" translateX="100" spacing="-15">
             <DatePicker fx:id="datePickerOne"  translateX="80" translateY="17" styleClass="date-picker" prefWidth="15" prefHeight="15"/>
             <DatePicker fx:id="datePickerTwo"  translateX="83" translateY="17" styleClass="date-picker" prefWidth="15" prefHeight="15"/>
         </HBox>
 
-        <Rectangle fx:id="datePickerOneCover" translateX="-30" translateY="-400" width="100" height="100" fill="F4F4F4"/>
+        <Rectangle fx:id="datePickerOneCover" translateX="-30" translateY="-400" width="100" height="100" fill="F4F4F4"/> -->
 
-        <Button fx:id="updateRentalButton" text="Update Rental" onAction="#handleUpdateRental" prefWidth="295" translateY="174" translateX="-99"/>
-        <TextField fx:id="serialNumberField" translateY="174" translateX="-180" minWidth="145" maxWidth="145" styleClass="transparent-text-field" visible="false" promptText="     Serial Number"/>
+        <Button fx:id="updateRentalButton" text="Update Rental" onAction="#handleUpdateRental" prefWidth="295" translateY="174" />
+        <TextField fx:id="serialNumberField" translateY="174" translateX="-94" minWidth="145" maxWidth="145" styleClass="transparent-text-field" visible="false" promptText="     Serial Number"/>
 
-        <Button fx:id="batchButton" text="Batch Contracts" prefWidth="145" translateX="-180"  translateY="174" visible="false"/>
-        <Button fx:id="secondInProcessButton" text="Open Contracts" onAction="#handleSecondInProcess" prefWidth="295" translateX="-99" translateY="174" visible="false" />
+        <Button fx:id="batchButton" text="Batch Contracts" prefWidth="145"  translateY="174" visible="false"/>
+        <Button fx:id="secondInProcessButton" text="Open Contracts" onAction="#handleSecondInProcess" prefWidth="295"  translateY="174" visible="false" />
 
-        <TableView fx:id="dbTableView" minHeight="549" maxHeight="549" minWidth="289" maxWidth="289"  translateX="-120" translateY="-118" />
+        <TableView fx:id="dbTableView" minHeight="549" maxHeight="549" minWidth="289" maxWidth="289" translateX="-19" translateY="-118" />
 
 
-        <HBox minHeight="25" maxHeight="25" translateX="22" translateY="-379">
+
+        <!-- <Button styleClass="database-calendar-button"
+                minWidth="30" maxWidth="30" minHeight="30" maxHeight="25" translateX="-145" translateY="-378">
+            <graphic>
+                <ImageView fitWidth="30" fitHeight="35">
+                    <Image url="@../images/red-and-green.png"/>
+                </ImageView>
+            </graphic>
+        </Button>
+
+        <Button
+            text="Customer ▼"
+            translateY="-382"
+            translateX="-65"
+            style="-fx-font-family: 'Lucida Handwriting'; -fx-font-size: 14px;"
+            styleClass="sidebar-button-inactive"
+        />
+
+        <Button styleClass="database-calendar-button"
+                minWidth="30" maxWidth="30" minHeight="30" maxHeight="30" translateX="10" translateY="-381">
+            <graphic>
+                <ImageView fitWidth="30" fitHeight="30">
+                    <Image url="@../images/calendar.png"/>
+                </ImageView>
+            </graphic>
+        </Button>
+
+        <Button styleClass="database-calendar-button"
+                minWidth="18" maxWidth="18" minHeight="31" maxHeight="31" translateX="40" translateY="-378">
+            <graphic>
+                <ImageView fitWidth="18" fitHeight="31">
+                    <Image url="@../images/num-lift.png"/>
+                </ImageView>
+            </graphic>
+        </Button> -->
+        <StackPane
+            fx:id="customerMenuNode"
+            translateY="-380"
+            translateX="-22"
+            pickOnBounds="true"
+            prefHeight="40"
+            minHeight="38"
+            maxHeight="38"
+            minWidth="270"
+            maxWidth="270"
+            style="-fx-background-color: transparent;"
+        >
+
+            <!-- Glows -->
+            <Ellipse fx:id="statusGlow" radiusX="16" radiusY="21" opacity="0.0" translateX="-124" translateY="-2"/>
+            <Ellipse fx:id="customerGlow" radiusX="45" radiusY="11" opacity="0.0" translateX="-48" translateY="2"/>
+            <Ellipse fx:id="calendarGlow" radiusX="18" radiusY="18" opacity="0.0" translateX="31" translateY="-1"/>
+            <Ellipse fx:id="liftGlow" radiusX="13" radiusY="25" opacity="0.0" translateX="62" translateY="-5"/>
+
+            <!-- CONTENT -->
+            <ImageView fx:id="statusImage" fitWidth="30" fitHeight="35" translateX="-122">
+                <Image url="@../images/red-and-green.png"/>
+            </ImageView>
+
+            <Label fx:id="customerLabel"
+                text="Customer ▾"
+                translateX="-48"
+                style="-fx-font-family: 'Lucida Handwriting'; -fx-font-size: 14px;"
+                styleClass="sidebar-label"
+            />
+
+            <ImageView fx:id="calendarImage" fitWidth="30" fitHeight="30" translateX="32">
+                <Image url="@../images/calendar.png"/>
+            </ImageView>
+
+            <ImageView fx:id="liftImage" fitWidth="18" fitHeight="31" translateX="62">
+                <Image url="@../images/num-lift.png"/>
+            </ImageView>
+
+        </StackPane>
+
+
+        <!-- <HBox minHeight="25" maxHeight="25" translateX="22" translateY="-379">
             <HBox fx:id="viewsTilePane"
                  translateX="-15" translateY="-3">
                 <ToggleButton text="Status" minWidth="80" maxWidth="80" fx:id="statusButton" styleClass="moving-gradient-button"/>
@@ -68,6 +145,7 @@
             </HBox>
         </HBox>
 
+        
 
         <Label fx:id="datePickerOneLabel" text="From:" visible="false"  minWidth="30" maxWidth="36" minHeight="25"
                maxHeight="25" translateX="-55" translateY="-394"/>
@@ -89,10 +167,10 @@
                     <Image url="@../images/calendar.png"/>
                 </ImageView>
             </graphic>
-        </Button>
+        </Button> -->
 
 
-        <VBox fx:id="buttonsVBox" spacing="5" alignment="TOP_LEFT" minWidth="50" maxWidth="50" minHeight="315" maxHeight="315" translateX="56" translateY="-248">
+        <VBox fx:id="buttonsVBox" spacing="5" alignment="TOP_LEFT" minWidth="50" maxWidth="50" minHeight="315" maxHeight="315" translateX="156" translateY="-248">
             <Button fx:id="composeContractsButton" onAction="#handleComposeContracts" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
                 <graphic>
                     <ImageView fitWidth="28" fitHeight="28">
@@ -195,7 +273,7 @@
 
 
 
-        <Button fx:id="backButton" text="Back" onAction="#handleBack" translateX="34" translateY="-382"/>
+        <Button fx:id="backButton" text="Back" onAction="#handleBack" translateX="134" translateY="-382"/>
 
 
 
