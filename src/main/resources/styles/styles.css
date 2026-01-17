@@ -747,75 +747,119 @@
     -fx-border-style: none none groove none; /* Ensure dotted style is applied */
     -fx-border-width: 0 0 0.5px 0; /* Set a .5px dotted border when empty and not focused */
 }
+/* =========================================================
+   BASE COMBOBOX
+   ========================================================= */
 
-.combo-box {
-    -fx-background-color: orange;
+   .combo-box {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
 }
 
 .combo-box .arrow-button {
-    -fx-background-color: orange;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
 }
 
-.combo-box.suggestions-box {
-    -fx-background-color: orange;
-}
-
-.combo-box.suggestions-box .arrow-button {
-    /*-fx-opacity: 0;  Hide the arrow */
-    /*-fx-padding: 0;  Remove any padding for the arrow */
-    -fx-border-width: 1;
-    -fx-border-color: orange;
+.combo-box .arrow {
     -fx-background-color: transparent;
 }
 
-.suggestions-box .list-view {
-    -fx-background-color: orange; /* Background color for the suggestion box */
-    -fx-translate-x: -28;
-    -fx-pref-width: 200;
+/* =========================================================
+   TINY ARROW VARIANT
+   ========================================================= */
+
+.tiny-arrow-combobox {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
 }
 
-.suggestions-box .list-view .list-cell {
-    -fx-text-fill: black; /* Default text color for items */
+.tiny-arrow-combobox .arrow-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+    -fx-pref-width: 10px;
+    -fx-pref-height: 10px;
+}
+
+.tiny-arrow-combobox .arrow {
+    -fx-scale-x: 1.0;
+    -fx-scale-y: 1.0;
+}
+
+/* =========================================================
+   COMBOBOX POPUP (CRITICAL OVERRIDES)
+   ========================================================= */
+
+/* Popup container */
+.suggestions-box .combo-box-popup {
+    -fx-background-color: orange;
+    -fx-border-color: orange;
+}
+
+/* ListView inside popup */
+.suggestions-box .combo-box-popup .list-view {
     -fx-background-color: #F4F4F4;
+    -fx-control-inner-background: #F4F4F4; /* 🔑 REQUIRED */
+    -fx-pref-width: 200;
+    -fx-translate-x: -28;
+}
+
+/* Base cells */
+.suggestions-box .combo-box-popup .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: black;
     -fx-border-color: orange;
     -fx-border-width: 0 0 1 0;
 }
 
-.suggestions-box .list-view .scroll-bar {
-    -fx-opacity: 0; /* Hide the scroll bar */
-    -fx-max-width: 0; /* Hide the scroll bar */
-    -fx-min-width: 0; /* Hide the scroll bar */
-    -fx-max-height: 0; /* Hide the scroll bar */
-    -fx-background-color: transparent; /* Hide the scroll bar */
+/* Filled cells (JavaFX default state) */
+.suggestions-box .combo-box-popup .list-cell:filled {
+    -fx-background-color: #F4F4F4;
+    -fx-text-fill: black;
 }
 
-.suggestions-box .list-view .scroll-bar .track {
-    -fx-background-color: transparent; /* Border color for filled cells */
-}
-
-.suggestions-box .list-view .scroll-bar .thumb {
-    -fx-background-color: transparent; /* Border color for filled cells */
-}
-
-.suggestions-box .list-view .list-cell:hover {
-    -fx-background-color: orange;
-    -fx-text-fill: #000000;/* Set hover color */
-}
-
-.suggestions-box .list-view .list-cell:selected {
-    -fx-background-color: orange; /* Background color when selected */
-    -fx-text-fill: "#000000"; /* Ensure text is black when selected */
-}
-
-.suggestions-box .combo-box-popup .list-cell:focused {
-    -fx-background-color: orange;
-    -fx-text-fill: #000000;
-}
-
+/* Hover */
 .suggestions-box .combo-box-popup .list-cell:hover {
     -fx-background-color: orange;
-    -fx-text-fill: #000000;
+    -fx-text-fill: black;
 }
+
+/* Selected */
+.suggestions-box .combo-box-popup .list-cell:selected {
+    -fx-background-color: orange;
+    -fx-text-fill: black;
+}
+
+/* Selected + Hovered (this kills blue highlight) */
+.suggestions-box .combo-box-popup .list-cell:selected:hover {
+    -fx-background-color: orange;
+    -fx-text-fill: black;
+}
+
+/* Focused selection (keyboard nav) */
+.suggestions-box .combo-box-popup .list-cell:focused:selected {
+    -fx-background-color: orange;
+    -fx-text-fill: black;
+}
+
+/* =========================================================
+   SCROLLBAR (hidden)
+   ========================================================= */
+
+.suggestions-box .combo-box-popup .scroll-bar {
+    -fx-opacity: 0;
+    -fx-max-width: 0;
+    -fx-min-width: 0;
+    -fx-background-color: transparent;
+}
+
+.suggestions-box .combo-box-popup .scroll-bar .track,
+.suggestions-box .combo-box-popup .scroll-bar .thumb {
+    -fx-background-color: transparent;
+}
+
+
 
 /* TilePane Styles */
 .tile-pane {

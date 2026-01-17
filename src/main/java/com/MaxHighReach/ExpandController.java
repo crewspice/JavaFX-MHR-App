@@ -564,7 +564,7 @@ public class ExpandController extends BaseController {
             updateStatusToggleButtons(expandedRental.getStatus());
             orderedByField.setText(expandedRental.getOrderedByName());
             orderedByPhoneField.setText(expandedRental.getOrderedByPhone());
-            selectedOrderingContactId = selectedCustomer.getOrderingContactId(expandedRental.getOrderedByName());
+            // selectedOrderingContactId = selectedCustomer.getOrderingContactId(expandedRental.getOrderedByName());
 
             if (expandedRental.isAutoTerm()) {
                 autoTermButton.getStyleClass().add("schedule-delivery-button-has-value");
@@ -574,7 +574,7 @@ public class ExpandController extends BaseController {
             addressField.setText(expandedRental.getAddressBlockTwo() + ", " + expandedRental.getCity());
             siteContactField.setText(expandedRental.getSiteContactName());
             siteContactPhoneField.setText(expandedRental.getSiteContactPhone());
-            selectedSiteContactId = selectedCustomer.getSiteContactId(expandedRental.getSiteContactName());
+            // selectedSiteContactId = selectedCustomer.getSiteContactId(expandedRental.getSiteContactName());
             POField.setText(expandedRental.getPoNumber());
     
             if (expandedRental.getNotes() != null && !expandedRental.getNotes().isEmpty()) {

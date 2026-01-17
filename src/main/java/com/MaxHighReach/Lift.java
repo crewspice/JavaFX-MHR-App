@@ -14,7 +14,6 @@ public class Lift {
 
     public Lift(String liftId, String liftType) {
         this.liftId = new SimpleStringProperty(liftId);
-        System.out.println("liftType from db is: " + liftType);
         setLiftType(liftType);
     }
 

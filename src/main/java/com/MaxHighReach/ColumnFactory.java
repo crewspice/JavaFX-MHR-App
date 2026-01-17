@@ -393,7 +393,7 @@ public class ColumnFactory {
                             	tooltip.setStyle("-fx-background-color: #F4F471; -fx-text-fill: black;");
                         	} else {
                             	circle.setFill(Color.web(Config.getPrimaryColor()));
-								int textColorCode = Config.COLOR_TEXT_MAP.getOrDefault(Config.getPrimaryColor(), 0);
+								int textColorCode = Config.COLOR_TEXT_MAP.getOrDefault(Config.getPrimaryColor(), 1);
 								String textFill = "black";
 								if (textColorCode == 2) {
 									textFill = "white";
@@ -405,7 +405,7 @@ public class ColumnFactory {
                         	tooltip.setStyle("-fx-background-color: green; -fx-text-fill: white;");
                     	} else if (status.equals("Called Off")) {
                         	circle.setFill(Color.RED);
-                        	tooltip.setStyle("-fx-background-color: red; -fx-text-fill: white;");
+                        	tooltip.setStyle("-fx-background-color: red; -fx-text-fill: black;");
                     	} else if (status.equals("Picked Up")) {
                         	circle.setFill(Color.BLACK);
                         	tooltip.setStyle("-fx-background-color: black; -fx-text-fill: white;");
@@ -467,23 +467,27 @@ public class ColumnFactory {
 
 
 
-					// if (serialNumber.equals("")) {						// Create a Label for the '#' character
+					// if (!serialNumber.equals("")) {						// Create a Label for the '#' character
 					// 	Label hashLabel = new Label("#");
 					// 	hashLabel.setStyle("-fx-font-size: 9.5;"); // Set the style for the hash character
 					// 	vBox.getChildren().add(hashLabel); // Add the hash label to the VBox
-					// 	hashLabel.setTranslateY(2);
+					// 	hashLabel.setTranslateX(-3);
+					// 	hashLabel.setTranslateY(-0.5);
 					// }
 
                 	// Create a Label for each character in the serial number
-                	for (int i = 0; i < serialNumber.length(); i++) {
+					Font compactFont = Font.font("Segoe UI Semibold", 11.0);
+					for (int i = 0; i < serialNumber.length(); i++) {
                     	char c = serialNumber.charAt(i);
                     	Label charLabel = new Label(String.valueOf(c));
-                    	charLabel.setStyle("-fx-font-size: 12; -fx-padding: 0;"); // Adjust style as needed
-                    	vBox.getChildren().add(charLabel); // Add each character label to the VBox
+						charLabel.setFont(compactFont);
+                    	charLabel.setStyle("-fx-padding: 1.5;"); // Adjust style as needed
+                    	charLabel.setTranslateX(-2);
+						vBox.getChildren().add(charLabel); // Add each character label to the VBox
                 	}
 
-					vBox.setTranslateY(-1.5);
-                	vBox.setSpacing(-7.5); // Set the spacing between characters
+					vBox.setTranslateY(-2.5);
+                	vBox.setSpacing(-11.5); // Set the spacing between characters
                 	// Set the VBox as the graphic for the cell
                 	setGraphic(vBox); // Set the VBox as the graphic for the cell
             	}

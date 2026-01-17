@@ -3869,8 +3869,8 @@ public class MapController {
       
                     RouteInfo newLink = new RouteInfo(0, 0, null);
                     try {
-                        newLink = getGoogleRoute(newLinkStart.getLatitude(), 
-                                newLinkStart.getLongitude(), newLinkEnd.getLatitude(),
+                        newLink = getGoogleRoute(rental.getLatitude(), 
+                                rental.getLongitude(), newLinkEnd.getLatitude(),
                                 newLinkEnd.getLongitude());
                     } catch (Exception e) {
                     }

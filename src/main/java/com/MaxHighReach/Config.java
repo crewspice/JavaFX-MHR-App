@@ -374,7 +374,22 @@ public class Config {
         Map.entry("Continued Technologies", "Continued Tech"),
         Map.entry("Larry Smith/Complete Builders", "Larry Smith"),
         Map.entry("ANS Fire Protection", "ANS Fire"),
-        Map.entry("Xtreme Power Conversion", "Xtreme Power")
+        Map.entry("Xtreme Power Conversion", "Xtreme Power"),
+
+        Map.entry("Ledges Electric", "Ledges Elec."),
+        Map.entry("A1 Garage Doors", "A1 Garage"),
+        Map.entry("Wellgrounded Electrical", "Wellgrounded"),
+        Map.entry("A Cut Above Uniforms", "A Cut Above"),
+        Map.entry("Turn Key General Contractors", "Turn Key"),
+
+        Map.entry("Bulloch Fence and Door", "Bulloch"),
+        Map.entry("Colorado Complete Comfort", "CO Comfort"),
+        Map.entry("Contreras Construction", "Contreras"),
+        Map.entry("Denver Public Libraries", "DEN Library"),
+        Map.entry("Denver Tech Pro", "DEN Tech Pro"),
+
+        Map.entry("Elevated Electrical Contractors", "Elevated Elec."),
+        Map.entry("A Modern Garage Door", "Modern Garage")
     );
 
     public static String simplifyCustomerName(String fullName) {

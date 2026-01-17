@@ -11,21 +11,23 @@ import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Bounds;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.*;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.effect.GaussianBlur;
 import javafx.scene.effect.Glow;
 import javafx.scene.image.ImageView;
+import javafx.scene.image.PixelWriter;
+import javafx.scene.image.WritableImage;
 import javafx.scene.image.Image;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 
-import java.awt.*;
+import java.awt.Desktop;
 import java.io.File;
 import java.io.IOException;
 import java.lang.String;
@@ -39,9 +41,12 @@ import javafx.scene.paint.Color;
 import javafx.scene.paint.CycleMethod;
 import javafx.scene.paint.RadialGradient;
 import javafx.scene.paint.Stop;
+import javafx.scene.shape.Circle;
 import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
 import javafx.util.Duration;
 
 import java.text.SimpleDateFormat;
@@ -61,7 +66,6 @@ import com.itextpdf.layout.Document;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.Date;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ActivityController extends BaseController {
@@ -78,19 +82,41 @@ public class ActivityController extends BaseController {
     @FXML private Ellipse calendarGlow;
     @FXML private Ellipse liftGlow;
     @FXML private Ellipse statusGlow;
+    @FXML private Ellipse viewGlow;
 
     @FXML private Label customerLabel;
+    @FXML private ComboBox<String> customerComboBox;
     @FXML private ImageView calendarImage;
+    @FXML private DatePicker hiddenDatePicker;
     @FXML private ImageView liftImage;
+    @FXML private ComboBox<String> liftComboBox;
     @FXML private ImageView statusImage;
+    @FXML private Label viewLabel;
+    @FXML private ComboBox<String> viewComboBox;
 
-    private Map<Node, Ellipse> glowMap;
+    @FXML private Rectangle statusClickBar;
+    @FXML private Rectangle customerClickBar;
+    @FXML private Rectangle dateClickBar;
+    @FXML private Rectangle liftClickBar;
+    @FXML private Rectangle viewClickBar;
+
     private Ellipse activeGlow = null;
     private Timeline activePulse = null;
-    private Map<Node, Runnable> reactionMap;
     private List<Node> baseElements;
-    private ObservableList<String> customerNames;
-
+    private final ObservableList<String> customerNames = FXCollections.observableArrayList();
+    private final ObservableList<String> liftNames = FXCollections.observableArrayList();
+    private int SHOW_FULL_MAX = 14;
+    private int TRUNCATE_AT = 12;
+    
+    private String selectedCustomer;
+    private Node currentDateNode;
+    private LocalDate selectedDate;
+    private Lift selectedLift;
+    private String selectedView;
+    private List<ProximityZone> zones;
+    private String selectedStatus = null;
+    private Circle currentStatusCircle = null; // field
+    private boolean suppressProximityGlow = false;
 
     @FXML
     private VBox buttonsVBox;
@@ -249,49 +275,166 @@ public class ActivityController extends BaseController {
     private javafx.scene.text.Text liftTypeText = new javafx.scene.text.Text();
     private static DateTimeFormatter fromJavaObjectFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
+    private static class ProximityZone {
+        final String name;
+        final double centerX;
+        final double radius;
+        final Ellipse glow;
+        final Runnable action;
+    
+        ProximityZone(String name, double centerX, double radius,
+                      Ellipse glow, Runnable action) {
+            this.name = name;
+            this.centerX = centerX;
+            this.radius = radius;
+            this.glow = glow;
+            this.action = action;
+        }
+    
+        boolean contains(double mouseX) {
+            return Math.abs(mouseX - centerX) <= radius;
+        }
+    
+        double distance(double mouseX) {
+            return Math.abs(mouseX - centerX);
+        }
+    }    
+
+    class ViewState {
+        String status;          // e.g. "Active", "Billable", "Upcoming", "Called Off"
+        String customerName;    // nullable
+        LocalDate date;         // nullable (single date for now)
+        String liftTypeOrSerial; // nullable (depends how you filter lifts)
+    }
+    
+
     @FXML
     public void initialize() {
         super.initialize(dragArea);
 
-        for (Ellipse e : List.of(customerGlow, calendarGlow, liftGlow, statusGlow)) {
+        // -------------------------------------------------
+        // Glow setup
+        // -------------------------------------------------
+        for (Ellipse e : List.of(customerGlow, calendarGlow, liftGlow, statusGlow, viewGlow)) {
             e.setMouseTransparent(true);
             e.setFill(createGlowPaint());
             e.setEffect(new GaussianBlur(12));
         }
-
-        glowMap = Map.of(
-            customerLabel, customerGlow,
-            calendarImage, calendarGlow,
-            liftImage, liftGlow,
-            statusImage, statusGlow
+    
+        zones = Arrays.asList(
+            new ProximityZone(
+                "STATUS",
+                -2, 30,
+                statusGlow,
+                this::onStatusClicked
+            ),
+            new ProximityZone(
+                "CUSTOMER",
+                87, 132,
+                customerGlow,
+                this::onCustomerClicked
+            ),
+            new ProximityZone(
+                "DATE",
+                167, 20,
+                calendarGlow,
+                this::onCalendarClicked
+            ),
+            new ProximityZone(
+                "LIFT",
+                195, 16,
+                liftGlow,
+                this::onLiftClicked
+            ),
+            new ProximityZone(
+                "VIEW",
+                220, 60,
+                viewGlow,
+                this::onViewClicked 
+            )
         );
-
-        reactionMap = Map.of(
-            customerLabel, this::onCustomerClicked,
-            calendarImage, this::onCalendarClicked,
-            liftImage, this::onLiftClicked,
-            statusImage, this::onStatusClicked
-        );
-
+        
+    
         baseElements = List.of(
-            statusImage,
-            customerLabel,
-            calendarImage,
-            liftImage,
             customerGlow,
             calendarGlow,
             liftGlow,
-            statusGlow
+            statusGlow,
+            viewGlow,
+            statusImage,
+            customerLabel,
+            customerComboBox,
+            calendarImage,
+            liftImage,
+            viewLabel
         );
-
-        // StackPane acts as trigger
+    
         customerMenuNode.setOnMouseMoved(this::handleProximityGlow);
         customerMenuNode.setOnMouseExited(e -> stopActiveGlow());
         customerMenuNode.setOnMouseClicked(this::handleProximityClick);
-
+    
         loadCustomersInBackground();
+        configureCustomerComboBox();
+    
+        loadLiftsInBackground();
+        configureLiftComboBox();
 
+        configureViewComboBox();
+    
+        // -------------------------------------------------
+        // DatePicker setup  ⭐ THIS IS THE KEY PART
+        // -------------------------------------------------
+        hiddenDatePicker.setVisible(false);
+        hiddenDatePicker.setManaged(false);
+    
+        hiddenDatePicker.setOnAction(e -> {
+        
+            LocalDate date = hiddenDatePicker.getValue();
+            if (date == null) return;
+        
+            selectedDate = date;
+            currentDateNode = createDateLabel(date);
+        
+            hiddenDatePicker.hide();
+            hiddenDatePicker.setVisible(false);
+        
+            renderCustomerMenu();
+            loadData(buildWhereClauseFromView());
+        });
+        
+        
+    
+        // Close when clicking elsewhere
+        hiddenDatePicker.focusedProperty().addListener((obs, wasFocused, isFocused) -> {
+            if (!isFocused) {
+                System.out.println("unfocused datepicker block entered");
+                hiddenDatePicker.hide();
+                hiddenDatePicker.setVisible(false);
+            }
+        });
+    
 
+        for (Rectangle bar : List.of(
+            statusClickBar,
+            customerClickBar,
+            dateClickBar,
+            liftClickBar,
+            viewClickBar
+        )) {
+            bar.setVisible(false);
+        }
+        
+        // -------------------------------------------------
+        // Click bar hover wiring
+        // -------------------------------------------------
+        Color tertiary = Color.web(Config.getTertiaryColor());
+        Color primary  = Color.web(Config.getPrimaryColor());
+    
+        wireClickBarHover(statusClickBar,   tertiary, primary);
+        wireClickBarHover(customerClickBar, tertiary, primary);
+        wireClickBarHover(dateClickBar,     tertiary, primary);
+        wireClickBarHover(liftClickBar,     tertiary, primary);
+        wireClickBarHover(viewClickBar,     tertiary, primary);
 
         dbTableView.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 
@@ -502,8 +645,8 @@ public class ActivityController extends BaseController {
                 handleViewSettingSelect("Status", storedStatusSetting);
             }
         } else {  */
-            loadDataAsync("Called Off");
-    //    }
+        loadDataAsync(buildWhereClauseFromView());
+            //    }
 
 
     }
@@ -534,194 +677,39 @@ public class ActivityController extends BaseController {
         new Thread(task).start();
     }
 
-    private void loadData(String filter) {
-        // System.out.println("filter for the load data is: " + filter);
+    private void loadData(String whereClause) {
+
         ordersList.clear();
         groupedRentals.clear();
         currentViewInitials.clear();
-        String filterSuffix = "";
-
-        String query = "SELECT customers.*, rental_orders.*, rental_items.*, lifts.*, " +
-                "ordered_contacts.first_name AS ordered_contact_name, " +
-                "ordered_contacts.phone_number AS ordered_contact_phone, " +
-                "site_contacts.first_name AS site_contact_name, " +
-                "site_contacts.phone_number AS site_contact_phone " +
-                "FROM customers " +
-                "JOIN rental_orders ON customers.customer_id = rental_orders.customer_id " +
-                "JOIN rental_items ON rental_orders.rental_order_id = rental_items.rental_order_id " +
-                "LEFT JOIN lifts ON rental_items.lift_id = lifts.lift_id " +
-                "LEFT JOIN contacts AS ordered_contacts ON rental_items.ordered_contact_id = ordered_contacts.contact_id " +
-                "LEFT JOIN contacts AS site_contacts ON rental_items.site_contact_id = site_contacts.contact_id ";
-
-        String customerName = null;
-        String date = "";
-        String startDate = "";
-        String endDate = "";
-        String driverId = "";
-
-
-        switch (filter) {
-            case "Active":
-                filterSuffix = " WHERE rental_items.item_status = 'Active'";
-                break;
-            case "Billable":
-                filterSuffix = " WHERE rental_items.item_status IN ('Called Off', 'Picked Up') AND rental_items.invoice_composed = 0";
-                break;
-            case "Upcoming":
-                filterSuffix = " WHERE rental_items.item_status = 'Upcoming'";
-                break;
-            case "Called Off":
-                filterSuffix = " WHERE rental_items.item_status = 'Called Off'";
-                break;
-            case "Active One Date":
-                filterSuffix = " WHERE rental_items.item_status = 'Active' AND rental_orders.delivery_date = '" + date + "'";
-                break;
-            case "Billable One Date":
-                filterSuffix = " WHERE rental_items.item_status IN ('Called Off', 'Picked Up') AND rental_items.invoice_composed = 0 " +
-                         "AND rental_orders.delivery_date = '" + date + "'";
-                break;
-            case "Upcoming One Date":
-                filterSuffix = " WHERE rental_items.item_status = 'Upcoming' AND rental_orders.delivery_date = '" + date + "'";
-                break;
-            case "Called Off One Date":
-                filterSuffix = " WHERE rental_items.item_status = 'Called Off' AND rental_orders.delivery_date = '" + date + "'";
-                break;
-            case "Active Interval":
-                filterSuffix = " WHERE rental_items.item_status = 'Active' AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
-                break;
-            case "Billable Interval":
-                filterSuffix = " WHERE rental_items.item_status IN ('Called Off', 'Picked Up') AND rental_items.invoice_composed = 0 " +
-                         "AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
-                break;
-            case "Upcoming Interval":
-                filterSuffix = " WHERE rental_items.item_status = 'Upcoming' AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
-                break;
-            case "Called Off Interval":
-                filterSuffix = " WHERE rental_items.item_status = 'Called Off' AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
-                break;
-            case "Customer":
-                filterSuffix = " WHERE customers.customer_name = '" + customerName + "'";
-                break;
-            case "Customer One Date":
-                filterSuffix = " WHERE customers.customer_name = '" + customerName + "' AND rental_orders.delivery_date = '" + date + "'";
-                break;
-            case "Customer Interval":
-                filterSuffix = " WHERE customers.customer_name = '" + customerName + "' AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
-                break;
-            case "Driver":
-                filterSuffix = " WHERE rental_items.driver_initial = '" + driverId + "'";
-                break;
-            case "Driver One Date":
-                filterSuffix = " WHERE rental_items.driver_initial = '" + driverId + "' AND rental_orders.delivery_date = '" + date + "'";
-                break;
-            case "Driver Interval":
-                filterSuffix = " WHERE rental_items.driver_initial = '" + driverId + "' " +
-                         "AND rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
-                break;
-            case "One Date":
-                filterSuffix = " WHERE rental_orders.delivery_date = '" + date + "'";
-                break;
-            case "Interval":
-                filterSuffix = " WHERE rental_orders.delivery_date BETWEEN '" + startDate + "' AND '" + endDate + "'";
-                break;
-            case "All Rentals":
-                break;
-            default:
-                throw new IllegalArgumentException("Unknown filter: " + filter);
-        }
-
-
-        // Add LIMIT clause at the end
-      //  filterSuffix = " LIMIT 1000";
-        // System.out.println(query + filterSuffix);
-
-        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-             Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(query + filterSuffix)) {
-
-            while (resultSet.next()) {
-                String customerId = resultSet.getString("customer_id");
-                String name = resultSet.getString("customer_name");
-                String nameWithCodes = resultSet.getString("name_with_codes");
-                String orderedContactName = resultSet.getString("ordered_contact_name");
-                String orderedContactPhone = resultSet.getString("ordered_contact_phone");
-                String deliveryDate = resultSet.getString("item_delivery_date");
-                String callOffDate = resultSet.getString("item_call_off_date");
-                int autoTerm = resultSet.getInt("auto_term");
-                int rentalDuration = resultSet.getInt("rental_duration");
-                String driver = resultSet.getString("driver");
-                int driverNumber = resultSet.getInt("driver_number");
-                String status = resultSet.getString("item_status");
-                int rental_id = resultSet.getInt("rental_order_id");
-                int rental_item_id = resultSet.getInt("rental_item_id");
-                String deliveryTime = resultSet.getString("delivery_time"); // Now from rental_items
-                String serialNumber = resultSet.getString("serial_number");
-                int liftId = resultSet.getInt("lift_id");
-                String liftType = resultSet.getString("lift_type");
-                String siteName = resultSet.getString("site_name");
-                String streetAddress = resultSet.getString("street_address");
-                String cityState = resultSet.getString("city");
-                double latitude = resultSet.getDouble("latitude");
-                double longitude = resultSet.getDouble("longitude");
-                String siteContactName = resultSet.getString("site_contact_name");
-                String siteContactPhone = resultSet.getString("site_contact_phone");
-                String poNumber = resultSet.getString("po_number");
-                String notes = resultSet.getString("notes");
-                int needsInvoice = resultSet.getInt("needs_invoice");
-                int isInvoiceWritten = resultSet.getInt("invoice_composed");
-                String lastBilledDate = resultSet.getString("last_billed_date");
-                int latestServiceId = resultSet.getInt("last_service_id");
-
-                Rental rental = new Rental(customerId, name, deliveryDate, deliveryTime, callOffDate,
-                        driver != null ? driver : "", driverNumber, status != null ? status : "Unknown", 
-                        poNumber, rental_id, 
-                        false, lastBilledDate);
-                rental.setRentalItemId(rental_item_id);
-                rental.setOrderedByName(orderedContactName);
-                rental.setOrderedByPhone(orderedContactPhone);
-                rental.setAutoTerm(autoTerm == 1);
-                rental.setLiftId(liftId);
-                rental.setLiftType(liftType);
-                rental.setAddressBlockOne(siteName);
-                rental.setAddressBlockTwo(streetAddress);
-                rental.setAddressBlockThree(cityState);
-                rental.splitAddressBlockTwo();
-                rental.setLatitude(latitude);
-                rental.setLongitude(longitude);
-                rental.setSiteContactName(siteContactName);
-                rental.setSiteContactPhone(siteContactPhone);
-                rental.setNotes(notes);
-                rental.setSerialNumber(serialNumber);
-                rental.setInvoiceComposed(isInvoiceWritten != 0);
-                rental.setNeedsInvoice(needsInvoice == 1);
-                rental.setLatestServiceId(latestServiceId);
-                boolean deliveryCheck = isWithinBusinessDays(deliveryDate, 40);
-                boolean callOffCheck = isWithinBusinessDays(callOffDate, 40);
-                boolean lastBilledCheck = isWithinBusinessDays(lastBilledDate, 40);
-        
-           //     if (deliveryCheck || callOffCheck || lastBilledCheck) {
-                    ordersList.add(rental);
-           //     }
-                
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
+    
+        String rentalsQuery = """
+            SELECT customers.*, rental_orders.*, rental_items.*, lifts.*,
+                   ordered_contacts.first_name AS ordered_contact_name,
+                   ordered_contacts.phone_number AS ordered_contact_phone,
+                   site_contacts.first_name AS site_contact_name,
+                   site_contacts.phone_number AS site_contact_phone
+            FROM customers
+            JOIN rental_orders ON customers.customer_id = rental_orders.customer_id
+            JOIN rental_items ON rental_orders.rental_order_id = rental_items.rental_order_id
+            LEFT JOIN lifts ON rental_items.lift_id = lifts.lift_id
+            LEFT JOIN contacts AS ordered_contacts ON rental_items.ordered_contact_id = ordered_contacts.contact_id
+            LEFT JOIN contacts AS site_contacts ON rental_items.site_contact_id = site_contacts.contact_id
+        """ + whereClause;
+    
         String servicesQuery = """
             SELECT 
                 s.*,
                 rental_items.rental_order_id,
+                rental_items.rental_item_id,
                 rental_items.lift_id,
                 rental_items.customer_ref_number,
                 rental_orders.*,
                 customers.*,
                 lifts.*,
-                -- New lift info
                 nl.lift_type AS new_lift_type,
                 ol.lift_type AS old_lift_type,
                 ol.serial_number AS old_lift_serial,
-                -- New rental order info
                 nro.site_name AS new_site_name,
                 nro.street_address AS new_street_address,
                 nro.city AS new_city,
@@ -741,196 +729,331 @@ public class ActivityController extends BaseController {
             LEFT JOIN rental_orders nro ON s.new_rental_order_id = nro.rental_order_id
             LEFT JOIN contacts AS ordered_contacts ON s.ordered_contact_id = ordered_contacts.contact_id
             LEFT JOIN contacts AS site_contacts ON s.site_contact_id = site_contacts.contact_id
-        """;
-        
-        
-        
-        try (Connection conn = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+        """ + whereClause;
+    
+        loadRentals(rentalsQuery);
+        loadServices(servicesQuery);
+    
+        sortAndRender();
+    }
+    
+    
+    private void loadRentals(String sql) {
+
+        try (Connection conn = DriverManager.getConnection(
+                Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
              Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(servicesQuery + filterSuffix)) {
-
+             ResultSet rs = stmt.executeQuery(sql)) {
+    
             while (rs.next()) {
-                String customerId = rs.getString("customer_id");
-                String name = rs.getString("customer_name");
-                String serviceDate = rs.getString("service_date");
-                String serviceTime = rs.getString("time");
-                String serviceDriver = rs.getString("driver");
-                int serviceDriverNumber = rs.getInt("driver_number");
-                String serviceStatus = rs.getString("service_status");
-                String poNumber = rs.getString("customer_ref_number");
-                int rentalOrderId = rs.getInt("rental_order_id");
-                int rentalItemId = rs.getInt("rental_item_id");
-                boolean billable = rs.getInt("billable") == 1; // services will use needsInvoice for "billable" property
-                int liftId = rs.getInt("lift_id");
-                String liftType = rs.getString("lift_type");
-                String serialNumber = rs.getString("old_lift_serial");
-                String siteName = rs.getString("site_name");
-                String streetAddress = rs.getString("street_address");
-                String city = rs.getString("city");
-                int serviceId = rs.getInt("service_id");
-                String serviceType = rs.getString("service_type");
-                String reason = rs.getString("reason");
-                int previousServiceId = rs.getInt("previous_service_id");
-                int newRentalOrderId = rs.getInt("new_rental_order_id");
-                int newLiftId = rs.getInt("new_lift_id");
-                int oldLiftId = 0;
-                String orderedContactName = rs.getString("ordered_contact_name");
-                String orderedContactNumber = rs.getString("ordered_contact_phone");
-                String siteContactName = rs.getString("site_contact_name");
-                String siteContactNumber = rs.getString("site_contact_phone");
-                String notes = rs.getString("notes");
-                String driver = rs.getString("driver");
-                String driverInitial = rs.getString("driver_initial");
-                int driverNumber = rs.getInt("driver_number");
-                String orderDate = rs.getString("order_date");
-                boolean singleItemOrder = rs.getInt("single_item_order") == 1;
-                double latitude = rs.getDouble("latitude");
-                double longitude = rs.getDouble("longitude");
-                String newLiftType = rs.getString("new_lift_type");
-                String oldLiftType = rs.getString("old_lift_type");
-                String newSerialNumber = "";
-                String oldSerialNumber = "";
-                String newSiteName = rs.getString("new_site_name");
-                String newStreetAddress = rs.getString("new_street_address");
-                String newCity = rs.getString("new_city");
-                double newLatitude = rs.getLong("new_latitude");
-                double newLongitude = rs.getLong("new_longitude");
-
-                Rental rental = new Rental(customerId, name, serviceDate, serviceTime,
-                 serviceDate, serviceDriver != null ? serviceDriver : "", serviceDriverNumber, serviceStatus, poNumber,
-                rentalOrderId, billable, "");
-                rental.setLiftId(liftId);
-                rental.setLiftType(liftType);
-
-                rental.setSerialNumber(serialNumber);
-                rental.setAddressBlockOne(siteName);
-                rental.setAddressBlockTwo(streetAddress);
-                rental.setAddressBlockThree(city);
-                rental.setOrderedByName(orderedContactName);
-                rental.setOrderedByPhone(orderedContactNumber);
-                rental.setSiteContactName(siteContactName);
-                rental.setSiteContactPhone(siteContactNumber);
-                rental.setRentalItemId(rentalItemId);
-                rental.setNotes(notes);
-                rental.setDriverInitial(driverInitial);
-                rental.setDriverNumber(driverNumber);
-                rental.setOrderDate(orderDate);
-                rental.setIsSingleItemOrder(singleItemOrder);
-                rental.setLatitude(latitude);
-                rental.setLongitude(longitude);
-
-                Service service = new Service(serviceId, serviceType, serviceTime, serviceDate, reason, billable,
-                     previousServiceId, newRentalOrderId, newLiftId, newLiftType, newSerialNumber,
-                     oldLiftId, oldLiftType, oldSerialNumber, newSiteName,
-                     newStreetAddress, newCity, newLatitude, newLongitude, notes);
-                rental.setService(service);
-
-                ordersList.add(rental);
+                ordersList.add(mapRental(rs));
             }
-        
+    
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        
+    }
+    
+    private void loadServices(String sql) {
 
-        Comparator<Rental> comparator = Comparator.comparingDouble((Rental item) -> {
+        try (Connection conn = DriverManager.getConnection(
+                Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+    
+            int rows = 0;
+    
+            while (rs.next()) {
+                rows++;
+                ordersList.add(mapServiceRowToRental(rs));
+            }
+    
+            System.out.println("Services rows loaded: " + rows);
+    
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    
+    private Rental mapRental(ResultSet rs) throws SQLException {
+
+        Rental rental = new Rental(
+            rs.getString("customer_id"),
+            rs.getString("customer_name"),
+            rs.getString("item_delivery_date"),
+            rs.getString("delivery_time"),
+            rs.getString("item_call_off_date"),
+            rs.getString("driver") != null ? rs.getString("driver") : "",
+            rs.getInt("driver_number"),
+            rs.getString("item_status") != null ? rs.getString("item_status") : "Unknown",
+            rs.getString("po_number"),
+            rs.getInt("rental_order_id"),
+            false,
+            rs.getString("last_billed_date")
+        );
+    
+        rental.setRentalItemId(rs.getInt("rental_item_id"));
+        rental.setOrderedByName(rs.getString("ordered_contact_name"));
+        rental.setOrderedByPhone(rs.getString("ordered_contact_phone"));
+        rental.setAutoTerm(rs.getInt("auto_term") == 1);
+        rental.setLiftId(rs.getInt("lift_id"));
+        rental.setLiftType(rs.getString("lift_type"));
+        rental.setSerialNumber(rs.getString("serial_number"));
+        rental.setAddressBlockOne(rs.getString("site_name"));
+        rental.setAddressBlockTwo(rs.getString("street_address"));
+        rental.setAddressBlockThree(rs.getString("city"));
+        rental.splitAddressBlockTwo();
+        rental.setLatitude(rs.getDouble("latitude"));
+        rental.setLongitude(rs.getDouble("longitude"));
+        rental.setSiteContactName(rs.getString("site_contact_name"));
+        rental.setSiteContactPhone(rs.getString("site_contact_phone"));
+        rental.setNotes(rs.getString("notes"));
+        rental.setInvoiceComposed(rs.getInt("invoice_composed") != 0);
+        rental.setNeedsInvoice(rs.getInt("needs_invoice") == 1);
+        rental.setLatestServiceId(rs.getInt("last_service_id"));
+    
+        return rental;
+    }
+    
+    
+    private Rental mapServiceRowToRental(ResultSet rs) throws SQLException {
+    
+        String customerId = rs.getString("customer_id");
+        String name = rs.getString("customer_name");
+        String serviceDate = rs.getString("service_date");
+        String serviceTime = rs.getString("time");
+        String serviceDriver = rs.getString("driver") != null ? rs.getString("driver") : "";
+        int serviceDriverNumber = rs.getInt("driver_number");
+        String serviceStatus = rs.getString("service_status");
+        String poNumber = rs.getString("customer_ref_number");
+        int rentalOrderId = rs.getInt("rental_order_id");
+        int rentalItemId = rs.getInt("rental_item_id");
+        boolean billable = rs.getInt("billable") == 1;
+        int liftId = rs.getInt("lift_id");
+        String liftType = rs.getString("lift_type");
+        String serialNumber = rs.getString("old_lift_serial");
+        String siteName = rs.getString("site_name");
+        String streetAddress = rs.getString("street_address");
+        String city = rs.getString("city");
+        String orderedContactName = rs.getString("ordered_contact_name");
+        String orderedContactNumber = rs.getString("ordered_contact_phone");
+        String siteContactName = rs.getString("site_contact_name");
+        String siteContactNumber = rs.getString("site_contact_phone");
+        String notes = rs.getString("notes");
+        String driverInitial = rs.getString("driver_initial");
+        String orderDate = rs.getString("order_date");
+        boolean singleItemOrder = rs.getInt("single_item_order") == 1;
+        double latitude = rs.getDouble("latitude");
+        double longitude = rs.getDouble("longitude");
+    
+        int serviceId = rs.getInt("service_id");
+        String serviceType = rs.getString("service_type");
+        String reason = rs.getString("reason");
+        int previousServiceId = rs.getInt("previous_service_id");
+        int newRentalOrderId = rs.getInt("new_rental_order_id");
+        int newLiftId = rs.getInt("new_lift_id");
+        String newLiftType = rs.getString("new_lift_type");
+        String oldLiftType = rs.getString("old_lift_type");
+        String newSiteName = rs.getString("new_site_name");
+        String newStreetAddress = rs.getString("new_street_address");
+        String newCity = rs.getString("new_city");
+        double newLatitude = rs.getDouble("new_latitude");
+        double newLongitude = rs.getDouble("new_longitude");
+    
+        // --- Construct Rental ---
+        Rental rental = new Rental(customerId, name, serviceDate, serviceTime, serviceDate,
+                serviceDriver, serviceDriverNumber, serviceStatus, poNumber, rentalOrderId, billable, "");
+        rental.setLiftId(liftId);
+        rental.setLiftType(liftType);
+        rental.setSerialNumber(serialNumber);
+        rental.setAddressBlockOne(siteName);
+        rental.setAddressBlockTwo(streetAddress);
+        rental.setAddressBlockThree(city);
+        rental.setOrderedByName(orderedContactName);
+        rental.setOrderedByPhone(orderedContactNumber);
+        rental.setSiteContactName(siteContactName);
+        rental.setSiteContactPhone(siteContactNumber);
+        rental.setRentalItemId(rentalItemId);
+        rental.setNotes(notes);
+        rental.setDriverInitial(driverInitial);
+        rental.setDriverNumber(serviceDriverNumber);
+        rental.setOrderDate(orderDate);
+        rental.setIsSingleItemOrder(singleItemOrder);
+        rental.setLatitude(latitude);
+        rental.setLongitude(longitude);
+    
+        // --- Construct Service ---
+        Service service = new Service(serviceId, serviceType, serviceTime, serviceDate, reason, billable,
+                previousServiceId, newRentalOrderId, newLiftId, newLiftType, "",
+                0, oldLiftType, "", newSiteName, newStreetAddress, newCity, newLatitude, newLongitude, notes);
+        rental.setService(service);
+    
+        return rental;
+    }
+    
+    private void sortAndRender() {
+
+        Comparator<Rental> comparator =
+        Comparator.comparingDouble((Rental item) -> {
+    
             String status = item.getStatus();
-            String deliveryDateString = item.getDeliveryDate();
             LocalDate today = LocalDate.now();
             LocalDate nextWorkDay = getNextWorkDay(today);
-            LocalDate deliveryDate = parseDate(deliveryDateString);
+    
+            LocalDate deliveryDate = parseDate(item.getDeliveryDate());
             String deliveryTime = item.getDeliveryTime();
-        
-            if (filter != null && filter.startsWith("Driver")) {
-                if (item.getDriverNumber() != 0) {
-                    switch (status) {
-                        case "Upcoming": return -1.0;
-                        case "Called Off": return -0.5;
-                    }
+    
+            boolean isDriverView = "Driver".equals(selectedView);
+    
+            // --- Driver view priority ---
+            if (isDriverView && item.getDriverNumber() != 0) {
+                switch (status) {
+                    case "Upcoming":   return -1.0;
+                    case "Called Off": return -0.5;
                 }
             }
-        
-            if ("Upcoming".equals(status)) {
-                if (deliveryDate != null && deliveryDate.isEqual(today)) {
-                    return 0;
-                } else if (deliveryDate != null && deliveryDate.isEqual(nextWorkDay)) {
-                    return 1;
-                } else if (deliveryDate != null && deliveryDate.isEqual(getNextWorkDay(nextWorkDay))
-                           && "Any".equals(deliveryTime)) {
+    
+            // --- Upcoming date buckets ---
+            if ("Upcoming".equals(status) && deliveryDate != null) {
+    
+                if (deliveryDate.isEqual(today)) {
+                    return 0.0;
+                }
+    
+                if (deliveryDate.isEqual(nextWorkDay)) {
+                    return 1.0;
+                }
+    
+                LocalDate secondNextWorkDay = getNextWorkDay(nextWorkDay);
+                if (deliveryDate.isEqual(secondNextWorkDay)
+                        && "Any".equalsIgnoreCase(deliveryTime)) {
                     return 1.5;
                 }
             }
-            if ("Called Off".equals(status)) {
-                return 2;
-            }
-            if ("Active".equals(status)) {
-                return 3;
-            }
-            if ("Upcoming".equals(status)) {
-                return 5;
-            }
-        
-            return 10; // fallback
+    
+            // --- Status fallback ordering ---
+            return switch (status) {
+                case "Called Off" -> 2.0;
+                case "Active"     -> 3.0;
+                case "Upcoming"   -> 5.0;
+                default           -> 10.0;
+            };
+    
         }).thenComparing((Rental a, Rental b) -> {
+    
             LocalDate callOffA = parseDate(a.getCallOffDate());
             LocalDate callOffB = parseDate(b.getCallOffDate());
-            LocalDate deliveryA = parseDate(a.getDeliveryDate());
-            LocalDate deliveryB = parseDate(b.getDeliveryDate());
-        
+    
             if (callOffA != null && callOffB != null) {
                 return callOffB.compareTo(callOffA); // latest first
             }
             if (callOffA != null) return -1;
             if (callOffB != null) return 1;
-        
+    
+            LocalDate deliveryA = parseDate(a.getDeliveryDate());
+            LocalDate deliveryB = parseDate(b.getDeliveryDate());
+    
             if (deliveryA != null && deliveryB != null) {
                 return deliveryB.compareTo(deliveryA); // latest first
             }
+    
             return 0;
         });
-        
-        
-        // Sort the list using the comparator
+    
+    
         FXCollections.sort(ordersList, comparator);
         dbTableView.setItems(ordersList);
-        latestFilter = filter;
+    }
+
+    private double computeSortWeight(Rental rental) {
+
+        String status = rental.getStatus();
+        boolean isDriverView = "Driver".equals(selectedView);
+    
+        if (isDriverView && rental.getDriverNumber() != 0) {
+            if ("Upcoming".equalsIgnoreCase(status)) return -1.0;
+            if ("Called Off".equalsIgnoreCase(status)) return -0.5;
+        }
+    
+        return switch (status) {
+            case "Upcoming" -> 0.0;
+            case "Active" -> 1.0;
+            case "Completed" -> 2.0;
+            case "Called Off" -> 3.0;
+            default -> 4.0;
+        };
     }
     
+
     private void loadCustomersInBackground() {
 
         Task<ObservableList<String>> loadTask = new Task<>() {
             @Override
             protected ObservableList<String> call() {
-                System.out.println("starting the customers load");
-
-                MaxReachPro.loadCustomers(true); // <-- background-safe now
-
+                MaxReachPro.loadCustomers(true);
                 ObservableList<String> names = FXCollections.observableArrayList();
+    
                 for (Customer c : MaxReachPro.getCustomers(true)) {
                     names.add(c.getName());
                 }
-
+    
                 FXCollections.sort(names);
                 return names;
             }
         };
-
+    
         loadTask.setOnSucceeded(e -> {
             customerNames.setAll(loadTask.getValue());
-            System.out.println("Customer names loaded in background: " + customerNames.size());
+    
+            // Re-select if needed
+            String selected = MaxReachPro.getSelectedCustomerName();
+            if (selected != null) {
+                customerComboBox.setValue(selected);
+                customerLabel.setText(selected);
+            }
         });
-
+    
         loadTask.setOnFailed(e -> {
             System.err.println("Customer load FAILED");
             loadTask.getException().printStackTrace();
         });
-
+    
         Thread t = new Thread(loadTask);
         t.setDaemon(true);
         t.start();
     }
+    
+    private void loadLiftsInBackground() {
 
-
+        Task<ObservableList<String>> loadTask = new Task<>() {
+            @Override
+            protected ObservableList<String> call() {
+                MaxReachPro.loadLifts(); // loads the data objects
+                ObservableList<String> options = FXCollections.observableArrayList();
+    
+                for (Lift l : MaxReachPro.getLifts()) {
+                    String display = l.getLiftType() + "  -  " + l.getSerialNumber();
+                    options.add(display);
+                }
+    
+                FXCollections.sort(options);
+                return options;
+            }
+        };
+    
+        loadTask.setOnSucceeded(e -> liftNames.setAll(loadTask.getValue()));
+    
+        loadTask.setOnFailed(e -> {
+            System.err.println("Lift load FAILED");
+            loadTask.getException().printStackTrace();
+        });
+    
+        Thread t = new Thread(loadTask);
+        t.setDaemon(true);
+        t.start();
+    }
+    
 
     private void animateScrollBars(TableView<Rental> tableView) {
        Platform.runLater(() -> {
@@ -1509,7 +1632,7 @@ public class ActivityController extends BaseController {
     @FXML
     private void handleRefreshData() {
         dbTableView.refresh();
-        loadData(latestFilter);
+        loadData(buildWhereClauseFromView());
     
         new Thread(() -> {
             try {
@@ -2384,61 +2507,36 @@ public class ActivityController extends BaseController {
         );
     }
 
-    private void configureGlow() {
-        customerGlow.setFill(createGlowPaint());
-        customerGlow.setEffect(new GaussianBlur(12));
-        customerGlow.setMouseTransparent(true); // glow never blocks clicks
-    }
+    private void handleProximityGlow(MouseEvent e) {
 
-    private void startGlowPulse() {
-
-        Timeline pulse = new Timeline(
-            new KeyFrame(Duration.ZERO,
-                new KeyValue(customerGlow.opacityProperty(), 0.65),
-                new KeyValue(customerGlow.scaleXProperty(), 1.0),
-                new KeyValue(customerGlow.scaleYProperty(), 1.0)
-            ),
-            new KeyFrame(Duration.seconds(0.8),
-                new KeyValue(customerGlow.opacityProperty(), 1.0),
-                new KeyValue(customerGlow.scaleXProperty(), 1.15),
-                new KeyValue(customerGlow.scaleYProperty(), 1.25)
-            )
-        );
-
-        pulse.setAutoReverse(true);
-        pulse.setCycleCount(Animation.INDEFINITE);
-        pulse.play();
-    }
-
-    private void handleProximityGlow(javafx.scene.input.MouseEvent e) {
-        Node closest = null;
-        double minDist = Double.MAX_VALUE;
-
+        if (suppressProximityGlow) {
+            stopActiveGlow();
+            return;
+        }
+    
         double mouseX = e.getX();
-        double mouseY = e.getY();
-
-        for (Node n : glowMap.keySet()) {
-            Bounds b = n.getBoundsInParent();
-            double centerX = b.getMinX() + b.getWidth() / 2;
-            double centerY = b.getMinY() + b.getHeight() / 2;
-
-            double dx = mouseX - centerX;
-            double dy = mouseY - centerY;
-            double dist = Math.sqrt(dx*dx + dy*dy);
-
-            if (dist < minDist) {
-                minDist = dist;
-                closest = n;
+    
+        ProximityZone closest = null;
+        double minDist = Double.MAX_VALUE;
+    
+        for (ProximityZone z : zones) {
+            double d = z.distance(mouseX);
+            if (d < minDist && d <= z.radius) {
+                minDist = d;
+                closest = z;
             }
         }
-
-        if (closest != null) {
-            Ellipse targetGlow = glowMap.get(closest);
-            if (activeGlow != targetGlow) {
-                switchActiveGlow(targetGlow);
+    
+        if (closest != null && closest.glow != null) {
+            if (activeGlow != closest.glow) {
+                switchActiveGlow(closest.glow);
             }
+        } else {
+            stopActiveGlow();
         }
     }
+   
+        
 
     private void switchActiveGlow(Ellipse newGlow) {
         stopActiveGlow();
@@ -2475,72 +2573,499 @@ public class ActivityController extends BaseController {
         }
     }
 
-    private void handleProximityClick(javafx.scene.input.MouseEvent e) {
-        Node closest = null;
-        double minDist = Double.MAX_VALUE;
+    private void wireClickBarHover(Rectangle bar, Color base, Color hover) {
 
-        double mouseX = e.getX();
-        double mouseY = e.getY();
+        bar.setFill(base);
+    
+        bar.setOnMouseEntered(e -> {
+            suppressProximityGlow = true;
+            stopActiveGlow();              // hard stop any current pulse
+            bar.setFill(hover);
+            e.consume();
+        });
+    
+        bar.setOnMouseExited(e -> {
+            suppressProximityGlow = false;
+            bar.setFill(base);
+        });
+    }
+    
 
-        for (Node n : reactionMap.keySet()) {
-            Bounds b = n.getBoundsInParent();
-            double centerX = b.getMinX() + b.getWidth() / 2;
-            double centerY = b.getMinY() + b.getHeight() / 2;
+    private Node createDateLabel(LocalDate date) {
 
-            double dx = mouseX - centerX;
-            double dy = mouseY - centerY;
-            double dist = Math.sqrt(dx*dx + dy*dy);
+        String month = String.valueOf(date.getMonthValue());
+        String day   = String.valueOf(date.getDayOfMonth());
 
-            if (dist < minDist) {
-                minDist = dist;
-                closest = n;
-            }
-        }
+        Color color = Color.web(Config.getTertiaryColor());
 
-        if (closest != null) {
-            Runnable reaction = reactionMap.get(closest);
-            if (reaction != null) reaction.run();
-        }
+        Text monthText = new Text(month);
+        monthText.setFill(color);
+        monthText.setFont(Font.font("System", FontWeight.BOLD, 13));
+
+        Text slashText = new Text("/");
+        slashText.setFill(color);
+        slashText.setFont(Font.font("System", 21));
+        slashText.setRotate(40);          // 🔑 diagonal slash
+        slashText.setTranslateY(0);
+        slashText.setTranslateX(2);
+
+        Text dayText = new Text(day);
+        dayText.setFill(color);
+        dayText.setFont(Font.font("System", FontWeight.BOLD, 13));
+
+        // --- Layering container
+        StackPane dateStack = new StackPane();
+
+        // Month slightly up & left
+        StackPane.setAlignment(monthText, Pos.CENTER);
+        monthText.setTranslateX(-4);
+        monthText.setTranslateY(-6);
+
+        // Slash centered
+        StackPane.setAlignment(slashText, Pos.CENTER);
+
+        // Day slightly down & right
+        StackPane.setAlignment(dayText, Pos.CENTER);
+        dayText.setTranslateX(4);
+        dayText.setTranslateY(10);
+
+        dateStack.getChildren().addAll(monthText, slashText, dayText);
+
+        // Padding + hit area (acts like label)
+        dateStack.setPadding(new Insets(2, 6, 2, 6));
+        dateStack.setCursor(Cursor.HAND);
+
+        // Position where calendar icon was
+        dateStack.setTranslateX(calendarImage.getTranslateX());
+        dateStack.setTranslateY(calendarImage.getTranslateY());
+
+        return dateStack;
     }
 
-    private void onCustomerClicked() {
-        clearAllElements();
-        System.out.println("Customer clicked!");
+    
+    private void openDatePicker() {
+        hiddenDatePicker.setVisible(true);
+        // customerMenuNode.getChildren().add(hiddenDatePicker);
 
-        ComboBox<String> customerComboBox = new ComboBox<>(customerNames);
+        if (selectedDate != null) {
+            hiddenDatePicker.setValue(selectedDate);
+        }
+    
+        Platform.runLater(hiddenDatePicker::show);
 
-        // Pre-select previously selected customer
+        // hiddenDatePicker.requestFocus();
+        // hiddenDatePicker.setVisible(true);
+    }
+    
+
+    private void configureCustomerComboBox() {
+
+        customerComboBox.setItems(customerNames);
+
+        // Restore previously selected customer
         String selected = MaxReachPro.getSelectedCustomerName();
         if (selected != null && !selected.isEmpty()) {
             customerComboBox.setValue(selected);
+            customerLabel.setText(formatCustomerLabel(selected));
+        }
+    
+        // Selection handling
+        customerComboBox.setOnAction(e -> {
+            String value = customerComboBox.getValue();
+            if (value != null) {
+                MaxReachPro.setSelectedCustomerName(value);
+                customerLabel.setText(formatCustomerLabel(value)); // 🔥 truncated
+                customerComboBox.setVisible(false);
+                selectedCustomer = value;
+                renderCustomerMenu();
+                loadData(buildWhereClauseFromView());
+            }
+        });
+    
+        // Collapse when unfocused
+        customerComboBox.focusedProperty().addListener((obs, was, is) -> {
+            if (!is) {
+                customerComboBox.hide();
+            }
+        });
+    }
+
+
+    private void configureLiftComboBox() {
+
+        liftComboBox.setItems(liftNames);
+    
+        // No pre-selection — start with null
+        liftComboBox.setValue(null);
+    
+        // Selection handling
+        liftComboBox.setOnAction(e -> {
+            String value = liftComboBox.getValue();
+            if (value != null) {
+                // Find matching Lift object
+                Optional<Lift> optLift = MaxReachPro.getLifts().stream()
+                    .filter(l -> (l.getLiftType() + "  -  " + l.getSerialNumber()).equals(value))
+                    .findFirst();
+    
+                optLift.ifPresent(lift -> {
+                    // Only update image when a lift is selected
+                    // setLiftPeekImage(lift.getLiftType());
+                    selectedLift = lift;
+                });
+    
+                liftComboBox.setVisible(false); // hide after selection
+                renderCustomerMenu();
+                loadData(buildWhereClauseFromView());
+            }
+        });
+    
+        // Collapse when unfocused
+        liftComboBox.focusedProperty().addListener((obs, was, is) -> {
+            if (!is) liftComboBox.hide();
+        });
+    }
+    
+
+    private void setLiftPeekImage(String liftType) {
+        if (liftType == null || liftType.isBlank()) return;
+    
+        // Build the resource path
+        String imagePath = "/images/" + liftType + "-peek.png"; // adjust if your path is different
+        Image img;
+        try {
+            img = new Image(getClass().getResourceAsStream(imagePath));
+        } catch (Exception e) {
+            System.err.println("Lift image not found: " + imagePath);
+            return;
+        }
+    
+        liftImage.setImage(img);
+    
+        // Adjust dimensions and translate
+        liftImage.setFitWidth(28);
+        liftImage.setFitHeight(49);
+        liftImage.setTranslateY(4 + 15); // original translateY was 4, add +3 as requested
+        liftImage.setTranslateX(62 - 1);
+    }
+
+    private void configureViewComboBox() {
+        // Hardcoded items
+        ObservableList<String> viewOptions = FXCollections.observableArrayList("PO#", "Delivery Time");
+        viewComboBox.setItems(viewOptions);
+    
+        // Optional: restore previously selected value if you track it
+        // String selected = MaxReachPro.getSelectedViewOption();
+        // if (selected != null) viewComboBox.setValue(selected);
+    
+        // Selection handling
+        viewComboBox.setOnAction(e -> {
+            String value = viewComboBox.getValue();
+            value = value == "Delivery Time" ? "Time" : value;
+            if (value != null) {
+                // MaxReachPro.setSelectedViewOption(value); // optional
+                viewLabel.setText(value);
+                viewComboBox.setVisible(false);
+                selectedView = value;
+                renderCustomerMenu();
+                loadData(buildWhereClauseFromView());
+            }
+        });
+    
+        // Collapse when unfocused
+        viewComboBox.focusedProperty().addListener((obs, was, is) -> {
+            if (!is) {
+                viewComboBox.hide();
+            }
+        });
+    }
+    
+    
+    private void handleProximityClick(javafx.scene.input.MouseEvent e) {
+
+        if (currentDateNode != null) {
+
+            Node target = (Node) e.getTarget();
+    
+            // Walk up the node tree
+            while (target != null) {
+                if (target == currentDateNode) {
+                    openDatePicker();
+                    e.consume();
+                    return;
+                }
+                target = target.getParent();
+            }
         }
 
-        customerComboBox.setTranslateX(customerLabel.getTranslateX());
-        customerComboBox.setTranslateY(customerLabel.getTranslateY() + 30);
-        customerComboBox.setPrefWidth(200);
-        customerComboBox.setStyle("-fx-font-family: 'Lucida Handwriting'; -fx-font-size: 12px;");
-
-        customerMenuNode.getChildren().add(customerComboBox);
+        double mouseX = e.getX();
+    
+        ProximityZone closest = null;
+        double minDist = Double.MAX_VALUE;
+    
+        for (ProximityZone z : zones) {
+            double d = z.distance(mouseX);
+            if (d < minDist && d <= z.radius) {
+                minDist = d;
+                closest = z;
+            }
+        }
+    
+        if (closest != null && closest.action != null) {
+            closest.action.run();
+        }
     }
 
+    private void renderCustomerMenu() {
 
-    private void onCalendarClicked() {
-        clearAllElements();
-        System.out.println("Calendar clicked!");
+        List<Node> nodes = new ArrayList<>();
+    
+        // --- Glows (always present)
+        nodes.addAll(List.of(
+            statusGlow, customerGlow, calendarGlow, liftGlow, viewGlow
+        ));
+    
+        // --- STATUS
+        if (currentStatusCircle != null) {
+            nodes.add(currentStatusCircle);
+            statusClickBar.setVisible(true);
+        } else {
+            nodes.add(statusImage);
+            statusClickBar.setVisible(false);
+        }
+    
+        // --- CUSTOMER
+        nodes.add(customerLabel);
+        nodes.add(customerComboBox);
+        customerClickBar.setVisible(selectedCustomer != null);
+    
+        // --- DATE
+        if (selectedDate != null && currentDateNode != null) {
+            nodes.add(currentDateNode);
+            dateClickBar.setVisible(true);
+        } else {
+            nodes.add(calendarImage);
+            dateClickBar.setVisible(false);
+        }
+        nodes.add(hiddenDatePicker);
+    
+        // --- LIFT
+        nodes.add(liftImage);
+        nodes.add(liftComboBox);
+        liftClickBar.setVisible(selectedLift != null);
+    
+        // --- VIEW
+        nodes.add(viewLabel);
+        nodes.add(viewComboBox);
+        viewClickBar.setVisible(selectedView != null);
+    
+        // --- Click bars (order matters: on top)
+        nodes.addAll(List.of(
+            statusClickBar,
+            customerClickBar,
+            dateClickBar,
+            liftClickBar,
+            viewClickBar
+        ));
+    
+        customerMenuNode.getChildren().setAll(nodes);
     }
 
-    private void onLiftClicked() {
-        clearAllElements();
-        System.out.println("Lift clicked!");
-    }
+    private String buildWhereClauseFromView() {
 
+        List<String> clauses = new ArrayList<>();
+    
+        // --- STATUS
+        if (selectedStatus != null) {
+            switch (selectedStatus) {
+                case "Active" ->
+                    clauses.add("rental_items.item_status = 'Active'");
+                case "Upcoming" ->
+                    clauses.add("rental_items.item_status = 'Upcoming'");
+                case "Called Off" ->
+                    clauses.add("rental_items.item_status = 'Called Off'");
+                case "Picked Up" ->
+                    clauses.add("rental_items.item_status = 'Picked Up'");
+                case "Billable" ->
+                    clauses.add(
+                        "rental_items.item_status IN ('Called Off', 'Picked Up') " +
+                        "AND rental_items.invoice_composed = 0"
+                    );
+            }
+        }
+    
+        // --- CUSTOMER
+        if (selectedCustomer != null) {
+            clauses.add("customers.customer_name = '" + escape(selectedCustomer) + "'");
+        }
+    
+        // --- DATE
+        if (selectedDate != null) {
+            String date = selectedDate.toString(); // yyyy-MM-dd
+            clauses.add("rental_orders.delivery_date = '" + date + "'");
+        }
+    
+        // --- LIFT
+        if (selectedLift != null) {
+            clauses.add("lifts.serial_number = '" + selectedLift.getSerialNumber() + "'");
+        }
+    
+        // --- DEFAULT if nothing selected
+        if (clauses.isEmpty()) {
+            clauses.add("rental_items.item_status IN ('Upcoming', 'Active', 'Called Off')");
+        }
+    
+        return " WHERE " + String.join(" AND ", clauses);
+    }
+    
+ 
     private void onStatusClicked() {
-        clearAllElements();
-        System.out.println("Status clicked!");
+        customerMenuNode.getChildren().clear();
+    
+        // Temporary overlay only
+        HBox statusHBox = new HBox(30);
+        statusHBox.setTranslateX(38);
+        statusHBox.setTranslateY(13);
+        statusHBox.setPickOnBounds(true);
+    
+        List<String> statuses = List.of(
+            "Upcoming", "Active", "Called Off", "Picked Up", "Other"
+        );
+    
+        for (String status : statuses) {
+            Circle circle = new Circle(8);
+            Tooltip tooltip = new Tooltip(status);
+            tooltip.setShowDelay(Duration.ZERO);
+    
+            switch (status) {
+                case "Upcoming" -> {
+                    circle.setFill(Color.web(Config.getPrimaryColor()));
+                    String textFill =
+                        Config.COLOR_TEXT_MAP.get(Config.getPrimaryColor()) == 1
+                            ? "black" : "white";
+                    tooltip.setStyle(
+                        "-fx-background-color: " + Config.getPrimaryColor() +
+                        "; -fx-text-fill: " + textFill + ";"
+                    );
+                }
+                case "Active" -> {
+                    circle.setFill(Color.GREEN);
+                    tooltip.setStyle("-fx-background-color: green; -fx-text-fill: white;");
+                }
+                case "Called Off" -> {
+                    circle.setFill(Color.RED);
+                    tooltip.setStyle("-fx-background-color: red; -fx-text-fill: black;");
+                }
+                case "Picked Up" -> {
+                    circle.setFill(Color.BLACK);
+                    tooltip.setStyle("-fx-background-color: black; -fx-text-fill: white;");
+                }
+                default -> {
+                    circle.setFill(Color.PINK);
+                    tooltip.setStyle("-fx-background-color: pink; -fx-text-fill: black;");
+                }
+            }
+    
+            Tooltip.install(circle, tooltip);
+    
+            circle.addEventFilter(MouseEvent.MOUSE_PRESSED, ev -> {
+                ev.consume();
+            
+                Circle selected = new Circle(8);
+                selected.setFill(circle.getFill());
+                selected.setTranslateX(statusImage.getTranslateX());
+                selected.setTranslateY(statusImage.getTranslateY());
+                Tooltip.install(selected, tooltip);
+            
+                // 🔑 STATE
+                currentStatusCircle = selected;
+                selectedStatus = status; // 👈 THIS IS THE KEY LINE
+            
+                customerMenuNode.getChildren().remove(statusHBox);
+                renderCustomerMenu();
+                loadData(buildWhereClauseFromView());   // 👈 trigger SQL reload
+            });
+            
+    
+            statusHBox.getChildren().add(circle);
+        }
+    
+        customerMenuNode.getChildren().add(statusHBox);
+    
+        // Click outside closes overlay only
+        customerMenuNode.getScene().addEventFilter(MouseEvent.MOUSE_PRESSED, e -> {
+            if (!statusHBox.contains(
+                    e.getSceneX() - statusHBox.localToScene(0, 0).getX(),
+                    e.getSceneY() - statusHBox.localToScene(0, 0).getY())) {
+    
+                customerMenuNode.getChildren().remove(statusHBox);
+                renderCustomerMenu();
+            }
+        });
     }
+    
+    
+    private void onCustomerClicked() {
+    
+        Platform.runLater(() -> {
+            customerComboBox.requestFocus();
+            customerComboBox.show();
+    
+            // Optional: shift popup right under arrow
+            if (customerComboBox.getSkin()
+                    instanceof javafx.scene.control.skin.ComboBoxListViewSkin<?> skin) {
+                try {
+                    @SuppressWarnings("unchecked")
+                    javafx.scene.control.ListView<String> popup =
+                            (javafx.scene.control.ListView<String>) skin.getPopupContent();
+                    popup.setTranslateX(-60);
+                } catch (Exception ignored) {}
+            }
+        });
+    }
+    
+    private void onCalendarClicked() {
+        openDatePicker();
+    }    
+
+    @FXML
+    private void onLiftClicked() {
+    
+        Platform.runLater(() -> {
+            liftComboBox.requestFocus();
+            liftComboBox.show();
+    
+            // Optional: shift popup to align nicely under arrow
+            if (liftComboBox.getSkin() instanceof javafx.scene.control.skin.ComboBoxListViewSkin<?> skin) {
+                try {
+                    @SuppressWarnings("unchecked")
+                    javafx.scene.control.ListView<String> popup =
+                            (javafx.scene.control.ListView<String>) skin.getPopupContent();
+                    popup.setTranslateX(-60); // adjust as needed for alignment
+                } catch (Exception ignored) {}
+            }
+        });
+    }
+
+    private void onViewClicked() {
+    
+        Platform.runLater(() -> {
+            viewComboBox.requestFocus();
+            viewComboBox.show();
+    
+            // Optional: shift popup right under label
+            if (viewComboBox.getSkin() instanceof javafx.scene.control.skin.ComboBoxListViewSkin<?> skin) {
+                try {
+                    @SuppressWarnings("unchecked")
+                    javafx.scene.control.ListView<String> popup =
+                            (javafx.scene.control.ListView<String>) skin.getPopupContent();
+                    popup.setTranslateX(-60); // adjust for alignment if needed
+                } catch (Exception ignored) {}
+            }
+        });
+    }
+    
 
     private void clearAllElements() {
-        stopActiveGlow();                  // stop any active glow
         customerMenuNode.getChildren().clear();  // remove all elements
     }
 
@@ -2549,6 +3074,77 @@ public class ActivityController extends BaseController {
         customerMenuNode.getChildren().setAll(baseElements);  // add base elements back
     }
 
+    @FXML
+    private void onStatusBarClicked(MouseEvent e) {
+        e.consume();
+        currentStatusCircle = null;
+        selectedStatus = null;
+        renderCustomerMenu();
+        loadData(buildWhereClauseFromView());
+    }
+
+    @FXML
+    private void onCustomerBarClicked(MouseEvent e) {
+        e.consume();
+        selectedCustomer = null;
+        customerLabel.setText("Customer ▾");
+        renderCustomerMenu();
+        loadData(buildWhereClauseFromView());
+    }
+
+    @FXML
+    private void onDateBarClicked(MouseEvent e) {
+        e.consume();
+        selectedDate = null;
+        currentDateNode = null;
+        renderCustomerMenu();
+        loadData(buildWhereClauseFromView());
+    }
+
+    @FXML
+    private void onLiftBarClicked(MouseEvent e) {
+        e.consume();
+        selectedLift = null;
+        renderCustomerMenu();
+        loadData(buildWhereClauseFromView());
+    }
+
+    @FXML
+    private void onViewBarClicked(MouseEvent e) {
+        e.consume();
+        selectedView = null;
+        viewLabel.setText("View ▾");
+        renderCustomerMenu();
+        loadData(buildWhereClauseFromView());
+    }
+
+
+    /*
+    UTILITIES
+    */
+    
+    private String formatCustomerLabel(String name) {
+        if (name == null || name.isBlank()) {
+            return "";
+        }
+    
+        // 1️⃣ Resolve preferred display name (short name if exists)
+        String displayName = Config.CUSTOMER_NAME_MAP.getOrDefault(name, name);
+    
+        // 2️⃣ If short enough, show full
+        if (displayName.length() <= SHOW_FULL_MAX) {
+            return displayName;
+        }
+    
+        // 3️⃣ Otherwise truncate more aggressively
+        return displayName.substring(0, TRUNCATE_AT) + "…";
+    }
+    
+    private String escape(String s) {
+        return s.replace("'", "''");
+    }
+  
+    
 
     @Override
     protected void customCleanup() {

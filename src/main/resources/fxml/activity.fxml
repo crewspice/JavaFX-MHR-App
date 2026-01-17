@@ -91,33 +91,168 @@
             style="-fx-background-color: transparent;"
         >
 
+
             <!-- Glows -->
             <Ellipse fx:id="statusGlow" radiusX="16" radiusY="21" opacity="0.0" translateX="-124" translateY="-2"/>
             <Ellipse fx:id="customerGlow" radiusX="45" radiusY="11" opacity="0.0" translateX="-48" translateY="2"/>
             <Ellipse fx:id="calendarGlow" radiusX="18" radiusY="18" opacity="0.0" translateX="31" translateY="-1"/>
             <Ellipse fx:id="liftGlow" radiusX="13" radiusY="25" opacity="0.0" translateX="62" translateY="-5"/>
+            <Ellipse fx:id="viewGlow" radiusX="28" radiusY="11" opacity="0.0" translateX="98" translateY="1"/>
+
 
             <!-- CONTENT -->
-            <ImageView fx:id="statusImage" fitWidth="30" fitHeight="35" translateX="-122">
+            <ImageView fx:id="statusImage" fitWidth="30" fitHeight="31" translateY="4" translateX="-122">
                 <Image url="@../images/red-and-green.png"/>
             </ImageView>
 
+            <!-- Customer Label stays interactive -->
             <Label fx:id="customerLabel"
                 text="Customer ▾"
                 translateX="-48"
+                translateY="1"
                 style="-fx-font-family: 'Lucida Handwriting'; -fx-font-size: 14px;"
                 styleClass="sidebar-label"
             />
 
-            <ImageView fx:id="calendarImage" fitWidth="30" fitHeight="30" translateX="32">
+            <!-- Miniature ComboBox as visual only -->
+            <ComboBox
+                fx:id="customerComboBox"
+                translateX="-20"
+                translateY="2"
+                prefWidth="30"
+                minWidth="30"
+                maxWidth="30"
+                prefHeight="24"
+                minHeight="24"
+                maxHeight="24"
+                editable="false"
+                focusTraversable="false"
+                mouseTransparent="true"
+                styleClass="tiny-arrow-combobox"
+            />
+
+
+            <ImageView fx:id="calendarImage" fitWidth="30" fitHeight="30" translateX="32" translateY="2">
                 <Image url="@../images/calendar.png"/>
             </ImageView>
 
-            <ImageView fx:id="liftImage" fitWidth="18" fitHeight="31" translateX="62">
+            <DatePicker
+                fx:id="hiddenDatePicker"
+                visible="false"
+                managed="false"
+                translateX="32"
+                translateY="40"
+                prefWidth="140"
+            />
+
+            <ImageView fx:id="liftImage" fitWidth="18" fitHeight="30" translateX="62" translateY="4">
                 <Image url="@../images/num-lift.png"/>
             </ImageView>
 
+            <!-- Lift mini-combo (hidden) -->
+            <ComboBox
+                fx:id="liftComboBox"
+                translateX="62"
+                translateY="4"
+                prefWidth="18"
+                minWidth="18"
+                maxWidth="18"
+                prefHeight="30"
+                minHeight="30"
+                maxHeight="30"
+                editable="false"
+                focusTraversable="false"
+                mouseTransparent="true"
+                styleClass="tiny-arrow-combobox"
+            />
+
+            <Label fx:id="viewLabel"
+                text="View ▾"
+                translateX="100"  
+                translateY="1"    
+                style="-fx-font-family: 'Lucida Handwriting'; -fx-font-size: 14px;"
+                styleClass="sidebar-label"
+            />
+
+            <!-- View mini-combo (hidden) -->
+            <ComboBox
+                fx:id="viewComboBox"
+                translateX="100"
+                translateY="1"
+                prefWidth="60"
+                minWidth="60"
+                maxWidth="60"
+                prefHeight="24"
+                minHeight="24"
+                maxHeight="24"
+                editable="false"
+                focusTraversable="false"
+                mouseTransparent="true"
+                styleClass="tiny-arrow-combobox"
+            />
+
+            <Rectangle
+                fx:id="statusClickBar"
+                width="22"
+                height="6"
+                translateX="-122"
+                translateY="-17"
+                pickOnBounds="true"
+                onMouseClicked="#onStatusBarClicked"
+                arcWidth="12"
+                arcHeight="12"
+            />
+
+            <Rectangle
+                fx:id="customerClickBar"
+                width="80"
+                height="6"
+                translateX="-46"
+                translateY="-16"
+                pickOnBounds="true"
+                onMouseClicked="#onCustomerBarClicked"
+                arcWidth="12"
+                arcHeight="12"
+            />
+
+            <Rectangle
+                fx:id="dateClickBar"
+                width="25"
+                height="6"
+                translateX="31"
+                translateY="-16"
+                pickOnBounds="true"
+                onMouseClicked="#onDateBarClicked"
+                arcWidth="12"
+                arcHeight="12"
+            />
+
+            <Rectangle
+                fx:id="liftClickBar"
+                width="20"
+                height="6"
+                translateX="62"
+                translateY="-16"
+                pickOnBounds="true"
+                onMouseClicked="#onLiftBarClicked"
+                arcWidth="12"
+                arcHeight="12"
+            />
+
+            <Rectangle
+                fx:id="viewClickBar"
+                width="36"
+                height="6"
+                translateX="100"
+                translateY="-16"
+                pickOnBounds="true"
+                onMouseClicked="#onViewBarClicked"
+                arcWidth="12"
+                arcHeight="12"
+            />
+
         </StackPane>
+
 
 
         <!-- <HBox minHeight="25" maxHeight="25" translateX="22" translateY="-379">
