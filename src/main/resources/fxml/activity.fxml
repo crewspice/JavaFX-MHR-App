@@ -315,10 +315,10 @@
 
             </Button>
             <!-- Edit Driver Button with Tooltip -->
-            <Button fx:id="editDriverButton" onAction="#handleAssignDrivers" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
+            <Button fx:id="pinButton" onAction="#handlePin" styleClass="sidebar-button-inactive" translateY="40" translateX="-12">
                 <graphic>
                     <ImageView fitWidth="24" fitHeight="24">
-                        <Image url="@/images/driver-icon.png"/>
+                        <Image url="@/images/pin.png"/>
                     </ImageView>
                 </graphic>
 

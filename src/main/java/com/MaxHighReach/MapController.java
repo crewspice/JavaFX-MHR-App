@@ -609,7 +609,7 @@ public class MapController {
                         ri.auto_term, ro.site_name, ro.street_address, ro.city, ri.rental_item_id, ri.item_status, l.lift_type,
                         l.serial_number, ro.single_item_order, ri.rental_order_id, ro.longitude, ro.latitude, ri.lift_id,
                         site_contacts.first_name AS site_contact_name, site_contacts.phone_number AS site_contact_phone,
-                        ri.driver, ri.driver_number, ri.driver_initial, ri.delivery_truck, ri.pick_up_truck, ri.delivery_time, 
+                        ri.delivery_driver, ri.pick_up_driver, ri.delivery_truck, ri.pick_up_truck, ri.delivery_time, 
                         ri.invoice_composed, ri.notes
                     FROM customers c
                     JOIN rental_orders ro ON c.customer_id = ro.customer_id
@@ -657,9 +657,8 @@ public class MapController {
                                     rs.getString("item_status")
                             );
                             rental.setLiftId(rs.getInt("lift_id"));
-                            rental.setDriver(rs.getString("driver"));
-                            rental.setDriverInitial(rs.getString("driver_initial"));
-                            rental.setDriverNumber(rs.getInt("driver_number"));
+                            rental.setDeliveryDriver(rs.getString("delivery_driver"));
+                            rental.setPickUpDriver(rs.getString("pick_up_driver"));
                             rental.setDeliveryTruck(rs.getString("delivery_truck"));
                             rental.setPickUpTruck(rs.getString("pick_up_truck"));
                             String serial = rs.getString("serial_number");
@@ -738,7 +737,6 @@ public class MapController {
                     String serviceDate = rs.getString("service_date");
                     String serviceTime = rs.getString("time");
                     String serviceDriver = rs.getString("driver");
-                    int serviceDriverNumber = rs.getInt("driver_number");
                     String serviceStatus = rs.getString("service_status");
                     String poNumber = rs.getString("customer_ref_number");
                     int rentalOrderId = rs.getInt("rental_order_id");
@@ -761,9 +759,6 @@ public class MapController {
                     String siteContactName = rs.getString("site_contact_name");
                     String siteContactNumber = rs.getString("site_contact_phone");
                     String notes = rs.getString("notes");
-                    String driver = rs.getString("driver");
-                    String driverInitial = rs.getString("driver_initial");
-                    int driverNumber = rs.getInt("driver_number");
                     String orderDate = rs.getString("order_date");
                     boolean singleItemOrder = rs.getInt("single_item_order") == 1;
                     double latitude = rs.getDouble("latitude");
@@ -776,7 +771,7 @@ public class MapController {
                     double newLongitude = rs.getDouble("new_longitude");
     
                     Rental rental = new Rental(customerId, name, serviceDate, serviceTime,
-                     "", serviceDriver, serviceDriverNumber, serviceStatus, reason,
+                     "", serviceDriver, serviceStatus, reason,
                     rentalOrderId, billable, "");
                     rental.setLiftId(liftId);
                     rental.setLiftType(liftType);
@@ -790,9 +785,6 @@ public class MapController {
                     rental.setSiteContactPhone(siteContactNumber);
                     rental.setRentalItemId(rentalItemId);
                     rental.setNotes(notes);
-                    rental.setDriver(driver);
-                    rental.setDriverInitial(driverInitial);
-                    rental.setDriverNumber(driverNumber);
                     rental.setOrderDate(orderDate);
                     rental.setIsSingleItemOrder(singleItemOrder);
                     rental.setLatitude(latitude);
@@ -1367,158 +1359,6 @@ public class MapController {
             System.err.println("💥 Exception during route key rename:");
             e.printStackTrace();
             System.out.println("===============================\n");
-        }
-    }
-
-
-
-    private void reflectRoutingData() {
-        if (rentalsForCharting == null || rentalsForCharting.isEmpty()) {
-            return;
-        }
-    
-        // Step 1: Filter out rentals where driverInitial is null or driverNumber is 0
-        List<Rental> validRentals = rentalsForCharting.stream()
-                .filter(rental -> rental.getDriverInitial() != null && rental.getDriverNumber() != 0)
-                .toList();
-    
-        if (validRentals.isEmpty()) {
-            return;
-        }
-    
-        // Step 2: Group valid rentals by driverInitial (A, B, I, etc.)
-        Map<String, List<Rental>> groupedByDriverInitial = validRentals.stream()
-                .collect(Collectors.groupingBy(Rental::getDriverInitial));
-    
-        // Step 3: Sort each group by driverNumber
-        for (Map.Entry<String, List<Rental>> entry : groupedByDriverInitial.entrySet()) {
-            List<Rental> rentals = entry.getValue();
-            rentals.sort(Comparator.comparingInt(Rental::getDriverNumber));
-        }
-    
-        // Step 4: Create routes and populate the global routes map
-        for (Map.Entry<String, List<Rental>> entry : groupedByDriverInitial.entrySet()) {
-            String[] route = getARouteNoPreference();
-            String routeKey = route[0]; // Get route key (customizable)
-            int routeIndex = Integer.valueOf(route[1]);
-            String[] colors = getRouteColors(routeKey);
-            routes.put(routeKey, entry.getValue());
-            routeAssignments.put(routeKey, entry.getKey());
-            StackPane vBoxPane = routeVBoxPanes.get(routeIndex);
-            StackPane hBoxPane = routeHBoxPanes.get(routeIndex);
-
-
-            // Process the rentals and update the route pane
-            for (Rental rental : entry.getValue()) {
-                int closestMultiple = entry.getValue().indexOf(rental);
-                updateRoutePane(routeKey, rental, "insertion", closestMultiple, routeIndex, "program");
-                // routeVBoxPanes.get(routeIndex).setVisible(true);
-                // routeVBoxPanes.get(routeIndex).toFront();
-            }
-    
-            // After all the updates, check if any rental in the route has a non-null deliveryTruck
-            String truckSignifier = entry.getValue().stream()
-                    .filter(rental -> rental.getDeliveryTruck() != null)
-                    .map(Rental::getDeliveryTruck)
-                    .findFirst()  // If multiple trucks are non-null, we pick the first one
-                    .orElse(null);  // If no trucks are found, we use null
-    
-            // If a deliveryTruck is found, call addTruckToRoute
-            if (truckSignifier != null) {
-                // Print the route key and truck signifier before calling addTruckToRoute
-                addTruckToRoute(routeKey, truckSignifier, "program");
-                VBox vBox = (VBox) vBoxPane.getChildren().get(0);
-                HBox hBox = (HBox) hBoxPane.getChildren().get(0);
-                StackPane vBoxTruckOuterPane = (StackPane) vBox.getChildren().get(0);
-                StackPane hBoxTruckOuterPane = (StackPane) hBox.getChildren().get(0);
-                StackPane vBoxTruckPane = (StackPane) vBoxTruckOuterPane.getChildren().get(0);
-                StackPane hBoxTruckPane = (StackPane) hBoxTruckOuterPane.getChildren().get(0);
-                for (Node node : vBoxTruckPane.getChildren()) {
-                    if (node instanceof Label) {
-                        ((Label) node).setText(truckSignifier);
-                        break; // assuming only one label
-                    }
-                }
-                for (Node node : hBoxTruckPane.getChildren()) {
-                    if (node instanceof Label) {
-                        ((Label) node).setText(truckSignifier);
-                        break; // assuming only one label
-                    }
-                }
-
-                configureTruckDot(entry.getKey(), truckSignifier, colors);
-
-            }
-            driverLabelsV.get(routeKey).setText(entry.getKey());
-            driverLabelsH.get(routeKey).setText(entry.getKey());
-        }
-
-    }
-
-
-    private void reflectRoutingDataFromApi() {
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode apiRoutes = mapper.readTree(
-                new URL("http://5.78.73.173:8080/routes/fetch")
-            );
-
-         //   routes.clear();
-       //     routeAssignments.clear();
-       //     truckAssignments.clear();
-
-            for (JsonNode payload : apiRoutes) {
-                // Parse key: "route:25-J:stops"
-                String rawKey = payload.get("key").asText();
-                String keyPart = rawKey.split(":")[1]; // "25-J" or "null-JC"
-                String[] parts = keyPart.split("-");
-                String truckSignifier = parts[0].equals("null") ? null : parts[0];
-                String driverInitial = parts.length > 1 && !"null".equals(parts[1]) ? parts[1] : null;
-
-                String[] route = getARouteNoPreference();
-                String routeKey = route[0];
-                int routeIndex = Integer.parseInt(route[1]);
-                String[] colors = getRouteColors(routeKey);
-
-                // Resolve rentals
-                List<Rental> resolved = new ArrayList<>();
-                for (JsonNode stop : payload.get("stops")) {
-                    int id = stop.get("id").asInt();
-                    String type = stop.get("type").asText();
-                    Rental rental = resolveRentalByJson(type, id);
-                    if (rental != null) {
-                        resolved.add(rental);
-                    }
-                }
-
-                if (resolved.isEmpty()) continue;
-
-                routes.put(routeKey, resolved);
-                routeAssignments.put(routeKey, driverInitial);
-
-                StackPane vBoxPane = routeVBoxPanes.get(routeIndex);
-                StackPane hBoxPane = routeHBoxPanes.get(routeIndex);
-
-                for (Rental rental : resolved) {
-                    int closestMultiple = resolved.indexOf(rental);
-                    updateRoutePane(routeKey, rental, "insertion", closestMultiple, routeIndex, "program");
-                }
-
-                if (truckSignifier != null) {
-                    addTruckToRoute(routeKey, truckSignifier, "program");
-           //         System.out.println("adding truck to route with: " + 
-             //           routeKey + " as routeKey, " + truckSignifier + " as truckSignifier");
-                    updateInnerTruckLabel(vBoxPane, truckSignifier);
-                    updateInnerTruckLabel(hBoxPane, truckSignifier);
-                    configureTruckDot(driverInitial, truckSignifier, colors);
-                }
-
-                driverLabelsV.get(routeKey).setText(driverInitial != null ? driverInitial : "");
-                driverLabelsH.get(routeKey).setText(driverInitial != null ? driverInitial : "");
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 

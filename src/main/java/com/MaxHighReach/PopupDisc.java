@@ -1107,9 +1107,8 @@ public class PopupDisc extends StackPane {
                         rs.getString("lift_type"),
                         rs.getString("item_status")
                     );
-                    r.setDriver(rs.getString("driver"));
-                    r.setDriverInitial(rs.getString("driver_initial"));
-                    r.setDriverNumber(rs.getInt("driver_number"));
+                    r.setDeliveryDriver(rs.getString("delivery_driver"));
+                    r.setPickUpDriver(rs.getString("pick_up_driver"));
                     r.setDeliveryTruck(rs.getString("delivery_truck"));
                     r.setPickUpTruck(rs.getString("pick_up_truck"));
                     r.setDeliveryTime(rs.getString("delivery_time"));

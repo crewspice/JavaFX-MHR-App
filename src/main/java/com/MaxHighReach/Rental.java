@@ -36,7 +36,7 @@ public class Rental {
     private final StringProperty callOffDate;
     private final SimpleBooleanProperty autoTerm;
     private final SimpleIntegerProperty rentalDuration;
-    private final StringProperty pickupDate;
+    private final StringProperty pickUpDate;
     private final StringProperty deliveryTime;
     private final StringProperty addressBlockOne;
     private final StringProperty addressBlockTwo;
@@ -48,9 +48,8 @@ public class Rental {
     private final StringProperty siteContactPhone;
     private final StringProperty poNumber;
     private final StringProperty notes;
-    private final StringProperty driver;
-    private final StringProperty driverInitial;
-    private final SimpleIntegerProperty driverNumber;
+    private final StringProperty deliveryDriver;
+    private final StringProperty pickUpDriver;
     private final StringProperty serialNumber;
     private final SimpleIntegerProperty liftId;
     private final StringProperty liftType;
@@ -73,7 +72,7 @@ public class Rental {
    
     // Constructor with all relevant fields
     public Rental(String customerId, String name, String deliveryDate, String deliveryTime, String callOffDate,
-                          String driver, int driverNumber, String status, String poNumber, int rentalId, boolean needsInvoice,
+                          String deliveryDriver, String status, String poNumber, int rentalId, boolean needsInvoice,
                           String latestBilledDate) {
         this.customerId = new SimpleStringProperty(customerId); // Initialize SimpleIntegerProperty
         this.name = new SimpleStringProperty(name);
@@ -81,9 +80,9 @@ public class Rental {
         this.orderedByPhone = new SimpleStringProperty(null);
         this.orderDate = new SimpleStringProperty("Unknown");
         this.deliveryDate = new SimpleStringProperty(deliveryDate);
-        this.pickupDate = new SimpleStringProperty("Unknown");
         this.deliveryTime = new SimpleStringProperty(deliveryTime); // Initialize delivery time
         this.callOffDate = new SimpleStringProperty(callOffDate);
+        this.pickUpDate = new SimpleStringProperty("Unknown");
         this.autoTerm = new SimpleBooleanProperty(false);
         this.rentalDuration = new SimpleIntegerProperty(calculateRentalDuration());
         this.addressBlockOne = new SimpleStringProperty("Town of Windsor Fire #8");
@@ -96,9 +95,8 @@ public class Rental {
         this.siteContactPhone = new SimpleStringProperty(null);
         this.poNumber = new SimpleStringProperty(poNumber);
         this.notes = new SimpleStringProperty(null);
-        this.driver = new SimpleStringProperty(driver);
-        this.driverInitial = new SimpleStringProperty(driver);
-        this.driverNumber = new SimpleIntegerProperty(driverNumber);
+        this.deliveryDriver = new SimpleStringProperty(deliveryDriver);
+        this.pickUpDriver = new SimpleStringProperty("");
         this.serialNumber = new SimpleStringProperty("");
         this.liftId = new SimpleIntegerProperty(0);
         this.liftType = new SimpleStringProperty("Unknown");
@@ -120,9 +118,9 @@ public class Rental {
         }
    
     // Constructor without driver and status
-    public Rental(String customerId, String name, String orderDate, String deliveryTime) {
-        this(customerId, name, orderDate, deliveryTime, null, "", 0, "Unknown", "99999", 0, false, "Unknown"); // Default values
-    }
+    // public Rental(String customerId, String name, String orderDate, String deliveryTime) {
+    //     this(customerId, name, orderDate, deliveryTime, null, "", 0, "Unknown", "99999", 0, false, "Unknown"); // Default values
+    // }
 
 
     // this constructor made with utilization and map data in mind
@@ -140,7 +138,7 @@ public class Rental {
         this.callOffDate = new SimpleStringProperty(callOffDate);
         this.autoTerm = new SimpleBooleanProperty(autoTerm);
         this.rentalDuration = new SimpleIntegerProperty(0);
-        this.pickupDate = new SimpleStringProperty("Unknown");
+        this.pickUpDate = new SimpleStringProperty("Unknown");
         this.deliveryTime = new SimpleStringProperty("Unknown");
         this.addressBlockOne = new SimpleStringProperty(addressBlockOne);
         this.addressBlockTwo = new SimpleStringProperty(addressBlockTwo);
@@ -152,9 +150,8 @@ public class Rental {
         this.siteContactPhone = new SimpleStringProperty(siteContactPhone);
         this.poNumber = new SimpleStringProperty(poNumber);
         this.notes = new SimpleStringProperty("");
-        this.driver = new SimpleStringProperty("Unknown");
-        this.driverInitial = new SimpleStringProperty("Unknown");
-        this.driverNumber = new SimpleIntegerProperty(0);
+        this.deliveryDriver = new SimpleStringProperty("Unknown");
+        this.pickUpDriver = new SimpleStringProperty("Unknown");
         this.serialNumber = new SimpleStringProperty(serialNumber);
         this.liftId = new SimpleIntegerProperty(0);
         this.liftType = new SimpleStringProperty(liftType);
@@ -263,18 +260,18 @@ public class Rental {
     }
 
 
-    public String getPickupDate() {
-        return pickupDate.get();
+    public String getPickUpDate() {
+        return pickUpDate.get();
     }
 
 
-    public void setPickupDate(String pickupDate) {
-        this.pickupDate.set(pickupDate);
+    public void setPickUpDate(String pickUpDate) {
+        this.pickUpDate.set(pickUpDate);
     }
 
 
-    public StringProperty pickupDateProperty() {
-        return pickupDate;
+    public StringProperty pickUpDateProperty() {
+        return pickUpDate;
     }
 
 
@@ -606,95 +603,32 @@ public class Rental {
     }
 
 
-    public String getDriver() {
-        return driver.get();
+    public String getDeliveryDriver() {
+        return deliveryDriver.get();
     }
 
 
-    public void setDriver(String driver) {
-        this.driver.set(driver);
+    public void setDeliveryDriver(String deliveryDriver) {
+        this.deliveryDriver.set(deliveryDriver);
     }
 
 
-    public StringProperty driverProperty() {
-        return driver;
+    public StringProperty deliveryDriverProperty() {
+        return deliveryDriver;
+    }
+
+    public String getPickUpDriver() {
+        return pickUpDriver.get();
     }
 
 
-    public void setupDriverCompositionalParts(){
-        if (driver != null) {
-            String localVarDriver = getDriver();
-            Pattern pattern = Pattern.compile("^([A-Za-z]{1,2})(\\d+)?$");
-            Matcher matcher = pattern.matcher(localVarDriver);
-
-
-            if (matcher.matches()) {
-                driverInitial.set(matcher.group(1));
-                driverNumber.set(matcher.group(2) != null ? Integer.parseInt(matcher.group(2)) : 0);
-            } else {
-                driverInitial.set("x");
-                driverNumber.set(0);
-            }
-        }
-
-
+    public void setPickUpDriver(String pickUpDriver) {
+        this.pickUpDriver.set(pickUpDriver);
     }
 
 
-    public String getDriverInitial() {
-        return driverInitial.get();
-    }
-
-
-    public void setDriverInitial(String driverInitial) {
-        this.driverInitial.set(driverInitial);
-    }
-
-
-    public StringProperty driverInitialProperty() {
-        return driverInitial;
-    }
-
-
-    public int getDriverNumber() {
-        return driverNumber.get();
-    }
-
-
-    public void setDriverNumber(int driverNumber) {
-        this.driverNumber.set(driverNumber);
-    }
-
-
-    public SimpleIntegerProperty driverNumberProperty() {
-        return driverNumber;
-    }
-
-
-    public int getSequenceNumber() {
-        String driver = getDriver();
-        if (driver != null) {
-            String digits = driver.replaceAll("\\D", ""); // Remove all non-digits
-            if (!digits.isEmpty()) {
-                return Integer.parseInt(digits); // Parse the digits as an integer
-            }
-        }
-        return 0;
-    }
-
-
-    public void setSequenceNumber(int sequenceNumber){
-        String driver = getDriver();
-        String newDriverName;
-        if (driver != null) {
-            newDriverName = driver.replaceAll("\\d+","");
-        } else {
-            newDriverName = "";
-        }
-
-
-        newDriverName += sequenceNumber;
-        setDriver(newDriverName.trim());
+    public StringProperty pickUpDriverProperty() {
+        return pickUpDriver;
     }
 
 

@@ -108,6 +108,7 @@ public class ActivityController extends BaseController {
     private int SHOW_FULL_MAX = 14;
     private int TRUNCATE_AT = 12;
     
+    private final ActivityState state = ActivityState.current;
     private String selectedCustomer;
     private Node currentDateNode;
     private LocalDate selectedDate;
@@ -121,7 +122,7 @@ public class ActivityController extends BaseController {
     @FXML
     private VBox buttonsVBox;
     @FXML
-    private Button editDriverButton;
+    private Button pinButton;
     @FXML
     private Button cancellingButton;
     @FXML
@@ -154,7 +155,7 @@ public class ActivityController extends BaseController {
     @FXML
     private Button openSDKButton;
     private final Tooltip composeContractsTooltip = new Tooltip("Compose Contracts");
-    private final Tooltip assignDriverTooltip = new Tooltip("Assign Driver");
+    private final Tooltip pinTooltip = new Tooltip("Pin");
     private final Tooltip cancellingTooltip = new Tooltip("Cancel");    
     private final Tooltip droppingOffTooltip = new Tooltip("Record Drop Off");
     private final Tooltip callingOffTooltip = new Tooltip("Record Call Off");
@@ -180,99 +181,22 @@ public class ActivityController extends BaseController {
     TableColumn<Rental, String> addressColumn = new TableColumn<>();
     TableColumn<Rental, String> invoiceColumn = new TableColumn<>();
     TableColumn<Rental, String> driverColumn = new TableColumn<>();
-    private String latestFilter = "All Rentals";
-    // @FXML
-    // private HBox viewsTilePane;
-    // private ToggleGroup viewsToggleGroup = new ToggleGroup();
-    // private List<ToggleButton> viewsToggleButtons = new ArrayList<>();
-    // @FXML
-    // private ToggleButton customerButton;
-    // @FXML
-    // private ToggleButton statusButton;
-    // @FXML
-    // private ToggleButton driverButton;
-    // private ToggleButton selectedViewButton;
-    // private ToggleButton selectedStatusButton;
-    // @FXML
-    // private VBox statusesPane;
-    // @FXML
-    // private VBox statusesPaneTwo;
-    // private ToggleGroup statusViewToggleGroup = new ToggleGroup();
-    // private List<ToggleButton> statusesToggleButtons = new ArrayList<>();
-    // @FXML
-    // private ToggleButton upcomingButton;
-    // @FXML
-    // private ToggleButton activeButton;
-    // @FXML
-    // private ToggleButton billableButton;
-    // @FXML
-    // private ToggleButton calledOffButton;
-    // @FXML
-    // private DatePicker datePickerOne;
-    // private AtomicBoolean isDatePickerOneExpanded = new AtomicBoolean(false);
-    // @FXML
-    // private Label datePickerOneLabel;
-    // @FXML
-    // private DatePicker datePickerTwo;
-    // private AtomicBoolean isDatePickerTwoExpanded = new AtomicBoolean(false);
-    // @FXML
-    // private Label datePickerTwoLabel;
-    // @FXML
-    // private HBox datePickersPane;
-    // @FXML
-    // private Rectangle datePickerOneCover;
-    // @FXML
-    // private Button calendarButtonOne;
 
-    // @FXML
-    // private Button calendarButtonTwo;
-    // private HBox latestRightSideVbox;
-    // private HBox latestLeftSideVbox;
-    // @FXML
-    // private HBox leftSideVboxCustomerView;
-    // private ToggleGroup customerViewToggleGroup = new ToggleGroup();
-    // @FXML
-    // private ComboBox<String> customerComboBox;
-    // private ObservableList<Customer> customers = FXCollections.observableArrayList();
-    // @FXML
-    // private ComboBox<String> driverComboBox;
-    // @FXML
-    // private HBox leftSideVboxDriverView;
-
-    // private Timeline rotateViewsTimeline;
-    // private Timeline rotateStatusesTimeLine;
-    // private boolean areViewsRotating = false;
-    // private boolean areStatusesRotating = false;
 
     private ObservableList<Rental> ordersList = FXCollections.observableArrayList();
     private String lastActionType;
     @FXML
     private Rectangle sideBarHighlighter;
 
-    private Timeline fadeOutTimeline;
-    private Timeline inactivityCheckTimeLine;
-    private long lastScrollTime = System.currentTimeMillis();
-    private static final long SCROLL_TIMEOUT = 2000; // 5 seconds
     private Glow glowEffect;
     private Timeline[] glowTimelines = new Timeline[2];
     private boolean timelineFlagger = false;
-// globals before the retry
-    private Map<String, Integer> driverCounts = new HashMap<>();
-    private ObservableList<String> driverInitials = FXCollections.observableArrayList("A", "J", "I", "B", "JC", "K");
     private String driverColumnType = "po-number";
 
-// retry globals
-    private ObservableList<String> potentialInitials = FXCollections.observableArrayList();
     private ObservableList<String> currentViewInitials = FXCollections.observableArrayList();
-
-
     private Map<String, List<Rental>> groupedRentals = new HashMap<>();
     private Map<String, Integer> driverSequenceMap = new HashMap<>();
 
-    private String initialsErrorCode;
-    private String initialsErrorPointerKey;
-
-    private javafx.scene.text.Text liftTypeText = new javafx.scene.text.Text();
     private static DateTimeFormatter fromJavaObjectFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private static class ProximityZone {
@@ -300,17 +224,16 @@ public class ActivityController extends BaseController {
         }
     }    
 
-    class ViewState {
-        String status;          // e.g. "Active", "Billable", "Upcoming", "Called Off"
-        String customerName;    // nullable
-        LocalDate date;         // nullable (single date for now)
-        String liftTypeOrSerial; // nullable (depends how you filter lifts)
-    }
-    
-
     @FXML
     public void initialize() {
         super.initialize(dragArea);
+
+        selectedCustomer = state.selectedCustomer;
+        selectedDate = state.selectedDate;
+        selectedLift = state.selectedLift;
+        selectedStatus = state.selectedStatus;
+        currentStatusCircle = state.currentStatusCircle;
+        currentDateNode = state.currentDateNode;
 
         // -------------------------------------------------
         // Glow setup
@@ -398,7 +321,7 @@ public class ActivityController extends BaseController {
             hiddenDatePicker.hide();
             hiddenDatePicker.setVisible(false);
         
-            renderCustomerMenu();
+            renderMenu();
             loadData(buildWhereClauseFromView());
         });
         
@@ -469,7 +392,7 @@ public class ActivityController extends BaseController {
 
         updateRentalButton.setVisible(false); // Start with the button hidden
 
-        createCustomTooltip(editDriverButton, 38, 10, assignDriverTooltip);
+        createCustomTooltip(pinButton, 38, 10, pinTooltip);
         createCustomTooltip(cancellingButton, 38, 10, cancellingTooltip);
         createCustomTooltip(droppingOffButton, 38, 10, droppingOffTooltip);
         createCustomTooltip(callingOffButton, 38, 10, callingOffTooltip);
@@ -481,172 +404,8 @@ public class ActivityController extends BaseController {
         createCustomTooltip(refreshDataButton, 38, 10, refreshDataTooltip);
         createCustomTooltip(deleteButton, 38, 10, deleteTooltip);
 
-/*
-
-        for (javafx.scene.Node node : viewsTilePane.getChildren()) {
-            if (node instanceof ToggleButton toggleButton) {
-                toggleButton.setToggleGroup(viewsToggleGroup);
-                viewsToggleButtons.add((ToggleButton) node);
-                toggleButton.setStyle("-fx-font-size: 15; -fx-padding: 1 0; " +
-                    "-fx-alignment: center;");
-                toggleButton.setOnAction(event -> {
-                    if (selectedViewButton == toggleButton) {
-                        viewsToggleGroup.selectToggle(null);
-                        handleViewSelect("expand");
-              //          toggleButton.setStyle("-fx-font-size: 15; -fx-padding: 1 0; " +
-              //              "-fx-alignment: center; -fx-background-color: transparent;");
-                    } else {
-                        viewsToggleGroup.selectToggle(toggleButton);
-                        selectedViewButton = toggleButton;
-                        handleViewSelect("collapse");
-              //          toggleButton.setStyle("-fx-font-size: 15; -fx-padding: 1 0; " +
-              //              "-fx-alignment: center; -fx-background-color: orange;");
-                    }
-                });
-            }
-        }
-        GradientAnimator.applySequentialGradientAnimationToggles(viewsToggleButtons, 0, "view-type-button-stopped");
-
-        for (javafx.scene.Node node : statusesPane.getChildren()) {
-            if (node instanceof ToggleButton toggleButton) {
-                toggleButton.setToggleGroup(statusViewToggleGroup);
-                statusesToggleButtons.add((ToggleButton) node);
-                toggleButton.setStyle("-fx-font-size: 12; -fx-padding: 1 0; -fx-aligment: center");
-            }
-        }
-
-
-        for (javafx.scene.Node node : statusesPaneTwo.getChildren()) {
-            if (node instanceof ToggleButton toggleButton) {
-                toggleButton.setToggleGroup(statusViewToggleGroup);
-                statusesToggleButtons.add((ToggleButton) node);
-                toggleButton.setStyle("-fx-font-size: 12; -fx-padding: 1 0; -fx-aligment: center");
-            }
-        }
-        Collections.swap(statusesToggleButtons, 1, 2);
-
-        for (Toggle toggle : statusViewToggleGroup.getToggles()) {
-            ToggleButton toggleButton = (ToggleButton) toggle;
-            toggleButton.setOnAction(event -> {
-                GradientAnimator.stopAllAnimations();
-                if (selectedStatusButton == toggleButton) {
-                    handleViewSelect("expand");
-                } else {
-                    selectedStatusButton = toggleButton;
-                    if (selectedViewButton != null) {
-                        String view = selectedViewButton.getText();
-                        switch (view) {
-                            case "Status":
-                                handleSettingInStatusSelect();
-                                break;
-                            case "Customer":
-                                handleViewAndCustomerSelect();
-                                break;
-                            case "Driver":
-                                handleViewAndDriverSelect();
-                                break;
-                        }
-                    }
-                }
-                clearGradientFromToggleSet(statusesToggleButtons, toggleButton, "view-type-button-stopped");
-            });
-        }
-
-        customers = MaxReachPro.getCustomers(true);
-        ObservableList<String> customerNames = FXCollections.observableArrayList();
-        for (Customer customer : customers) {
-            customerNames.add(customer.getName());
-        }
-        FXCollections.sort(customerNames, (name1, name2) -> name1.compareTo(name2));
-        customerComboBox.setItems(customerNames);
-        String customerName = MaxReachPro.getSelectedCustomerName();
-        if (customerName != null && customerName != "") {
-            customerComboBox.setValue(customerName);
-        }
-
-        driverComboBox.setOnAction(event -> {
-            handleViewAndDriverSelect();
-        });
-
-        customerComboBox.setOnAction(event -> {
-            handleViewAndCustomerSelect();
-        });
-
-        String storedViewType = MaxReachPro.getSelectedViewSetting();
-        String storedDriver = MaxReachPro.getSelectedDriverName();
-        String storedCustomer = MaxReachPro.getSelectedCustomerName();
-        LocalDate storedDate1 = MaxReachPro.getActivityDateSelected1();
-        LocalDate storedDate2 = MaxReachPro.getActivityDateSelected2();
-        String storedStatusSetting = MaxReachPro.getSelectedStatusSetting();
-        // load the data as last configured
-        if ((storedViewType == null) || (storedViewType == "Driver" && storedDate1 == null && storedDriver == null)
-            || (storedViewType == "Customer" && storedDate1 == null && storedCustomer == null)
-            || (storedViewType == "Status" && storedDate1 == null && storedViewType == null)) {
-            loadDataAsync("All Rentals");
-        } else if ((storedViewType == "Driver" && storedDriver == null)
-                    || (storedViewType == "Customer" && storedCustomer == null )
-                    || (storedViewType == "Status" && storedStatusSetting == null)) {
-            if (storedDate1 != null && storedDate2 == null) {
-                datePickerOne.setValue(storedDate1);
-                handleViewSettingSelect("One Date", null);
-            } else if (storedDate2 != null) {
-                datePickerOne.setValue(storedDate1);
-                datePickerTwo.setValue(storedDate2);
-                handleViewSettingSelect("Interval", null);
-            }
-        } else if (storedViewType.equals("Driver")) {
-            selectedViewButton = driverButton;
-            Platform.runLater(() -> {
-                handleViewSelect("collapse");
-            });
-            //viewsToggleGroup.selectToggle(driverButton);
-            driverComboBox.setValue(storedDriver);
-            //TranslateTransition transition = new TranslateTransition(Duration.millis(300), driverButton);
-            //transition.setToX(-driverButton.getLayoutX() - 4);
-            //transition.play();
-             if (storedDate1 != null && storedDate2 == null) {
-                datePickerOne.setValue(storedDate1);
-                handleViewSettingSelect("Driver One Date", storedDriver);
-            } else if (storedDate2 != null) {
-                datePickerOne.setValue(storedDate1);
-                datePickerTwo.setValue(storedDate2);
-                handleViewSettingSelect("Driver Interval", storedDriver);
-            } else {
-                handleViewSettingSelect("Driver", storedDriver);
-            }
-        } else if (storedViewType.equals("Customer")) {
-            selectedViewButton = customerButton;
-            customerComboBox.setValue(storedCustomer);
-            Platform.runLater(() -> {
-                handleViewSelect("collapse");
-            });
-            //viewsToggleGroup.selectToggle(customerButton);
-            if (storedDate1 != null && storedDate2 == null) {
-                datePickerOne.setValue(storedDate1);
-                handleViewSettingSelect("Customer One Date", storedCustomer);
-            } else if (storedDate2 != null) {
-                datePickerOne.setValue(storedDate1);
-                datePickerTwo.setValue(storedDate2);
-                handleViewSettingSelect("Customer Interval", storedCustomer);
-            } else {
-                handleViewSettingSelect("Customer", storedCustomer);
-            }
-        } else if (storedViewType.equals("Status")) {
-            selectedViewButton = statusButton;
-            Platform.runLater(() -> {
-                handleViewSelect("collapse");
-            });
-            //viewsToggleGroup.selectToggle(statusButton);
-            if (storedDate1 != null && storedDate2 == null) {
-                handleViewSettingSelect("Status One Date", storedStatusSetting);
-            } else if (storedDate2 != null) {
-                handleViewSettingSelect("Status Interval", storedStatusSetting);
-            } else {
-                handleViewSettingSelect("Status", storedStatusSetting);
-            }
-        } else {  */
+        renderMenu();
         loadDataAsync(buildWhereClauseFromView());
-            //    }
 
 
     }
@@ -784,8 +543,7 @@ public class ActivityController extends BaseController {
             rs.getString("item_delivery_date"),
             rs.getString("delivery_time"),
             rs.getString("item_call_off_date"),
-            rs.getString("driver") != null ? rs.getString("driver") : "",
-            rs.getInt("driver_number"),
+            rs.getString("delivery_driver") != null ? rs.getString("delivery_driver") : "",
             rs.getString("item_status") != null ? rs.getString("item_status") : "Unknown",
             rs.getString("po_number"),
             rs.getInt("rental_order_id"),
@@ -824,7 +582,6 @@ public class ActivityController extends BaseController {
         String serviceDate = rs.getString("service_date");
         String serviceTime = rs.getString("time");
         String serviceDriver = rs.getString("driver") != null ? rs.getString("driver") : "";
-        int serviceDriverNumber = rs.getInt("driver_number");
         String serviceStatus = rs.getString("service_status");
         String poNumber = rs.getString("customer_ref_number");
         int rentalOrderId = rs.getInt("rental_order_id");
@@ -841,7 +598,7 @@ public class ActivityController extends BaseController {
         String siteContactName = rs.getString("site_contact_name");
         String siteContactNumber = rs.getString("site_contact_phone");
         String notes = rs.getString("notes");
-        String driverInitial = rs.getString("driver_initial");
+        String pickUpDriver = rs.getString("pick_up_driver");
         String orderDate = rs.getString("order_date");
         boolean singleItemOrder = rs.getInt("single_item_order") == 1;
         double latitude = rs.getDouble("latitude");
@@ -863,7 +620,7 @@ public class ActivityController extends BaseController {
     
         // --- Construct Rental ---
         Rental rental = new Rental(customerId, name, serviceDate, serviceTime, serviceDate,
-                serviceDriver, serviceDriverNumber, serviceStatus, poNumber, rentalOrderId, billable, "");
+                serviceDriver, serviceStatus, poNumber, rentalOrderId, billable, "");
         rental.setLiftId(liftId);
         rental.setLiftType(liftType);
         rental.setSerialNumber(serialNumber);
@@ -876,8 +633,7 @@ public class ActivityController extends BaseController {
         rental.setSiteContactPhone(siteContactNumber);
         rental.setRentalItemId(rentalItemId);
         rental.setNotes(notes);
-        rental.setDriverInitial(driverInitial);
-        rental.setDriverNumber(serviceDriverNumber);
+        rental.setPickUpDriver(pickUpDriver);
         rental.setOrderDate(orderDate);
         rental.setIsSingleItemOrder(singleItemOrder);
         rental.setLatitude(latitude);
@@ -903,17 +659,7 @@ public class ActivityController extends BaseController {
     
             LocalDate deliveryDate = parseDate(item.getDeliveryDate());
             String deliveryTime = item.getDeliveryTime();
-    
-            boolean isDriverView = "Driver".equals(selectedView);
-    
-            // --- Driver view priority ---
-            if (isDriverView && item.getDriverNumber() != 0) {
-                switch (status) {
-                    case "Upcoming":   return -1.0;
-                    case "Called Off": return -0.5;
-                }
-            }
-    
+
             // --- Upcoming date buckets ---
             if ("Upcoming".equals(status) && deliveryDate != null) {
     
@@ -965,26 +711,6 @@ public class ActivityController extends BaseController {
         FXCollections.sort(ordersList, comparator);
         dbTableView.setItems(ordersList);
     }
-
-    private double computeSortWeight(Rental rental) {
-
-        String status = rental.getStatus();
-        boolean isDriverView = "Driver".equals(selectedView);
-    
-        if (isDriverView && rental.getDriverNumber() != 0) {
-            if ("Upcoming".equalsIgnoreCase(status)) return -1.0;
-            if ("Called Off".equalsIgnoreCase(status)) return -0.5;
-        }
-    
-        return switch (status) {
-            case "Upcoming" -> 0.0;
-            case "Active" -> 1.0;
-            case "Completed" -> 2.0;
-            case "Called Off" -> 3.0;
-            default -> 4.0;
-        };
-    }
-    
 
     private void loadCustomersInBackground() {
 
@@ -1124,32 +850,6 @@ public class ActivityController extends BaseController {
         fadeOutGlowEffect();
     }
 
-    private void setScrollBarVisibility(TableView<Rental> dbTableView, boolean isVisible) {
-        ScrollBar verticalScrollBar = (ScrollBar) dbTableView.lookup(".scroll-bar:vertical");
-        ScrollBar horizontalScrollBar = (ScrollBar) dbTableView.lookup(".scroll-bar:horizontal");
-
-        if (verticalScrollBar != null) {
-            verticalScrollBar.setVisible(isVisible);
-        }
-        if (horizontalScrollBar != null) {
-            horizontalScrollBar.setVisible(isVisible);
-        }
-    }
-
-    private void resetFadeOutTimeline(TableView<Rental> dbTableView, Timeline fadeOutTimeline) {
-        if (fadeOutTimeline != null && fadeOutTimeline.getStatus() == Animation.Status.RUNNING) {
-            fadeOutTimeline.stop(); // Stop the fade-out timeline
-        }
-
-        // Start a new fade-out timeline to trigger after 2 seconds of inactivity
-        fadeOutTimeline = new Timeline(new KeyFrame(Duration.seconds(2), e -> {
-            fadeOutScrollBars(dbTableView); // Call the fade-out method
-        }));
-        fadeOutTimeline.setCycleCount(1);
-        fadeOutTimeline.play(); // Start the timeline
-    }
-
-
     private void fadeOutGlowEffect() {
         // Create a Timeline to gradually decrease the glow effect's level
         Timeline glowFade = new Timeline();
@@ -1280,7 +980,7 @@ public class ActivityController extends BaseController {
         String imageUrl = "";
         if (button == composeContractsButton) {
             imageUrl = isInverted ? IMAGE_PATH_BASE + "create-contracts" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "create-contracts.png";
-        } else if (button == editDriverButton) {
+        } else if (button == pinButton) {
             imageUrl = isInverted ? IMAGE_PATH_BASE + "driver-icon" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "driver-icon.png";
         } else if (button == cancellingButton) {
             imageUrl = isInverted ? IMAGE_PATH_BASE + "cancelling" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "cancelling.png";
@@ -1310,156 +1010,13 @@ public class ActivityController extends BaseController {
         button.setGraphic(imageView); // Update the button's graphic
     }
 
-    /*
     @FXML
-    private void handleViewAndDriverSelect(){
-        if (driverComboBox.getValue() != null) {
-            if (datePickerOne.getValue() == null && datePickerTwo.getValue() == null) {
-                handleViewSettingSelect("Driver", null);
-            } else if (datePickerOne.getValue() != null && datePickerTwo.getValue() == null) {
-                handleViewSettingSelect("Driver One Date", null);
-            } else {
-                handleViewSettingSelect("Driver Interval", null);
-            }
-            MaxReachPro.setSelectedDriverName(driverComboBox.getValue());
-        } else {
-            if (datePickerOne.getValue() == null && datePickerTwo.getValue() == null) {
-                handleViewSettingSelect("All Rentals", null);
-            } else if (datePickerOne.getValue() != null && datePickerTwo.getValue() == null) {
-                handleViewSettingSelect("One Date", null);
-            } else {
-                handleViewSettingSelect("Interval", null);
-            }
-        }
-        MaxReachPro.setActivityDateSelected1(datePickerOne.getValue());
-        MaxReachPro.setActivityDateSelected2(datePickerTwo.getValue());
-    }
-
-    @FXML
-    private void handleViewAndCustomerSelect(){
-        if (customerComboBox.getValue() != null) {
-            if (datePickerOne.getValue() == null && datePickerTwo.getValue() == null) {
-                handleViewSettingSelect("Customer", null);
-            } else if (datePickerOne.getValue() != null && datePickerTwo.getValue() == null) {
-                handleViewSettingSelect("Customer One Date", null);
-            } else {
-                handleViewSettingSelect("Customer Interval", null);
-            }
-            MaxReachPro.setSelectedCustomerName(customerComboBox.getValue());
-        } else {
-            if (datePickerOne.getValue() == null && datePickerTwo.getValue() == null) {
-                handleViewSettingSelect("All Rentals", null);
-            } else if (datePickerOne.getValue() != null && datePickerTwo.getValue() == null) {
-                handleViewSettingSelect("One Date", null);
-            } else {
-                handleViewSettingSelect("Interval", null);
-            }
-        }
-        MaxReachPro.setActivityDateSelected1(datePickerOne.getValue());
-        MaxReachPro.setActivityDateSelected2(datePickerTwo.getValue());
-    }
-
-    private void handleSettingInStatusSelect(){
-        String status = null;
-        if (!areStatusesRotating) {
-            ToggleButton selectedStatusButton = (ToggleButton) statusViewToggleGroup.getSelectedToggle();
-            status = selectedStatusButton.getText();
-            MaxReachPro.setSelectedStatusSetting(status);
-        }
-        if (datePickerOne.getValue() == null && datePickerTwo.getValue() == null){
-            handleViewSettingSelect("Status", status);
-        } else if (datePickerOne.getValue() != null && datePickerTwo.getValue() == null) {
-            handleViewSettingSelect("Status One Date", status);
-        } else {
-            handleViewSettingSelect("Status Interval", status);
-        }
-        MaxReachPro.setActivityDateSelected1(datePickerOne.getValue());
-        MaxReachPro.setActivityDateSelected2(datePickerTwo.getValue());
-    }
-
-    @FXML
-    private void handleOpenDatePickerOne() {
-        toggleDatePicker(datePickerOne, isDatePickerOneExpanded, datePickerOneLabel, true);
-    }
-
-    @FXML
-    private void handleOpenDatePickerTwo() {
-        toggleDatePicker(datePickerTwo, isDatePickerTwoExpanded, datePickerTwoLabel, false);
-    }
-
-    private void toggleDatePicker(DatePicker datePicker, AtomicBoolean isDatePickerExpanded, Label label, boolean enableSecondDatePicker) {
-        if (!isDatePickerExpanded.get()) {
-            openDatePicker(datePicker, isDatePickerExpanded, label, enableSecondDatePicker);
-        } else {
-            isDatePickerExpanded.set(false); // Hide the calendar
-        }
-    }
-
-    private void openDatePicker(DatePicker datePicker, AtomicBoolean isDatePickerExpanded, Label label, boolean enableSecondDatePicker) {
-        datePicker.show();
-        isDatePickerExpanded.set(true);
-        datePicker.requestFocus();
-
-        datePicker.setOnAction(event -> {
-            LocalDate selectedDate = datePicker.getValue();
-            if (selectedDate != null) {
-                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d");
-                String formattedDate = selectedDate.format(formatter);
-                label.setText(formattedDate);
-                isDatePickerExpanded.set(false);
-
-                // Conditionally enable the second date picker and its elements
-                if (enableSecondDatePicker) {
-                    datePickerTwo.setVisible(true);
-                    calendarButtonTwo.setVisible(true);
-                    datePickerTwoLabel.setVisible(true);
-                }
-                ToggleButton selectedViewButton = (ToggleButton) viewsToggleGroup.getSelectedToggle();
-                if (selectedViewButton != null) {
-                    String view = selectedViewButton.getText();
-                    switch (view) {
-                        case "Status":
-                            handleSettingInStatusSelect();
-                            System.out.println("Going to handleSettingInStatusSelect from datePickerOne");
-                            break;
-                        case "Customer":
-                            handleViewAndCustomerSelect();
-                            System.out.println("Going to handleViewAndCustomerSelect from datePickerOne");
-                            break;
-                        case "Driver":
-                            handleViewAndDriverSelect();
-                            System.out.println("Going to handleViewAndDriverSelect from datePickerOne");
-                            break;
-                    }
-                }
-            }
-        });
-
-        datePicker.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
-            if (!isNowFocused) {
-                isDatePickerExpanded.set(false);
-            }
-        });
-    }
-
-*/
-
-    @FXML
-    private void handleAssignDrivers() {
-        String actionType = "assigning-drivers";
+    private void handlePin() {
+        String actionType = "pinnng";
         if (actionType.equals(lastActionType)) {
-            updateRentalButton.setVisible(false); // Hide the update button
-            workingColumnFactory.setClosedDriverColumn(driverColumnType); // Reset driver column
-            shiftSidebarHighlighter(null); // Reset sidebar highlighter
-            System.out.println("Driver assignment mode deactivated.");
+
         } else {
-            batchButton.setVisible(false);
-            secondInProcessButton.setVisible(false);
-            updateRentalButton.setVisible(false); // Show the update button
-            workingColumnFactory.setOpenDriverColumn(driverColumnType); // Open driver column for assignment
-            shiftSidebarHighlighter(actionType); // Highlight the sidebar for driver assignment
-            workingColumnFactory.showSelectableCheckboxes(false, actionType);
-            System.out.println("Driver assignment mode activated.");
+
         }
         dbTableView.refresh(); // Refresh the table view
     }
@@ -1477,7 +1034,6 @@ public class ActivityController extends BaseController {
             batchButton.setVisible(false);
             secondInProcessButton.setVisible(false);
             updateRentalButton.setVisible(false); // Show the update button
-            workingColumnFactory.setOpenDriverColumn(driverColumnType); // Open driver column for assignment
             shiftSidebarHighlighter(actionType); // Highlight the sidebar for driver assignment
             workingColumnFactory.showSelectableCheckboxes(false, actionType);
             System.out.println("Cancel mode activated.");
@@ -1496,7 +1052,6 @@ public class ActivityController extends BaseController {
             shiftSidebarHighlighter(null); // Reset sidebar highlighter
             shiftUpdateButtonFull();
         } else {
-            closeDriverBoxesIfOpen();
             resetCheckboxes();
             updateRentalButton.setVisible(false);
             batchButton.setVisible(false);
@@ -1514,7 +1069,6 @@ public class ActivityController extends BaseController {
             workingColumnFactory.showMiniatureIcons(false, actionType);
             shiftSidebarHighlighter(null);
         } else {
-            closeDriverBoxesIfOpen();
             batchButton.setVisible(false);
             secondInProcessButton.setVisible(false);
             workingColumnFactory.showMiniatureIcons(true, actionType);
@@ -1534,7 +1088,6 @@ public class ActivityController extends BaseController {
         } else {
             batchButton.setVisible(false);
             secondInProcessButton.setVisible(false);
-            closeDriverBoxesIfOpen();
             resetCheckboxes();
             updateRentalButton.setVisible(false);
             workingColumnFactory.showSelectableCheckboxes(true, actionType);
@@ -1552,7 +1105,6 @@ public class ActivityController extends BaseController {
             updateRentalButton.setVisible(false);
             shiftSidebarHighlighter(null);
         } else {
-            closeDriverBoxesIfOpen();
             batchButton.setVisible(false);
             secondInProcessButton.setVisible(false);
             resetCheckboxes();
@@ -1574,7 +1126,6 @@ public class ActivityController extends BaseController {
             batchButton.setVisible(false);
             secondInProcessButton.setVisible(false);
         } else {
-            closeDriverBoxesIfOpen();
             resetCheckboxes();
             batchButton.setVisible(false);
             secondInProcessButton.setVisible(false);
@@ -1596,7 +1147,6 @@ public class ActivityController extends BaseController {
             batchButton.setVisible(false);
             secondInProcessButton.setVisible(false);
             } else {
-            closeDriverBoxesIfOpen();
             shiftSidebarHighlighter(actionType);
             batchButton.setVisible(false);
             secondInProcessButton.setVisible(false);
@@ -1615,7 +1165,6 @@ public class ActivityController extends BaseController {
             workingColumnFactory.showMiniatureIcons(false, actionType);
             shiftSidebarHighlighter(null);
         } else {
-            closeDriverBoxesIfOpen();
             batchButton.setVisible(false);
             secondInProcessButton.setVisible(false);
             workingColumnFactory.showMiniatureIcons(true, actionType);
@@ -1666,7 +1215,6 @@ public class ActivityController extends BaseController {
             updateRentalButton.setVisible(false);
             shiftSidebarHighlighter(null); // Reset sidebar highlighter
         } else {
-            closeDriverBoxesIfOpen();
             resetCheckboxes();
             batchButton.setVisible(false);
             secondInProcessButton.setVisible(false);
@@ -1698,9 +1246,9 @@ public class ActivityController extends BaseController {
         boolean statusUpdated = false;
         Date today = new Date(); // Today's date
 
-        if (lastActionType.equals("assigning-drivers")) {
-            handleAssignDrivers();
-            lastActionType = "assigning-drivers"; // correcting for above line which causes it to be set to null
+        if (lastActionType.equals("pinning")) {
+            handlePin();
+            lastActionType = "pinning"; // correcting for above line which causes it to be set to null
             statusUpdated = true;
         } else if (lastActionType.equals("cancelling")) {
             System.out.println("cancelling");
@@ -1967,9 +1515,6 @@ public class ActivityController extends BaseController {
                 return "Picked Up";
             }
         }
-
-        // If no status change applies
- //       System.out.println("No status change applied for Order ID " + order.getCustomerId() + ". Returning current status: " + currentStatus);
         return currentStatus;
     }
 
@@ -2045,358 +1590,6 @@ public class ActivityController extends BaseController {
         secondInProcessButton.setVisible(false);
     }
 
-    private void closeDriverBoxesIfOpen(){
-        if ("assigning-drivers".equals(lastActionType)) {
-            workingColumnFactory.setClosedDriverColumn(driverColumnType);
-        }
-    }
-/*
-    private void handleViewSelect(String orientation) {
-        datePickerOne.setValue(null);
-        datePickerTwo.setValue(null);
-        datePickerOneLabel.setText("From:");
-        datePickerTwoLabel.setText("To:");
-
-        GradientAnimator.stopAllAnimations();
-
-        if (Objects.equals(orientation, "expand")) {
-            statusViewToggleGroup.selectToggle(null);
-            // Unselect the currently selected button
-            selectedViewButton.setSelected(false);
-            GradientAnimator.applySequentialGradientAnimationToggles(viewsToggleButtons, 0, "view-type-button-stopped");
-
-            // Show all ToggleButtons in the group
-            for (Toggle toggle : viewsToggleGroup.getToggles()) {
-                ToggleButton toggleButton = (ToggleButton) toggle;
-                toggleButton.setVisible(true);
-
-                // Animate the button sliding back to its original position
-                TranslateTransition transition = new TranslateTransition(Duration.millis(300), toggleButton);
-                transition.setToX(0); // number equals an offset amount of original
-                transition.setToY(0);
-
-                ScaleTransition scaleTransition = new ScaleTransition(Duration.millis(300), toggleButton);
-                scaleTransition.setToX(1); // number equals a scalar amount of original
-                scaleTransition.setToY(1);
-
-                toggleButton.scaleXProperty().addListener((obs, oldVal, newVal) -> {
-                    double newFontSize = 14 * newVal.doubleValue();
-                    toggleButton.setFont(Font.font(newFontSize));
-                });
-
-                scaleTransition.play();
-                transition.play();
-            }
-
-            // Clear the selectedViewButton reference
-            selectedViewButton = null;
-
-            // Hide any VBox currently shown
-            if (latestLeftSideVbox != null) {
-                latestLeftSideVbox.setVisible(false);
-                latestLeftSideVbox = null;
-            }
-            if (latestRightSideVbox != null) {
-                latestRightSideVbox.setVisible(false);
-                latestRightSideVbox = null;
-            }
-            statusesPane.setVisible(false);
-            statusesPaneTwo.setVisible(false);
-            datePickerOneLabel.setVisible(false);
-            datePickerTwoLabel.setVisible(false);
-            datePickerOneCover.setVisible(false);
-            calendarButtonOne.setVisible(false);
-            calendarButtonTwo.setVisible(false);
-
-            handleViewSettingSelect("All Rentals", null);
-            selectedStatusButton = null;
-        } else {
-            // New button selection
-           // selectedViewButton = selectedButton;
-            String selectedView = selectedViewButton.getText();
-            MaxReachPro.setSelectedViewSetting(selectedView);
-            MaxReachPro.setActivityDateSelected1(null);
-            MaxReachPro.setActivityDateSelected2(null);
-            MaxReachPro.setSelectedCustomerName(null);
-            MaxReachPro.setSelectedDriverName(null);
-            MaxReachPro.setSelectedStatusSetting(null);
-            // Hide the previously shown VBoxes
-            if (latestLeftSideVbox != null) {
-                latestLeftSideVbox.setVisible(false);
-            }
-            if (latestRightSideVbox != null) {
-                latestRightSideVbox.setVisible(false);
-            }
-            // Determine which VBoxes to show based on the selected view
-            switch (selectedView) {
-                case "Status":
-                    statusesPane.setVisible(true);
-                    statusesPaneTwo.setVisible(true);
-                    datePickersPane.setVisible(true);
-                    latestRightSideVbox = datePickersPane;
-                    datePickerOneLabel.setVisible(true);
-                    datePickerOneCover.setVisible(true);
-                    calendarButtonOne.setVisible(true);
-                    GradientAnimator.applySequentialGradientAnimationToggles(statusesToggleButtons, 1, "status-type-button-stopped");
-                    break;
-                case "Customer":
-                    leftSideVboxCustomerView.setVisible(true);
-                    latestLeftSideVbox = leftSideVboxCustomerView;
-                    datePickersPane.setVisible(true);
-                    latestRightSideVbox = datePickersPane;
-                    datePickerOneLabel.setVisible(true);
-                    datePickerOneCover.setVisible(true);
-                    calendarButtonOne.setVisible(true);
-                    break;
-                case "Driver":
-                    leftSideVboxDriverView.setVisible(true);
-                    latestLeftSideVbox = leftSideVboxDriverView;
-                    datePickersPane.setVisible(true);
-                    latestRightSideVbox = datePickersPane;
-                    datePickerOneLabel.setVisible(true);
-                    datePickerOneCover.setVisible(true);
-                    calendarButtonOne.setVisible(true);
-                    driverComboBox.setItems(driverInitials);
-                    break;
-            }
-            // Refresh the database view
-            dbTableView.refresh();
-
-            // Animate the selected button to slide to the leftmost position
-            TranslateTransition transition = new TranslateTransition(Duration.millis(300), selectedViewButton);
-            transition.setToX(-selectedViewButton.getLayoutX() - 4); // Adjust this based on the leftmost position
-            transition.setToY(-selectedViewButton.getLayoutY());
-
-            ScaleTransition scaleTransition = new ScaleTransition(Duration.millis(300), selectedViewButton);
-            scaleTransition.setToX(.8);
-
-
-            
-            selectedViewButton.scaleXProperty().addListener((obs, oldVal, newVal) -> {
-                double newFontSize = 14 * newVal.doubleValue();
-                selectedViewButton.setFont(Font.font(newFontSize));
-            });
-
-            scaleTransition.play();
-
-            transition.play();
-
-            // Hide all other ToggleButtons
-            for (Toggle toggle : viewsToggleGroup.getToggles()) {
-                ToggleButton toggleButton = (ToggleButton) toggle;
-                if (toggleButton != selectedViewButton) {
-                    toggleButton.setVisible(false);
-                }
-            }
-            selectedViewButton.setVisible(true);
-        }
-    }
-
-
-    private void handleViewSettingSelect (String viewType, String status) {
-        dbTableView.getColumns().clear();
-        resetColumnWidths();
-        dbTableView.getColumns().addAll(statusColumn, addressColumn);
-        switch (viewType) {
-             case "Status":
-                switch (status) {
-                    case "Active":
-                        serialNumberColumn.setPrefWidth(19);
-                        dbTableView.getColumns().addAll(deliveryDateColumn, serialNumberColumn, invoiceColumn);
-                        loadData("Active");
-                        break;
-                    case "Billable":
-                        addressColumn.setPrefWidth(105);
-                        dbTableView.getColumns().addAll(deliveryDateColumn, callOffDateColumn, invoiceColumn);
-                        loadData("Billable");
-                        break;
-                    case "Upcoming":
-                        driverColumnType = "po-number";
-                        driverColumn = workingColumnFactory.getDriverColumn(driverColumnType);
-                        deliveryDateColumn.setPrefWidth(36);
-                        dbTableView.getColumns().addAll(deliveryDateColumn, deliveryTimeColumn, driverColumn);
-                        loadData("Upcoming");
-                        break;
-                    case "Called Off":
-                        driverColumnType = "interval";
-                        driverColumn = workingColumnFactory.getDriverColumn(driverColumnType);
-                        serialNumberColumn.setPrefWidth(26);
-                        callOffDateColumn.setPrefWidth(33);
-                        dbTableView.getColumns().addAll(serialNumberColumn, callOffDateColumn, driverColumn);
-                        loadData("Called Off");
-                        break;
-                    default:
-                        driverColumnType = "po-number";
-                        driverColumn = workingColumnFactory.getDriverColumn(driverColumnType);
-                        biModalDateColumn.setPrefWidth(49);
-                        dbTableView.getColumns().addAll(biModalDateColumn, serialNumberColumn, driverColumn);
-                        loadData("All Rentals");
-                        break;
-                }
-                break;
-            case "Status One Date":
-                switch (status) {
-                    case "Active":
-                        serialNumberColumn.setPrefWidth(19);
-                        dbTableView.getColumns().addAll(deliveryDateColumn, serialNumberColumn, invoiceColumn);
-                        loadData("Active One Date");
-                        break;
-                    case "Billable":
-                        addressColumn.setPrefWidth(105);
-                        dbTableView.getColumns().addAll(deliveryDateColumn, callOffDateColumn, invoiceColumn);
-                        loadData("Billable One Date");
-                        break;
-                    case "Upcoming":
-                        driverColumnType = "po-number";
-                        driverColumn = workingColumnFactory.getDriverColumn(driverColumnType);
-                        deliveryDateColumn.setPrefWidth(36);
-                        dbTableView.getColumns().addAll(deliveryDateColumn, deliveryTimeColumn, driverColumn);
-                        loadData("Upcoming One Date");
-                        break;
-                    case "Called Off":
-                        driverColumnType = "interval";
-                        driverColumn = workingColumnFactory.getDriverColumn(driverColumnType);
-                        serialNumberColumn.setPrefWidth(26);
-                        callOffDateColumn.setPrefWidth(33);
-                        dbTableView.getColumns().addAll(serialNumberColumn, callOffDateColumn, driverColumn);
-                        loadData("Called Off One Date");
-                        break;
-                    default:
-                        driverColumnType = "time-range";
-                        driverColumn = workingColumnFactory.getDriverColumn(driverColumnType);
-                        biModalDateColumn.setPrefWidth(49);
-                        dbTableView.getColumns().addAll(biModalDateColumn, serialNumberColumn, driverColumn);
-                        loadData("One Date");
-                        break;
-                }
-                break;
-            case "Status Interval":
-                switch (status) {
-                    case "Active":
-                        serialNumberColumn.setPrefWidth(19);
-                        dbTableView.getColumns().addAll(deliveryDateColumn, serialNumberColumn, invoiceColumn);
-                        loadData("Active Interval");
-                        break;
-                    case "Billable":
-                        addressColumn.setPrefWidth(105);
-                        dbTableView.getColumns().addAll(deliveryDateColumn, callOffDateColumn, invoiceColumn);
-                        loadData("Billable Interval");
-                        break;
-                    case "Upcoming":
-                        driverColumnType = "po-number";
-                        driverColumn = workingColumnFactory.getDriverColumn(driverColumnType);
-                        serialNumberColumn.setPrefWidth(26);
-                        callOffDateColumn.setPrefWidth(33);
-                        dbTableView.getColumns().addAll(deliveryDateColumn, deliveryTimeColumn, driverColumn);
-                        loadData("Upcoming Interval");
-                        break;
-                    case "Called Off":
-                        driverColumnType = "interval";
-                        driverColumn = workingColumnFactory.getDriverColumn(driverColumnType);
-                        deliveryDateColumn.setPrefWidth(36);
-                        dbTableView.getColumns().addAll(serialNumberColumn, callOffDateColumn, driverColumn);
-                        loadData("Called Off Interval");
-                        break;
-                    default:
-                        driverColumnType = "po-number";
-                        driverColumn = workingColumnFactory.getDriverColumn(driverColumnType);
-                        biModalDateColumn.setPrefWidth(49);
-                        dbTableView.getColumns().addAll(biModalDateColumn, serialNumberColumn, driverColumn);
-                        loadData("Interval");
-                        break;
-                }
-                break;
-            case "Customer":
-                serialNumberColumn.setPrefWidth(20);
-                biModalDateColumn.setPrefWidth(30);
-                dbTableView.getColumns().addAll(serialNumberColumn, biModalDateColumn, invoiceColumn);
-                loadData("Customer");
-                break;
-            case "Customer One Date":
-                serialNumberColumn.setPrefWidth(20);
-                biModalDateColumn.setPrefWidth(30);
-                dbTableView.getColumns().addAll(serialNumberColumn, biModalDateColumn, invoiceColumn);
-                loadData("Customer One Date");
-                break;
-            case "Customer Interval":
-                serialNumberColumn.setPrefWidth(20);
-                biModalDateColumn.setPrefWidth(30);
-                dbTableView.getColumns().addAll(serialNumberColumn, biModalDateColumn, invoiceColumn);
-                loadData("Customer Interval");
-                break;
-            case "Driver":
-                driverColumnType = "time-range";
-                driverColumn = workingColumnFactory.getDriverColumn(driverColumnType);
-                biModalDateColumn.setPrefWidth(49);
-                dbTableView.getColumns().addAll(serialNumberColumn, biModalDateColumn, driverColumn);
-                loadData("Driver");
-                break;
-            case "Driver One Date":
-                driverColumnType = "time-range";
-                driverColumn = workingColumnFactory.getDriverColumn(driverColumnType);
-                biModalDateColumn.setPrefWidth(49);
-                dbTableView.getColumns().addAll(serialNumberColumn, biModalDateColumn, driverColumn);
-                loadData("Driver One Date");
-                break;
-            case "Driver Interval":
-                driverColumnType = "time-range";
-                driverColumn = workingColumnFactory.getDriverColumn(driverColumnType);
-                biModalDateColumn.setPrefWidth(49);
-                dbTableView.getColumns().addAll(serialNumberColumn, biModalDateColumn, driverColumn);
-                loadData("Driver Interval");
-                break;
-            case "One Date":
-                driverColumnType = "time-range";
-                driverColumn = workingColumnFactory.getDriverColumn(driverColumnType);
-                biModalDateColumn.setPrefWidth(49);
-                dbTableView.getColumns().addAll(biModalDateColumn, serialNumberColumn, driverColumn);
-                System.out.println("Adding a biModal date column");
-                loadData("One Date");
-                break;
-            case "Interval":
-                driverColumnType = "po-number";
-                driverColumn = workingColumnFactory.getDriverColumn(driverColumnType);
-                biModalDateColumn.setPrefWidth(49);
-                dbTableView.getColumns().addAll(biModalDateColumn, serialNumberColumn, driverColumn);
-                System.out.println("Adding a biModal date column");
-                loadData("Interval");
-                break;
-            default:
-                driverColumnType = "po-number";
-                driverColumn = workingColumnFactory.getDriverColumn(driverColumnType);
-                biModalDateColumn.setPrefWidth(49);
-                dbTableView.getColumns().addAll(biModalDateColumn, serialNumberColumn, driverColumn);
-                System.out.println("Adding a biModal date column");
-                loadData("All Rentals");
-                break;
-        }
-        if (lastActionType != null) {
-            shiftSidebarHighlighter(null);
-            lastActionType = null;
-        }
-        workingColumnFactory.resetCheckboxes();
-        workingColumnFactory.showSelectableCheckboxes(false, lastActionType);
-        updateRentalButton.setVisible(false);
-        serialNumberField.setVisible(false);
-        batchButton.setVisible(false);
-        secondInProcessButton.setVisible(false);
-
-        dbTableView.refresh();
-    } 
-    */
-
-    private void resetColumnWidths(){
-        deliveryDateColumn.setPrefWidth(31);
-        callOffDateColumn.setPrefWidth(31);
-        biModalDateColumn.setPrefWidth(31);
-        addressColumn.setPrefWidth(117);
-        statusColumn.setPrefWidth(24);
-        serialNumberColumn.setPrefWidth(10);
-        deliveryTimeColumn.setPrefWidth(23);
-        driverColumn.setPrefWidth(63);
-        invoiceColumn.setPrefWidth(72);
-    }
-
     private static LocalDate getNextWorkDay(LocalDate currentDay) {
         LocalDate nextDay = currentDay.plusDays(1);
         while (nextDay.getDayOfWeek() == DayOfWeek.SATURDAY ||
@@ -2411,27 +1604,6 @@ public class ActivityController extends BaseController {
         return date.getDayOfWeek().getValue() < 6 && !Config.isHoliday(date);
     }
 
-    private boolean isWithinBusinessDays(String dateStr, int businessDays) {
-        if (dateStr == null || dateStr.isEmpty()) {
-            return false;
-        }
-        
-        LocalDate date = LocalDate.parse(dateStr, fromJavaObjectFormatter);
-        int businessDayCount = 0;
-        LocalDate today = LocalDate.now();
-        LocalDate tempDate = today;
-
-        while (businessDayCount < businessDays) {
-            if (isBusinessDay(tempDate)) {
-                businessDayCount++;
-            }
-            tempDate = tempDate.minusDays(1);
-        }
-
-        return !date.isBefore(tempDate);
-
-    }
-
     // Helper function to parse a date string
     private static LocalDate parseDate(String dateString) {
         if (dateString == null || dateString.isEmpty()) {
@@ -2443,18 +1615,6 @@ public class ActivityController extends BaseController {
             // Handle invalid date format
             System.err.println("Invalid date format: " + dateString);
             return null;
-        }
-    }
-
-    private void clearGradientFromToggleSet(List<ToggleButton> toggles, ToggleButton selectedException, String styleClass){
-        for (ToggleButton toggle : toggles) {
-            toggle.getStyleClass().removeAll(toggle.getStyleClass());
-            toggle.getStyleClass().add(styleClass);
-            if (toggle == selectedException) {
-                toggle.setStyle("-fx-background: orange;");
-            } else {
-
-            }
         }
     }
 
@@ -2536,8 +1696,6 @@ public class ActivityController extends BaseController {
         }
     }
    
-        
-
     private void switchActiveGlow(Ellipse newGlow) {
         stopActiveGlow();
 
@@ -2677,7 +1835,7 @@ public class ActivityController extends BaseController {
                 customerLabel.setText(formatCustomerLabel(value)); // 🔥 truncated
                 customerComboBox.setVisible(false);
                 selectedCustomer = value;
-                renderCustomerMenu();
+                renderMenu();
                 loadData(buildWhereClauseFromView());
             }
         });
@@ -2714,7 +1872,7 @@ public class ActivityController extends BaseController {
                 });
     
                 liftComboBox.setVisible(false); // hide after selection
-                renderCustomerMenu();
+                renderMenu();
                 loadData(buildWhereClauseFromView());
             }
         });
@@ -2725,29 +1883,6 @@ public class ActivityController extends BaseController {
         });
     }
     
-
-    private void setLiftPeekImage(String liftType) {
-        if (liftType == null || liftType.isBlank()) return;
-    
-        // Build the resource path
-        String imagePath = "/images/" + liftType + "-peek.png"; // adjust if your path is different
-        Image img;
-        try {
-            img = new Image(getClass().getResourceAsStream(imagePath));
-        } catch (Exception e) {
-            System.err.println("Lift image not found: " + imagePath);
-            return;
-        }
-    
-        liftImage.setImage(img);
-    
-        // Adjust dimensions and translate
-        liftImage.setFitWidth(28);
-        liftImage.setFitHeight(49);
-        liftImage.setTranslateY(4 + 15); // original translateY was 4, add +3 as requested
-        liftImage.setTranslateX(62 - 1);
-    }
-
     private void configureViewComboBox() {
         // Hardcoded items
         ObservableList<String> viewOptions = FXCollections.observableArrayList("PO#", "Delivery Time");
@@ -2762,12 +1897,16 @@ public class ActivityController extends BaseController {
             String value = viewComboBox.getValue();
             value = value == "Delivery Time" ? "Time" : value;
             if (value != null) {
-                // MaxReachPro.setSelectedViewOption(value); // optional
                 viewLabel.setText(value);
                 viewComboBox.setVisible(false);
                 selectedView = value;
-                renderCustomerMenu();
+                renderMenu();
                 loadData(buildWhereClauseFromView());
+                switch (value) {
+                    case "Delivery Time":
+                        dbTableView.getColumns().add(deliveryTimeColumn);
+                        return;
+                }
             }
         });
     
@@ -2815,7 +1954,7 @@ public class ActivityController extends BaseController {
         }
     }
 
-    private void renderCustomerMenu() {
+    private void renderMenu() {
 
         List<Node> nodes = new ArrayList<>();
     
@@ -2979,9 +2118,10 @@ public class ActivityController extends BaseController {
                 // 🔑 STATE
                 currentStatusCircle = selected;
                 selectedStatus = status; // 👈 THIS IS THE KEY LINE
+                state.selectedStatus = status;
             
                 customerMenuNode.getChildren().remove(statusHBox);
-                renderCustomerMenu();
+                renderMenu();
                 loadData(buildWhereClauseFromView());   // 👈 trigger SQL reload
             });
             
@@ -2998,7 +2138,7 @@ public class ActivityController extends BaseController {
                     e.getSceneY() - statusHBox.localToScene(0, 0).getY())) {
     
                 customerMenuNode.getChildren().remove(statusHBox);
-                renderCustomerMenu();
+                renderMenu();
             }
         });
     }
@@ -3069,17 +2209,12 @@ public class ActivityController extends BaseController {
         customerMenuNode.getChildren().clear();  // remove all elements
     }
 
-    private void restoreBaseElements() {
-        clearAllElements();                // remove anything currently in StackPane
-        customerMenuNode.getChildren().setAll(baseElements);  // add base elements back
-    }
-
     @FXML
     private void onStatusBarClicked(MouseEvent e) {
         e.consume();
         currentStatusCircle = null;
         selectedStatus = null;
-        renderCustomerMenu();
+        renderMenu();
         loadData(buildWhereClauseFromView());
     }
 
@@ -3088,7 +2223,7 @@ public class ActivityController extends BaseController {
         e.consume();
         selectedCustomer = null;
         customerLabel.setText("Customer ▾");
-        renderCustomerMenu();
+        renderMenu();
         loadData(buildWhereClauseFromView());
     }
 
@@ -3097,7 +2232,7 @@ public class ActivityController extends BaseController {
         e.consume();
         selectedDate = null;
         currentDateNode = null;
-        renderCustomerMenu();
+        renderMenu();
         loadData(buildWhereClauseFromView());
     }
 
@@ -3105,7 +2240,7 @@ public class ActivityController extends BaseController {
     private void onLiftBarClicked(MouseEvent e) {
         e.consume();
         selectedLift = null;
-        renderCustomerMenu();
+        renderMenu();
         loadData(buildWhereClauseFromView());
     }
 
@@ -3114,7 +2249,7 @@ public class ActivityController extends BaseController {
         e.consume();
         selectedView = null;
         viewLabel.setText("View ▾");
-        renderCustomerMenu();
+        renderMenu();
         loadData(buildWhereClauseFromView());
     }
 

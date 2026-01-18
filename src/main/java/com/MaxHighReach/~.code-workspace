@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "../../../../../../max_mobile"
+		},
+		{
+			"path": "../../../../.."
+		},
+		{
+			"path": "../../../../../../MaxReachPro-API"
+		}
+	],
+	"settings": {
+		"java.jdt.ls.vmargs": "-XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xmx16G -Xms100m -Xlog:disable",
+		"java.configuration.updateBuildConfiguration": "automatic",
+		"java.compile.nullAnalysis.mode": "automatic"
+	}
+}

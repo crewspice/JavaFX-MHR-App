@@ -1957,7 +1957,7 @@ public class ScheduleDeliveryController extends BaseController {
 			String notes = notesButton.getStyleClass().contains("schedule-delivery-button-has-value") ? notesField.getText() : "";
 
         	currentCustomerRental = new Rental(customerId, customerName, deliveryDate, deliveryTime,
-            	null, "", 0, "Upcoming", po, rentalsList.size() + 1,
+            	null, "", "Upcoming", po, rentalsList.size() + 1,
              	false, null);
 			currentCustomerRental.setAddressBlockOne(site);
         	currentCustomerRental.setAddressBlockTwo(streetAddress);
