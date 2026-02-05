@@ -75,6 +75,7 @@ public class MaxReachPro extends Application {
     private static String[] user;
     private static BaseController currentController;
     private static MapController mapController;
+    private static DevMapController devMapController;
     private static Rental rentalForExpanding;
     private static String currentScenePath;
     private static String sceneBeforeExpandName;
@@ -109,8 +110,7 @@ public class MaxReachPro extends Application {
         sceneHierarchy.put("/fxml/sync_with_qb.fxml", "/fxml/home.fxml");
         sceneHierarchy.put("/fxml/utilization.fxml", "/fxml/home.fxml");
         sceneHierarchy.put("/fxml/expand_imaginary.fxml", "/fxml/utilization.fxml");
-        sceneHierarchy.put("/fxml/service.fxml", "/fxml/home.fxml");
-        sceneHierarchy.put("/fxml/expand_service.fxml", "/fxml/home.fxml");
+        sceneHierarchy.put("/fxml/service.fxml", "/fxml/activity.fxml");
 
         // Load the initial scene
         // Now includes calls to makeMainPane() and makeMapPane()
@@ -155,6 +155,87 @@ public class MaxReachPro extends Application {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/map.fxml"));
                 Parent mapContent = loader.load();
                 mapController = loader.getController();
+                mapPane.getChildren().add(mapContent);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    
+        // Expand the mapPane
+        mapPane.setMinWidth(Config.WINDOW_HEIGHT / 2);
+        mapPane.setMaxWidth(Config.WINDOW_HEIGHT / 2);
+        HBox.setHgrow(mapPane, Priority.ALWAYS);
+
+        double originalWidth = topBar.getWidth();
+
+        // Calculate the new X position by adding half of the window height from the current position
+        double newWidth = originalWidth + (Config.WINDOW_HEIGHT / 2) + 2.5;
+        // Assuming closeRect, closeSymbol, minimizeRect, and minimizeSymbol are defined somewhere
+
+        // Define the original and new positions for the translations
+        double closeRectOriginalX = closeRect.getLayoutX();
+        double closeRectNewX = closeRectOriginalX + newWidth - 35;  // Adjust this to the desired translation value
+
+        double closeSymbolOriginalX = closeSymbol.getLayoutX();
+        double closeSymbolNewX = closeSymbolOriginalX + newWidth - 26;  // Same as above
+
+        double minimizeRectOriginalX = minimizeRect.getLayoutX();
+        double minimizeRectNewX = minimizeRectOriginalX + newWidth - 69;  // Adjust accordingly
+
+        double minimizeSymbolOriginalX = minimizeSymbol.getLayoutX();
+        double minimizeSymbolNewX = minimizeSymbolOriginalX + newWidth - 61;  // Adjust accordingly
+
+        double collapseRectOriginalX = collapseRect.getLayoutX();
+        double collapseRectNewX = collapseRectOriginalX + newWidth - 104;
+
+        double collapseSymbolOriginalX = collapseSymbol.getLayoutX();
+        double collapseSymbolNewX = collapseSymbolOriginalX + newWidth - 98;
+
+        // Create the Timeline with both width and translation animations
+        Timeline timeline = new Timeline(
+            new KeyFrame(Duration.ZERO, 
+                new KeyValue(topBar.widthProperty(), originalWidth, Interpolator.EASE_BOTH),
+                new KeyValue(closeRect.translateXProperty(), 285, Interpolator.EASE_BOTH),
+                new KeyValue(closeSymbol.translateXProperty(), 295, Interpolator.EASE_BOTH),
+                new KeyValue(minimizeRect.translateXProperty(), 248, Interpolator.EASE_BOTH),
+                new KeyValue(minimizeSymbol.translateXProperty(), 256, Interpolator.EASE_BOTH),
+                new KeyValue(collapseRect.translateXProperty(), 210, Interpolator.EASE_BOTH),
+                new KeyValue(collapseSymbol.translateXProperty(), 216, Interpolator.EASE_BOTH)
+            ),
+            new KeyFrame(Duration.millis(1075), 
+                new KeyValue(topBar.widthProperty(), newWidth, Interpolator.EASE_BOTH),
+                new KeyValue(closeRect.translateXProperty(), closeRectNewX, Interpolator.EASE_BOTH),
+                new KeyValue(closeSymbol.translateXProperty(), closeSymbolNewX, Interpolator.EASE_BOTH),
+                new KeyValue(minimizeRect.translateXProperty(), minimizeRectNewX, Interpolator.EASE_BOTH),
+                new KeyValue(minimizeSymbol.translateXProperty(), minimizeSymbolNewX, Interpolator.EASE_BOTH),
+                new KeyValue(collapseRect.translateXProperty(), collapseRectNewX, Interpolator.EASE_BOTH),
+                new KeyValue(collapseSymbol.translateXProperty(), collapseSymbolNewX, Interpolator.EASE_BOTH)
+            )
+        );
+
+        timeline.setOnFinished(event -> {
+            collapseRect.setVisible(true);
+            collapseSymbol.setVisible(true);
+        });
+
+        // Play the timeline animation
+        timeline.play();
+
+
+        cornerCoverInMiddle1.setFill(Color.web("#F4F4F4"));
+        cornerCoverInMiddle2.setFill(Color.web("#F4F4F4"));
+
+    }
+
+    
+    public void devExpandStage() {
+        System.out.println("Expand stage triggered");
+
+        if (mapPane.getChildren().isEmpty()) {
+            try {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/dev-map.fxml"));
+                Parent mapContent = loader.load();
+                devMapController = loader.getController();
                 mapPane.getChildren().add(mapContent);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -274,17 +355,15 @@ public class MaxReachPro extends Application {
 
     public static void loadScene(String fxmlPath) throws Exception {
         boolean isExpandType = fxmlPath.equals("/fxml/expand.fxml") || fxmlPath.equals("/fxml/expand_service.fxml");
-        
+
         System.out.println("Loading scene: " + fxmlPath);
         System.out.println("Is expand type? " + isExpandType);
         System.out.println("Current scene path: " + currentScenePath);
     
-        if (currentScenePath != null && isExpandType) {
-            if (currentScenePath.equals("/fxml/activity.fxml")) {
-                sceneBeforeExpandName = "/fxml/home.fxml";
-            } else {
-                sceneBeforeExpandName = currentScenePath;
-            }
+        if (currentScenePath != null && isExpandType && currentScenePath != "/fxml/expand.fxml" && currentScenePath != "/fxml/expand_service.fxml") {
+
+            sceneBeforeExpandName = currentScenePath;
+            
             System.out.println("sceneBeforeExpandName set to: " + sceneBeforeExpandName);
         }
        
@@ -728,6 +807,7 @@ public class MaxReachPro extends Application {
 
 
     public static void loadLifts () {
+        lifts.clear();
         String query = "SELECT lift_id, lift_type, serial_number, model, generic FROM lifts";
 
 
@@ -805,7 +885,7 @@ public class MaxReachPro extends Application {
 
 
     public static MapController getMapController() {
-        return mapController;
+        return mapController != null ? mapController : null;
     }
 
     // This method loads the CSS file as a string (helper method)

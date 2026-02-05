@@ -110,7 +110,7 @@ public class ActivityController extends BaseController {
     
     private final ActivityState state = ActivityState.current;
     private String selectedCustomer;
-    private Node currentDateNode;
+    private Node currentDateNode = calendarImage;
     private LocalDate selectedDate;
     private Lift selectedLift;
     private String selectedView;
@@ -118,6 +118,14 @@ public class ActivityController extends BaseController {
     private String selectedStatus = null;
     private Circle currentStatusCircle = null; // field
     private boolean suppressProximityGlow = false;
+    private Label debugStateLabel;
+
+    private Map<String, String> VIEW_NORMALIZATION = Map.of(
+        "Delivery Time", "Time",
+        "Delivery Date", "Del",
+        "PO#", "PO#",
+        "Billing", "Bill"
+    );
 
     @FXML
     private VBox buttonsVBox;
@@ -134,17 +142,32 @@ public class ActivityController extends BaseController {
     @FXML
     private Button pickingUpButton;
     @FXML
-    private Button updateRentalButton;
-    @FXML
     private Button composeInvoicesButton;
     @FXML
     private Button expandButton;
+    @FXML
+    private Button sendToMapButton;
     @FXML
     private Button composeContractsButton;
     @FXML
     private Button refreshDataButton;
     @FXML
     private Button deleteButton;
+
+    @FXML private ImageView composeContractsIcon;
+    @FXML private ImageView pinIcon;
+    @FXML private ImageView cancellingIcon;
+    @FXML private ImageView droppingOffIcon;
+    @FXML private ImageView schedulingServiceIcon;
+    @FXML private ImageView callingOffIcon;
+    @FXML private ImageView pickingUpIcon;
+    @FXML private ImageView composeInvoicesIcon;
+    @FXML private ImageView sendToMapIcon;
+    @FXML private ImageView expandIcon;
+    @FXML private ImageView refreshDataIcon;
+    @FXML private ImageView deleteIcon;
+
+
     @FXML
     private TextField serialNumberField;
     @FXML
@@ -154,6 +177,8 @@ public class ActivityController extends BaseController {
     private Button secondInProcessButton;
     @FXML
     private Button openSDKButton;
+    @FXML
+    private Button updateRentalButton;
     private final Tooltip composeContractsTooltip = new Tooltip("Compose Contracts");
     private final Tooltip pinTooltip = new Tooltip("Pin");
     private final Tooltip cancellingTooltip = new Tooltip("Cancel");    
@@ -163,6 +188,7 @@ public class ActivityController extends BaseController {
     private final Tooltip pickingUpTooltip = new Tooltip("Record Pick Up");
     private final Tooltip composeInvoicesTooltip = new Tooltip("Compose Invoices");
     private final Tooltip expandTooltip = new Tooltip("Expand Rental");
+    private final Tooltip sendToMapTooltip = new Tooltip("Send to Map");
     private final Tooltip refreshDataTooltip = new Tooltip("Refresh Table");
     private final Tooltip deleteTooltip = new Tooltip("Delete Rental");
     @FXML
@@ -180,7 +206,8 @@ public class ActivityController extends BaseController {
     TableColumn<Rental, String> biModalDateColumn = new TableColumn<>();
     TableColumn<Rental, String> addressColumn = new TableColumn<>();
     TableColumn<Rental, String> invoiceColumn = new TableColumn<>();
-    TableColumn<Rental, String> driverColumn = new TableColumn<>();
+    TableColumn<Rental, String> poNumberColumn = new TableColumn<>();
+    // TableColumn<Rental, String> driverColumn = new TableColumn<>();
 
 
     private ObservableList<Rental> ordersList = FXCollections.observableArrayList();
@@ -191,11 +218,7 @@ public class ActivityController extends BaseController {
     private Glow glowEffect;
     private Timeline[] glowTimelines = new Timeline[2];
     private boolean timelineFlagger = false;
-    private String driverColumnType = "po-number";
 
-    private ObservableList<String> currentViewInitials = FXCollections.observableArrayList();
-    private Map<String, List<Rental>> groupedRentals = new HashMap<>();
-    private Map<String, Integer> driverSequenceMap = new HashMap<>();
 
     private static DateTimeFormatter fromJavaObjectFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -228,12 +251,27 @@ public class ActivityController extends BaseController {
     public void initialize() {
         super.initialize(dragArea);
 
+        composeContractsIcon.setImage(IconCache.CREATE_CONTRACTS);
+        pinIcon.setImage(IconCache.PIN);
+        cancellingIcon.setImage(IconCache.CANCELLING);
+        droppingOffIcon.setImage(IconCache.DROPPING_OFF);
+        schedulingServiceIcon.setImage(IconCache.SCHEDULING_SERVICE);
+        callingOffIcon.setImage(IconCache.CALLING_OFF);
+        pickingUpIcon.setImage(IconCache.PICKING_UP);
+        composeInvoicesIcon.setImage(IconCache.CREATE_INVOICES);
+        sendToMapIcon.setImage(IconCache.SEND_TO_MAP);
+        expandIcon.setImage(IconCache.EXPAND);
+        refreshDataIcon.setImage(IconCache.REFRESH);
+        deleteIcon.setImage(IconCache.DELETE);
+
         selectedCustomer = state.selectedCustomer;
         selectedDate = state.selectedDate;
-        selectedLift = state.selectedLift;
+        selectedLift =  state.selectedLift;
         selectedStatus = state.selectedStatus;
-        currentStatusCircle = state.currentStatusCircle;
-        currentDateNode = state.currentDateNode;
+        currentStatusCircle = null;//state.currentStatusCircle;
+        currentDateNode = null;//state.currentDateNode;
+        selectedView = state.selectedView;
+
 
         // -------------------------------------------------
         // Glow setup
@@ -298,6 +336,9 @@ public class ActivityController extends BaseController {
     
         loadCustomersInBackground();
         configureCustomerComboBox();
+        if (selectedCustomer != null) {
+            customerLabel.setText(formatCustomerLabel(selectedCustomer));
+        }
     
         loadLiftsInBackground();
         configureLiftComboBox();
@@ -316,13 +357,14 @@ public class ActivityController extends BaseController {
             if (date == null) return;
         
             selectedDate = date;
+            state.selectedDate = date;
             currentDateNode = createDateLabel(date);
         
             hiddenDatePicker.hide();
             hiddenDatePicker.setVisible(false);
         
             renderMenu();
-            loadData(buildWhereClauseFromView());
+            loadData();
         });
         
         
@@ -373,9 +415,9 @@ public class ActivityController extends BaseController {
 
         dbTableView.setEditable(true);
 
-        workingColumnFactory = new ColumnFactory(updateRentalButton, serialNumberField, dbTableView, groupedRentals,
-                driverSequenceMap, batchButton, batchSwitcher, secondInProcessButton, this);
-        workingColumnFactory.loadExistingDrivers();
+        workingColumnFactory = new ColumnFactory(updateRentalButton, serialNumberField, dbTableView,
+                batchButton, batchSwitcher, secondInProcessButton, this);
+        // workingColumnFactory.loadExistingDrivers();
 
         serialNumberColumn = workingColumnFactory.getSerialNumberColumn();
         statusColumn = workingColumnFactory.getStatusColumn();
@@ -385,10 +427,10 @@ public class ActivityController extends BaseController {
         biModalDateColumn = workingColumnFactory.getBiModalDateColumn();
         addressColumn = workingColumnFactory.getAddressColumn();
         invoiceColumn = workingColumnFactory.getInvoiceColumn();
-        driverColumn = workingColumnFactory.getDriverColumn(driverColumnType);
+        poNumberColumn = workingColumnFactory.getPoNumberColumn();
+        // driverColumn = workingColumnFactory.getDriverColumn(driverColumnType);
 
-        dbTableView.getColumns().addAll(statusColumn, addressColumn, biModalDateColumn, serialNumberColumn, driverColumn);
-        biModalDateColumn.setPrefWidth(49);
+        arrangeColumnsForSelectedView();
 
         updateRentalButton.setVisible(false); // Start with the button hidden
 
@@ -400,22 +442,23 @@ public class ActivityController extends BaseController {
         createCustomTooltip(pickingUpButton, 38, 10, pickingUpTooltip);
         createCustomTooltip(composeInvoicesButton, 38, 10, composeInvoicesTooltip);
         createCustomTooltip(expandButton, 38, 10, expandTooltip);
+        createCustomTooltip(sendToMapButton, 38, 10, sendToMapTooltip);
         createCustomTooltip(composeContractsButton, 38, 10, composeContractsTooltip);
         createCustomTooltip(refreshDataButton, 38, 10, refreshDataTooltip);
         createCustomTooltip(deleteButton, 38, 10, deleteTooltip);
 
         renderMenu();
-        loadDataAsync(buildWhereClauseFromView());
+        loadDataAsync();
 
 
     }
 
     // Method to load data asynchronously from the database
-    private void loadDataAsync(String filter) {
+    private void loadDataAsync() {
         Task<Void> task = new Task<Void>() {
             @Override
             protected Void call() throws Exception {
-                loadData(filter);
+                loadData();
                 return null;
             }
 
@@ -436,11 +479,11 @@ public class ActivityController extends BaseController {
         new Thread(task).start();
     }
 
-    private void loadData(String whereClause) {
+    private void loadData() {
 
         ordersList.clear();
-        groupedRentals.clear();
-        currentViewInitials.clear();
+        String rentalsWhere  = buildWhereClauseFromView(QueryContext.RENTALS);
+        String servicesWhere = buildWhereClauseFromView(QueryContext.SERVICES);
     
         String rentalsQuery = """
             SELECT customers.*, rental_orders.*, rental_items.*, lifts.*,
@@ -454,7 +497,7 @@ public class ActivityController extends BaseController {
             LEFT JOIN lifts ON rental_items.lift_id = lifts.lift_id
             LEFT JOIN contacts AS ordered_contacts ON rental_items.ordered_contact_id = ordered_contacts.contact_id
             LEFT JOIN contacts AS site_contacts ON rental_items.site_contact_id = site_contacts.contact_id
-        """ + whereClause;
+        """ + rentalsWhere;
     
         String servicesQuery = """
             SELECT 
@@ -463,10 +506,15 @@ public class ActivityController extends BaseController {
                 rental_items.rental_item_id,
                 rental_items.lift_id,
                 rental_items.customer_ref_number,
+                rental_items.delivery_driver,
+                rental_items.pick_up_driver,
+                rental_items.item_delivery_date,
+                rental_items.item_call_off_date,
                 rental_orders.*,
                 customers.*,
                 lifts.*,
                 nl.lift_type AS new_lift_type,
+                nl.serial_number AS new_lift_serial,
                 ol.lift_type AS old_lift_type,
                 ol.serial_number AS old_lift_serial,
                 nro.site_name AS new_site_name,
@@ -488,7 +536,7 @@ public class ActivityController extends BaseController {
             LEFT JOIN rental_orders nro ON s.new_rental_order_id = nro.rental_order_id
             LEFT JOIN contacts AS ordered_contacts ON s.ordered_contact_id = ordered_contacts.contact_id
             LEFT JOIN contacts AS site_contacts ON s.site_contact_id = site_contacts.contact_id
-        """ + whereClause;
+        """ + servicesWhere;
     
         loadRentals(rentalsQuery);
         loadServices(servicesQuery);
@@ -526,7 +574,7 @@ public class ActivityController extends BaseController {
                 rows++;
                 ordersList.add(mapServiceRowToRental(rs));
             }
-    
+            System.out.println("Service sql query: " + sql);
             System.out.println("Services rows loaded: " + rows);
     
         } catch (SQLException e) {
@@ -579,6 +627,8 @@ public class ActivityController extends BaseController {
     
         String customerId = rs.getString("customer_id");
         String name = rs.getString("customer_name");
+        String deliveryDate = rs.getString("service_date");
+        String callOffDate = rs.getString("service_date");
         String serviceDate = rs.getString("service_date");
         String serviceTime = rs.getString("time");
         String serviceDriver = rs.getString("driver") != null ? rs.getString("driver") : "";
@@ -590,6 +640,7 @@ public class ActivityController extends BaseController {
         int liftId = rs.getInt("lift_id");
         String liftType = rs.getString("lift_type");
         String serialNumber = rs.getString("old_lift_serial");
+        String newLiftSerial = rs.getString("new_lift_serial");
         String siteName = rs.getString("site_name");
         String streetAddress = rs.getString("street_address");
         String city = rs.getString("city");
@@ -603,7 +654,7 @@ public class ActivityController extends BaseController {
         boolean singleItemOrder = rs.getInt("single_item_order") == 1;
         double latitude = rs.getDouble("latitude");
         double longitude = rs.getDouble("longitude");
-    
+
         int serviceId = rs.getInt("service_id");
         String serviceType = rs.getString("service_type");
         String reason = rs.getString("reason");
@@ -619,7 +670,7 @@ public class ActivityController extends BaseController {
         double newLongitude = rs.getDouble("new_longitude");
     
         // --- Construct Rental ---
-        Rental rental = new Rental(customerId, name, serviceDate, serviceTime, serviceDate,
+        Rental rental = new Rental(customerId, name, deliveryDate, serviceTime, callOffDate,
                 serviceDriver, serviceStatus, poNumber, rentalOrderId, billable, "");
         rental.setLiftId(liftId);
         rental.setLiftType(liftType);
@@ -641,7 +692,7 @@ public class ActivityController extends BaseController {
     
         // --- Construct Service ---
         Service service = new Service(serviceId, serviceType, serviceTime, serviceDate, reason, billable,
-                previousServiceId, newRentalOrderId, newLiftId, newLiftType, "",
+                previousServiceId, newRentalOrderId, newLiftId, newLiftType, newLiftSerial,
                 0, oldLiftType, "", newSiteName, newStreetAddress, newCity, newLatitude, newLongitude, notes);
         rental.setService(service);
     
@@ -731,13 +782,6 @@ public class ActivityController extends BaseController {
     
         loadTask.setOnSucceeded(e -> {
             customerNames.setAll(loadTask.getValue());
-    
-            // Re-select if needed
-            String selected = MaxReachPro.getSelectedCustomerName();
-            if (selected != null) {
-                customerComboBox.setValue(selected);
-                customerLabel.setText(selected);
-            }
         });
     
         loadTask.setOnFailed(e -> {
@@ -911,12 +955,12 @@ public class ActivityController extends BaseController {
     }
 
     private void updateHighlighterPosition(String actionType, int direction) {
-        double downset = 44; // Distance for each sidebar item
+        double downset = 43; // Distance for each sidebar item
         switch (actionType) {
             case "composing-contracts":
                 sideBarHighlighter.setTranslateY(downset * 0 * direction);
                 break;
-            case "assigning-drivers":
+            case "pinning":
                 sideBarHighlighter.setTranslateY(downset * 1 * direction);
                 sideBarHighlighter.setTranslateX(direction * -1);
                 break;
@@ -944,16 +988,19 @@ public class ActivityController extends BaseController {
                 sideBarHighlighter.setTranslateY(downset * 7 * direction);
                 sideBarHighlighter.setTranslateX(direction * 0);
                 break;
-            case "expanding":
+            case "mapping":
                 sideBarHighlighter.setTranslateY(downset * 8 * direction);
+                sideBarHighlighter.setTranslateX(direction * 0);
+            case "expanding":
+                sideBarHighlighter.setTranslateY(downset * 9 * direction);
                 sideBarHighlighter.setTranslateX(direction * 0);
                 break;
             case "refreshing-data":
-                sideBarHighlighter.setTranslateY(downset * 9 * direction);
+                sideBarHighlighter.setTranslateY(downset * 10 * direction);
                 sideBarHighlighter.setTranslateX(direction * -1);
                 break;
             case "deleting":
-                sideBarHighlighter.setTranslateY(downset * 10 * direction);
+                sideBarHighlighter.setTranslateY(downset * 11 * direction);
                 sideBarHighlighter.setTranslateX(direction * 0);
                 break;
             default:
@@ -962,47 +1009,47 @@ public class ActivityController extends BaseController {
         }
     }
 
-    @FXML
-    private void handleButtonMouseEntered(MouseEvent event) {
-        Button hoveredButton = (Button) event.getSource();
-        String imageUrl = getImageUrl(hoveredButton, true); // true to use inverted image
-        updateButtonImage(hoveredButton, imageUrl);
-    }
+    // @FXML
+    // private void handleButtonMouseEntered(MouseEvent event) {
+    //     Button hoveredButton = (Button) event.getSource();
+    //     String imageUrl = getImageUrl(hoveredButton, true); // true to use inverted image
+    //     updateButtonImage(hoveredButton, imageUrl);
+    // }
 
-    @FXML
-    private void sidebarButtonMouseExited(MouseEvent event) {
-        Button hoveredButton = (Button) event.getSource();
-        String imageUrl = getImageUrl(hoveredButton, false); // false to use original image
-        updateButtonImage(hoveredButton, imageUrl);
-    }
+    // @FXML
+    // private void sidebarButtonMouseExited(MouseEvent event) {
+    //     Button hoveredButton = (Button) event.getSource();
+    //     String imageUrl = getImageUrl(hoveredButton, false); // false to use original image
+    //     updateButtonImage(hoveredButton, imageUrl);
+    // }
 
-    private String getImageUrl(Button button, boolean isInverted) {
-        String imageUrl = "";
-        if (button == composeContractsButton) {
-            imageUrl = isInverted ? IMAGE_PATH_BASE + "create-contracts" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "create-contracts.png";
-        } else if (button == pinButton) {
-            imageUrl = isInverted ? IMAGE_PATH_BASE + "driver-icon" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "driver-icon.png";
-        } else if (button == cancellingButton) {
-            imageUrl = isInverted ? IMAGE_PATH_BASE + "cancelling" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "cancelling.png";
-        } else if (button == droppingOffButton) {
-            imageUrl = isInverted ? IMAGE_PATH_BASE + "dropping-off" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "dropping-off.png";
-        } else if (button == schedulingServiceButton) {
-            imageUrl = isInverted ? IMAGE_PATH_BASE + "scheduling-service" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "scheduling-service.png";
-        } else if (button == callingOffButton) {
-            imageUrl = isInverted ? IMAGE_PATH_BASE + "calling-off" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "calling-off.png";
-        } else if (button == pickingUpButton) {
-            imageUrl = isInverted ? IMAGE_PATH_BASE + "picking-up" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "picking-up.png";
-        } else if (button == composeInvoicesButton) {
-            imageUrl = isInverted ? IMAGE_PATH_BASE + "create-invoices" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "create-invoices.png";
-        } else if (button == expandButton) {
-            imageUrl = isInverted ? IMAGE_PATH_BASE + "expand" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "expand.png";
-        } else if (button == refreshDataButton) {
-            imageUrl = isInverted ? IMAGE_PATH_BASE + "refresh" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "refresh.png";
-        } else if (button == deleteButton) {
-            imageUrl = isInverted ? IMAGE_PATH_BASE + "delete" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "delete.png";
-        }
-        return imageUrl;
-    }
+    // private String getImageUrl(Button button, boolean isInverted) {
+    //     String imageUrl = "";
+    //     if (button == composeContractsButton) {
+    //         imageUrl = isInverted ? IMAGE_PATH_BASE + "create-contracts" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "create-contracts.png";
+    //     } else if (button == pinButton) {
+    //         imageUrl = isInverted ? IMAGE_PATH_BASE + "driver-icon" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "driver-icon.png";
+    //     } else if (button == cancellingButton) {
+    //         imageUrl = isInverted ? IMAGE_PATH_BASE + "cancelling" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "cancelling.png";
+    //     } else if (button == droppingOffButton) {
+    //         imageUrl = isInverted ? IMAGE_PATH_BASE + "dropping-off" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "dropping-off.png";
+    //     } else if (button == schedulingServiceButton) {
+    //         imageUrl = isInverted ? IMAGE_PATH_BASE + "scheduling-service" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "scheduling-service.png";
+    //     } else if (button == callingOffButton) {
+    //         imageUrl = isInverted ? IMAGE_PATH_BASE + "calling-off" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "calling-off.png";
+    //     } else if (button == pickingUpButton) {
+    //         imageUrl = isInverted ? IMAGE_PATH_BASE + "picking-up" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "picking-up.png";
+    //     } else if (button == composeInvoicesButton) {
+    //         imageUrl = isInverted ? IMAGE_PATH_BASE + "create-invoices" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "create-invoices.png";
+    //     } else if (button == expandButton) {
+    //         imageUrl = isInverted ? IMAGE_PATH_BASE + "expand" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "expand.png";
+    //     } else if (button == refreshDataButton) {
+    //         imageUrl = isInverted ? IMAGE_PATH_BASE + "refresh" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "refresh.png";
+    //     } else if (button == deleteButton) {
+    //         imageUrl = isInverted ? IMAGE_PATH_BASE + "delete" + IMAGE_PATH_INV_SUFFIX : IMAGE_PATH_BASE + "delete.png";
+    //     }
+    //     return imageUrl;
+    // }
 
     private void updateButtonImage(Button button, String imageUrl) {
         Image image = new Image(getClass().getResource(imageUrl).toExternalForm());
@@ -1012,11 +1059,11 @@ public class ActivityController extends BaseController {
 
     @FXML
     private void handlePin() {
-        String actionType = "pinnng";
+        String actionType = "pinning";
         if (actionType.equals(lastActionType)) {
-
+            shiftSidebarHighlighter(null);
         } else {
-
+            shiftSidebarHighlighter(actionType);
         }
         dbTableView.refresh(); // Refresh the table view
     }
@@ -1027,7 +1074,6 @@ public class ActivityController extends BaseController {
         String actionType = "cancelling";
         if (actionType.equals(lastActionType)) {
             updateRentalButton.setVisible(false); // Hide the update button
-            workingColumnFactory.setClosedDriverColumn(driverColumnType); // Reset driver column
             shiftSidebarHighlighter(null); // Reset sidebar highlighter
             System.out.println("Cancel mode deactivated.");
         } else {
@@ -1159,6 +1205,16 @@ public class ActivityController extends BaseController {
     }
 
     @FXML
+    private void handleSendToMap(ActionEvent event) {
+        String actionType = "mapping";
+        if (actionType.equals(lastActionType)) {
+            shiftSidebarHighlighter(null);
+        } else {
+            shiftSidebarHighlighter(actionType);
+        }
+    }
+
+    @FXML
     private void handleExpand(ActionEvent event) {
         String actionType = "expanding";
         if (actionType.equals(lastActionType)) {
@@ -1181,7 +1237,7 @@ public class ActivityController extends BaseController {
     @FXML
     private void handleRefreshData() {
         dbTableView.refresh();
-        loadData(buildWhereClauseFromView());
+        loadData();
     
         new Thread(() -> {
             try {
@@ -1194,9 +1250,11 @@ public class ActivityController extends BaseController {
                         .send(request, HttpResponse.BodyHandlers.discarding());
     
                 // ✅ only runs AFTER prepare completes
-                Platform.runLater(() -> 
-                    MaxReachPro.getMapController().loadRentalDataFromAPI()
-                );
+                Platform.runLater(() -> {
+                    if (MaxReachPro.getMapController() != null) {
+                        MaxReachPro.getMapController().loadRentalDataFromAPI();
+                    }
+                });                
     
             } catch (Exception e) {
                 e.printStackTrace();
@@ -1247,7 +1305,6 @@ public class ActivityController extends BaseController {
         Date today = new Date(); // Today's date
 
         if (lastActionType.equals("pinning")) {
-            handlePin();
             lastActionType = "pinning"; // correcting for above line which causes it to be set to null
             statusUpdated = true;
         } else if (lastActionType.equals("cancelling")) {
@@ -1274,7 +1331,7 @@ public class ActivityController extends BaseController {
                     serialNumberField.clear();
                 }
             }
-            droppingOffButton.setStyle("-fx-background-color: transparent");
+            // droppingOffButton.setStyle("-fx-background-color: transparent");
         } else if (lastActionType.equals("scheudling-service")) {
             System.out.println("schedule seravice logic");
         } else if (lastActionType.equals("calling-off")) {
@@ -1473,30 +1530,54 @@ public class ActivityController extends BaseController {
         }
     }
 
+    private void arrangeColumnsForSelectedView() {
+        // Use a temporary view for arranging columns if selectedView is null
+        String viewToUse = selectedView != null ? selectedView : "PO#";
     
-    private void sendPrepareRequest() {
-        try {
-            String endpoint = Config.API_BASE_URL + "/routes/prepare";
-            java.net.URL url = new java.net.URL(endpoint);
-            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("POST");
-            conn.setDoOutput(true);
-            conn.setRequestProperty("Content-Type", "application/json");
-
-            // Optional: Body payload
-            try (java.io.OutputStream os = conn.getOutputStream()) {
-                byte[] input = "{}".getBytes("utf-8");
-                os.write(input, 0, input.length);
-            }
-
-            int responseCode = conn.getResponseCode();
-            System.out.println("POST Response Code: " + responseCode);
-
-            conn.disconnect();
-        } catch (Exception e) {
-            e.printStackTrace();
+        switch (viewToUse) {
+            case "PO#":
+                dbTableView.getColumns().setAll(
+                    statusColumn, addressColumn, biModalDateColumn, serialNumberColumn, poNumberColumn
+                );
+                poNumberColumn.setPrefWidth(65);
+                break;
+    
+            case "Time":
+                dbTableView.getColumns().setAll(
+                    statusColumn, addressColumn, biModalDateColumn, serialNumberColumn, deliveryTimeColumn
+                );
+                deliveryTimeColumn.setPrefWidth(65);
+                break;
+    
+            case "Call Off":
+                dbTableView.getColumns().setAll(
+                    statusColumn, addressColumn, biModalDateColumn, serialNumberColumn, callOffDateColumn
+                );
+                callOffDateColumn.setPrefWidth(65);
+                break;
+    
+            case "Del":
+                dbTableView.getColumns().setAll(
+                    statusColumn, addressColumn, biModalDateColumn, serialNumberColumn, deliveryDateColumn
+                );
+                deliveryDateColumn.setPrefWidth(65);
+                break;
+    
+            case "Bill":
+                dbTableView.getColumns().setAll(
+                    statusColumn, addressColumn, biModalDateColumn, serialNumberColumn, invoiceColumn
+                );
+                invoiceColumn.setPrefWidth(65);
+                break;
+    
+            default:
+                dbTableView.getColumns().setAll(
+                    statusColumn, addressColumn, biModalDateColumn, serialNumberColumn
+                );
+                break;
         }
     }
+    
 
     private String determineNewStatus(Rental order, String actionType) {
         String currentStatus = order.getStatus();
@@ -1577,7 +1658,7 @@ public class ActivityController extends BaseController {
     public void shiftUpdateButtonHalf(){
         updateRentalButton.setMinWidth(145);
         updateRentalButton.setMaxWidth(145);
-        updateRentalButton.setTranslateX(-23);
+        updateRentalButton.setTranslateX(75);
     }
 
     public void shiftUpdateButtonFull(){
@@ -1585,7 +1666,7 @@ public class ActivityController extends BaseController {
         serialNumberField.setPromptText("     Serial Number");
         updateRentalButton.setMinWidth(295);
         updateRentalButton.setMaxWidth(295);
-        updateRentalButton.setTranslateX(-100);
+        updateRentalButton.setTranslateX(-2);
 
         secondInProcessButton.setVisible(false);
     }
@@ -1820,13 +1901,6 @@ public class ActivityController extends BaseController {
 
         customerComboBox.setItems(customerNames);
 
-        // Restore previously selected customer
-        String selected = MaxReachPro.getSelectedCustomerName();
-        if (selected != null && !selected.isEmpty()) {
-            customerComboBox.setValue(selected);
-            customerLabel.setText(formatCustomerLabel(selected));
-        }
-    
         // Selection handling
         customerComboBox.setOnAction(e -> {
             String value = customerComboBox.getValue();
@@ -1835,8 +1909,9 @@ public class ActivityController extends BaseController {
                 customerLabel.setText(formatCustomerLabel(value)); // 🔥 truncated
                 customerComboBox.setVisible(false);
                 selectedCustomer = value;
+                state.selectedCustomer = value;
                 renderMenu();
-                loadData(buildWhereClauseFromView());
+                loadData();
             }
         });
     
@@ -1869,11 +1944,12 @@ public class ActivityController extends BaseController {
                     // Only update image when a lift is selected
                     // setLiftPeekImage(lift.getLiftType());
                     selectedLift = lift;
+                    state.selectedLift = lift;
                 });
     
                 liftComboBox.setVisible(false); // hide after selection
                 renderMenu();
-                loadData(buildWhereClauseFromView());
+                loadData();
             }
         });
     
@@ -1884,32 +1960,28 @@ public class ActivityController extends BaseController {
     }
     
     private void configureViewComboBox() {
-        // Hardcoded items
-        ObservableList<String> viewOptions = FXCollections.observableArrayList("PO#", "Delivery Time");
+
+        ObservableList<String> viewOptions =
+            FXCollections.observableArrayList(VIEW_NORMALIZATION.keySet());
+
         viewComboBox.setItems(viewOptions);
-    
-        // Optional: restore previously selected value if you track it
-        // String selected = MaxReachPro.getSelectedViewOption();
-        // if (selected != null) viewComboBox.setValue(selected);
-    
-        // Selection handling
+
         viewComboBox.setOnAction(e -> {
-            String value = viewComboBox.getValue();
-            value = value == "Delivery Time" ? "Time" : value;
-            if (value != null) {
-                viewLabel.setText(value);
-                viewComboBox.setVisible(false);
-                selectedView = value;
-                renderMenu();
-                loadData(buildWhereClauseFromView());
-                switch (value) {
-                    case "Delivery Time":
-                        dbTableView.getColumns().add(deliveryTimeColumn);
-                        return;
-                }
-            }
+            String displayValue = viewComboBox.getValue();
+            if (displayValue == null) return;
+        
+            selectedView = VIEW_NORMALIZATION.getOrDefault(displayValue, displayValue);
+            state.selectedView = selectedView;
+            viewLabel.setText(selectedView);
+            viewComboBox.setVisible(false);
+            
+            // arrange columns for the newly selected view
+            arrangeColumnsForSelectedView();
+        
+            renderMenu();
+            loadData();
         });
-    
+
         // Collapse when unfocused
         viewComboBox.focusedProperty().addListener((obs, was, is) -> {
             if (!is) {
@@ -1921,20 +1993,21 @@ public class ActivityController extends BaseController {
     
     private void handleProximityClick(javafx.scene.input.MouseEvent e) {
 
-        if (currentDateNode != null) {
+        // if (currentDateNode != null) {
 
-            Node target = (Node) e.getTarget();
+        //     Node target = (Node) e.getTarget();
     
-            // Walk up the node tree
-            while (target != null) {
-                if (target == currentDateNode) {
-                    openDatePicker();
-                    e.consume();
-                    return;
-                }
-                target = target.getParent();
-            }
-        }
+        //     // Walk up the node tree
+        //     while (target != null) {
+        //         if (target == currentDateNode) {
+        //             System.out.println("walk up destination triggered");
+        //             openDatePicker();
+        //             e.consume();
+        //             return;
+        //         }
+        //         target = target.getParent();
+        //     }
+        // }
 
         double mouseX = e.getX();
     
@@ -1955,7 +2028,6 @@ public class ActivityController extends BaseController {
     }
 
     private void renderMenu() {
-
         List<Node> nodes = new ArrayList<>();
     
         // --- Glows (always present)
@@ -1964,9 +2036,12 @@ public class ActivityController extends BaseController {
         ));
     
         // --- STATUS
-        if (currentStatusCircle != null) {
-            nodes.add(currentStatusCircle);
+        if (selectedStatus != null) {
+            Circle circle = buildStatusCircle(selectedStatus);
+            circle.setMouseTransparent(false);
+            nodes.add(circle);
             statusClickBar.setVisible(true);
+            circle.setOnMouseClicked(e -> onStatusClicked());
         } else {
             nodes.add(statusImage);
             statusClickBar.setVisible(false);
@@ -1976,71 +2051,114 @@ public class ActivityController extends BaseController {
         nodes.add(customerLabel);
         nodes.add(customerComboBox);
         customerClickBar.setVisible(selectedCustomer != null);
-    
+
         // --- DATE
-        if (selectedDate != null && currentDateNode != null) {
+        if (selectedDate != null) {
+            currentDateNode = createDateLabel(selectedDate);
             nodes.add(currentDateNode);
             dateClickBar.setVisible(true);
         } else {
+            currentDateNode = calendarImage;
             nodes.add(calendarImage);
             dateClickBar.setVisible(false);
         }
         nodes.add(hiddenDatePicker);
-    
+        hiddenDatePicker.setMouseTransparent(true);
+        hiddenDatePicker.setFocusTraversable(false);
+            
         // --- LIFT
         nodes.add(liftImage);
         nodes.add(liftComboBox);
         liftClickBar.setVisible(selectedLift != null);
     
         // --- VIEW
+        if (selectedView != null) {
+            System.out.println("work on view here");
+            viewLabel.setText(selectedView);
+        }
         nodes.add(viewLabel);
         nodes.add(viewComboBox);
         viewClickBar.setVisible(selectedView != null);
     
         // --- Click bars (order matters: on top)
         nodes.addAll(List.of(
-            statusClickBar,
-            customerClickBar,
-            dateClickBar,
-            liftClickBar,
-            viewClickBar
+            statusClickBar, customerClickBar, dateClickBar, liftClickBar, viewClickBar
         ));
     
         customerMenuNode.getChildren().setAll(nodes);
     }
+    
+    private enum QueryContext {
+        RENTALS,
+        SERVICES
+    }
 
-    private String buildWhereClauseFromView() {
+    private String buildWhereClauseFromView(QueryContext ctx) {
 
         List<String> clauses = new ArrayList<>();
     
         // --- STATUS
         if (selectedStatus != null) {
+
+            String statusColumn =
+                    (ctx == QueryContext.SERVICES)
+                            ? "s.service_status"
+                            : "rental_items.item_status";
+
             switch (selectedStatus) {
                 case "Active" ->
-                    clauses.add("rental_items.item_status = 'Active'");
+                    clauses.add(statusColumn + " = 'Active'");
                 case "Upcoming" ->
-                    clauses.add("rental_items.item_status = 'Upcoming'");
+                    clauses.add(statusColumn + " = 'Upcoming'");
                 case "Called Off" ->
-                    clauses.add("rental_items.item_status = 'Called Off'");
+                    clauses.add(statusColumn + " = 'Called Off'");
                 case "Picked Up" ->
-                    clauses.add("rental_items.item_status = 'Picked Up'");
-                case "Billable" ->
-                    clauses.add(
-                        "rental_items.item_status IN ('Called Off', 'Picked Up') " +
-                        "AND rental_items.invoice_composed = 0"
-                    );
+                    clauses.add(statusColumn + " = 'Picked Up'");
+                case "Billable" -> {
+
+                    if (ctx == QueryContext.SERVICES) {
+
+                        // assuming the service side has its own billable / invoiced flag
+                        clauses.add(
+                                "s.service_status IN ('Called Off', 'Picked Up') " +
+                                "AND s.invoice_composed = 0"
+                        );
+
+                    } else {
+
+                        clauses.add(
+                                "rental_items.item_status IN ('Called Off', 'Picked Up') " +
+                                "AND rental_items.invoice_composed = 0"
+                        );
+                    }
+                }
             }
         }
+
     
         // --- CUSTOMER
         if (selectedCustomer != null) {
             clauses.add("customers.customer_name = '" + escape(selectedCustomer) + "'");
         }
     
-        // --- DATE
+        // --- DATE  <<<<<< THIS IS THE IMPORTANT PART
         if (selectedDate != null) {
+    
             String date = selectedDate.toString(); // yyyy-MM-dd
-            clauses.add("rental_orders.delivery_date = '" + date + "'");
+    
+            if (ctx == QueryContext.RENTALS) {
+    
+                clauses.add(
+                    "rental_items.item_delivery_date = '" + date + "'"
+                );
+    
+            } else if (ctx == QueryContext.SERVICES) {
+    
+                clauses.add(
+                    "s.service_date = '" + date + "'"
+                );
+    
+            }
         }
     
         // --- LIFT
@@ -2048,22 +2166,30 @@ public class ActivityController extends BaseController {
             clauses.add("lifts.serial_number = '" + selectedLift.getSerialNumber() + "'");
         }
     
-        // --- DEFAULT if nothing selected
+        // --- DEFAULT
         if (clauses.isEmpty()) {
-            clauses.add("rental_items.item_status IN ('Upcoming', 'Active', 'Called Off')");
+
+            String statusColumn =
+                    (ctx == QueryContext.SERVICES)
+                            ? "s.service_status"
+                            : "rental_items.item_status";
+
+            clauses.add(
+                    statusColumn + " IN ('Upcoming', 'Active', 'Called Off')"
+            );
         }
     
         return " WHERE " + String.join(" AND ", clauses);
     }
     
+    
  
     private void onStatusClicked() {
         customerMenuNode.getChildren().clear();
     
-        // Temporary overlay only
         HBox statusHBox = new HBox(30);
-        statusHBox.setTranslateX(38);
-        statusHBox.setTranslateY(13);
+        statusHBox.setTranslateX(158);
+        statusHBox.setTranslateY(10);
         statusHBox.setPickOnBounds(true);
     
         List<String> statuses = List.of(
@@ -2071,67 +2197,26 @@ public class ActivityController extends BaseController {
         );
     
         for (String status : statuses) {
-            Circle circle = new Circle(8);
-            Tooltip tooltip = new Tooltip(status);
-            tooltip.setShowDelay(Duration.ZERO);
-    
-            switch (status) {
-                case "Upcoming" -> {
-                    circle.setFill(Color.web(Config.getPrimaryColor()));
-                    String textFill =
-                        Config.COLOR_TEXT_MAP.get(Config.getPrimaryColor()) == 1
-                            ? "black" : "white";
-                    tooltip.setStyle(
-                        "-fx-background-color: " + Config.getPrimaryColor() +
-                        "; -fx-text-fill: " + textFill + ";"
-                    );
-                }
-                case "Active" -> {
-                    circle.setFill(Color.GREEN);
-                    tooltip.setStyle("-fx-background-color: green; -fx-text-fill: white;");
-                }
-                case "Called Off" -> {
-                    circle.setFill(Color.RED);
-                    tooltip.setStyle("-fx-background-color: red; -fx-text-fill: black;");
-                }
-                case "Picked Up" -> {
-                    circle.setFill(Color.BLACK);
-                    tooltip.setStyle("-fx-background-color: black; -fx-text-fill: white;");
-                }
-                default -> {
-                    circle.setFill(Color.PINK);
-                    tooltip.setStyle("-fx-background-color: pink; -fx-text-fill: black;");
-                }
-            }
-    
-            Tooltip.install(circle, tooltip);
+            Circle circle = buildStatusCircle(status);
     
             circle.addEventFilter(MouseEvent.MOUSE_PRESSED, ev -> {
                 ev.consume();
-            
-                Circle selected = new Circle(8);
-                selected.setFill(circle.getFill());
-                selected.setTranslateX(statusImage.getTranslateX());
-                selected.setTranslateY(statusImage.getTranslateY());
-                Tooltip.install(selected, tooltip);
-            
-                // 🔑 STATE
-                currentStatusCircle = selected;
-                selectedStatus = status; // 👈 THIS IS THE KEY LINE
+    
+                // ✅ STATE ONLY
+                selectedStatus = status;
                 state.selectedStatus = status;
-            
+    
                 customerMenuNode.getChildren().remove(statusHBox);
                 renderMenu();
-                loadData(buildWhereClauseFromView());   // 👈 trigger SQL reload
+                loadData();
             });
-            
     
             statusHBox.getChildren().add(circle);
         }
     
         customerMenuNode.getChildren().add(statusHBox);
     
-        // Click outside closes overlay only
+        // Click outside closes overlay only (still scene-level for now)
         customerMenuNode.getScene().addEventFilter(MouseEvent.MOUSE_PRESSED, e -> {
             if (!statusHBox.contains(
                     e.getSceneX() - statusHBox.localToScene(0, 0).getX(),
@@ -2214,17 +2299,19 @@ public class ActivityController extends BaseController {
         e.consume();
         currentStatusCircle = null;
         selectedStatus = null;
+        state.selectedStatus = null;
         renderMenu();
-        loadData(buildWhereClauseFromView());
+        loadData();
     }
 
     @FXML
     private void onCustomerBarClicked(MouseEvent e) {
         e.consume();
         selectedCustomer = null;
-        customerLabel.setText("Customer ▾");
+        customerLabel.setText("Customer \u25BE");
+        state.selectedCustomer = null;
         renderMenu();
-        loadData(buildWhereClauseFromView());
+        loadData();
     }
 
     @FXML
@@ -2232,25 +2319,30 @@ public class ActivityController extends BaseController {
         e.consume();
         selectedDate = null;
         currentDateNode = null;
+        state.selectedDate = null;
         renderMenu();
-        loadData(buildWhereClauseFromView());
+        loadData();
     }
 
     @FXML
     private void onLiftBarClicked(MouseEvent e) {
         e.consume();
         selectedLift = null;
+        state.selectedLift = null;
         renderMenu();
-        loadData(buildWhereClauseFromView());
+        loadData();
     }
 
     @FXML
     private void onViewBarClicked(MouseEvent e) {
         e.consume();
         selectedView = null;
-        viewLabel.setText("View ▾");
+        state.selectedView = null;
+        viewLabel.setText("View \u25BE");
+        dbTableView.getColumns().setAll(statusColumn, addressColumn, biModalDateColumn, serialNumberColumn, poNumberColumn);
+        poNumberColumn.setPrefWidth(65);
         renderMenu();
-        loadData(buildWhereClauseFromView());
+        loadData();
     }
 
 
@@ -2272,8 +2364,53 @@ public class ActivityController extends BaseController {
         }
     
         // 3️⃣ Otherwise truncate more aggressively
-        return displayName.substring(0, TRUNCATE_AT) + "…";
+        return displayName.substring(0, TRUNCATE_AT) + "\u2026";
     }
+
+    private Circle buildStatusCircle(String status) {
+        Circle circle = new Circle(8);
+    
+        Tooltip tooltip = new Tooltip(status);
+        tooltip.setShowDelay(Duration.ZERO);
+    
+        switch (status) {
+            case "Upcoming" -> {
+                circle.setFill(Color.web(Config.getPrimaryColor()));
+                String textFill =
+                    Config.COLOR_TEXT_MAP.get(Config.getPrimaryColor()) == 1
+                        ? "black" : "white";
+                tooltip.setStyle(
+                    "-fx-background-color: " + Config.getPrimaryColor() +
+                    "; -fx-text-fill: " + textFill + ";"
+                );
+            }
+            case "Active" -> {
+                circle.setFill(Color.GREEN);
+                tooltip.setStyle("-fx-background-color: green; -fx-text-fill: white;");
+            }
+            case "Called Off" -> {
+                circle.setFill(Color.RED);
+                tooltip.setStyle("-fx-background-color: red; -fx-text-fill: black;");
+            }
+            case "Picked Up" -> {
+                circle.setFill(Color.BLACK);
+                tooltip.setStyle("-fx-background-color: black; -fx-text-fill: white;");
+            }
+            default -> {
+                circle.setFill(Color.PINK);
+                tooltip.setStyle("-fx-background-color: pink; -fx-text-fill: black;");
+            }
+        }
+    
+        Tooltip.install(circle, tooltip);
+    
+        circle.setTranslateX(statusImage.getTranslateX());
+        circle.setTranslateY(statusImage.getTranslateY());
+        
+        return circle;
+    }
+    
+    
     
     private String escape(String s) {
         return s.replace("'", "''");

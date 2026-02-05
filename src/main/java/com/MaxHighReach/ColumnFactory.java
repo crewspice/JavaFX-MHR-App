@@ -22,7 +22,9 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
+import javafx.scene.shape.Line;
 import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
 import javafx.util.Duration;
 
@@ -73,10 +75,14 @@ public class ColumnFactory {
 	private final TableColumn<Rental, String> deliveryTimeColumn = new TableColumn<>();
 	private TableColumn<Rental, String> callOffDateColumn;
 	private TableColumn<Rental, String> biModalDateColumn;
-	private final TableColumn<Rental, String> driverColumn = new TableColumn<>();
+	// private final TableColumn<Rental, String> driverColumn = new TableColumn<>();
 	private final TableColumn<Rental, String> selectColumn = new TableColumn<>();
 	private final TableColumn<Rental, String> invoiceColumn = new TableColumn<>();
 	private final TableColumn<Rental, String> billColumn = new TableColumn<>();
+	private final TableColumn<Rental, String> poNumberColumn = new TableColumn<>();
+
+	/* Idea: make as an actual column, then turn in into a method for other columns
+			to take the UI we developed when a change out is detected instead of their standard */
 
 
 	private final Button updateRentalButton;
@@ -87,13 +93,8 @@ public class ColumnFactory {
 	private String invoiceSecondarySwitcher;
 	private String lastActionType = "";
 	private final TableView<Rental> dbTableView;
-	private Map<String, List<Rental>> groupedRentals = new HashMap<>();
-	private Map<String, Integer> driverSequenceMap = new HashMap<>();
-	private Set<String> existingDrivers = new HashSet<>();
-	private boolean isDriverCacheLoaded = false;
+	// private Set<String> existingDrivers = new HashSet<>();
 	private boolean shouldShowCheckboxes = false;
-	private final ObservableList<String> driverInitials = FXCollections.observableArrayList("A", "J", "I", "B", "JC", "K");
-	private String driverComboBoxOpenOrClosed = "";
 	private Label globalLiftTypeLabel;
 	private static final Map<String, Image> imageCache = new HashMap<>();
 	private ActivityController parent;
@@ -121,12 +122,14 @@ public class ColumnFactory {
         	"496", "497", "498", "499",
         	"527", "528"
 	);
+	private int MAX_LINE = 7;
+	private int MIN_LINE = 3;
 
 
 
 
-	public ColumnFactory(Button button, TextField textField, TableView<Rental> tableView, Map<String,
-        	List<Rental>> rentalsMap, Map<String, Integer> driverMap, Button button2, String buttonString,
+	public ColumnFactory(Button button, TextField textField, TableView<Rental> tableView, 
+        	Button button2, String buttonString,
                      	Button button3, ActivityController controller) {
     	this.updateRentalButton = button;
     	this.serialNumberField = textField;
@@ -135,8 +138,6 @@ public class ColumnFactory {
     	this.invoiceSecondarySwitcher = "open-sdk";
     	this.secondInProcessButton = button3;
     	this.dbTableView = tableView;
-    	this.groupedRentals = rentalsMap;
-    	this.driverSequenceMap = driverMap;
     	this.parent = controller;
     	initializeColumns();
     	initializeGrid();
@@ -250,7 +251,7 @@ public class ColumnFactory {
 								String newLiftType = svc.getNewLiftType();
 
 								if (oldLiftType != null && newLiftType != null && !oldLiftType.equals(newLiftType)) {
-									liftTypeLabel.setText(oldLiftType + "➜" + newLiftType);
+									liftTypeLabel.setText(oldLiftType + "\u279C" + newLiftType);
 								} else {
 									liftTypeLabel.setText(liftType != null ? liftType : "");
 								}
@@ -271,7 +272,7 @@ public class ColumnFactory {
     	});
 
 
-    	customerAndAddressColumn.setPrefWidth(117);
+    	customerAndAddressColumn.setPrefWidth(119);
 
 
     	statusColumn.setCellValueFactory(cellData -> {
@@ -428,77 +429,72 @@ public class ColumnFactory {
     	statusColumn.setPrefWidth(24);
 	}
 
+	public TableColumn<Rental, String> getSerialNumberColumn() {
 
-	public TableColumn<Rental, String> getSerialNumberColumn(){
-    	serialNumberColumn.setCellValueFactory(new PropertyValueFactory<>("serialNumber"));
-    	serialNumberColumn.setCellFactory(column -> new TableCell<Rental, String>() {
-        	@Override
-        	protected void updateItem(String item, boolean empty) {
-            	super.updateItem(item, empty);
+		serialNumberColumn.setCellValueFactory(
+			new PropertyValueFactory<>("serialNumber")
+		);
+		serialNumberColumn.setCellFactory(column -> new TableCell<>() {
 
+			@Override
+			protected void updateItem(String item, boolean empty) {
+				super.updateItem(item, empty);
+		
+				if (empty || item == null) {
+					setText(null);
+					setGraphic(null);
+					setMinHeight(Config.DB_ROW_HEIGHT_EMPTY);
+					setMaxHeight(Config.DB_ROW_HEIGHT_EMPTY);
+					setPrefHeight(Config.DB_ROW_HEIGHT_EMPTY);
+					return;
+				}
+		
+				setMinHeight(Config.DB_ROW_HEIGHT);
+				setMaxHeight(Config.DB_ROW_HEIGHT);
+				setPrefHeight(Config.DB_ROW_HEIGHT);
+		
+				// --- build serial stack as before ---
+				Node serialNode = buildSerialStack(item);
+				// serialNode.setTranslateX(7); // maintain previous horizontal offset
+		
+				// --- create thin lines ---
+				Line topLine = new Line();
+				topLine.setStartX(0);
+				topLine.endXProperty().bind(this.widthProperty()); // span full cell
+				topLine.setStrokeWidth(0.5);
+				topLine.setStroke(Color.GRAY);
+				topLine.setTranslateY(-1);
+		
+				Line bottomLine = new Line();
+				bottomLine.setStartX(0);
+				bottomLine.endXProperty().bind(this.widthProperty());
+				bottomLine.setStrokeWidth(0.5);
+				bottomLine.setStroke(Color.GRAY);
+				bottomLine.setTranslateY(-3);
+		
+				// --- stack everything ---
+				StackPane container = new StackPane();
+				container.getChildren().addAll(serialNode, topLine, bottomLine);
+				StackPane.setAlignment(serialNode, Pos.CENTER_LEFT);
+				StackPane.setAlignment(topLine, Pos.TOP_CENTER);
+				StackPane.setAlignment(bottomLine, Pos.BOTTOM_CENTER);
 
-            	if (empty || item == null) {
-                	setText(null);  // Clear text for empty cells
-                	setGraphic(null);  // Clear graphic for empty cells
-                	setMinHeight(Config.DB_ROW_HEIGHT_EMPTY);
-                	setMaxHeight(Config.DB_ROW_HEIGHT_EMPTY);
-                	setPrefHeight(Config.DB_ROW_HEIGHT_EMPTY);
-            	} else {
-                	setMinHeight(Config.DB_ROW_HEIGHT);
-                	setMaxHeight(Config.DB_ROW_HEIGHT);
-                	setPrefHeight(Config.DB_ROW_HEIGHT);
-
-
-                	// Get the serial number from the CustomerRental
-                	Rental rental = getTableView().getItems().get(getIndex());
-                	if (rental.getLiftId() == 1008) {
-                    	rental.setSerialNumber("45");
-                	} else if (rental.getLiftId() == 1007) {
-                    	rental.setSerialNumber("33");
-                	}
-                	String serialNumber = rental.getSerialNumber(); // Get serial number
-
-
-
-
-                	// Create a VBox to hold each character as a Label
-                	VBox vBox = new VBox();
-                	vBox.setAlignment(Pos.TOP_CENTER); // Center align the VBox
-
-
-
-					// if (!serialNumber.equals("")) {						// Create a Label for the '#' character
-					// 	Label hashLabel = new Label("#");
-					// 	hashLabel.setStyle("-fx-font-size: 9.5;"); // Set the style for the hash character
-					// 	vBox.getChildren().add(hashLabel); // Add the hash label to the VBox
-					// 	hashLabel.setTranslateX(-3);
-					// 	hashLabel.setTranslateY(-0.5);
-					// }
-
-                	// Create a Label for each character in the serial number
-					Font compactFont = Font.font("Segoe UI Semibold", 11.0);
-					for (int i = 0; i < serialNumber.length(); i++) {
-                    	char c = serialNumber.charAt(i);
-                    	Label charLabel = new Label(String.valueOf(c));
-						charLabel.setFont(compactFont);
-                    	charLabel.setStyle("-fx-padding: 1.5;"); // Adjust style as needed
-                    	charLabel.setTranslateX(-2);
-						vBox.getChildren().add(charLabel); // Add each character label to the VBox
-                	}
-
-					vBox.setTranslateY(-2.5);
-                	vBox.setSpacing(-11.5); // Set the spacing between characters
-                	// Set the VBox as the graphic for the cell
-                	setGraphic(vBox); // Set the VBox as the graphic for the cell
-            	}
-        	}
-    	});
-
-
-    	serialNumberColumn.setPrefWidth(10);
-    	return serialNumberColumn;
+		
+				setGraphic(container);
+				setText(null);
+		
+				// // --- position lines using layout bounds listener ---
+				// serialNode.layoutBoundsProperty().addListener((obs, oldBounds, newBounds) -> {
+				// 	topLine.setTranslateY(newBounds.getMinY() - 1);      // just above serial
+				// 	bottomLine.setTranslateY(newBounds.getMaxY() + 1);   // just below serial
+				// });
+			}
+		});
+			
+		serialNumberColumn.setPrefWidth(18);
+		return serialNumberColumn;
 	}
-
+	
 
 	private TableColumn<Rental, String> createDateColumn(String name, String modeText) {
     	TableColumn<Rental, String> dateColumn = new TableColumn<>();
@@ -572,20 +568,39 @@ public class ColumnFactory {
                 	} else if ("callOffDate".equals(name)) {
                     	dateValue = rental.getCallOffDate();
                     	modeLabel.setText("end");
-                	} else if ("biModalDate".equals(name)) {
-                    	if (rental.getStatus().equals("Upcoming") || rental.getStatus().equals("Active")) {
-                        	dateValue = rental.getDeliveryDate();
-                        	modeLabel.setText("del");
-                    	} else {
-                        	dateValue = rental.getCallOffDate();
-                        	modeLabel.setText("end");
-                    	}
-                	}
+					} else if ("biModalDate".equals(name)) {
 
-					if (rental.isService()) {
-						modeLabel.setText("svc");
+						if (rental.isService()) {
+							dateValue = rental.getService().getDate();
+							modeLabel.setText("svc");
+						} else if (rental.getStatus().equals("Upcoming") || rental.getStatus().equals("Active")) {
+							dateValue = rental.getDeliveryDate();
+							modeLabel.setText("del");
+						} else {
+							dateValue = rental.getCallOffDate();
+							modeLabel.setText("end");
+						}
+					
+						// --- bottom connector bar ---
+						Line bottomLine = new Line(0, 0, 35, 0); // width tuned to column
+						bottomLine.setStroke(Color.GRAY);
+						bottomLine.setStrokeWidth(0.5);
+						bottomLine.setTranslateY(-3); // INSIDE row, near bottom
+						bottomLine.setTranslateX(0);
+
+						// --- bottom connector bar ---
+						Line topLine = new Line(0, 0, 35, 0); // width tuned to column
+						topLine.setStroke(Color.GRAY);
+						topLine.setStrokeWidth(0.5);
+						topLine.setTranslateY(0); // INSIDE row, near bottom
+						topLine.setTranslateX(0);
+					
+						overLayPane.getChildren().addAll(bottomLine, topLine);
+						StackPane.setAlignment(topLine, Pos.TOP_CENTER);
+						StackPane.setAlignment(bottomLine, Pos.BOTTOM_CENTER);
+
 					}
-
+					
                 	if (dateValue != null && dateValue.matches("\\d{4}-\\d{2}-\\d{2}")) {
                     	String[] dateParts = dateValue.split("-");
                     	String day = String.valueOf(Integer.parseInt(dateParts[2])); // Remove leading zero
@@ -619,14 +634,29 @@ public class ColumnFactory {
                     	m3Label.setText(String.valueOf(monthAbbreviation.charAt(2)));
 
 
-                    	setGraphic(overLayPane);
+						Node changeOut = null;
+						if (!"biModalDate".equals(name)) {
+							changeOut = buildChangeOutDecorator(rental);
+						}
+					
+						if (changeOut != null) {
+							if (rental.getService().getNewLiftSerial().length() == 6) {
+								changeOut.setTranslateY(-6);
+							}
+							HBox root = new HBox(4, changeOut, overLayPane);
+							root.setAlignment(Pos.CENTER_LEFT);
+							setGraphic(root);
+						} else {
+							setGraphic(overLayPane);
+						}
+						overLayPane.setTranslateX(4);
                 	}
             	}
         	}
     	});
 
 
-    	dateColumn.setPrefWidth(31);
+    	dateColumn.setPrefWidth(39);
     	return dateColumn;
 	}
 
@@ -657,9 +687,6 @@ public class ColumnFactory {
 
 	public TableColumn<Rental, String> getDeliveryTimeColumn(){
     	deliveryTimeColumn.setCellValueFactory(new PropertyValueFactory<>("deliveryTime"));
-
-
-
 
     	deliveryTimeColumn.setCellFactory(column -> new TableCell<Rental, String>() {
         	private final Label windowBeginLabel = new Label();
@@ -694,9 +721,6 @@ public class ColumnFactory {
         	protected void updateItem(String item, boolean empty) {
             	super.updateItem(item, empty);
 
-
-
-
             	if (empty || item == null) {
                 	setText(null);  // Clear text for empty cells
                 	setGraphic(null);  // Clear graphic for empty cells
@@ -708,29 +732,20 @@ public class ColumnFactory {
                 	setMaxHeight(Config.DB_ROW_HEIGHT);
                 	setPrefHeight(Config.DB_ROW_HEIGHT);
 
-
-
-
                 	String imagePath = "/images/clock.png";
                 	Image image = getCachedImage(imagePath);
                 	clockImage.setImage(image);
                 	clockImage.setFitHeight(23);
                 	clockImage.setPreserveRatio(true);
 
-
-
-
                 	// Get delivery time from the CustomerRental
                 	Rental rental = getTableView().getItems().get(getIndex());
                 	String time = rental.getDeliveryTime(); // Get delivery time
-
 
                 	if (time.matches("\\d+-\\d+")) { // Integer-dash-integer format
                     	String[] parts = time.split("-");
                     	int startTime = Integer.parseInt(parts[0]);
                     	int endTime = Integer.parseInt(parts[1]);
-
-
                     	windowBeginLabel.setText(formatTimeWithPeriod(startTime));
                     	windowEndLabel.setText(formatTimeWithPeriod(endTime));
                     	divider.setText("\u2014"); // Em-dash
@@ -738,30 +753,37 @@ public class ColumnFactory {
                     	int startTime = Integer.parseInt(time);
                     	int endTime = (startTime + 2) % 12;
                     	if (endTime == 0) endTime = 12; // Handle 12-hour clock wraparound
-
-
                     	windowBeginLabel.setText(formatTimeWithPeriod(startTime));
                     	windowEndLabel.setText(formatTimeWithPeriod(endTime));
                     	divider.setText("\u2014"); // Em-dash
                 	} else if ("Any".equalsIgnoreCase(time)) { // "Any" time
-                    	windowBeginLabel.setText("Any");
-                    	windowEndLabel.setText("Any");
-                    	divider.setText("\u2014"); // Em-dash
+                    	windowBeginLabel.setText("");
+						windowEndLabel.setText("");
+						divider.setText("Any"); // Em-dash
                 	} else if ("ASAP".equalsIgnoreCase(time)) { // "ASAP" time
-                    	windowBeginLabel.setText("A S");
-                    	windowEndLabel.setText("A P");
-                    	divider.setText(""); // Empty string
+						windowBeginLabel.setText("");
+						windowEndLabel.setText("");
+						divider.setText("ASAP"); // Empty string
                 	} else { // Handle invalid time formats
                     	windowBeginLabel.setText("N/A");
                     	windowEndLabel.setText("N/A");
                     	divider.setText(""); // Empty string
                 	}
 
+					Node changeOut = buildChangeOutDecorator(rental);
 
-                	setGraphic(overLayPane); // Set the VBox as the graphic for the cell
-            	}
+					if (changeOut != null) {
+						if (rental.getService().getNewLiftSerial().length() == 6) {
+							changeOut.setTranslateY(-6);
+						}
+						HBox root = new HBox(4, changeOut, overLayPane);
+						root.setAlignment(Pos.CENTER_LEFT);
+						setGraphic(root);
+					} else {
+						setGraphic(overLayPane);
+					}
+				}
         	}
-
 
         	private String formatTimeWithPeriod(int hour) {
             	if (hour == 12) {
@@ -772,168 +794,81 @@ public class ColumnFactory {
                 	return hour + "pm";
             	}
         	}
-
-
     	});
 
-
-    	deliveryTimeColumn.setPrefWidth(23);
+    	deliveryTimeColumn.setPrefWidth(63);
     	return deliveryTimeColumn;
 	}
 
 
-	public void setClosedDriverColumn(String type){
-    	driverColumn.setCellFactory(column -> new TableCell<Rental, String>() {
-        	private final Label topLabel = new Label();
-        	private final VBox vBox = new VBox(topLabel);
-        	private final VBox vBox2 = new VBox();
-        	private final String imagePath = new String("/images/driver-icon.png");
-        	private final Image image = getCachedImage(imagePath);
-        	private final ImageView imageView = new ImageView(image);
-        	{
-            	vBox.setSpacing(-2);
-            	vBox.setAlignment(Pos.TOP_CENTER);
-				
+	public TableColumn<Rental, String> getPoNumberColumn() {
 
-            	vBox2.setAlignment(Pos.BOTTOM_CENTER);
-
-
-            	imageView.setFitHeight(19);
-            	imageView.setFitWidth(19);
-				imageView.setTranslateY(9);
-
-				topLabel.setTranslateY(14);
-        	}
-
-
-        	@Override
-        	protected void updateItem(String item, boolean empty) {
-            	super.updateItem(item, empty);
-
-
-            	// Check if the cell is empty or the item is null
-            	if (empty || item == null) {
-                	setText(null);
-                	setGraphic(null);
-                	setMinHeight(Config.DB_ROW_HEIGHT_EMPTY);
-                	setMaxHeight(Config.DB_ROW_HEIGHT_EMPTY);
-                	setPrefHeight(Config.DB_ROW_HEIGHT_EMPTY);
-            	} else {
-                	setMinHeight(Config.DB_ROW_HEIGHT);
-                	setMaxHeight(Config.DB_ROW_HEIGHT);
-                	setPrefHeight(Config.DB_ROW_HEIGHT);
-
-
-					// Create or get the label to be displayed
-					Rental currentRental = getCurrentRental();
-
-
-					if ("po-number".equals(type)) {
-						topLabel.setText(currentRental.getPoNumber());
-
-					} else if ("interval".equals(type)) {
-						topLabel.textProperty().bind(
-								Bindings.concat(
-									currentRental.rentalDurationProperty().asString(),
-									" days"
-								)
-						);
+		poNumberColumn.setCellValueFactory(
+			new PropertyValueFactory<>("poNumber")
+		);
+	
+		poNumberColumn.setCellFactory(col -> new TableCell<>() {
+	
+			private final Label label = new Label();
+	
+			{
+				label.setWrapText(true);
+				label.setAlignment(Pos.CENTER);
+				label.setTextAlignment(TextAlignment.CENTER);
+	
+				// VERY IMPORTANT: bind label width to column width
+				label.maxWidthProperty().bind(col.widthProperty().subtract(10));
+			}
+	
+			@Override
+			protected void updateItem(String item, boolean empty) {
+				super.updateItem(item, empty);
+	
+				if (empty || getIndex() < 0 ||
+					getIndex() >= getTableView().getItems().size()) {
+	
+					setGraphic(null);
+					setText(null);
+					setMinHeight(Config.DB_ROW_HEIGHT_EMPTY);
+					setPrefHeight(Config.DB_ROW_HEIGHT_EMPTY);
+					setMaxHeight(Config.DB_ROW_HEIGHT_EMPTY);
+					return;
+				}
+	
+				Rental rental = getTableView().getItems().get(getIndex());
+	
+				String displayText = item; // default = PO number
+	
+				if (rental.isService()
+					&& rental.getService() != null
+					&& rental.getService().getReason() != null
+					&& !rental.getService().getReason().isBlank()) {
+						displayText = "\"" + rental.getService().getReason() + "\"";
 					}
+	
+				label.setText(smartWrap(displayText));
+				Node changeOut = buildChangeOutDecorator(rental);
 
-
-					// Enable line wrapping for the label
-					topLabel.setWrapText(true);
-
-					// Set the max width for the label to control when it wraps
-					topLabel.setMaxWidth(60); // Adjust this value as needed
-
-					// Keep the text centered both horizontally and vertically
-					topLabel.setTextAlignment(TextAlignment.CENTER);
-					topLabel.setAlignment(Pos.CENTER);
-					topLabel.setLineSpacing(-3);
-
-					// Apply VBox constraints
-					vBox.setVgrow(topLabel, Priority.NEVER); // Don't let the label expand vertically
-
-					// Optionally, apply Vgrow to other elements that shouldn't be pushed upward
-					vBox.setVgrow(vBox2, Priority.ALWAYS); // Ensure the other elements use the available space properly
-
-
-                	if ("x".equals(item)) {
-                    	displayDriverIconOnly(); // Show only the driver icon when value is "x"
-                	} else {
-                    	displayDriverWithIcon(item); // Show initials and icon for assigned drivers
-                	}
-            	}
-        	}
-
-
-        	// Method to display only the driver icon
-        	private void displayDriverIconOnly() {
-            	try {
-                	vBox.getChildren().clear();
-                	vBox2.getChildren().clear();
-                	vBox2.getChildren().add(imageView);
-                	vBox.getChildren().addAll(topLabel, vBox2);
-                	setGraphic(vBox);
-            	} catch (Exception e) {
-                	e.printStackTrace();  // Print the stack trace for debugging
-                	setGraphic(null); // Set graphic to null in case of an error
-            	}
-        	}
-
-
-        	// Method to display driver initials and icon
-        	private void displayDriverWithIcon(String driverInitials) {
-            	try {
-                	vBox.getChildren().clear();
-
-
-                	HBox hBox = new HBox();
-                	hBox.setSpacing(1);  // Space between initials and the icon
-                	hBox.setAlignment(Pos.BOTTOM_CENTER);  // Align icon at the bottom
-
-
-                	// Create a label for driver initials
-                	Label initialsLabel = new Label(driverInitials);
-                	initialsLabel.setTextFill(Color.BLACK); // Ensure text is visible
-                	initialsLabel.setTranslateX(3);
-					initialsLabel.setTranslateY(8);
-
-
-
-
-                	hBox.getChildren().addAll(initialsLabel, imageView);  // Add both to VBox
-                	vBox.getChildren().addAll(hBox, topLabel);
-                	setGraphic(vBox);
-            	} catch (Exception e) {
-                	e.printStackTrace(); // Print the stack trace for debugging
-                	setText(driverInitials); // Fallback to just initials
-                	setTextFill(Color.BLACK); // Ensure text is visible
-                	setGraphic(null); // Remove any graphic in case of an error
-            	}
-        	}
-
-
-        	private Rental getCurrentRental() {
-            	int index = getIndex();
-            	return (index >= 0 && index < dbTableView.getItems().size())
-                    	? dbTableView.getItems().get(index)
-                    	: null;
-        	}
-    	});
-    	driverComboBoxOpenOrClosed = "closed";
+				if (changeOut != null) {
+					HBox root = new HBox(1, changeOut, label);
+					root.setAlignment(Pos.CENTER_LEFT);
+					setGraphic(root);
+				} else {
+					setGraphic(label);
+				}
+				setText(null);
+	
+				setMinHeight(Config.DB_ROW_HEIGHT);
+				setPrefHeight(Config.DB_ROW_HEIGHT);
+				setMaxHeight(Config.DB_ROW_HEIGHT);
+				setAlignment(Pos.CENTER);
+			}
+		});
+	
+		return poNumberColumn;
 	}
-
-	public TableColumn<Rental, String> getDriverColumn(String driverColumnType){
-    	driverColumn.setCellValueFactory(new PropertyValueFactory<>("driver"));
-    	driverColumn.setPrefWidth(63);  // minimum is 63 for those combo boxes
-    	setClosedDriverColumn(driverColumnType);
-    	// System.out.println("Getting driver column for status: " + driverComboBoxOpenOrClosed);
-    	return driverColumn;
-	}
-
-
+	
+	
 	public TableColumn<Rental, String> getSelectColumn(){
     	selectColumn.setCellValueFactory(new PropertyValueFactory<>("deliveryTime"));
 
@@ -1165,8 +1100,42 @@ public class ColumnFactory {
 	}
 
 
+	private Node buildChangeOutDecorator(Rental rental) {
 
-
+		if (!rental.isService()
+			|| rental.getService() == null
+			|| rental.getService().getServiceType() == null) {
+			return null;
+		}
+	
+		String type = rental.getService().getServiceType();
+		if (!type.equals("Change Out") && !type.equals("Service Change Out")) {
+			return null;
+		}
+	
+		ImageView arrow = new ImageView(
+			getCachedImage("/images/arrow.png")
+		);
+		arrow.setFitWidth(10);
+		arrow.setFitHeight(10);
+		arrow.setPreserveRatio(true);
+	
+		HBox box = new HBox(3);
+		box.setAlignment(Pos.CENTER_LEFT);
+		box.getChildren().add(arrow);
+	
+		String newSerial = rental.getService().getNewLiftSerial();
+		if (newSerial != null && !newSerial.isBlank()) {
+			VBox serialStack = buildSerialStack(newSerial);
+			if (newSerial.length() == 6) {
+				serialStack.setTranslateY(3);
+			}
+			box.getChildren().add(serialStack);
+		}
+	
+		return box;
+	}
+	
 
 
 	public TableColumn<Rental, String> getAddressColumn(){
@@ -1197,6 +1166,47 @@ public class ColumnFactory {
 	public Label getLiftTypeLabel(){
     	return globalLiftTypeLabel;
 	}
+
+
+
+	private VBox buildSerialStack(String serialNumber) {
+		VBox vBox = new VBox();
+		vBox.setAlignment(Pos.TOP_CENTER);
+	
+		if (serialNumber == null || serialNumber.isEmpty()) {
+			return vBox;
+		}
+	
+		Font compactFont = Font.font("Segoe UI Semibold", 11.0);
+
+		for (int i = 0; i < serialNumber.length(); i++) {
+			char c = serialNumber.charAt(i);
+			Label charLabel = new Label(String.valueOf(c));
+			charLabel.setFont(compactFont);
+			charLabel.setStyle("-fx-padding: 1.5;");
+			charLabel.setTranslateX(-2);
+			vBox.getChildren().add(charLabel);
+		}
+	
+		int len = serialNumber.length();
+	
+		double translateY = -5.5;
+		double spacing = -10.0;
+	
+		if (len == 5) {
+			translateY += 3;
+		} else if (len == 4) {
+			translateY += 8;
+		} else if (len == 2) {
+			translateY += 15;
+		}
+	
+		vBox.setTranslateY(translateY);
+		vBox.setSpacing(spacing);
+	
+		return vBox;
+	}
+	
 
 
 	private void handleSelection(boolean isSelected, int index, String actionType) {
@@ -1335,21 +1345,21 @@ public class ColumnFactory {
 	}
 
 
-	public void loadExistingDrivers() {
-		String query = "SELECT driver FROM rental_items WHERE driver IS NOT NULL AND driver != 'x';";
-		try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-			 PreparedStatement preparedStatement = connection.prepareStatement(query);
-			 ResultSet resultSet = preparedStatement.executeQuery()) {
+	// public void loadExistingDrivers() {
+	// 	String query = "SELECT driver FROM rental_items WHERE driver IS NOT NULL AND driver != 'x';";
+	// 	try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
+	// 		 PreparedStatement preparedStatement = connection.prepareStatement(query);
+	// 		 ResultSet resultSet = preparedStatement.executeQuery()) {
 	
-			while (resultSet.next()) {
-				String driver = resultSet.getString("driver");
-				existingDrivers.add(driver);
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-	//	System.out.println("Loaded existing driver assignments and got: " + existingDrivers);
-	}
+	// 		while (resultSet.next()) {
+	// 			String driver = resultSet.getString("driver");
+	// 			existingDrivers.add(driver);
+	// 		}
+	// 	} catch (SQLException e) {
+	// 		e.printStackTrace();
+	// 	}
+	// //	System.out.println("Loaded existing driver assignments and got: " + existingDrivers);
+	// }
 	
 
 	private String getDaySuffix(int day) {
@@ -1878,8 +1888,54 @@ public class ColumnFactory {
 	
 		secondInProcessButton.setVisible(true);
 	}
+
+	private String smartWrap(String input) {
+		int len = input.length();
+		if (len <= MAX_LINE) return input;
 	
+		// ---------- PASS 1: punctuation break ----------
+		int bestBreak = -1;
+		int bestDiff = Integer.MAX_VALUE;
 	
+		for (int i = 0; i < len; i++) {
+			char c = input.charAt(i);
+			if (c == ' ' || c == '.' || c == '-') {
+				int left = i + 1;
+				int right = len - left;
+	
+				// reject only if either side > MAX_LINE
+				if (left <= MAX_LINE && right <= MAX_LINE) {
+					int diff = Math.abs(left - right);
+					if (diff < bestDiff) {
+						bestBreak = left;
+						bestDiff = diff;
+					}
+				}
+			}
+		}
+	
+		if (bestBreak != -1) {
+			return input.substring(0, bestBreak)
+				 + "\u200B"
+				 + input.substring(bestBreak);
+		}
+	
+		// ---------- PASS 2: hard breaks ----------
+		StringBuilder out = new StringBuilder();
+		int count = 0;
+	
+		for (int i = 0; i < len; i++) {
+			out.append(input.charAt(i));
+			count++;
+	
+			if (count >= MAX_LINE) {
+				out.append('\u200B');
+				count = 0;
+			}
+		}
+	
+		return out.toString();
+	}
 
 	private Image getCachedImage(String path) {
     	return imageCache.computeIfAbsent(path, p -> new Image(getClass().getResourceAsStream(p)));

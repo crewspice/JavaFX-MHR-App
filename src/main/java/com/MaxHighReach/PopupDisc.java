@@ -396,6 +396,7 @@ public class PopupDisc extends StackPane {
             if (!uniqueProximalNames.isEmpty()) {
                 Iterator<String> it = uniqueProximalNames.iterator();
                 String firstExtra = it.next(); // first proximal name
+                firstExtra = Config.CUSTOMER_NAME_MAP.getOrDefault(firstExtra, firstExtra).replace(".", "");
                 int remaining = uniqueProximalNames.size() - 1;
 
                 if (remaining > 0) {
@@ -456,7 +457,7 @@ public class PopupDisc extends StackPane {
             int maxChars = (line2 != null) ? line2.length() + 4 : 20; // fallback max
             String siteText = line1;
             if (line1 != null && line1.length() > maxChars) {
-                siteText = line1.substring(0, Math.max(0, maxChars - 1)) + "…";
+                siteText = line1.substring(0, Math.max(0, maxChars - 1)) + "\u2026";
             }
             addStreetAddressVisual(siteText, adjustedLabelCenterRad, totalAngle, 65, "site");
                     addStreetAddressVisual(rental.getAddressBlockTwo(), adjustedLabelCenterRad, totalAngle, 56, "street");
@@ -1061,7 +1062,7 @@ public class PopupDisc extends StackPane {
                 ri.auto_term, ro.site_name, ro.street_address, ro.city, ri.rental_item_id, ri.item_status, l.lift_type,
                 l.serial_number, ro.single_item_order, ri.rental_order_id, ro.longitude, ro.latitude,
                 site_contacts.first_name AS site_contact_name, site_contacts.phone_number AS site_contact_phone,
-                ri.driver, ri.driver_number, ri.driver_initial, ri.delivery_truck, ri.pick_up_truck, ri.delivery_time, 
+                ri.delivery_driver, ri.pick_up_driver, ri.delivery_truck, ri.pick_up_truck, ri.delivery_time, 
                 ri.invoice_composed
             FROM customers c
             JOIN rental_orders ro ON c.customer_id = ro.customer_id

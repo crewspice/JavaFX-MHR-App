@@ -2,9 +2,6 @@ package com.MaxHighReach;
 
 import java.time.LocalDate;
 
-import javafx.scene.Node;
-import javafx.scene.shape.Circle;
-
 /**
  * Holds persistent activity / menu state for a scene.
  *
@@ -35,23 +32,6 @@ public class ActivityState {
     /** Selected view mode (nullable) */
     public String selectedView;
 
-
-    /* =========================
-       UI REPRESENTATION STATE
-       ========================= */
-
-    /**
-     * Rendered status circle currently displayed in the menu.
-     * This is re-used on scene restore instead of rebuilding.
-     */
-    public Circle currentStatusCircle;
-
-    /**
-     * Rendered date node currently displayed (label / hbox / etc).
-     */
-    public Node currentDateNode;
-
-
     /* =========================
        SINGLETON INSTANCE
        ========================= */
@@ -74,8 +54,6 @@ public class ActivityState {
         current.selectedLift = null;
         current.selectedView = null;
 
-        current.currentStatusCircle = null;
-        current.currentDateNode = null;
     }
 
 
@@ -92,7 +70,7 @@ public class ActivityState {
     }
 
     public boolean hasDate() {
-        return selectedDate != null && currentDateNode != null;
+        return selectedDate != null;
     }
 
     public boolean hasLift() {
@@ -102,4 +80,23 @@ public class ActivityState {
     public boolean hasView() {
         return selectedView != null;
     }
+
+    public String toDebugString() {
+        return """
+            ActivityState
+            -------------
+            status   = %s
+            customer = %s
+            date     = %s
+            lift     = %s
+            view     = %s
+            """.formatted(
+                selectedStatus,
+                selectedCustomer,
+                selectedDate,
+                selectedLift != null ? selectedLift.getSerialNumber() : null,
+                selectedView
+            );
+    }
+    
 }

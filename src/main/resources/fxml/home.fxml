@@ -15,6 +15,7 @@
     <Button fx:id="scheduleDelivery" text="Schedule Delivery" onAction="#handleScheduleDelivery" layoutX="160" layoutY="100"/>
     <Button fx:id="utilization" text="Utilization" onAction="#handleUtilization" layoutX="50" layoutY="150"/>
     <Button fx:id="mapButton" text="Map" layoutX="160" layoutY="150" onAction="#handleMap"/>
+    <Button fx:id="devMapButton" text="ماب" layoutX="220" layoutY="150" onAction="#handleDevMap"/>
     <Label fx:id="sourceCodeLabel" text="Source Code" layoutX="200" layoutY="597" onMouseClicked="#handleSourceCodeClick"
        styleClass="source-code-label"/>
     <Button fx:id="backButton" text="Back" layoutX="270" layoutY="5" onAction="#handleBack"/>

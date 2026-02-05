@@ -135,17 +135,6 @@ public class MapController {
     private double hqLon = -104.93205143793766;    
     private double lastDragX = -1;
     private double lastDragY = -1;
-    // Number of random dots to generate
-    private static final int NUM_DOTS = 8;
-
-
-    // Compression ratio to fit the map into a smaller area within the transitioner
-    private static final double COMPRESSION_RATIO_X = 1; // Compress the map horizontally
-    private static final double COMPRESSION_RATIO_Y = 1; // Compress the map vertically
-
-    // Offsets for the entire map area (move Y down by 150, X to the left by 50)
-    private static final double OFFSET_X = 0; // Move left by 50 units
-    private static final double OFFSET_Y = 0; // Move down by 150 units
 
     private List<Rental> rentalsForCharting;
     
@@ -455,7 +444,6 @@ public class MapController {
                 plotRentalLocations();
                 updateTruckCoordinates();
                 updateTrucks(true);
-              //  reflectRoutingDataFromApi();
                 syncRoutesFromServer();
                 updateRoutePolylines();
                 prepareProximityMap();
@@ -498,54 +486,48 @@ public class MapController {
 */
 
 
-
     public void updateTruckCoordinates() {
+
         try {
-            URL url = new URL("http://5.78.73.173:8080/routes/fleet");
+            URL url = new URL("http://5.78.73.173:8080/routes/fleet-state");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
-    
-            BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+
+            BufferedReader in = new BufferedReader(
+                    new InputStreamReader(conn.getInputStream())
+            );
+
             StringBuilder response = new StringBuilder();
             String line;
-    
+
             while ((line = in.readLine()) != null) {
                 response.append(line);
             }
             in.close();
-    
-            JSONArray fleetArray = new JSONArray(response.toString());
-    
-            for (int i = 0; i < fleetArray.length(); i++) {
-                JSONObject truck = fleetArray.getJSONObject(i);
-                String name = truck.getString("name");
+
+            JSONObject fleetObj = new JSONObject(response.toString());
+
+            for (String key : fleetObj.keySet()) {
+
+                JSONObject truck = fleetObj.getJSONObject(key);
+
+                String fullName = truck.getString("name"); // "2006", "2016", etc
                 double lat = truck.getDouble("lat");
                 double lng = truck.getDouble("lng");
-    
-                // Normalize keys to match truckCoords' keys
-                switch (name) {
-                    case "2025":
-                        truckCoords.put("25", new double[]{lat, lng});
-                        break;
-                    case "2006":
-                        truckCoords.put("06", new double[]{lat, lng});
-                        break;
-                    case "2008":
-                        truckCoords.put("08", new double[]{lat, lng});
-                        break;
-                    case "2016":
-                        truckCoords.put("16", new double[]{lat, lng});
-                        break;
-                    case "2020":
-                        truckCoords.put("20", new double[]{lat, lng});
-                        break;
-                }
+
+                // keep prod globals using YY keys
+                String yy = fullName.length() >= 2
+                        ? fullName.substring(fullName.length() - 2)
+                        : fullName;
+
+                truckCoords.put(yy, new double[]{lat, lng});
             }
-       
+
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
     
     
     public void loadRentalDataFromAPI() {
@@ -815,336 +797,6 @@ public class MapController {
         }
     }
 
-    /* FAZING OUT
-    private void loadRentalDataFromSQL() {
-        // SQL query to get rental data with the new filters
-        // OBFUSCATE_OFF
-        String query = """
-            SELECT ro.customer_id, c.customer_name, ri.item_delivery_date, ri.item_call_off_date, ro.po_number,
-                ordered_contacts.first_name AS ordered_contact_name, ordered_contacts.phone_number AS ordered_contact_phone,
-                ri.auto_term, ro.site_name, ro.street_address, ro.city, ri.rental_item_id, l.lift_type,
-                l.serial_number, ro.single_item_order, ri.rental_order_id, ro.longitude, ro.latitude, ri.item_status,
-                site_contacts.first_name AS site_contact_name, site_contacts.phone_number AS site_contact_phone
-            FROM customers c
-            JOIN rental_orders ro ON c.customer_id = ro.customer_id
-            JOIN rental_items ri ON ro.rental_order_id = ri.rental_order_id
-            JOIN lifts l ON ri.lift_id = l.lift_id
-            LEFT JOIN contacts AS ordered_contacts ON ri.ordered_contact_id = ordered_contacts.contact_id
-            LEFT JOIN contacts AS site_contacts ON ri.site_contact_id = site_contacts.contact_id
-            WHERE (ri.item_status = 'Called Off')
-            OR (ri.item_status = 'Upcoming')
-            AND ro.latitude > 0
-            AND ro.longitude < 0
-        """;
-        // OBFUSCATE_ON
-    
-        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-            PreparedStatement preparedStatement = connection.prepareStatement(query);
-            ResultSet rs = preparedStatement.executeQuery()) {
-    
-            rentalsForCharting = new ArrayList<>();
-    
-            // Process each result row
-            while (rs.next()) {
-                String customerId = rs.getString("customer_id");
-                String name = rs.getString("customer_name");
-                String deliveryDate = rs.getString("item_delivery_date");
-                String callOffDate = rs.getString("item_call_off_date");
-                String poNumber = rs.getString("po_number");
-                String orderedByName = rs.getString("ordered_contact_name");
-                String orderedByPhone = rs.getString("ordered_contact_phone");
-                boolean autoTerm = rs.getBoolean("auto_term");
-                String addressBlockOne = rs.getString("site_name");
-                String addressBlockTwo = rs.getString("street_address");
-                String addressBlockThree = rs.getString("city");
-                String liftType = rs.getString("lift_type");
-                int rentalItemId = rs.getInt("rental_item_id");
-                String serialNumber = rs.getString("serial_number");
-                boolean singleItemOrder = rs.getBoolean("single_item_order");
-                int rentalOrderId = rs.getInt("rental_order_id");
-                String siteContactName = rs.getString("site_contact_name");
-                String siteContactPhone = rs.getString("site_contact_phone");
-                double latitude = rs.getDouble("latitude");
-                double longitude = rs.getDouble("longitude");
-                String status = rs.getString("item_status");
-    
-                // Create Rental objects for each row and add them to the list
-                rentalsForCharting.add(new Rental(customerId, name, deliveryDate, callOffDate, poNumber,
-                        orderedByName, orderedByPhone, autoTerm, addressBlockOne, addressBlockTwo,
-                        addressBlockThree, rentalItemId, serialNumber, singleItemOrder, rentalOrderId,
-                        siteContactName, siteContactPhone, latitude, longitude, liftType, status));
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException("Error loading rental data", e);
-        }
-    }
-    
-    private void syncRoutingToDB() {
-        // OBFUSCATE_OFF
-        String queryUpdateWithTruck = """
-            UPDATE rental_items
-            SET driver_initial = ?, driver_number = ?, driver = ?, delivery_truck = ?
-            WHERE rental_item_id = ?
-        """;
-
-        String queryUpdateWithoutTruck = """
-            UPDATE rental_items
-            SET driver_initial = ?, driver_number = ?, driver = ?, delivery_truck = NULL
-            WHERE rental_item_id = ?
-        """;
-
-        String queryClearUnassigned = """
-            UPDATE rental_items
-            SET driver_initial = NULL, driver_number = 0, driver = NULL, delivery_truck = NULL
-            WHERE rental_item_id NOT IN (%s)
-        """;
-
-        // Services equivalents (use service_id and truck column)
-        String queryUpdateServiceWithTruck = """
-            UPDATE services
-            SET driver_initial = ?, driver_number = ?, driver = ?, truck = ?
-            WHERE service_id = ?
-        """;
-
-        String queryUpdateServiceWithoutTruck = """
-            UPDATE services
-            SET driver_initial = ?, driver_number = ?, driver = ?, truck = NULL
-            WHERE service_id = ?
-        """;
-
-        String queryClearUnassignedServices = """
-            UPDATE services
-            SET driver_initial = NULL, driver_number = 0, driver = NULL, truck = NULL
-            WHERE service_id NOT IN (%s)
-        """;
-        // OBFUSCATE_ON
-
-        try (Connection connection = DriverManager.getConnection(Config.DB_URL, Config.DB_USR, Config.DB_PSWD);
-            PreparedStatement psWithTruck = connection.prepareStatement(queryUpdateWithTruck);
-            PreparedStatement psWithoutTruck = connection.prepareStatement(queryUpdateWithoutTruck);
-            PreparedStatement psWithTruckService = connection.prepareStatement(queryUpdateServiceWithTruck);
-            PreparedStatement psWithoutTruckService = connection.prepareStatement(queryUpdateServiceWithoutTruck)) {
-
-            connection.setAutoCommit(false);
-
-            List<Integer> allAssignedRentalIds = new ArrayList<>();
-            List<Integer> allAssignedServiceIds = new ArrayList<>();
-
-            for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
-                String routeKey = entry.getKey();
-                List<Rental> rentals = entry.getValue();
-                String driverInitial = routeAssignments.get(routeKey);
-                boolean hasTruck = false;
-                String assignedTruckId = null;
-
-                for (Map.Entry<String, String> truckEntry : truckAssignments.entrySet()) {
-                    if (truckEntry.getValue().equals(routeKey)) {
-                        hasTruck = true;
-                        assignedTruckId = truckEntry.getKey();
-                        break;
-                    }
-                }
-
-                String truckString = assignedTruckId;
-                int offset = hasTruck ? 0 : 1;
-
-                for (int i = 0; i < rentals.size(); i++) {
-                    Rental rental = rentals.get(i);
-
-                    int recordId;
-                    boolean isService = rental.isService();
-                    if (isService) {
-                        // service_id comes from rental.getService().getId()
-                        recordId = rental.getService().getServiceId();
-                    } else {
-                        recordId = rental.getRentalItemId();
-                    }
-
-                    // 🚫 Skip "ghost" entries where id == 0
-                    if (recordId == 0) continue;
-
-                    int driverNumber = i + offset;
-                    String driverFull = (driverInitial != null) ? driverInitial + driverNumber : null;
-
-                    if (isService) {
-                        if (hasTruck) {
-                            psWithTruckService.setString(1, driverInitial);
-                            psWithTruckService.setInt(2, driverNumber);
-                            psWithTruckService.setString(3, driverFull);
-                            psWithTruckService.setString(4, truckString);
-                            psWithTruckService.setInt(5, recordId);
-                            psWithTruckService.addBatch();
-                        } else {
-                            psWithoutTruckService.setString(1, driverInitial);
-                            psWithoutTruckService.setInt(2, driverNumber);
-                            psWithoutTruckService.setString(3, driverFull);
-                            psWithoutTruckService.setInt(4, recordId);
-                            psWithoutTruckService.addBatch();
-                        }
-                        allAssignedServiceIds.add(recordId);
-                    } else {
-                        if (hasTruck) {
-                            psWithTruck.setString(1, driverInitial);
-                            psWithTruck.setInt(2, driverNumber);
-                            psWithTruck.setString(3, driverFull);
-                            psWithTruck.setString(4, truckString);
-                            psWithTruck.setInt(5, recordId);
-                            psWithTruck.addBatch();
-                        } else {
-                            psWithoutTruck.setString(1, driverInitial);
-                            psWithoutTruck.setInt(2, driverNumber);
-                            psWithoutTruck.setString(3, driverFull);
-                            psWithoutTruck.setInt(4, recordId);
-                            psWithoutTruck.addBatch();
-                        }
-                        allAssignedRentalIds.add(recordId);
-                    }
-                }
-            }
-
-            // Execute all batches
-            psWithTruck.executeBatch();
-            psWithoutTruck.executeBatch();
-            psWithTruckService.executeBatch();
-            psWithoutTruckService.executeBatch();
-
-            // Clear unassigned rentals
-            if (!allAssignedRentalIds.isEmpty()) {
-                String inClause = allAssignedRentalIds.stream()
-                        .map(String::valueOf)
-                        .collect(Collectors.joining(","));
-                String finalClearQuery = String.format(queryClearUnassigned, inClause);
-
-                try (Statement clearStatement = connection.createStatement()) {
-                    clearStatement.executeUpdate(finalClearQuery);
-                }
-            }
-
-            // Clear unassigned services
-            if (!allAssignedServiceIds.isEmpty()) {
-                String inClauseService = allAssignedServiceIds.stream()
-                        .map(String::valueOf)
-                        .collect(Collectors.joining(","));
-                String finalClearServiceQuery = String.format(queryClearUnassignedServices, inClauseService);
-
-                try (Statement clearStatement = connection.createStatement()) {
-                    clearStatement.executeUpdate(finalClearServiceQuery);
-                }
-            }
-
-            connection.commit();
-
-        } catch (SQLException e) {
-            e.printStackTrace(); // or use a logger
-        }
-      //  sendRoutingToRedisAPI();
-    }
-
-    
-    private void sendRoutingToRedisAPI() {   
-        try {
-            List<RoutingRental> routingItems = new ArrayList<>();
-    
-            for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
-                String routeKey = entry.getKey();
-                List<Rental> rentals = entry.getValue();
-    
-                String driverInitial = routeAssignments.get(routeKey);   
-                String assignedTruck = truckAssignments.entrySet().stream()
-                        .filter(e -> e.getValue().equals(routeKey))
-                        .map(Map.Entry::getKey)
-                        .findFirst()
-                        .orElse(null);
-    
-                int offset = (assignedTruck != null) ? 0 : 1;
-    
-                for (int i = 0; i < rentals.size(); i++) {
-                    Rental rental = rentals.get(i);
-                    if (rental.getRentalItemId() == 0) {
-                        continue; // skip invalid rental
-                    }
-                
-                
-                    int driverNumber = i + offset;
-                
-                
-                    String stopType;
-                    int id;
-                    if (rental.isService()) {
-                        stopType = "SERVICE";
-                        id = rental.getService().getServiceId();
-                    } else {
-                        stopType = "RENTAL";
-                        id = rental.getRentalItemId();
-                    }
-                
-                
-                    RoutingRental dto = new RoutingRental(
-                            id,
-                            rental.getRentalOrderId(),
-                            stopType,
-                            Config.CUSTOMER_NAME_MAP.getOrDefault(rental.getName(), rental.getName()),
-                            rental.getAddressBlockOne(),
-                            rental.getAddressBlockTwo(),
-                            rental.getAddressBlockThree(),
-                            rental.getLiftType(),
-                            rental.getDeliveryTime(),
-                            rental.getLatitude(),
-                            rental.getLongitude(),
-                            driverInitial,
-                            driverNumber,
-                            assignedTruck, 
-                            rental.getOrderedByName(),
-                            rental.getOrderedByPhone(),
-                            rental.getSiteContactName(),
-                            rental.getSiteContactPhone(),
-                            rental.getNotes(),
-                            assignedSeconds
-                    );
-
-                    System.out.println("built RoutingRental and truck is: " + assignedTruck);
-
-                    if (rental.isService()) {
-                        dto.setServiceType(rental.getService().getServiceType());
-                        dto.setServiceDate(rental.getDeliveryDate());
-                        dto.setReason(rental.getService().getReason());
-                    
-                        // Conditional extra properties
-                        String serviceType = rental.getService().getServiceType();
-                        if ("Move".equalsIgnoreCase(serviceType)) {
-                            dto.setNewSiteName(rental.getService().getNewSiteName());
-                            dto.setNewStreetAddress(rental.getService().getNewStreetAddress());
-                            dto.setNewCity(rental.getService().getNewCity());
-                        } else if ("Change Out".equalsIgnoreCase(serviceType)) {
-                            dto.setNewLiftType(rental.getService().getNewLiftType());
-                        }
-                    } else {
-                        dto.setStatus(rental.getStatus());
-                        dto.setDeliveryDate(rental.getDeliveryDate());
-                    }
-                    routingItems.add(dto);
-                }
-                
-            }
-    
-            ObjectMapper mapper = new ObjectMapper();
-            String requestBody = mapper.writeValueAsString(routingItems);
-    
-            HttpClient client = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("http://5.78.73.173:8080/routes/update"))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                    .build();
-    
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            // optionally log response.body()
-        } catch (Exception e) {
-            System.err.println("Exception occurred while sending routing data:");
-            e.printStackTrace();
-        }
-    }
-    */
     private void sendAddStopToServer(Rental rental, String driverInitial, String truck, List<Rental> route, 
                                     int assignedSeconds) {
         try {
@@ -1537,7 +1189,7 @@ public class MapController {
                             Rental r = localRentalsList.get(i);
                             // System.out.println("   ❌ Removing local-only rental: " + r.getRentalItemId() +
                             //                 " (isService=" + r.isService() + ")");
-                            removeFromRoute(r, i, getRouteIndex(localKey), "sync", false);
+                            removeFromRoute(r, i, getRouteIndex(localKey), "sync", true);
                         }
 
                         localRentalsList.clear(); // fully empty the list in memory
@@ -1624,7 +1276,7 @@ public class MapController {
                         //     System.out.println("id--" + ren);
                         // }
 
-                        removeFromRoute(r, i, getRouteIndex(localKey), "sync", false);
+                        removeFromRoute(r, i, getRouteIndex(localKey), "sync", true);
                         i--; // adjust after removal
                         // System.out.println("   ✅ Removed rental " + r.getRentalItemId());
                     }
@@ -1997,7 +1649,7 @@ public class MapController {
             }
             dotShape = octagon;
             dotShape.setFill(Color.RED);
-        } else if ("Picked Up".equals(status)) {
+        } else if ("Picked Up".equals(status) || "Completed".equals(status)) {
             Circle circle = new Circle(0, 0, 7);
             circle.setFill(Color.BLACK);
             dotShape = circle;
@@ -4981,79 +4633,9 @@ public class MapController {
             // System.out.println(routes);
 
             try {
-            syncRoutesFromServer();
-            Map<String, Double> currentProportions = getProgressReport("geometric");
-            loadRentalDataFromAPI();
-/*
-            // === NEW: Handle completed stops first ===
-            List<Rental> completedRentals = findCompletedStops();
-            List<Rental> rentalsToRemoveFromCharting = new ArrayList<>();
-
-            // System.out.println("🔎 Found " + completedRentals.size() + " completed rentals to process.");
-
-            for (Rental rental : completedRentals) {
-                // System.out.println("➡️ Checking completed rental: ID=" + rental.getRentalItemId()
-                //         + " | Status=" + rental.getStatus()
-                //         + " | Type=" + (rental.isService() ? "SERVICE" : "RENTAL"));
-
-                // boolean foundInRoute = false;
-
-                for (Map.Entry<String, List<Rental>> entry : routes.entrySet()) {
-                    List<Rental> rentals = entry.getValue();
-                    int index = rentals.indexOf(rental);
-
-                    if (index != -1) {
-                        // foundInRoute = true;
-                        int routeIndex = getRouteIndex(entry.getKey());
-
-                        // System.out.println("🧭 Found rental in route: " + entry.getKey()
-                        //         + " (routeIndex=" + routeIndex + ", listIndex=" + index + ")");
-
-                        removeFromRoute(rental, index, routeIndex);
-                        // System.out.println("❌ Removed rental " + rental.getRentalItemId() + " from route " + entry.getKey());
-
-                        if (rental.getStatus().equals("Upcoming")) {
-                            // System.out.println("⏩ Rental was 'Upcoming' — skipping visual cargo change.");
-                        } else if (rental.getStatus().equals("Called Off")) {
-                            // System.out.println("🚚 Rental was 'Called Off' — applying visual cargo 'picking-up'.");
-                            editVisualCargo(rental, routeIndex, "picking-up");
-                        }
-
-                        break; // Rental is only in one route
-                    }
-                }
-
-                // if (!foundInRoute) {
-                //     System.out.println("⚠️ Rental ID " + rental.getRentalItemId() + " not found in any current route.");
-                // }
-
-                rentalsToRemoveFromCharting.add(rental);
-            }
-
-            // System.out.println("✅ Finished processing completed rentals. Total removed from charting: "
-            //         + rentalsToRemoveFromCharting.size());
-
-                
+                syncRoutesFromServer();
+                Map<String, Double> currentProportions = getProgressReport("geometric");
                 loadRentalDataFromAPI();
-
-                // ✅ Safely remove afterward
-                for (Rental rentalToRemove : rentalsToRemoveFromCharting) {
-                    int idToRemove = rentalToRemove.getRentalItemId();
-
-                    Rental match = null;
-                    for (Rental rental : rentalsForCharting) {
-                        if (rental.getRentalItemId() == idToRemove) {
-                            match = rental;
-                            break;
-                        }
-                    }
-
-                    if (match != null) {
-                        rentalsForCharting.remove(match);
-                    }
-                }   */
-
-
                 updateRentalLocations();
                 prepareProximityMap();
     
@@ -5231,11 +4813,12 @@ public class MapController {
     
 
     // Hybrid inputs: real driver progress and linear ETA simulation
+    // 
+    // api call routes/fetch could be eliminated if we could store departed time in sync()'s fetch
     public Map<String, Double> getProgressReport(String type) {
         Map<String, Double> proportions = new HashMap<>();
 
         try {
-            new URL("http://5.78.73.173:8080/routes/fleet/refresh").openConnection().getInputStream().close();
             updateTruckCoordinates();
 
             URL url = new URL("http://5.78.73.173:8080/routes/fetch");

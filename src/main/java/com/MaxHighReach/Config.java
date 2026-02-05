@@ -389,7 +389,8 @@ public class Config {
         Map.entry("Denver Tech Pro", "DEN Tech Pro"),
 
         Map.entry("Elevated Electrical Contractors", "Elevated Elec."),
-        Map.entry("A Modern Garage Door", "Modern Garage")
+        Map.entry("A Modern Garage Door", "Modern Garage"),
+        Map.entry("Orion Space Solutions", "Orion")
     );
 
     public static String simplifyCustomerName(String fullName) {

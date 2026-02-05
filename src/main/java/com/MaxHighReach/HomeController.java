@@ -157,6 +157,11 @@ public class HomeController extends BaseController {
     }
 
     @FXML
+    private void handleDevMap() {
+        MaxReachPro.getInstance().devExpandStage();
+    }
+
+    @FXML
     private void handleSourceCodeClick(MouseEvent event) {
         try {
             URI uri = new URI("https://github.com/crewspice/Max-High-Reach/tree/main");

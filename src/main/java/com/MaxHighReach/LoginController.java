@@ -81,6 +81,8 @@ public class LoginController extends BaseController {
         });
 
         setupPaintbrushButton();
+        new Thread(() -> MaxReachPro.loadCustomers(false)).start();
+
     }
     
     private void drawColorSettingElements() {
@@ -352,6 +354,10 @@ public class LoginController extends BaseController {
 
     @FXML
     private void handleLogin(ActionEvent event) {
+        System.out.println(
+            MaxReachPro.class.getResource("/fxml/home.fxml")
+        );
+        
         String enteredName = nameField.getText().trim();  // Get and trim the input
 
         // Set user if a match is found in the array
